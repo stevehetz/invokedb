@@ -1,0 +1,24 @@
+<div class="custom-filter" :class="{loading: loading}">
+    <div ref="menu_toggle" class="custom-filter-type">
+        <span class="active-filter-type"
+              v-html="selected_type ? filter_types[selected_type] : ''">
+        </span>
+    </div>
+    <div ref="menu"
+         class="grid-filter-type__menu">
+        <div
+            class="menu__item"
+            v-for="(value, key, index) in filter_types"
+            v-if="selected_type !== key"
+            @click="change_type(key)"
+            :key="key">
+            {{ value }}
+        </div>
+    </div>
+    <input
+        type="text"
+        class="custom-filter-text"
+        :value="input_value"
+        @keyup="valueChanged($event)">
+    <span v-loading="true" v-if="loading" class="filter-spinner"></span>
+</div>

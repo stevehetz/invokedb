@@ -1,0 +1,28 @@
+{
+	"editor.formatOnSave": true,
+	"[typescript]": {
+		"editor.tabSize": 4,
+		"editor.insertSpaces": false // Use tabs instead of spaces
+	},
+	"[scss]": {
+		"editor.tabSize": 4,
+		"editor.insertSpaces": false // Use tabs instead of spaces
+	},
+	"[css]": {
+		"editor.tabSize": 4,
+		"editor.insertSpaces": false // Use tabs instead of spaces
+	},
+	"[html]": {
+		"editor.tabSize": 4,
+		"editor.insertSpaces": false, // Use tabs instead of spaces
+		"editor.defaultFormatter": "vscode.html-language-features"
+	},
+	"[vue]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"editor.formatOnSave": true,
+		"editor.tabSize": 4,
+		"editor.insertSpaces": false // Use tabs instead of spaces
+	},
+	"html.format.wrapAttributes": "force-aligned",
+	"explorer.compactFolders": false
+}

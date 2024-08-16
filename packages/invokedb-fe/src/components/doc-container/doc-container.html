@@ -1,0 +1,8 @@
+<div class="doc-container">
+    <component
+        v-bind:is="web_file_type ? 'h-' + web_file_type : 'empty'"
+        :file="file"
+        :file_directory_id="file_directory_id"
+        :web_file_type="web_file_type"
+    ></component>
+</div>

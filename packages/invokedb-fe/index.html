@@ -1,14 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <link rel="icon" href="/favicon.ico">
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vite App</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon"
+        href="/favicon.ico">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+  <title>InvokeDB</title>
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.13.1/css/all.min.css" />
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@9.12.0/build/styles/atelier-plateau-dark.min.css" />
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.2/highlight.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <style>
+    html {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      height: 100%;
+      font-family: 'Open Sans', 'Avenir', Helvetica, Arial, sans-serif;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+    }
+
+    .app-loader {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .app-loader .spinner {
+      font-size: 100px;
+      color: #484ec0;
+      margin-bottom: 35px;
+    }
+
+    .app-loader .loading-text {
+      font-size: 30px;
+      color: #484ec0;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app"></div>
+  <script type="module"
+          src="/src/main.js"></script>
+</body>
+
 </html>

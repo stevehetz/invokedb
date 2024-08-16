@@ -1,0 +1,97 @@
+<div class="api-dialog">
+   <div class="api-dialog-section">
+      <h3 class="api-dialog-section-title no-highlight">Get</h3>
+      <div class="url-block">
+         <span class="method get no-highlight">GET</span>
+         <input class="url"
+                :value="get_url"
+                readonly />
+         <span class="copy no-highlight"
+               @click="copy_to_clipboard('get', get_url)"><i class="fa fa-copy"></i></span>
+         <div class="copied-popup"
+              v-if="show_copied_popup.get">
+            copied!
+         </div>
+      </div>
+      <span class="go-to-doc-link"
+            @click="go_to_doc_link('get')">
+         Full <span class="keyword get">Get</span> Documentation <i class="fa fa-arrow-right"></i>
+      </span>
+   </div>
+   <div class="api-dialog-section">
+      <h3 class="api-dialog-section-title no-highlight">Search</h3>
+      <div class="copied-popup"
+           v-if="show_copied_popup.search">
+         copied!
+      </div>
+      <div class="url-block">
+         <span class="method post no-highlight">POST</span>
+         <input class="url"
+                :value="search_url"
+                readonly />
+         <span class="copy no-highlight"
+               @click="copy_to_clipboard('search', search_url)"><i class="fa fa-copy"></i></span>
+      </div>
+      <span class="go-to-doc-link no-highlight"
+            @click="go_to_doc_link('search')">
+         Full <span class="keyword post">Search</span> Documentation <i class="fa fa-arrow-right"></i>
+      </span>
+   </div>
+   <div class="api-dialog-section">
+      <h3 class="api-dialog-section-title no-highlight">Create</h3>
+      <div class="copied-popup"
+           v-if="show_copied_popup.create">
+         copied!
+      </div>
+      <div class="url-block">
+         <span class="method post no-highlight">POST</span>
+         <input class="url"
+                :value="create_url"
+                readonly />
+         <span class="copy no-highlight"
+               @click="copy_to_clipboard('create', create_url)"><i class="fa fa-copy"></i></span>
+      </div>
+      <span class="go-to-doc-link no-highlight"
+            @click="go_to_doc_link('create')">
+         Full <span class="keyword post">Create</span> Documentation <i class="fa fa-arrow-right"></i>
+      </span>
+   </div>
+   <div class="api-dialog-section">
+      <h3 class="api-dialog-section-title no-highlight">Update</h3>
+      <div class="copied-popup"
+           v-if="show_copied_popup.update">
+         copied!
+      </div>
+      <div class="url-block">
+         <span class="method put no-highlight">PUT</span>
+         <input class="url"
+                :value="update_url"
+                readonly />
+         <span class="copy no-highlight"
+               @click="copy_to_clipboard('update', update_url)"><i class="fa fa-copy"></i></span>
+      </div>
+      <span class="go-to-doc-link no-highlight"
+            @click="go_to_doc_link('update')">
+         Full <span class="keyword put">Update</span> Documentation <i class="fa fa-arrow-right"></i>
+      </span>
+   </div>
+   <div class="api-dialog-section">
+      <h3 class="api-dialog-section-title no-highlight">Delete</h3>
+      <div class="copied-popup"
+           v-if="show_copied_popup.delete">
+         copied!
+      </div>
+      <div class="url-block">
+         <span class="method post no-highlight">POST</span>
+         <input class="url"
+                :value="delete_url"
+                readonly />
+         <span class="copy no-highlight"
+               @click="copy_to_clipboard('delete', delete_url)"><i class="fa fa-copy"></i></span>
+      </div>
+      <span class="go-to-doc-link no-highlight"
+            @click="go_to_doc_link('delete')">
+         Full <span class="keyword delete">Delete</span> Documentation <i class="fa fa-arrow-right"></i>
+      </span>
+   </div>
+</div>

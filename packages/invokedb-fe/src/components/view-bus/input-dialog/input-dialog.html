@@ -1,0 +1,20 @@
+<div class="dialog input-dialog">
+    <el-dialog
+        :title="title"
+        :visible.sync="dialog_visible"
+        width="500px"
+        @open="on_open">
+        <p>{{ message }}</p>
+        <el-input
+            ref="text_input"
+            v-bind:placeholder="placeholder"
+            v-model="input_text"
+            @keyup.enter.native="confirm_handler"
+        >
+        </el-input>
+        <span slot="footer" class="dialog-footer">
+            <el-button @click="cancel_handler">Cancel</el-button>
+            <el-button :disabled="processing" type="primary" @click="confirm_handler">Confirm</el-button>
+        </span>
+    </el-dialog>
+</div>

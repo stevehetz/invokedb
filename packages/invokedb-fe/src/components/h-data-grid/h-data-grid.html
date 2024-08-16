@@ -1,0 +1,120 @@
+<div class="h-data-grid"
+    :class="{ 'edit-column-mode': edit_column_mode }">
+    <div class="top">
+        <div class="flex-3-col">
+            <div class="left">
+                <div class="controls">
+                    <!--<div class="control-box">
+                        <label class="controls-label">
+                            File:
+                        </label>
+                        <el-button type="text" class="purple" @click="upload_clicked">
+                            <i class="fa fa-upload"></i>
+                            <span>Upload</span>
+                        </el-button>
+                    </div>-->
+                    <div class="control-box">
+                        <div class="commit-controls">
+                            <el-button
+                                type="text"
+                                class="white"
+                                @click="cancel_clicked"
+                                :disabled="saving_columns || (!add_row_mode && !edit_column_mode && !show_delete_rows || table_lock)">
+                                <i class="fa fa-times"></i>
+                            </el-button>
+                            <el-button
+                                type="text"
+                                class="red"
+                                @click="delete_rows_clicked"
+                                :disabled="saving_columns || (!show_delete_rows || edit_column_mode || table_lock)">
+                                <i class="fa fa-trash"></i>
+                            </el-button>
+                            <el-button
+                                type="text"
+                                class="blue"
+                                @click="save_clicked"
+                                :disabled="saving_columns ||
+                                    (!add_row_mode 
+                                    && !edit_column_mode
+                                    || (edit_column_mode && edit_column_count === 0 && delete_columns.length === 0)
+                                    || table_lock)">
+                                <i class="fa fa-save"></i>
+                            </el-button>
+                        </div>
+                        <div class="edit-controls">
+                            <el-button
+                                type="text"
+                                class="purple add-column-button"
+                                @click="add_column_clicked"
+                                :disabled="saving_columns || disable_add_column || table_lock"
+                                v-if="edit_column_mode && !add_row_mode">
+                                <i class="fa fa-plus-square"></i>
+                                <span>Add Column</span>
+                            </el-button>
+                            <el-button
+                                type="text"
+                                class="green edit-column-button"
+                                @click="edit_columns_clicked"
+                                v-if="!edit_column_mode"
+                                :disabled="saving_columns || add_row_mode || table_lock">
+                                <i class="fa fa-pencil-alt"></i>
+                                <span>Edit Columns</span>
+                            </el-button>
+                            <el-button
+                                type="text"
+                                class="orange"
+                                @click="add_row_clicked"
+                                :disabled="saving_columns || edit_column_mode || table_lock">
+                                <i class="fa fa-plus-square"></i>
+                                <span>Add Row</span>
+                            </el-button>
+                            <el-button type="text"
+                                class="blue"
+                                @click="refresh_clicked"
+                                :disabled="saving_columns || edit_column_mode || add_row_mode || table_lock">
+                                <i class="fa fa-sync-alt"></i>
+                                <span>Refresh</span>
+                            </el-button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="middle">
+                <div class="top-bar-output" v-if="top_bar_show">
+                    <span v-html="top_bar_message"></span>
+                </div>
+            </div>
+            <div class="right">
+                <div class="info">
+                    <p>
+                        Total rows:
+                        {{
+                            total_rows_with_row_filter !== null
+                                ? total_rows_with_row_filter.toLocaleString()
+                                : total_rows.toLocaleString()
+                        }}
+                    </p>
+                    <div class="api-button" >
+                        <el-button type="text" @click="api_btn_clicked" :disabled="table_lock">
+                            <i class="fa fa-clone"></i>
+                            <span>API</span>
+                        </el-button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="bottom">
+        <grid-toast ref="grid_toast"></grid-toast>
+        <div class="column-overlay" v-if="saving_columns"></div>
+        <div class="grid-overlay" v-if="saving_columns || processing"></div>
+        <div class="grid-processing-overlay" v-if="processing">
+            <i class="fa fa-sync fa-spin"></i>
+            <span>Table is updating...</span>
+        </div>
+        <ag-grid-vue
+            class="ag-grid-wrapper"
+            :gridOptions="grid_options">
+        </ag-grid-vue>
+    </div>
+</div>

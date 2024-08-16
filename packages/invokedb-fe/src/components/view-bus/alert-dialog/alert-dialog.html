@@ -1,0 +1,12 @@
+<div class="dialog alert-dialog">
+    <el-dialog
+        :title="title"
+        :visible.sync="dialog_visible"
+        @close="close_handler"
+        width="500px">
+        <span>{{ message }}</span>
+        <span slot="footer" class="dialog-footer">
+            <el-button type="primary" @click="dialog_visible = false;">Ok</el-button>
+        </span>
+    </el-dialog>
+</div>

@@ -1,0 +1,44 @@
+<template>
+    <div class="h-tree">
+        <div class="left">
+            <div class="h-tree-controls">
+                <el-menu ref="menu"
+                         class="file-directory-menu"
+                         mode="horizontal"
+                         menu-trigger="click"
+                         @select="addTreeItem">
+                    <el-submenu index="1"
+                                popper-class="h-tree-menu-popper menu-dropdown-popper">
+                        <template #title>
+                            <i class="title-icon fa fa-plus"></i>
+                        </template>
+                        <el-menu-item index="data-grid"><i class="fa fa-table"></i> Empty Table</el-menu-item>
+                        <!--<el-menu-item index="dir"><i class="fa fa-folder"></i> Directory</el-menu-item>-->
+                        <el-menu-item index="upload"><i class="fa fa-upload"></i> Table from CSV</el-menu-item>
+                    </el-submenu>
+                </el-menu>
+                <div class="manage-items"
+                     :class="{ active: managed.length > 0 }">
+                    <div class="manage-item remove-items"
+                         @click="removeTreeItems">
+                        <i class="remove-item-icon fa fa-trash"></i>
+                    </div>
+                    <div class="manage-item edit-items"
+                         @click="editTreeItems">
+                        <i class="remove-item-icon fa fa-edit"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="right">
+            <div class="empty-db-message"
+                 v-if="treeItems.length <= 1">
+                <p>Click the <i class="fa fa-plus"></i> to add</p>
+                <p>a table</p>
+            </div>
+            <div ref="tree"
+                 class="tree-wrapper"></div>
+        </div>
+        <div class="tree-background"></div>
+    </div>
+</template>

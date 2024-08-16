@@ -1,0 +1,32 @@
+<div class="page home-page">
+    <div class="page-overlay hidden">
+        <router-view name="page_overlay"></router-view>
+    </div>
+    <div class="left-pane split split-horizontal">
+        <h-tree ref="h_tree"
+                :treeItems="tree_items"
+                @tree_item_selected="tree_item_selected"
+                @add_tree_item="add_tree_item"
+                @remove_tree_items="remove_tree_items"
+                @edit_tree_items="edit_tree_items"
+                @move_tree_item="move_tree_item">
+        </h-tree>
+    </div>
+    <div class="right-pane split split-horizontal">
+        <el-tabs v-model="active_tab_name"
+                 type="card"
+                 v-if="tabs.length > 0"
+                 @tab-remove="remove_tab"
+                 @tab-click="tab_clicked"
+                 closable>
+            <el-tab-pane v-for="item in tabs"
+                         :key="item.id"
+                         :label="item.name"
+                         :name="item.name">
+                <doc-container :file="item"
+                               :file_directory_id="item.id"
+                               :web_file_type="item.web_file_type"></doc-container>
+            </el-tab-pane>
+        </el-tabs>
+    </div>
+</div>

@@ -13,12 +13,16 @@
   "dependencies": {
     "ag-grid-community": "^32.1.0",
     "ag-grid-vue3": "^32.1.0",
+    "copy-to-clipboard": "^3.3.3",
     "element-plus": "^2.8.0",
     "event-emitter": "^0.3.5",
+    "highlight.js": "^11.10.0",
     "jqtree": "^1.8.4",
     "js-cookie": "^3.0.5",
     "mitt": "^3.0.1",
+    "moment": "^2.30.1",
     "rxjs": "^7.8.1",
+    "split.js": "^1.6.5",
     "vue": "^3.4.29",
     "vue-router": "^4.3.3"
   },

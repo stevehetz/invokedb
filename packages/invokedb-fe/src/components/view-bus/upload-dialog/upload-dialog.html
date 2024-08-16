@@ -1,0 +1,68 @@
+<div class="dialog upload-dialog">
+    <el-dialog width="500px" v-bind:title="title" :visible.sync="dialog_visible" @open="on_open" :close-on-click-modal="false" :show-close="false">
+        <!--<div class="type-box">
+            <label>
+                Type:
+            </label>
+            <el-select class="option-select" v-model="selected_option">
+                <el-option
+                    v-for="option in options"
+                    :key="option.id"
+                    :label="option.name"
+                    :value="option.id"
+                >
+                </el-option>
+            </el-select>
+        </div>-->
+        <div class="file-box">
+            <label>
+                File:
+            </label>
+            <div class="upload-container">
+                <el-upload
+                    class="single-file-upload"
+                    ref="upload"
+                    action=""
+                    :disabled="running"
+                    :auto-upload="false"
+                    :http-request="http_request"
+                    :on-change="on_change"
+                    :on-remove="on_remove"
+                    :multiple="false"
+                >
+                    <el-button
+                        :disabled="running"
+                        @click="trigger_clicked"
+                        slot="trigger"
+                        size="small"
+                        type="primary">
+                        <i class="fa fa-upload"></i>
+                    </el-button>
+                </el-upload>
+            </div>
+        </div>
+        <div class="new-name-box">
+            <label>
+                Name:
+            </label>
+            <el-input
+                class="new-name"
+                ref="new_name"
+                v-model="new_name"
+                :disabled="running"
+                @keyup.enter.native="upload_handler"
+            >
+            </el-input>
+        </div>
+        <div class="progress-box">
+            <el-progress :percentage="progress" :status="status"></el-progress>
+        </div>
+        <div v-if="error_message" class="error-message">
+            <span>{{ error_message }}</span>
+        </div>
+        <span slot="footer" class="dialog-footer">
+            <el-button @click="cancel_handler">Cancel</el-button>
+            <el-button type="primary" @click="upload_handler" :disabled="running">Upload</el-button>
+        </span>
+    </el-dialog>
+</div>

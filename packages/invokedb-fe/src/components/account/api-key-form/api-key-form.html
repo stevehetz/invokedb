@@ -1,0 +1,22 @@
+<div class="page-form api-key-form">
+    <div class="form-heading">
+        <div class="flex-2-col">
+            <div class="left">
+                <h3>API Key</h3>
+            </div>
+        </div>
+    </div>
+    <div class="form-body">
+        <div class="api-key-input-block">
+            <div class="copied-popup" v-if="show_copied_popup">
+                copied!
+            </div>
+            <el-input :disabled="true"
+                      :value="account ? account.api_key : ''"></el-input>
+            <span class="copy no-highlight"
+                  @click="copy_to_clipboard()">
+                <i class="fa fa-copy"></i>
+            </span>
+        </div>
+    </div>
+</div>

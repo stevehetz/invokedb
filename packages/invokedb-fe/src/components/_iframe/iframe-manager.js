@@ -4,7 +4,7 @@ let windows = {};
 export const iframe_manager = {
     init() {
         // Listen for events sent from child iframe
-        window.addEventListener('message', e => {
+        window.addEventListener('message', (e) => {
             let { sender, payload } = e.data;
             if (handlers[sender]) handlers[sender](e.data);
         });
@@ -22,5 +22,5 @@ export const iframe_manager = {
 
     send_message(name, data) {
         windows[name].postMessage(data, '*');
-    }
+    },
 };

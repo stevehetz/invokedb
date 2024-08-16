@@ -1,0 +1,8 @@
+<div class="dialog container-dialog">
+    <el-dialog
+        :title="title"
+        :visible.sync="dialog_visible"
+        @close="close_handler">
+        <component ref="test" :is="child_component" :props="props"></component>
+    </el-dialog>
+</div>

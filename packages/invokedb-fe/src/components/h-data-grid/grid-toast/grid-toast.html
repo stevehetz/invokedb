@@ -1,0 +1,18 @@
+<div
+    v-if="show_toast"
+    class="grid-toast"
+    :class="{
+        info: type === 'info',
+        error: type === 'error',
+        success: type === 'success',
+        backdrop: backdrop === true
+    }">
+    <div class="backdrop"></div>
+    <div class="grid-toast__background"></div>
+    <div class="grid-toast__message">
+        <i class="error-icon fa fa-exclamation-triangle"></i>
+        <i class="info-icon fa fa-info-circle"></i>
+        <i class="success-icon fa fa-check-circle"></i>
+        <span v-html="message"></span>
+    </div>
+</div>

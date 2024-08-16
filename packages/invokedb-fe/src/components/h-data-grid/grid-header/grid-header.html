@@ -1,0 +1,80 @@
+<div class="grid-header-wrapper">
+    <div class="grid-header read"
+         :class="{ disabled: !params.enableSorting }"
+         @click="on_sort_requested();"
+         v-if="!params.edit_mode">
+        <div class="grid-header-type"
+             :class="{
+                string: col_type.value === 'string',
+                number: col_type.value === 'number',
+                boolean: col_type.value === 'boolean',
+                date: col_type.value === 'date'
+            }"
+             v-if="params.column.colDef.field !== 'row_num'">
+            <span class="active-column-type"
+                  v-html="col_type.display"></span>
+        </div>
+        <div class="grid-header-index"
+             v-if="indexed"
+             title="Column is indexed">
+            <i class="index-icon fa fa-info"></i>
+        </div>
+        <div class="grid-header-label">
+            {{params.displayName}}
+        </div>
+        <div v-if="params.enableSorting && desc_sort === 'active'"
+             class="sort-label">
+            <i class="fa fa-arrow-down"></i>
+        </div>
+        <div v-if="params.enableSorting && asc_sort === 'active'"
+             class="sort-label">
+            <i class="fa fa-arrow-up"></i>
+        </div>
+    </div>
+    <div class="grid-header edit"
+         :class="{ new: !params.column.colDef._id }"
+         v-if="params.edit_mode">
+        <div class="grid-header-type"
+             :class="{
+                string: col_type.value === 'string',
+                number: col_type.value === 'number',
+                boolean: col_type.value === 'boolean',
+                date: col_type.value === 'date'
+            }"
+             v-if="params.column.colDef.field !== 'row_num'">
+            <span ref="menu_toggle"
+                  class="active-column-type"
+                  v-html="col_type.display"></span>
+        </div>
+        <div ref="menu" class="grid-header-type__menu">
+            <div class="menu__item string" @click="on_change_column_type('string')">
+                <span class="grid-header-type__menu__label string">" "</span>
+                -
+                <span class="grid-header-type__menu__text">String</span>
+            </div>
+            <div class="menu__item number" @click="on_change_column_type('number')">
+                <span class="grid-header-type__menu__label number">#</span>
+                -
+                <span class="grid-header-type__menu__text">Number</span>
+            </div>
+            <div class="menu__item date" @click="on_change_column_type('date')">
+                <span class="grid-header-type__menu__label date">
+                    <i class="fa fa-calendar-alt"></i>
+                </span>
+                -
+                <span class="grid-header-type__menu__text">Date</span>
+            </div>
+        </div>
+        <div class="grid-header-index" :class="{ active: indexed }" @click="index_change" :title="indexed ? 'Column index is on' : 'Column index is off'">
+            <i class="index-icon fa fa-info"></i>
+        </div>
+        <el-input class="grid-header-input"
+                  @keyup.native="value_change"
+                  v-model="edit_obj.display_name">
+        </el-input>
+        <div class="grid-header__delete"
+             @click="on_delete_requested">
+            <i class="fa fa-minus-circle"></i>
+        </div>
+    </div>
+</div>

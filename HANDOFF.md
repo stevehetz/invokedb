@@ -7,14 +7,28 @@ you can query through an API. This revamp makes it run on a modern Mac with no K
 README covers day-to-day commands. This file covers where things stand, what changed and why,
 the gotchas, and what to do next.
 
+## Start here (next agent)
+
+1. Read `AGENTS.md`. It's the source of truth for commands, hard rules (**public repo**, no
+   `prod:*`, ask before destructive DB commands, no native npm packages) and conventions.
+   `CLAUDE.md` just imports it.
+2. Read the playbook in `.agents/skills/` that matches your task (the index is in `AGENTS.md`).
+3. The UI smoke baseline (step 1 of "Suggested next steps") is done, on branch `ui-smoke`
+   until the user merges it. The next job is **step 2, the Vue 3 + Vite migration**. Its first
+   sub-step is a question for the user: should `horizon-auth-fe` be merged into `horizon-fe`?
+   Ask before starting. Run the `verify-frontend` playbook after every stage.
+4. Work on a branch. The user merges to `main` and pushes once they approve. Formatting
+   happens in the pre-commit hook (`npm install` at the root turns it on).
+
 ## Current state
 
-|               |                                                                                                           |
-| ------------- | --------------------------------------------------------------------------------------------------------- |
-| `main`        | Local dev revamp, legacy-ops clean-up, secrets handling, demo data, backend upgrade. The only branch.     |
-| Repo          | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below). |
-| Runs locally? | Yes. `npm run dev` starts all three apps, and login, the API and Mongo writes work.                       |
-| Production    | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild.                   |
+|               |                                                                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `main`        | Local dev revamp, legacy-ops clean-up, secrets, demo data, backend upgrade, agent tooling + prettier. The only branch. |
+| Repo          | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below).              |
+| Runs locally? | Yes. `npm run dev` starts all three apps, and login, the API and Mongo writes work.                                    |
+| `ui-smoke`    | UI smoke test (`scripts/ui-smoke.mjs`), `smoke-env.sh`, `verify-frontend` playbook. Awaiting review.                   |
+| Production    | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild.                                |
 
 ### Apps
 
@@ -49,6 +63,25 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
 
 ## What changed, and why
 
+### UI smoke baseline (2026-11-14, branch `ui-smoke`)
+
+- **`scripts/ui-smoke.mjs`** runs 11 steps in Chrome through the `playwright` npm package
+  (root devDependency, pinned to 1.56.1, `channel: 'chrome'`): no browser download and no native
+  build (`fsevents` is prebuilt). The steps are login with redirect, CSV upload, sort, filter,
+  cell edit, add column, remove column, a column type change whose finish only reaches the page
+  over the websocket, API key → `/api/v1`, delete table, and logout. It checks the backend after
+  each change, not just the DOM. `--out` writes JSON with no IDs or timings. Five runs in a row
+  on the current Vue 2 app all passed in about 11s and produced identical JSON.
+- **Nothing was broken** in those flows, and there were no uncaught page errors. The only
+  surprise: `/api/v1/get` leaves out empty cells (the new `city` column), which looks intended.
+- **`scripts/smoke-env.sh <file>`** writes a throwaway env file: `horizon_smoke*` DBs, ports
+  8100/8105/8101/9100, and every URL pointed at them. A whole smoke stack then runs next to
+  `npm run dev` without touching real data. `verify-backend` now uses it too, instead of its
+  hand-pasted env block.
+- **`.agents/skills/verify-frontend/SKILL.md`** covers build, throwaway stack, baseline/after
+  diff, selector notes (ag-grid `col-id` vs `aria-colindex`, keyup-only inputs, the 15s trap
+  in edit mode) and clean-up. It's listed in `AGENTS.md`.
+
 ### Agent tooling + prettier (2026-11-14, merged)
 
 - `AGENTS.md` is the single source of truth for coding agents (commands, hard rules,
@@ -68,15 +101,15 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
   styles (4 spaces, single quotes, no trailing commas, `arrowParens: avoid`, width 100, or 80 in
   `horizon-fe`), so prettier 3 itself changes very little. The per-package `prettier` keys and
   `format` scripts were removed, and the backend's direct prettier 1.19 dependency is gone. The
-  frontends still have 1.19 inside `node_modules` through Vue CLI, so editors and the pre-commit hook point at
-  the root install. ESLint's `prettier/prettier` rule is off in both frontends, so that 1.19
+  frontends still have 1.19 inside `node_modules` through Vue CLI, so editors and the
+  pre-commit hook point at the root install. ESLint's `prettier/prettier` rule is off in both frontends, so that 1.19
   copy doesn't fight 3.x during `lintOnSave`.
 - Format on save: `.vscode/settings.json` (root and per package), the workspace file, and
   `.editorconfig`, plus the pre-commit hook.
 - `.prettierignore` skips `ops/` (Helm templates break), the backend email `.html` templates
   (whitespace shows up in the sent email) and the demo dumps.
-- **One-off reformat of the whole repo** in its own commit (`style: format the repo with
-prettier 3`), listed in `.git-blame-ignore-revs`. Locally, run
+- **One-off reformat of the whole repo** in its own commit
+  (`style: format the repo with prettier 3`), listed in `.git-blame-ignore-revs`. Locally, run
   `git config blame.ignoreRevsFile .git-blame-ignore-revs` so blame skips it. Both frontends
   and the backend built before and after the reformat. The compiled CSS is identical apart from
   whitespace and hex-color case.
@@ -181,36 +214,76 @@ than what this upgrade was validated against. Moving to them from here is a smal
 
 ## Not yet tested
 
-- Full UI flows in a browser, beyond what was checked by hand: CSV upload, the data grid,
-  websocket updates, the API key page.
+- UI flows the smoke test doesn't cover yet: signup, forgot/reset password, Add Row and row
+  delete, renaming a table, the Guide and Api pages, the grid's API dialog, and multiple tabs.
 - Stripe checkout.
 - `push.sh`.
+- **The MCP servers in `.mcp.json` have never been started.** The UI smoke test uses the
+  `playwright` npm package directly, so it didn't exercise the MCP server either. A handshake test was blocked in
+  the session that added them. The first session that uses them has to approve them, and should
+  confirm that Playwright can drive Chrome and that `mongodb` lists the `horizon*` databases.
+- The pre-commit hook was tested in a scratch clone (fully staged, partly staged, syntax error,
+  ignored path) and has run on real commits, but only on files that were already formatted.
 - Production Docker images. The Dockerfiles still use `node:10` and will need updating.
 
 ## Suggested next steps
 
-1. **Frontend upgrade:** Vue 2 → Vue 3 + Vite. This is the biggest job. Element UI → Element
-   Plus, `ag-grid-vue` → `ag-grid-vue3`, and jQuery / jqtree in `h-tree` should go.
-   Consider merging `horizon-auth-fe` into `horizon-fe`.
-2. **Optional:** a `docker-compose.yml` for Postgres and Mongo, so the app doesn't depend on
+1. ~~**UI smoke baseline**~~ **Done** (branch `ui-smoke`, see above). Original plan: the Vue 3 rewrite needs something
+   to compare against. Write a Playwright script (`scripts/ui-smoke.mjs`, next to
+   `api-smoke.mjs`; use the `playwright` npm package or the MCP server to work it out) that
+   covers:
+   - log in on :8005 and get redirected to :8000
+   - CSV upload, waiting for processing to finish
+   - grid sort, filter and cell edit
+   - add and remove a column
+   - the API key page, then a `/api/v1` call with that key
+   - websocket updates reaching the page
+
+   Run it against the current Vue 2 app and fix (or write down) anything that's already broken.
+   Then add an `.agents/skills/verify-frontend/SKILL.md` playbook and list it in `AGENTS.md`.
+   Check that Playwright's browser download doesn't need native builds (see the Xcode gotcha).
+   `--browser chrome` uses the installed Chrome.
+
+2. **Vue 2 → Vue 3 + Vite, in stages**, each on its own branch, re-running the UI smoke test
+   after each stage:
+   1. Decide whether to merge `horizon-auth-fe` into `horizon-fe`. The recommendation is yes,
+      before porting: one build, one set of dependencies, no redirect between two ports. Ask the
+      user first.
+   2. Vue CLI 4 / webpack 4 → Vite while still on Vue 2.7. This drops
+      `--openssl-legacy-provider`.
+   3. Clear the hardest blockers while still on Vue 2.7: Element UI → Element Plus,
+      `ag-grid-vue` → `ag-grid-vue3`, and remove jQuery / jqtree from `h-tree`.
+   4. Switch to Vue 3 (the compat build first). Vuex → Pinia now or later.
+   5. Then replace the frontend ESLint config (`babel-eslint` / `@vue/prettier`) with a
+      current flat config, and drop the leftover prettier 1.19.
+3. **Small, any time:** move the hardcoded `FS_TOKEN` / `WS_SERVER_TOKEN` in
+   `packages/horizon-be/src/constants.ts` to env vars.
+4. **Optional:** a `docker-compose.yml` for Postgres and Mongo, so the app doesn't depend on
    whatever is installed locally.
-3. **Before redeploying anywhere:** update the Dockerfiles and decide whether to keep the
-   AKS/Helm setup or move to something simpler (a single VM, Fly, Render, and so on).
-4. **Backend follow-ups (optional):** Nest 12 / TypeORM 1.x, `stripe` 8 → current (only if
+5. **Before redeploying anywhere:** update the Dockerfiles (`node:10`) and decide whether to
+   keep the AKS/Helm setup or move to something simpler (a single VM, Fly, Render, and so on).
+6. **Backend follow-ups (optional):** Nest 12 / TypeORM 1.x, `stripe` 8 → current (only if
    Stripe comes back), replace `tslint` with ESLint, and work through `npm audit` (15 issues,
    mostly dev tooling).
 
 ## Key files
 
-| File                                             | Purpose                                                                  |
-| ------------------------------------------------ | ------------------------------------------------------------------------ |
-| `scripts/env.sh`                                 | Loads `.env` and sets `HORIZON_ROOT` and `NODE_OPTIONS`                  |
-| `scripts/dev.sh`                                 | Starts all three apps                                                    |
-| `scripts/setup.sh`                               | First-time install + secrets pull + DB setup                             |
-| `scripts/db-setup.sh`                            | Creates the DBs and runs migrations (`--reset` to drop `horizon*` first) |
-| `scripts/db-demo.sh`                             | Loads the demo dataset                                                   |
-| `scripts/secrets.sh`                             | Copies secret files to and from the Dropbox secret folder                |
-| `scripts/be-run.sh`                              | Runs a backend npm script with `.env` loaded (used for migrations)       |
-| `packages/horizon-be/src/env.ts`                 | Every env var the backend reads                                          |
-| `packages/horizon-be/src/database/_ormconfig.ts` | TypeORM options shared by the app and the CLI (`data-source.ts`)         |
-| `packages/horizon-be/src/database/migration/`    | TypeORM migrations, including seed and test data                         |
+| File                                                | Purpose                                                                     |
+| --------------------------------------------------- | --------------------------------------------------------------------------- |
+| `AGENTS.md`                                         | Agent instructions, the source of truth (`CLAUDE.md` imports it)            |
+| `.agents/skills/*/SKILL.md`                         | Playbooks: `dev-stack`, `verify-backend`, `verify-frontend`, `db-migration` |
+| `.mcp.json`                                         | MCP servers: Playwright, read-only MongoDB                                  |
+| `.githooks/pre-commit`, `scripts/format-staged.mjs` | Formats staged files with the root prettier                                 |
+| `scripts/api-smoke.mjs`                             | API smoke test; diff its output before and after backend changes            |
+| `scripts/ui-smoke.mjs`                              | Playwright UI smoke test; diff its `--out` before and after UI changes      |
+| `scripts/smoke-env.sh`                              | Writes a throwaway env (smoke DBs + ports) for both smoke tests             |
+| `scripts/env.sh`                                    | Loads `.env` and sets `HORIZON_ROOT` and `NODE_OPTIONS`                     |
+| `scripts/dev.sh`                                    | Starts all three apps                                                       |
+| `scripts/setup.sh`                                  | First-time install + secrets pull + DB setup                                |
+| `scripts/db-setup.sh`                               | Creates the DBs and runs migrations (`--reset` to drop `horizon*` first)    |
+| `scripts/db-demo.sh`                                | Loads the demo dataset                                                      |
+| `scripts/secrets.sh`                                | Copies secret files to and from the Dropbox secret folder                   |
+| `scripts/be-run.sh`                                 | Runs a backend npm script with `.env` loaded (used for migrations)          |
+| `packages/horizon-be/src/env.ts`                    | Every env var the backend reads                                             |
+| `packages/horizon-be/src/database/_ormconfig.ts`    | TypeORM options shared by the app and the CLI (`data-source.ts`)            |
+| `packages/horizon-be/src/database/migration/`       | TypeORM migrations, including seed and test data                            |

@@ -31,11 +31,14 @@ npm run format:check
 npm --prefix packages/horizon-be run build   # tsc: the main backend correctness check
 npm --prefix packages/horizon-be run lint    # tslint
 node scripts/api-smoke.mjs [base_url] [out.json]  # ~30 API calls against a running backend
+node scripts/ui-smoke.mjs [--out out.json] [--headed]  # Playwright UI flows (load env first, see verify-frontend)
+bash scripts/smoke-env.sh <file>  # throwaway env (horizon_smoke DBs, ports 81xx/9100) for both smoke tests
 ```
 
 There are no unit tests worth running yet (jest is configured, but there are no specs). Verify
 backend changes with `build` plus `api-smoke.mjs` (see the `verify-backend` skill). Verify UI
-changes in a browser (the Playwright MCP server).
+changes with the build plus `ui-smoke.mjs` (see the `verify-frontend` skill). Both run against a
+throwaway stack, never the user's data.
 
 ## Hard rules
 
@@ -114,11 +117,12 @@ Skills are step-by-step playbooks in `.agents/skills/<name>/SKILL.md`. They aren
 with any agent tool. **Read the matching file before you start a task in the table below**, and
 follow it. When a playbook mentions another skill by name, it means that skill's file here.
 
-| Skill            | Read it when you are about to…                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------- |
-| `dev-stack`      | start, restart, health-check or stop the app; read its logs; inspect local Postgres or Mongo data |
-| `verify-backend` | call a `horizon-be` change done (any service, entity, query, config or dependency change)         |
-| `db-migration`   | add or change an entity or column, write a migration or seed data, or run or revert migrations    |
+| Skill             | Read it when you are about to…                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- |
+| `dev-stack`       | start, restart, health-check or stop the app; read its logs; inspect local Postgres or Mongo data              |
+| `verify-backend`  | call a `horizon-be` change done (any service, entity, query, config or dependency change)                      |
+| `verify-frontend` | call a `horizon-fe` / `horizon-auth-fe` change done (components, store, routing, deps, build, Vue 3 migration) |
+| `db-migration`    | add or change an entity or column, write a migration or seed data, or run or revert migrations                 |
 
 For starting this app, use `dev-stack` rather than any generic "run the app" behaviour.
 

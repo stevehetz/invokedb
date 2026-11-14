@@ -22,23 +22,11 @@ separate databases on separate ports, so it can't touch real data or collide wit
 `npm run dev`:
 
 ```sh
-S=<scratch dir>; cp .env "$S/smoke.env"
-cat >> "$S/smoke.env" <<'EOF'
-HORIZON_POSTGRES_DB=horizon_smoke
-HORIZON_MONGO_DB=horizon_smoke
-HORIZON_MONGO_TRACKING_DB=horizon_smoke:tracking
-HORIZON_FILE_SHARE=${HORIZON_ROOT}/.data/smoke
-HORIZON_BE_PRIV_HTTP_PORT=8101
-HORIZON_PRC_PRIV_HTTP_PORT=8101
-HORIZON_FS_PRIV_HTTP_PORT=8101
-HORIZON_SB_PRIV_WS_PORT=9100
-HORIZON_FS_PRIV_HTTP_URL=http://127.0.0.1:8101
-HORIZON_SB_PRIV_WS_URL=ws://127.0.0.1:9100
-EOF
+S=<scratch dir>
+bash scripts/smoke-env.sh "$S/smoke.env"   # DBs horizon_smoke*, ports be 8101 / ws 9100 (+ fe 8100 / auth 8105)
 ```
 
-Those two URLs are the only ones the backend reads (see `src/env.ts`). The `*_PUB_*` URLs are
-for the frontends, which the smoke test doesn't use.
+The same env file serves the `verify-frontend` UI smoke test, so one throwaway stack covers both.
 
 Create the DBs and run the migrations, which seed the demo accounts:
 

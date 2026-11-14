@@ -1,0 +1,191 @@
+<div class="page guide-page">
+    <div class="guide-container">
+        <div class="guide-nav">
+            <a href="#overview">Overview</a>
+            <a href="#data-table">Data Table UI</a>
+            <a href="#integrate">App Integration</a>
+            <a href="#examples">Examples</a>
+            <a href="#support">Support</a>
+        </div>
+        <div class="guide-body">
+            <div class="guide-body-container">
+                <h1>
+                    Guide
+                </h1>
+                <div class="guide-section">
+                    <h2 id="overview" class="guide-section-title">
+                        Overview
+                    </h2>
+                    <div class="guide-block">
+                        <p>InvokeDB enables developers to build data driven user interfaces without the overhead of
+                            a complex database or a back end API.</p>
+                        
+                        <p>Once a table is created, endpoints become available and can be integrated into an application.</p>
+                        
+                        <p style="margin-bottom:5px;">At its core InvokeDB provides 2 main features:</p>
+                        
+                        <ol>
+                            <li>A Data Table UI - for administration</li>
+                            <li>An API - for external app integration</li>
+                        </ol>
+                        
+                        <p>Think of a data table as a spreadsheet but with the ability to set column types to allow for more advanced filtering
+                            and
+                            sorting. A data table can be built from scratch or generated from a CSV file.</p>
+                        
+                        <p>Each data table has its own API endpoints that allow an external app to create, delete and edit fields.</p>
+                    </div>
+
+                    <div class="guide-block">
+                        <h3 class="title">Creating a new table</h3>
+                        <img style="width: 250px;margin-top:10px;margin-bottom:10px;" v-bind:src="require('@/assets/guide-2.png')" />
+                        <p><b>Empty Table</b> - To create a new empty table, go to the Tables page and click the + icon. Then click the Data Table menu item. A new table will be created with 3 rows and 3 columns. To edit the table, see the <a href="#data-table">Data Table UI</a> Section below.</p>
+                        <p><b>Upload CSV</b> - To convert a CSV File into an InvokeDB data table, go to the Tables page and click the + icon. Then click the Upload CSV menu item. Within the upload dialog you will then need to choose a CSV File from your file system and click upload.
+                        </p>
+                    </div>
+
+                    <div class="guide-block">
+                        <h3 class="title">Pricing Tiers</h3>
+                        <p>Depending on your current plan you will be limited to the amount rows, tables and requests per minute your api is
+                            allowed to make. See the <a :href="env.HORIZON_AUTH_FE_PUB_HTTP_URL + '/pricing'">pricing page</a> for the available tiers.</p>
+                    </div>
+
+                    <h2 id="data-table"
+                        class="guide-section-title">
+                        Data Table UI
+                    </h2>
+
+                    <div class="guide-block">
+                        <img style="margin-bottom:10px;" v-bind:src="require('@/assets/guide-3.png')" />
+
+                        <p style="margin-bottom:5px;">The Data Table UI provides many of the same features a standard spreadsheet does. Let's go over the top bar first. From
+                        left to right here is what is displayed:</p>
+                        
+                        <ol>
+                            <li>Table ID - This will be helpful when integrating api endpoints into an application</li>
+                            <li>Cancel (X icon) - This will toggle out of row or column edit mode</li>
+                            <li>Delete (trash icon) - Removes rows that are highlighted</li>
+                            <li>Save (disk icon) - Submits pending changes to rows or columns</li>
+                            <li>Edit Columns - Toggles table into edit mode</li>
+                            <li>Add Column - Add a column. (Only appears when in edit column mode)</li>
+                            <li>Add Row - Add a row.</li>
+                            <li>Refresh - Refresh table. This can be helpful when changes were made by an external app using the api.</li>
+                            <li>Total rows - Total rows in the table (taking into account any filters applied).</li>
+                            <li>API - Shows the tables available URL Endpoints.</li>
+                        </ol>
+                    </div>
+                    <div class="guide-block">
+                        <h3 class="title">The <span class="highlight-text">Row</span> Column</h3>
+                        <p>The first column in every table is the 'Row' column. Think of this column as just the row number of the returned results. It does not represent an ID of a row. It
+                        is sortable and filterable and can be used in combination with the other columns which can be helpful when trying to
+                        find a particular row.</p>
+                    </div>
+                    <div class="guide-block">
+                        <h3 class="title">Edit Row</h3>
+                        <p>To edit fields within a row, single or double click on the field and begin typing. When tabbing or clicking off the
+                        field, the data is automatically saved to the server.</p>
+                    </div>
+                    <div class="guide-block">
+                        <h3 class="title">Delete Rows</h3>
+                        <p>Click to select a row. To select multiple rows, shift + click or ctrl + click a second row. When at least one row is
+                        selected click the  <span class="highlight-text">trash icon</span> in the top bar.</p>
+                    </div>
+                    <div class="guide-block">
+                        <h3 class="title">Add Rows</h3>
+                        <p>Click the <span class="highlight-text">Add Row</span> button in the top bar. You will only be able to edit 'Added Rows' when in this mode. Click the disk
+                        icon to save the new rows to the server. Click the <span class="highlight-text">X icon</span> to cancel.</p>
+                    </div>
+                    <div class="guide-block">
+                        <h3 class="title">Add Column</h3>
+                        <p>Click the Edit Columns button in the top bar. When in edit mode, click the Add Column button. Add a name to the column.
+                        Click the  <span class="highlight-text">disk icon</span> to save or the <span class="highlight-text">X icon</span> to cancel.</p>
+                    </div>
+                    <div class="guide-block">
+                        <h3 class="title">Remove Column</h3>
+                        <p>Click the <span class="highlight-text">Edit Columns</span> button in the top bar. When in edit mode, click the minus icon inside the column header to remove
+                        the column. Click the  <span class="highlight-text">disk icon</span> to save or the <span class="highlight-text">X icon</span> to cancel.</p>
+                    </div>
+                    <div class="guide-block">
+                        <h3 class="title">Rename Column</h3>
+                        <p>Click the <span class="highlight-text">Edit Columns</span> button in the top bar. When in edit mode, change the name of the column. Click the  <span class="highlight-text">disk icon</span> to
+                        save or the <span class="highlight-text">X icon</span> to cancel.</p>
+                    </div>
+
+                    <div class="guide-block">
+                        <h3 class="title">Change Column Type</h3>
+                        <p>Click the <span class="highlight-text">Edit Columns</span> button in the top bar. When in edit mode, click the first square button inside the column. This
+                        will open up a menu displaying the available column types. Select the new column type. Click the  <span class="highlight-text">disk icon</span> to save or
+                        the <span class="highlight-text">X icon</span> to cancel.</p>
+                        <p>Depending on the amount of data in the table this could take several minutes. Also be aware that
+                        if a field can not be converted into the new column type (ex. 'abc' to a number) the field will become NULL and cannot
+                        be reverted.</p>
+                    </div>
+
+                    <div class="guide-block">
+                        <h3 class="title">Index Column</h3>
+                        <p>Column indexing is necessary when wanting to filter on a particular column and the table has a large number of rows. To
+                        index a column click the <span class="highlight-text">Edit Columns</span> button in the top bar. When in edit mode, click the <span class="highlight-text">i button</span> inside the column
+                        header. This will change the button to a solid blue color. Click the  <span class="highlight-text">disk icon</span> to save or the <span class="highlight-text">X icon</span> to cancel.</p>
+                    </div>
+
+                    <div class="guide-block">
+                        <h3 class="title">Filtering</h3>
+                        <p>Each column has an input box below the column name which can be used to filter data returned to the table. There is
+                        also a button on the left side of each input which allows you to change the filter type. The following types are
+                        available.</p>
+                        <p style="margin: 0 0 5px;font-weight:bold;">For String Columns:</p>
+                        <div style="margin-bottom: 15px;">
+                            <p class="list"><span style="font-weight: bold; width: 25px; display: inline-block;">≈</span> Contains. Case insensitive.</p>
+                            <p class="list"><span style="font-weight: bold; width: 25px; display: inline-block;">=</span> Equals. Must match exactly.</p>
+                        </div>
+                        <p style="margin: 0 0 5px;font-weight:bold;">For Date and Number Columns:</p>
+                        <div>
+                            <p class="list"><span style="font-weight: bold; width: 25px; display: inline-block;">=</span> Equals. Must match exactly.</p>
+                            <p class="list"><span style="font-weight: bold; width: 25px; display: inline-block;"><</span> Less than.</p>
+                            <p class="list"><span style="font-weight: bold; width: 25px; display: inline-block;"><=</span> Less than or Equal to.</p>
+                            <p class="list"><span style="font-weight: bold; width: 25px; display: inline-block;">></span> Greater than.</p>
+                            <p class="list"><span style="font-weight: bold; width: 25px; display: inline-block;">>=</span> Greater than or Equal to.</p>
+                        </div>
+                    </div>
+
+                    <div class="guide-block">
+                        <h3 class="title">Sorting</h3>
+                        <p>To filter a column in ascending order, click the column header once. To filter a column in descending order click the
+                        column header a second time. To remove sorting, click the column header a third time. Only 1 column can be sorted at a
+                        time.</p>
+                    </div>
+
+                    <h2 id="integrate"
+                        class="guide-section-title">
+                        App Integration
+                    </h2>
+                    
+                    <div class="guide-block">
+                        <p>To integrate InvokeDB's API into your application you must first obtain your account's api_key from the <routerLink to="/account">account</routerLink> page.</p>
+                            
+                        <p>The api_key will be used as a query parameter in the API URL endpoints. For documentation on how to use the api, visit the <routerLink to="/api">api</routerLink> docs.</p>
+                    </div>
+
+                    <h2 id="examples"
+                        class="guide-section-title">
+                        Examples
+                    </h2>
+                    
+                    <div class="guide-block">
+                        <p>
+                            <a href="https://github.com/stevehetz/invokedb-examples-angular" target="_blank">InvokeDB Angular Examples</a>
+                        </p>
+                    </div>
+
+                    <h2 id="support" class="guide-section-title">
+                        Support
+                    </h2>
+                    
+                    <div class="guide-block">
+                        <p>For any questions, issues or features requests you can submit a ticket to our support team using the <a :href="env.HORIZON_AUTH_FE_PUB_HTTP_URL + '/contact'">contact</a> form</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

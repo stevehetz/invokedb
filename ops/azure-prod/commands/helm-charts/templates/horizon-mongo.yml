@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: horizon-mongo
+  labels:
+    run: horizon-mongo
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: {{ .Values.HORIZON_MONGO_HOST }}
+  ports:
+  - port: {{ .Values.HORIZON_MONGO_PORT }}
+    targetPort: 27017
+  selector:
+    run: horizon-mongo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: horizon-mongo
+spec:
+  replicas: {{ .Values.mongo.replicas }}
+  selector:
+    matchLabels:
+      run: horizon-mongo
+  template:
+    metadata:
+      labels:
+        run: horizon-mongo
+    spec:
+      containers:
+      - name: horizon-mongo
+        image: mongo
+        resources:
+          requests:
+            cpu: {{ .Values.mongo.resources.requests.cpu }}
+            memory: {{ .Values.mongo.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.mongo.resources.limits.cpu }}
+            memory: {{ .Values.mongo.resources.limits.memory }}
+        ports:
+        - containerPort: 27017
+        env:
+        - name: HORIZON_FILE_SHARE
+          value: "{{ .Values.HORIZON_FILE_SHARE }}"
+        volumeMounts:
+        - name: db-files
+          mountPath: /data/db
+        - name: fileshare
+          mountPath: /data/share
+      volumes:
+      - name: db-files
+        azureDisk:
+          kind: Managed
+          diskName: ProdHorizonMongoDataDisk
+          diskURI: /subscriptions/7d2d5e0d-194a-4b57-8350-03976f0dae63/resourceGroups/Horizon/providers/Microsoft.Compute/disks/ProdHorizonMongoDataDisk
+      - name: fileshare
+        azureFile:
+          secretName: prod-horizon-share-sec
+          shareName: prodhorizonfileshare
+          readOnly: false
+      tolerations:
+      - key: "sku"
+        operator: "Equal"
+        value: "db"
+        effect: "NoSchedule"

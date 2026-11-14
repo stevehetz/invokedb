@@ -1,0 +1,56 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { DatabaseModule } from '../database/database.module';
+import { EmailModule } from '../email/email.module';
+import { MongoDbCollections } from './mongodb/collections';
+import { AccountManager } from './account/account.manager';
+import { SessionManager } from './session/session.manager';
+import { WebFileManager } from './web-file/web-file.manager';
+import { CsvProcessor } from './web-file/csv-processor';
+import { TrackingManager } from './tracking/tracking.manager';
+import { Account } from './account/account.entity';
+import { FileDirectory } from './file-directory/file-directory.entity';
+import { ResetPassword } from './reset-password/reset-password.entity';
+import { Session } from './session/session.entity';
+import { Subscription } from './subscription/subscription.entity';
+import { StripeEnv } from './stripe/stripe-env.entity';
+import { WebsocketClientStore } from '@app/websocket/client.store';
+import { Job } from './job/job.entity';
+import { JobManager } from './job/job.manager';
+
+@Module({
+    imports: [
+        DatabaseModule,
+        EmailModule,
+        TypeOrmModule.forFeature([
+            Account,
+            FileDirectory,
+            ResetPassword,
+            Session,
+            Subscription,
+            StripeEnv,
+            Job
+        ])
+    ],
+    providers: [
+        MongoDbCollections,
+        AccountManager,
+        SessionManager,
+        WebFileManager,
+        CsvProcessor,
+        TrackingManager,
+        JobManager,
+        WebsocketClientStore
+    ],
+    exports: [
+        MongoDbCollections,
+        AccountManager,
+        SessionManager,
+        WebFileManager,
+        CsvProcessor,
+        TrackingManager,
+        JobManager,
+        TypeOrmModule
+    ]
+})
+export class CoreModule {}

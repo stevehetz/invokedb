@@ -1,0 +1,107 @@
+<div class="page contact-page">
+    <div class="main-heading">
+        <div class="flex-row">
+            <div class="col col-25">
+                <router-link class="title-link" to="/">
+                    <img class="heading-logo-title" v-bind:src="require('@/assets/logo-title.svg')" />
+                    <img class="heading-logo-icon"
+                         v-bind:src="require('@/assets/logo.svg')" />
+                </router-link>
+            </div>
+            <div class="col col-75 pull-right">
+                <router-link to="/contact"
+                             class="active">Contact</router-link>
+                <router-link to="/pricing">Pricing</router-link>
+                <router-link to="/create-account"
+                             v-if="!account">Sign Up</router-link>
+                <router-link to="/login"
+                             class="sign-in"
+                             v-if="!account">
+                    <span>Sign In</span>
+                    <i class="fa fa-arrow-right"></i>
+                </router-link>
+                <a href=""
+                   class="sign-in"
+                   v-if="account"
+                   @click="go_to_database">
+                    <span>Database</span>
+                    <i class="fa fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="main-body">
+        <div class="main-body-wrapper">
+            <div class="panel-box" v-if="success">
+                <div class="top">
+                    <div class="success-message">
+                        <p>Your request has been submitted successfully.</p>
+                        <br>
+                        <p>A support representative will be in contact with you shortly.</p>
+                    </div>
+                </div>
+                <div class="bottom">
+                    <div class="control-box">
+                        <div class="flex-2-col">
+                            <div class="left">
+                                <a href="" @click="back">Back</a>
+                            </div>
+                            <div class="right">
+                                <router-link to="/">Go to Home Page</router-link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-box" v-if="!success" :class="{submitting: submitting}">
+                <div class="overlay">
+                </div>
+                <div class="top">
+                    <form>
+                        <h3 class="panel-title">Contact Our Support Team</h3>
+                        <div class="input-box">
+                            <el-input type="text"
+                                      v-model="email"
+                                      placeholder="Email"
+                                      @keyup.enter.native="create_account"
+                                      ref="email"></el-input>
+                        </div>
+                        <div class="input-box">
+                            <el-input type="text"
+                                      v-model="subject"
+                                      placeholder="Subject"></el-input>
+                        </div>
+                        <div class="input-box">
+                            <el-input type="textarea"
+                                      :rows="5"
+                                      placeholder="Message"
+                                      v-model="message">
+                            </el-input>
+                        </div>
+                    </form>
+                </div>
+                <div class="bottom">
+                    <div class="error-box">
+                        <div class="error-message"
+                             v-if="error.message !== ''">
+                            <i class="fa fa-exclamation-triangle"></i>
+                            <span>{{ error.message }}</span>
+                        </div>
+                    </div>
+                    <div class="control-box">
+                        <div class="flex-2-col">
+                            <div class="left">
+        
+                            </div>
+                            <div class="right">
+                                <a href=""
+                                   class="create-button"
+                                   @click="send($event)">Send <i class="fa fa-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

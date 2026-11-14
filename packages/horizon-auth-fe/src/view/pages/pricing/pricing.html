@@ -1,0 +1,485 @@
+<div class="page pricing-page">
+    <div class="main-content">
+        <div class="main-heading">
+            <div class="flex-row">
+                <div class="col col-25">
+                    <router-link class="title-link"
+                                 to="/">
+                        <img class="heading-logo-title"
+                             v-bind:src="require('@/assets/logo-title.svg')" />
+                        <img class="heading-logo-icon"
+                             v-bind:src="require('@/assets/logo.svg')" />
+                    </router-link>
+                </div>
+                <div class="col col-75 pull-right">
+                    <router-link to="/contact">Contact</router-link>
+                    <router-link to="/pricing"
+                                 class="active">Pricing</router-link>
+                    <router-link to="/create-account"
+                                 v-if="!account">Sign Up</router-link>
+                    <router-link to="/login"
+                                 class="sign-in"
+                                 v-if="!account">
+                        <span>Sign In</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                    <a href=""
+                       class="sign-in"
+                       v-if="account"
+                       @click="go_to_database">
+                        <span>Database</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="pricing-body mobile">
+            <div class="pricing-body__wrapper">
+                <div class="pricing-block">
+                    <p class="title">Free</p>
+                    <p class="price">$0 <span class="price__subtitle">per month</span></p>
+                    <p class="section__heading">Resources</p>
+                    <p class="item">3 Tables</p>
+                    <p class="item">150,000 Rows per table</p>
+                    <p class="item">52 Columns per table</p>
+                    <p class="item">50 API requests per minute</p>
+                    <p class="section__heading">Resources</p>
+                    <p class="item"><i class="fa fa-check"></i> Create new tables</p>
+                    <p class="item"><i class="fa fa-check"></i> Row editing</p>
+                    <p class="item"><i class="fa fa-check"></i> CSV upload</p>
+                    <p class="item"><i class="fa fa-check"></i> Column filtering</p>
+                    <p class="item"><i class="fa fa-check"></i> Column indexing</p>
+                    <p class="item"><i class="fa fa-check"></i> Column types</p>
+                    <p class="item"><i class="fa fa-check"></i> Column sorting</p>
+                    <router-link to="/create-account"
+                                 class="pricing-button"
+                                 v-if="!account">Get Started</router-link>
+                    <router-link :to="checkout_link"
+                                 class="change-plan-link pricing-button"
+                                 v-if="account">Change Plan</router-link>
+                </div>
+                <div class="pricing-block">
+                    <p class="title">Basic</p>
+                    <p class="price">$9.99 <span class="price__subtitle">per month</span></p>
+                    <p class="cancel-anytime">cancel anytime</p>
+                    <p class="section__heading">Resources</p>
+                    <p class="item">50 Tables</p>
+                    <p class="item">500,000 Rows per table</p>
+                    <p class="item">52 Columns per table</p>
+                    <p class="item">1,000 API requests per minute</p>
+                    <p class="section__heading">Resources</p>
+                    <p class="item"><i class="fa fa-check"></i> Create new tables</p>
+                    <p class="item"><i class="fa fa-check"></i> Row editing</p>
+                    <p class="item"><i class="fa fa-check"></i> CSV upload</p>
+                    <p class="item"><i class="fa fa-check"></i> Column filtering</p>
+                    <p class="item"><i class="fa fa-check"></i> Column indexing</p>
+                    <p class="item"><i class="fa fa-check"></i> Column types</p>
+                    <p class="item"><i class="fa fa-check"></i> Column sorting</p>
+                    <router-link to="/create-account"
+                                 class="pricing-button"
+                                 v-if="!account">Get Started</router-link>
+                    <router-link :to="checkout_link"
+                                 class="change-plan-link pricing-button"
+                                 v-if="account">Change Plan</router-link>
+                </div>
+                <div class="pricing-block">
+                    <p class="title">Plus</p>
+                    <p class="price">$29.99 <span class="price__subtitle">per month</span></p>
+                    <p class="cancel-anytime">cancel anytime</p>
+                    <p class="section__heading">Resources</p>
+                    <p class="item">200 Tables</p>
+                    <p class="item">1,000,000 Rows per table</p>
+                    <p class="item">52 Columns per table</p>
+                    <p class="item">10,000 API requests per minute</p>
+                    <p class="section__heading">Resources</p>
+                    <p class="item"><i class="fa fa-check"></i> Create new tables</p>
+                    <p class="item"><i class="fa fa-check"></i> Row editing</p>
+                    <p class="item"><i class="fa fa-check"></i> CSV upload</p>
+                    <p class="item"><i class="fa fa-check"></i> Column filtering</p>
+                    <p class="item"><i class="fa fa-check"></i> Column indexing</p>
+                    <p class="item"><i class="fa fa-check"></i> Column types</p>
+                    <p class="item"><i class="fa fa-check"></i> Column sorting</p>
+                    <router-link to="/create-account"
+                                 class="pricing-button"
+                                 v-if="!account">Get Started</router-link>
+                    <router-link :to="checkout_link"
+                                 class="change-plan-link pricing-button"
+                                 v-if="account">Change Plan</router-link>
+                </div>
+                <!-- <div class="pricing-block">
+                    <p class="title">Premium</p>
+                    <p class="price">$99.99 <span class="price__subtitle">per month</span></p>
+                    <p class="cancel-anytime">cancel anytime</p>
+                    <p class="section__heading">Resources</p>
+                    <p class="item">5000 Tables</p>
+                    <p class="item">10,000,000 Rows per table</p>
+                    <p class="item">52 Columns per table</p>
+                    <p class="item">100,000 API requests per minute</p>
+                    <p class="section__heading">Resources</p>
+                    <p class="item"><i class="fa fa-check"></i> Create new tables</p>
+                    <p class="item"><i class="fa fa-check"></i> Row editing</p>
+                    <p class="item"><i class="fa fa-check"></i> CSV upload</p>
+                    <p class="item"><i class="fa fa-check"></i> Column filtering</p>
+                    <p class="item"><i class="fa fa-check"></i> Column indexing</p>
+                    <p class="item"><i class="fa fa-check"></i> Column types</p>
+                    <p class="item"><i class="fa fa-check"></i> Column sorting</p>
+                    <router-link to="/create-account"
+                                 class="pricing-button"
+                                 v-if="!account">Get Started</router-link>
+                    <router-link :to="checkout_link"
+                                 class="change-plan-link pricing-button"
+                                 v-if="account">Change Plan</router-link>
+                </div> -->
+            </div>
+        </div>
+        <div class="pricing-body desktop">
+            <div class="pricing-body__wrapper">
+                <div class="flex-row pricing-body__row pricing-body__header">
+                    <div class="col col-25">
+                    </div>
+                    <div class="col col-20">
+                        <span>Free</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>Basic</span>
+                        <span class="cancel-anytime">cancel anytime</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>Plus</span>
+                        <span class="cancel-anytime">cancel anytime</span>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <span>Premium</span>
+                        <span class="cancel-anytime">cancel anytime</span>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                    </div>
+                    <div class="col col-20">
+                        <span class="price">$0</span>
+                        <span>per month</span>
+                    </div>
+                    <div class="col col-20">
+                        <span class="price">$9.99</span>
+                        <span>per month</span>
+                    </div>
+                    <div class="col col-20">
+                        <span class="price">$29.99</span>
+                        <span>per month</span>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <span class="price">$99.99</span>
+                        <span>per month</span>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row section">
+                    <div class="col col-25">
+                        <span><b>Resources</b></span>
+                    </div>
+                    <div class="col col-20">
+                    </div>
+                    <div class="col col-20">
+                    </div>
+                    <div class="col col-20">
+                    </div>
+                    <!-- <div class="col col-20">
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Tables</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>3</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>50</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>200</span>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <span>5000</span>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Rows per table</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>150,000</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>500,000</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>1,000,000</span>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <span>10,000,000</span>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Columns per table</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>52</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>52</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>52</span>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <span>52</span>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>External API - Requests Per Minute</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>50</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>1,000</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>10,000</span>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <span>100,000</span>
+                    </div> -->
+                </div>
+                <!-- <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Trash - Lifespan</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>1 day</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>14 days</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>30 days</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>60 days</span>
+                    </div>
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Trash - Capacity</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>10 Tables</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>50 Tables</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>100 Tables</span>
+                    </div>
+                    <div class="col col-20">
+                        <span>1,000 Tables</span>
+                    </div>
+                </div> -->
+                <div class="flex-row pricing-body__row section">
+                    <div class="col col-25">
+                        <span><b>Table Administration</b></span>
+                    </div>
+                    <div class="col col-20">
+                    </div>
+                    <div class="col col-20">
+                    </div>
+                    <div class="col col-20">
+                    </div>
+                   <!--  <div class="col col-20">
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Create New Tables</span>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Row Editing</span>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>CSV Upload</span>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Column Filtering</span>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                   <!--  <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Column Editing</span>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Column Indexing</span>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Column Types</span>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                   <!--  <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span>Column Sorting</span>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <i class="fa fa-check"></i>
+                    </div> -->
+                </div>
+                <div class="flex-row pricing-body__row">
+                    <div class="col col-25">
+                        <span></span>
+                    </div>
+                    <div class="col col-20">
+                        <router-link to="/create-account"
+                                     v-if="!account">Get Started</router-link>
+                        <router-link :to="checkout_link"
+                                     class="change-plan-link"
+                                     v-if="account">Change Plan</router-link>
+                    </div>
+                    <div class="col col-20">
+                        <router-link to="/create-account"
+                                     v-if="!account">Get Started</router-link>
+                        <router-link :to="checkout_link"
+                                     class="change-plan-link"
+                                     v-if="account">Change Plan</router-link>
+                    </div>
+                    <div class="col col-20">
+                        <router-link to="/create-account"
+                                     v-if="!account">Get Started</router-link>
+                        <router-link :to="checkout_link"
+                                     class="change-plan-link"
+                                     v-if="account">Change Plan</router-link>
+                    </div>
+                    <!-- <div class="col col-20">
+                        <router-link to="/create-account"
+                                     v-if="!account">Get Started</router-link>
+                        <router-link :to="checkout_link"
+                                     class="change-plan-link"
+                                     v-if="account">Change Plan</router-link>
+                    </div> -->
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <div class="flex-row">
+                <div class="col">
+                    <span>© InvokeDB, LLC</span>•
+                    <router-link to="/tos">Terms</router-link>•
+                    <router-link to="/privacy">Privacy</router-link>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,59 @@
+<div class="layout">
+    <div class="header">
+        <div class="left">
+            <div class="logo">
+                <img v-bind:src="require('@/assets/logo.svg')" />
+                <div class="cover" v-if="active_index === '/'"></div>
+            </div>
+            <el-menu class="nav"
+                     ref="nav"
+                     mode="horizontal"
+                     @select="nav_selected">
+                <el-menu-item index="/" :class="{'is-active2': active_index === '/'}">
+                    <i class="menu-icon fa fa-table"></i>
+                    <span class="menu-text">Tables</span>
+                </el-menu-item>
+                <el-menu-item index="/api" :class="{'is-active2': active_index === '/api'}">
+                    <i class="menu-icon fa fa-file-code"></i>
+                    <span class="menu-text">Api</span>
+                </el-menu-item>
+                <el-menu-item index="/guide"
+                              :class="{'is-active2': active_index === '/guide'}">
+                    <i class="menu-icon fa fa-file-alt"></i>
+                    <span class="menu-text">Guide</span>
+                </el-menu-item>
+                <el-menu-item index="/account"
+                              :class="{'is-active2': active_index === '/account'}">
+                    <i class="menu-icon fa fa-user"></i>
+                    <span class="menu-text">Account</span>
+                </el-menu-item>
+            </el-menu>
+        </div>
+        <div class="right">
+            <!-- <el-menu class="nav"
+                     ref="nav2"
+                     mode="horizontal"
+                     @select="nav_selected">
+                <el-menu-item index="/account"
+                              class="account-menu-item"
+                              :class="{'is-active2': active_index === '/account'}"
+                              v-if="account">
+                    <i class="el-icon-user"></i>
+                    <span class="menu-text">{{ account.email }}</span>
+                </el-menu-item>
+            </el-menu> -->
+            <div class="header-text" v-if="account">
+                <span>{{ account.email }}</span>
+            </div>
+            <div class="header-link" @click="contact">
+                <i class="header-icon fa fa-user-edit"></i>
+            </div>
+            <div class="header-link" @click="logout">
+                <i class="header-icon fa fa-sign-out-alt"></i>
+            </div>
+        </div>
+    </div>
+    <div class="body">
+        <slot class="body-container" name="body">404 - Route not found</slot>
+    </div>
+</div>

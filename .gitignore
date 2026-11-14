@@ -1,0 +1,41 @@
+# global
+.idea
+.vml
+.DS_Store
+venv
+__pycache__
+__init__.pyc
+node_modules
+npm-debug.log*
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+Debug
+*.pyc
+bin
+obj
+temp
+generated
+env.json
+env.txt
+lerna-debug.log
+
+
+# horizon-be
+packages/horizon-be/uploads
+packages/horizon-be/dist
+packages/horizon-be/tmp_prc
+packages/horizon-be/tmp_fs
+
+# horizon-fe
+packages/horizon-fe/dist
+packages/horizon-fe/.local
+packages/horizon-fe/.env.*.local
+# secrets (real files live in Dropbox/secret/invokedb, symlinked here)
+ops/local/local-env.values.sh
+ops/azure-prod/azure-prod-env.values.sh
+ops/azure-base/azure-base.values.sh
+ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa
+ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa.pub

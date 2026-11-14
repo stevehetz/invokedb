@@ -1,0 +1,22 @@
+<div class="page manage-page">
+  <div class="flex-2-col">
+    <div class="left">
+      <el-menu
+        class="page-nav"
+        :default-active="active_page"
+        @select="handle_select">
+        <el-menu-item index="api">
+          <i class="nav-icon fa fa-book"></i>
+          <span>API</span>
+        </el-menu-item>
+        <el-menu-item index="trash">
+          <i class="nav-icon fa fa-trash"></i>
+          <span>Trash</span>
+        </el-menu-item>
+      </el-menu>
+    </div>
+    <div class="right">
+        <router-view />
+    </div>
+  </div>
+</div>

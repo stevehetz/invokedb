@@ -1,0 +1,71 @@
+<div class="page login-page">
+    <div class="main-heading">
+        <div class="flex-row">
+            <div class="col col-25">
+                <router-link class="title-link" to="/">
+                    <img class="heading-logo-title" v-bind:src="require('@/assets/logo-title.svg')" />
+                    <img class="heading-logo-icon"
+                         v-bind:src="require('@/assets/logo.svg')" />
+                </router-link>
+            </div>
+            <div class="col col-75 pull-right">
+                <div class="col col-75 pull-right">
+                    Don't have an account?
+                    <router-link to="/create-account"
+                                 class="sign-in">
+                        <span>Sign Up</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="main-body">
+        <div class="main-body-wrapper">
+            <div class="panel-box processing" v-if="processing">
+                <i class="fas fa-sync fa-spin spinner"></i>
+                <h3 class="processing-text">Logging in...</h3>
+            </div>
+            <div class="panel-box" v-if="!processing">
+                <div class="top">
+                    <h3 class="panel-title">Login to your InvokeDB account</h3>
+                    <div class="input-box">
+                        <el-input type="text"
+                                  v-model="email"
+                                  @keyup.enter.native="login"
+                                  placeholder="Email"
+                                  ref="email"></el-input>
+                    </div>
+                    <div class="input-box">
+                        <el-input type="password"
+                                  v-model="password"
+                                  @keyup.enter.native="login"
+                                  placeholder="Password"></el-input>
+                    </div>
+                </div>
+                <div class="bottom">
+                    <div class="error-box">
+                        <div class="error-message"
+                             v-if="error.message !== ''">
+                            <i class="fa fa-exclamation-triangle"></i>
+                            <span>{{ error.message }}</span>
+                        </div>
+                    </div>
+                    <div class="control-box">
+                        <div class="flex-2-col">
+                            <div class="left">
+                                <router-link to="/create-account">Create Account</router-link>
+                                <router-link to="/forgot-password">Forgot Password</router-link>
+                            </div>
+                            <div class="right">
+                                <a href=""
+                                   class="login-button"
+                                   @click="login($event)">Login <i class="fa fa-sign-in"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

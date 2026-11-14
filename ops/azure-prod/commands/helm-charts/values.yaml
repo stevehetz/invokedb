@@ -1,0 +1,71 @@
+mongo:
+  replicas: 0
+  resources:
+    requests:
+      cpu: 300m
+      memory: 3000Mi
+    limits:
+      cpu: 1200m
+      memory: 14000Mi
+postgres:
+  replicas: 0
+  resources:
+    requests:
+      cpu: 300m
+      memory: 3000Mi
+    limits:
+      cpu: 600m
+      memory: 6000Mi
+mongoTracking:
+  replicas: 0
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1700Mi
+    limits:
+      cpu: 1000m
+      memory: 3500Mi
+sb:
+  replicas: 0
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1700Mi
+    limits:
+      cpu: 1000m
+      memory: 3500Mi
+ops:
+  replicas: 0
+  image: horizon01containerregistry.azurecr.io/horizon-ops
+  resources:
+    requests:
+      cpu: 250m
+      memory: 250Mi
+    limits:
+      cpu: 1000m
+      memory: 3500Mi
+fs:
+  replicas: 0
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 3500Mi
+be:
+  replicas: 0
+  image: horizon01containerregistry.azurecr.io/horizon-be
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1000Mi
+    limits:
+      cpu: 2000m
+      memory: 7000Mi
+prc:
+  replicas: 0
+  resources:
+    requests:
+      cpu: 250m
+      memory: 500Mi
+    limits:
+      cpu: 2000m
+      memory: 4000Mi

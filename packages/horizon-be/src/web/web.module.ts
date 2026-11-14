@@ -1,0 +1,31 @@
+import { Module, HttpModule } from '@nestjs/common';
+import { ApplicationModule } from '@app/application/application.module';
+import { AuthController } from '@app/web/http/auth/auth.controller';
+import { AccountController } from '@app/web/http/account/account.controller';
+import { FileDirectoryController } from '@app/web/http/file-directory/file-directory.controller';
+import { WebFileController } from '@app/web/http/web-file/web-file.controller';
+import { ExternalV1Controller } from './http/external/external-v1.controller';
+import { SubscriptionController } from './http/subscription/subscription.controller';
+import { WebhookController } from './http/webhook/webhook.controller';
+import { StripeController } from './http/stripe/stripe.controller';
+import { SupportController } from './http/support/support.controller';
+import { WebsocketClientStore } from '@app/websocket/client.store';
+import { WebsocketServer } from './ws/websocket-server';
+import { WebsocketClient } from './ws/websocket-client';
+
+@Module({
+    imports: [HttpModule, ApplicationModule],
+    controllers: [
+        AuthController,
+        FileDirectoryController,
+        WebFileController,
+        ExternalV1Controller,
+        AccountController,
+        SubscriptionController,
+        WebhookController,
+        StripeController,
+        SupportController
+    ],
+    providers: [WebsocketServer, WebsocketClient, WebsocketClientStore]
+})
+export class WebModule {}

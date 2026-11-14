@@ -1,0 +1,52 @@
+{
+	"folders": [
+		{
+			"name": "horizon",
+			"path": ".."
+		},
+		{
+			"name": "horizon-be",
+			"path": "../packages/horizon-be"
+		},
+		{
+			"name": "horizon-fe",
+			"path": "../packages/horizon-fe"
+		},
+		{
+			"name": "horizon-auth-fe",
+			"path": "../packages/horizon-auth-fe"
+		}
+	],
+	"settings": {
+		"files.exclude": {
+			"**/__pycache__": true,
+			"**/*.pyc": true,
+			"**/.idea": true
+		},
+		"python.linting.enabled": false,
+		"[csharp]": {
+			"editor.tabSize": 4
+		},
+		"[javascript]": {
+			"editor.tabSize": 4
+		},
+		"[typescript]": {
+			"editor.tabSize": 4
+		},
+		"[scss]": {
+			"editor.tabSize": 4
+		},
+		"[css]": {
+			"editor.tabSize": 4
+		},
+		"[html]": {
+			"editor.tabSize": 4,
+			"editor.defaultFormatter": "vscode.html-language-features",
+		},
+		"html.format.wrapAttributes": "force-aligned",
+		"[python]": {
+			"editor.tabSize": 4
+		},
+		"explorer.compactFolders": false
+	}
+}

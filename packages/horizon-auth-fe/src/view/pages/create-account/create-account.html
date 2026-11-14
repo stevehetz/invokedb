@@ -1,0 +1,74 @@
+<div class="page create-account-page">
+    <div class="main-heading">
+        <div class="flex-row">
+            <div class="col col-25">
+                <router-link class="title-link" to="/">
+                    <img class="heading-logo-title" v-bind:src="require('@/assets/logo-title.svg')" />
+                    <img class="heading-logo-icon"
+                         v-bind:src="require('@/assets/logo.svg')" />
+                </router-link>
+            </div>
+            <div class="col col-75 pull-right">
+                Already have an account?
+                <router-link to="/login" class="sign-in">
+                    <span>Sign In</span>
+                    <i class="fa fa-arrow-right"></i>
+                </router-link>
+            </div>
+        </div>
+    </div>
+    <div class="main-body">
+        <div class="main-body-wrapper">
+            <div class="panel-box">
+                <div class="top">
+                    <form>
+                        <h3 class="panel-title">Create your InvokeDB account</h3>
+                        <div class="input-box">
+                            <el-input type="text"
+                                      v-model="email"
+                                      placeholder="Email"
+                                      @keyup.enter.native="create_account"
+                                      ref="email"></el-input>
+                        </div>
+                        <div class="input-box">
+                            <el-input type="password"
+                                      v-model="password"
+                                      placeholder="Password"
+                                      @keyup.enter.native="create_account"></el-input>
+                        </div>
+                        <div class="input-box">
+                            <el-input type="password"
+                                      v-model="retype_password"
+                                      placeholder="Retype Password"
+                                      @keyup.enter.native="create_account"></el-input>
+                        </div>
+                    </form>
+                </div>
+                <div class="bottom">
+                    <div class="error-box">
+                        <div class="error-message"
+                             v-if="error.message !== ''">
+                            <i class="fa fa-exclamation-triangle"></i>
+                            <span>{{ error.message }}</span>
+                        </div>
+                    </div>
+                    <div class="control-box">
+                        <div class="flex-2-col">
+                            <div class="left">
+                                
+                            </div>
+                            <div class="right">
+                                <a href=""
+                                   class="create-button"
+                                   @click="create_account($event)">Create <i class="fa fa-arrow-right"></i></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="terms">
+                By creating an account, you agree to the <router-link to='/tos'>Terms of Service</router-link>.
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: horizon-postgres
+  labels:
+    run: horizon-postgres
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: {{ .Values.HORIZON_POSTGRES_HOST }}
+  ports:
+  - port: {{ .Values.HORIZON_POSTGRES_PORT }}
+    targetPort: 5432
+  selector:
+    run: horizon-postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: horizon-postgres
+spec:
+  replicas: {{ .Values.postgres.replicas }}
+  selector:
+    matchLabels:
+      run: horizon-postgres
+  template:
+    metadata:
+      labels:
+        run: horizon-postgres
+    spec:
+      containers:
+      - name: horizon-postgres
+        image: postgres
+        resources:
+          requests:
+            cpu: {{ .Values.postgres.resources.requests.cpu }}
+            memory: {{ .Values.postgres.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.postgres.resources.limits.cpu }}
+            memory: {{ .Values.postgres.resources.limits.memory }}
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          value: {{ .Values.HORIZON_POSTGRES_DB }}
+        - name: POSTGRES_USER
+          value: {{ .Values.HORIZON_POSTGRES_USERNAME }}
+        - name: POSTGRES_PASSWORD
+          value: {{ .Values.HORIZON_POSTGRES_PASSWORD }}
+        - name: PGDATA
+          value: /var/lib/postgresql/data/db-files
+        - name: HORIZON_FILE_SHARE
+          value: "{{ .Values.HORIZON_FILE_SHARE }}"
+        volumeMounts:
+        - name: db-files
+          mountPath: /var/lib/postgresql/data/
+        - name: fileshare
+          mountPath: /data/share
+      volumes:
+      - name: db-files
+        azureDisk:
+          kind: Managed
+          diskName: ProdHorizonPostgresDataDisk
+          diskURI: /subscriptions/7d2d5e0d-194a-4b57-8350-03976f0dae63/resourceGroups/Horizon/providers/Microsoft.Compute/disks/ProdHorizonPostgresDataDisk
+      - name: fileshare
+        azureFile:
+          secretName: prod-horizon-share-sec
+          shareName: prodhorizonfileshare
+          readOnly: false
+      tolerations:
+      - key: "sku"
+        operator: "Equal"
+        value: "db"
+        effect: "NoSchedule"

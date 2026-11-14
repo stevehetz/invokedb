@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: horizon-ops
+spec:
+  replicas: {{ .Values.ops.replicas }}
+  selector:
+    matchLabels:
+      run: horizon-ops
+  template:
+    metadata:
+      labels:
+        run: horizon-ops
+    spec:
+      containers:
+      - name: horizon-ops
+        image: {{ .Values.ops.image }}
+        resources:
+          requests:
+            cpu: {{ .Values.ops.resources.requests.cpu }}
+            memory: {{ .Values.ops.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.ops.resources.limits.cpu }}
+            memory: {{ .Values.ops.resources.limits.memory }}
+        command: [ "/bin/bash", "-c", "--" ]
+        args: [ "while true; do sleep 30; done;" ]
+        env:
+        - name: ENV
+          value: "{{ .Values.ENV }}"
+        - name: HORIZON_ENV_LOADED
+          value: "{{ .Values.HORIZON_ENV_LOADED }}"
+        - name: HORIZON_POSTGRES_HOST
+          value: "{{ .Values.HORIZON_POSTGRES_HOST }}"
+        - name: HORIZON_POSTGRES_PORT
+          value: "{{ .Values.HORIZON_POSTGRES_PORT }}"
+        - name: HORIZON_POSTGRES_DB
+          value: "{{ .Values.HORIZON_POSTGRES_DB }}"
+        - name: HORIZON_POSTGRES_USERNAME
+          value: "{{ .Values.HORIZON_POSTGRES_USERNAME }}"
+        - name: HORIZON_POSTGRES_PASSWORD
+          value: "{{ .Values.HORIZON_POSTGRES_PASSWORD }}"
+        - name: HORIZON_MONGO_TRACKING_HOST
+          value: "{{ .Values.HORIZON_MONGO_TRACKING_HOST }}"
+        - name: HORIZON_MONGO_TRACKING_PORT
+          value: "{{ .Values.HORIZON_MONGO_TRACKING_PORT }}"
+        - name: HORIZON_MONGO_DB
+          value: "{{ .Values.HORIZON_MONGO_DB }}"
+        - name: HORIZON_MONGO_HOST
+          value: "{{ .Values.HORIZON_MONGO_HOST }}"
+        - name: HORIZON_MONGO_PORT
+          value: "{{ .Values.HORIZON_MONGO_PORT }}"
+        - name: HORIZON_BE_PRIV_HTTP_HOST
+          value: "{{ .Values.HORIZON_BE_PRIV_HTTP_HOST }}"
+        - name: HORIZON_BE_PRIV_HTTP_PORT
+          value: "{{ .Values.HORIZON_BE_PRIV_HTTP_PORT }}"
+        - name: HORIZON_PRC_PRIV_HTTP_HOST
+          value: "{{ .Values.HORIZON_PRC_PRIV_HTTP_HOST }}"
+        - name: HORIZON_PRC_PRIV_HTTP_PORT
+          value: "{{ .Values.HORIZON_PRC_PRIV_HTTP_PORT }}"
+        - name: HORIZON_FILE_SHARE
+          value: "{{ .Values.HORIZON_FILE_SHARE }}"
+        volumeMounts:
+        - name: fileshare
+          mountPath: /data/share
+      volumes:
+      - name: fileshare
+        azureFile:
+          secretName: prod-horizon-share-sec
+          shareName: prodhorizonfileshare
+          readOnly: false
+      tolerations:
+      - key: "sku"
+        operator: "Equal"
+        value: "cl"
+        effect: "NoSchedule"

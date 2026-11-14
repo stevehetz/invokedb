@@ -60,9 +60,30 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   flat config, and drop the leftover prettier 1.19.
 - **3 (small, any time):** move `FS_TOKEN` / `WS_SERVER_TOKEN` to env vars.
 - **4 (optional):** a `docker-compose.yml` for Postgres and Mongo.
-- **5 (before redeploying anywhere):** update the Dockerfiles (`node:10`, `npm run build`) and
-  decide between AKS/Helm and something simpler. `ops/` still builds and serves a separate
-  `horizon-auth-fe`; the merged app needs one static host with an SPA fallback for `/app/*` and
-  the site paths, and `HORIZON_FE_PUB_HTTP_URL` set to it.
+- **5 (test deployment, on `invokedb.com`):** a cheap, simple deploy for testing, not AKS/Helm.
+  Plan: one small VM (Hetzner or DigitalOcean, ~$5–10/month) running `docker compose` with the
+  backend, Postgres, Mongo and Caddy (automatic TLS). Caddy serves the built frontend with an
+  SPA fallback for `/app/*` and the site paths, and proxies `/api` and the websocket (so `:9000`
+  needs no public port). DNS on Cloudflare. Needs first: step 3, step 4 (reuse the compose
+  file), new Dockerfiles (the current ones use `node:10` and `npm run build`), the backend
+  installed with `--omit=optional`, `HORIZON_FE_PUB_HTTP_URL` set to the public URL, prod
+  secrets kept out of git (extend `scripts/secrets.sh`), and a Mongo/Postgres backup cron.
+  `ops/` still builds a separate `horizon-auth-fe`; leave it for reference or delete it.
+- **5a (domain): done.** `invokedb.com` was bought on Cloudflare Registrar on 2026-11-14, so its
+  DNS is on Cloudflare. To point it at Azure, use DNS-only (grey cloud) records so Azure's
+  managed certificates issue, or proxy it and use a Cloudflare Origin Certificate with SSL set to
+  Full (strict). Cloudflare Email Routing can forward `@invokedb.com` mail for free; Mailgun
+  needs its DNS records added there if outbound email comes back.
+- **5b (single sign-on: Google and GitHub):** after 5 and 5a, since the OAuth apps need real
+  callback URLs (also register `http://127.0.0.1:8001` callbacks for local dev). Today login is
+  email + bcrypt password, which creates an `internal_…` `Session` token that
+  `application/auth/http.strategy.ts` validates as a bearer token. Plan: add
+  `passport-google-oauth20` and `passport-github2` (pure JS) with `/auth/google` and
+  `/auth/github` routes. The callback finds or creates the account, creates a `Session` as the
+  password login does, and redirects to the frontend with the token. A migration adds an
+  `account_identity` table (`provider`, `provider_user_id`, `account_id`) and makes
+  `password_hash` nullable. Link an SSO login to an existing account only by a **verified**
+  email (for GitHub, fetch `/user/emails` and take the primary verified one). Add the buttons to
+  the login and signup pages, and the client IDs/secrets to `src/env.ts` and `.env`.
 - **6 (backend, optional):** Nest 12 / TypeORM 1.x, `stripe` 8 → current (only if Stripe comes
   back), `tslint` → ESLint, and `npm audit` (15 issues, mostly dev tooling).

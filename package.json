@@ -1,6 +1,6 @@
 {
   "name": "horizon",
-  "version": "0.0.0",
+  "version": "2.0.371",
   "author": "Steve Hetzel",
   "description": "Web documents",
   "license": "ISC",
@@ -13,6 +13,10 @@
     "dev": "bash scripts/dev.sh",
     "db:setup": "bash scripts/db-setup.sh",
     "db:reset": "bash scripts/db-setup.sh --reset",
+    "db:demo": "bash scripts/db-demo.sh",
+    "secrets:pull": "bash scripts/secrets.sh pull",
+    "secrets:push": "bash scripts/secrets.sh push",
+    "secrets:status": "bash scripts/secrets.sh status",
     "push": "bash push.sh",
     "migration:create": "bash scripts/be-run.sh migration:create",
     "migration:run": "bash scripts/be-run.sh migration:run",

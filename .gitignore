@@ -20,7 +20,6 @@ temp
 generated
 env.json
 env.txt
-lerna-debug.log
 
 
 # horizon-be
@@ -34,7 +33,7 @@ packages/horizon-fe/dist
 packages/horizon-fe/.local
 packages/horizon-fe/.env.*.local
 # secrets (real files live in Dropbox/secret/invokedb, symlinked here)
-ops/local/local-env.values.sh
+ops/azure-prod/azure-prod-build.values.sh
 ops/azure-prod/azure-prod-env.values.sh
 ops/azure-base/azure-base.values.sh
 ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa

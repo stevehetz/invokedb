@@ -30,22 +30,35 @@ password: password
 > permission dialog for `node`. Click **OK**, or the connection fails after 60s.
 > You can turn this off in Postgres.app → Settings.
 
-## Config
+## Config and secrets
 All config lives in `.env` at the repo root, created from `.env.example`. Mailgun, Slack and
 Stripe are optional. Without keys, emails and support requests are printed to the backend log.
+
+Secret files (`.env`, the Azure `*.values.sh` files, SSH keys) are gitignored. The originals
+live in the Dropbox folder `secret/invokedb`, and you copy them back and forth:
+```
+npm run secrets:status   # which copies differ
+npm run secrets:pull     # Dropbox secret folder -> repo (npm run setup does this)
+npm run secrets:push     # repo -> Dropbox secret folder, after editing .env etc.
+```
+Neither direction overwrites a newer file unless you pass `-- --force`.
+Set `INVOKEDB_SECRET_DIR` to use a different folder.
 
 ## Database
 ```
 npm run db:setup                    # create missing DBs + run pending migrations (safe)
 npm run db:reset                    # drop + recreate InvokeDB's DBs only (Postgres horizon*, Mongo horizon*)
-npm run migration:create -- Name   # new TypeORM migration
+npm run db:demo                     # replace local data with the demo dataset (asks first)
+npm run migration:create -- Name    # new TypeORM migration
 ```
+The demo dataset (`ops/shared/dumps/demo`) has three sample tables under `demo@invokedb.com`.
 
 ## Versioning
 ```
-npm run push "your commit message"
+npm run push "your commit message"  # bumps the patch version everywhere, commits, tags, pushes
 ```
 
-## Legacy
-`ops/` holds the old minikube/Helm local setup and the Azure/AKS production scripts
-(`npm run prod:*`). Local dev doesn't use them.
+## Production (Azure, currently torn down)
+`ops/azure-*` and `npm run prod:*` build and deploy to Azure AKS. They aren't used for local
+dev and haven't been run since the infrastructure was deleted, so expect to update them
+before deploying again.

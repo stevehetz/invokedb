@@ -11,8 +11,8 @@ the gotchas, and what to do next.
 
 | | |
 |---|---|
-| `main` | `f58937d`: local dev revamp (Node 22, no minikube). Pushed. |
-| `cleanup-legacy-ops` | Clean-up + secrets handling + demo data. **Not committed yet.** See below. |
+| `main` | `42fb1cf`: local dev revamp + legacy-ops clean-up, secrets handling, demo data. Pushed. |
+| `cleanup-legacy-ops` | Merged into `main` (fast-forward). Can be deleted. |
 | Runs locally? | Yes. `npm run dev` starts all three apps, and login, the API and Mongo writes work. |
 | Production | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild. |
 
@@ -34,7 +34,7 @@ Logins: `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, 
    still has the key. Rolling the key is the fix. Optionally scrub history afterwards
    (`git filter-repo` + force push).
    The original keys are in Dropbox `secret/invokedb/stripe.env`.
-2. **Commit `cleanup-legacy-ops`** and merge it to `main`.
+2. ~~Commit `cleanup-legacy-ops` and merge it to `main`.~~ Done 2026-11-14.
 3. Possibly consider making the repo private.
 
 The Azure Storage key that was also in history is harmless, because that storage account no
@@ -63,7 +63,7 @@ longer exists.
 - Babel packages were updated to fix a version mismatch from the old lockfile.
 - Vue CLI 4 / webpack 4 need `NODE_OPTIONS=--openssl-legacy-provider`. `env.sh` sets it.
 
-### On `cleanup-legacy-ops` (uncommitted)
+### From `cleanup-legacy-ops` (merged)
 - Deleted `ops/local/`, `docs/ops/ops-local.md`, `docs/ops/ops-minikube.md`,
   `workspaces/horizon-sh-mac.code-workspace` (stale absolute paths) and `lerna.json`.
 - **Secrets are copied instead of symlinked.** `scripts/secrets.sh` (`npm run secrets:pull`,

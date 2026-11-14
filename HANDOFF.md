@@ -11,8 +11,8 @@ the gotchas, and what to do next.
 
 | | |
 |---|---|
-| `main` | `42fb1cf`: local dev revamp + legacy-ops clean-up, secrets handling, demo data. Pushed. |
-| `cleanup-legacy-ops` | Merged into `main` (fast-forward). Can be deleted. |
+| `main` | Local dev revamp + legacy-ops clean-up, secrets handling, demo data. Pushed. The only branch. |
+| Repo | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below). |
 | Runs locally? | Yes. `npm run dev` starts all three apps, and login, the API and Mongo writes work. |
 | Production | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild. |
 
@@ -25,20 +25,24 @@ the gotchas, and what to do next.
 
 Logins: `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, all with password `password`.
 
-## Open items (do these first)
+## Open items
 
-1. **Roll the Stripe live secret key** in the Stripe Dashboard → Developers → API keys, unless
-   that account is closed. The key was committed inside the demo DB dump
-   (`ops/shared/dumps/demo/postgres/horizon.bak`, commit `3fed1e0`), and `stevehetz/invokedb`
-   is a **public** repo. The current files are clean, but git history
-   still has the key. Rolling the key is the fix. Optionally scrub history afterwards
-   (`git filter-repo` + force push).
-   The original keys are in Dropbox `secret/invokedb/stripe.env`.
-2. ~~Commit `cleanup-legacy-ops` and merge it to `main`.~~ Done 2026-11-14.
-3. Possibly consider making the repo private.
+None blocking. Stripe isn't in use, so the old Stripe keys are deliberately **not** being rolled.
+If Stripe comes back, create new keys rather than reusing the originals in Dropbox
+`secret/invokedb/stripe.env`.
 
-The Azure Storage key that was also in history is harmless, because that storage account no
-longer exists.
+### History scrub (2026-11-14)
+The repo is public, so `git filter-repo` rewrote all of history and the result was force-pushed:
+- Every version of `ops/shared/dumps/demo/postgres/horizon.bak` was replaced with the clean
+  rebuilt dump. The old one had the Stripe live and test keys and a customer ID.
+- `ops/azure-prod/azure-prod-build.values.sh` was removed from all commits. It had the Azure
+  storage key, the file-share secret and the prod IPs. It now lives only in the Dropbox secret folder.
+- The `cleanup-legacy-ops` and `local-dev-revamp` branches were deleted. Every commit SHA changed,
+  so any other clone must be re-cloned, not pulled.
+- A pre-scrub backup is in `~/dev/invokedb-pre-scrub-2026-11-14.bundle`. It contains the
+  secrets, so never push it.
+- `packages/horizon-be/src/constants.ts` still hardcodes `FS_TOKEN` / `WS_SERVER_TOKEN`. That's
+  harmless with no deployment, but move them to env vars before deploying anywhere.
 
 ## What changed, and why
 

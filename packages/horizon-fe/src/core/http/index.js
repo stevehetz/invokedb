@@ -1,3 +1,4 @@
+import $ from 'jquery';
 import file_upload from './file-upload';
 import { store } from '@/store';
 

@@ -1,3 +1,6 @@
+import screenshot_row_edit from '@/assets/screenshot-row-edit.png';
+import screenshot_column_edit from '@/assets/screenshot-column-edit.png';
+import screenshot_filter from '@/assets/screenshot-filter.png';
 const hljs = window.hljs;
 import javascript from 'highlight.js/lib/languages/javascript';
 hljs.registerLanguage('javascript', javascript);
@@ -11,9 +14,9 @@ export default {
     data() {
         return {
             screenshots: [
-                'screenshot-row-edit.png',
-                'screenshot-column-edit.png',
-                'screenshot-filter.png'
+                screenshot_row_edit,
+                screenshot_column_edit,
+                screenshot_filter
             ],
             code: {
                 search: samples.search,

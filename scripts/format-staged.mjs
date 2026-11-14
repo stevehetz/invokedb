@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-// Always the root prettier: the Vue CLI packages carry their own prettier 1.19.
+// Always the root prettier: horizon-fe's ESLint packages carry their own prettier 1.19.
 const prettier = path.join(root, 'node_modules/.bin/prettier');
 
 const git = (...args) =>

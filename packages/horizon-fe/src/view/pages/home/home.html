@@ -5,12 +5,9 @@
                 <div class="col col-25">
                     <img
                         class="heading-logo-title"
-                        v-bind:src="require('@/assets/logo-title.svg')"
+                        src="@/assets/logo-title.svg"
                     />
-                    <img
-                        class="heading-logo-icon"
-                        v-bind:src="require('@/assets/logo.svg')"
-                    />
+                    <img class="heading-logo-icon" src="@/assets/logo.svg" />
                 </div>
                 <div class="col col-75 pull-right">
                     <router-link to="/contact">Contact</router-link>
@@ -90,7 +87,7 @@
                     v-for="screenshot in screenshots"
                     :key="screenshot"
                 >
-                    <img v-bind:src="require('@/assets/' + screenshot)" />
+                    <img v-bind:src="screenshot" />
                 </el-carousel-item>
             </el-carousel>
         </div>

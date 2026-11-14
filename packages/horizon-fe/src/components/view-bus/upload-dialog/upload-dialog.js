@@ -1,3 +1,4 @@
+import $ from 'jquery';
 import { error_manager } from '@/core/error/error-manager';
 
 export default {

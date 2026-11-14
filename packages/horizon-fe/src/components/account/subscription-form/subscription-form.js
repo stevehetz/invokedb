@@ -1,5 +1,5 @@
 import { subscription_http } from '@/core/context/subscription/subscription-http';
-import * as moment from 'moment';
+import moment from 'moment';
 
 export default {
     name: 'SubscriptionForm',

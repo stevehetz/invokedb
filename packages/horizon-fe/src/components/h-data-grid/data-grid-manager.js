@@ -1,5 +1,6 @@
+import _ from 'lodash';
 import { web_file_http } from '@/core/context/web-file/web-file-http';
-import * as moment from 'moment';
+import moment from 'moment';
 
 moment.suppressDeprecationWarnings = true;
 

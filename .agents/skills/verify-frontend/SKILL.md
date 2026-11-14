@@ -1,13 +1,17 @@
 ---
 name: verify-frontend
-description: Verify a horizon-fe change by running the Playwright UI smoke test against a throwaway stack and diffing its output before and after. Use after any frontend change (components, store, routing, dependencies, build config, the Vue 3 / Vite migration) and before saying a UI change works.
+description: Run the Playwright UI smoke test for horizon-fe against a throwaway stack and diff its output before and after a change. Only when the user asks for it; routine frontend checks are just build + lint.
 ---
 
 # Verify a frontend change
 
-There are no frontend unit tests. The evidence that a change is safe is: **it builds**, **the
-UI smoke test passes**, and **its observations match the baseline** (or differ only where you
-meant them to).
+> **Run this only when the user asks.** The user finds it too slow as a routine step. For
+> everyday frontend changes, `npm --prefix packages/horizon-fe run build` and `run lint` are the
+> default checks.
+
+There are no frontend unit tests. When the user does ask for a full check, the evidence is: **it
+builds**, **the UI smoke test passes**, and **its observations match the baseline** (or differ
+only where you meant them to).
 
 `scripts/ui-smoke.mjs` drives the installed Chrome (the `playwright` npm package with
 `channel: 'chrome'`, so no browser download and no native build) through:
@@ -37,9 +41,8 @@ crashed run is removed at the start of the next one. `--headed` shows the browse
 bash -c 'source scripts/env.sh && npm --prefix packages/horizon-fe run build'
 ```
 
-`env.sh` must be sourced from bash (it uses `BASH_SOURCE`), and Vue CLI 4 needs the
-`NODE_OPTIONS` it sets. The output goes to each package's gitignored `dist/`. After the Vite
-migration, use whatever the build command is then.
+`env.sh` must be sourced from bash (it uses `BASH_SOURCE`). The output goes to the gitignored
+`dist/`.
 
 ## 2. Throwaway stack (never smoke-test against the user's real data)
 
@@ -81,11 +84,20 @@ If your change touches a flow the script doesn't cover, add a step (keep it self
 and check the backend saw the change, not just the DOM) rather than checking by hand once.
 
 Production builds load CSS differently (`<link>` chunk files instead of injected `<style>`), so
-for build or bundler changes also run the test against `dist/`. Write `dist/env.txt` with the
-smoke env (`cd packages/horizon-fe && node env.js dist`, with the env loaded), serve `dist/` on
-another port with an SPA fallback (any path that isn't a file returns `index.html`), and run
-`ui-smoke.mjs` with `HORIZON_FE_PUB_HTTP_URL` pointed at that port. Its JSON should match the
-dev run exactly.
+for build, bundler or CSS-import changes also run the test against a production build, once at
+the end of the stage. CSS load order can differ from dev: the Vite migration hit a prod-only nav
+regression that way.
+
+```sh
+HORIZON_ENV_FILE="$S/smoke.env" bash -c 'source scripts/env.sh && npm --prefix packages/horizon-fe run build'
+HORIZON_ENV_FILE="$S/smoke.env" bash -c 'source scripts/env.sh && npm --prefix packages/horizon-fe run preview -- --port 8110'   # background
+HORIZON_ENV_FILE="$S/smoke.env" bash -c 'source scripts/env.sh && HORIZON_FE_PUB_HTTP_URL=http://127.0.0.1:8110 node scripts/ui-smoke.mjs --out $S/dist.json'
+```
+
+`preview` writes `dist/env.txt` and serves `dist/` with an SPA fallback. Its JSON should match
+the dev run exactly. The smoke test checks behaviour, not looks, so for styling changes also
+compare screenshots against the previous build once per stage. The home page's carousel
+auto-rotates, so expect small differences there.
 
 ## 4. Writing and fixing steps: selector notes
 

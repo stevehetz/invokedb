@@ -9,10 +9,10 @@ repo. `CLAUDE.md` only imports this file. People should read `README.md` for com
 InvokeDB (code name "horizon"): a web app for building data tables you can query through an
 API. A monorepo of two packages with **separate `node_modules`** (no npm workspaces):
 
-| Package               | Stack                                                                    | Dev URL                 |
-| --------------------- | ------------------------------------------------------------------------ | ----------------------- |
-| `packages/horizon-be` | NestJS 11, TypeORM 0.3 (Postgres), native `mongodb` 6 driver, `ws` 8     | :8001 (websocket :9000) |
-| `packages/horizon-fe` | Vue 2, Vue CLI 4, ag-grid, Element UI. Public site at `/`, app at `/app` | :8000                   |
+| Package               | Stack                                                                   | Dev URL                 |
+| --------------------- | ----------------------------------------------------------------------- | ----------------------- |
+| `packages/horizon-be` | NestJS 11, TypeORM 0.3 (Postgres), native `mongodb` 6 driver, `ws` 8    | :8001 (websocket :9000) |
+| `packages/horizon-fe` | Vue 2.7, Vite 6, ag-grid, Element UI. Public site at `/`, app at `/app` | :8000                   |
 
 Logins (local and demo data): `demo@invokedb.com` … `demo7@invokedb.com`, password `password`.
 
@@ -36,8 +36,9 @@ bash scripts/smoke-env.sh <file>  # throwaway env (horizon_smoke DBs, ports 81xx
 
 There are no unit tests worth running yet (jest is configured, but there are no specs). Verify
 backend changes with `build` plus `api-smoke.mjs` (see the `verify-backend` skill). Verify UI
-changes with the build plus `ui-smoke.mjs` (see the `verify-frontend` skill). Both run against a
-throwaway stack, never the user's data.
+changes with `npm --prefix packages/horizon-fe run build` and `run lint`. The Playwright UI smoke
+test (`ui-smoke.mjs`, see the `verify-frontend` skill) is slow to set up, so **only run it when
+the user asks**. Both smoke tests run against a throwaway stack, never the user's data.
 
 ## Hard rules
 
@@ -66,8 +67,8 @@ throwaway stack, never the user's data.
 - Don't reformat by hand while editing. When you finish a task, run
   `node_modules/.bin/prettier --write <files you changed>` (from the repo root) so the diff the
   user reviews is already formatted. If prettier reports a syntax error, the file doesn't parse.
-- Always use the **root** prettier. The frontends have prettier 1.19 inside `node_modules`
-  (pulled in by Vue CLI), and it formats differently.
+- Always use the **root** prettier. `horizon-fe` has prettier 1.19 inside `node_modules`
+  (pulled in by its old ESLint prettier plugin), and it formats differently.
 - `ops/` and the backend email `.html` templates are intentionally not formatted.
 
 ## Backend conventions (`packages/horizon-be`)
@@ -100,8 +101,12 @@ throwaway stack, never the user's data.
   lazy-loaded, and **moving between the areas is a full page load** (`window.location` or a
   plain `<a href>`), never `router.push` or `<router-link>`. Within an area, use the router as
   normal. Don't import global CSS anywhere else. The UI smoke test checks this.
-- Vue CLI 4 / webpack 4 need `NODE_OPTIONS=--openssl-legacy-provider`, which `env.sh` sets. Use
-  the npm scripts instead of calling `vue-cli-service` directly.
+- Built with **Vite 6** (`vite.config.js`, `index.html` at the package root). Use the npm
+  scripts (`start`, `build`, `preview`, `lint`), which `env.sh` feeds the env. Static assets in
+  templates are plain `src="@/assets/x.png"`. `jquery` and `lodash` are imported explicitly (no
+  globals), except that `src/core/jquery-global.js` sets `window.jQuery` for jqtree. The app area
+  gets its Element UI theme only from `src/stylesheet.scss`, so don't also import
+  `element-ui/lib/theme-chalk/index.css` there (see the comment in `components/app.vue`).
 - A Vue 3 + Vite migration is planned next (see `HANDOFF.md`). Avoid new Vue-2-only patterns
   such as filters, `$listeners`, `Vue.set` or event-bus additions when there's a neutral
   alternative.
@@ -127,7 +132,7 @@ follow it. When a playbook mentions another skill by name, it means that skill's
 | ----------------- | ------------------------------------------------------------------------------------------------- |
 | `dev-stack`       | start, restart, health-check or stop the app; read its logs; inspect local Postgres or Mongo data |
 | `verify-backend`  | call a `horizon-be` change done (any service, entity, query, config or dependency change)         |
-| `verify-frontend` | call a `horizon-fe` change done (components, store, routing, deps, build, Vue 3 migration)        |
+| `verify-frontend` | run the UI smoke test or screenshot comparison, **only when the user asks for it**                |
 | `db-migration`    | add or change an entity or column, write a migration or seed data, or run or revert migrations    |
 
 For starting this app, use `dev-stack` rather than any generic "run the app" behaviour.

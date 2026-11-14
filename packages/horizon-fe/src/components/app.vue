@@ -1,6 +1,9 @@
 <script>
 // The signed-in app's shell (route /app). It owns the app's global CSS; see router.js for why.
-import 'element-ui/lib/theme-chalk/index.css';
+// No 'element-ui/lib/theme-chalk/index.css' here: stylesheet.scss compiles the whole Element theme
+// (with the app's colours) itself. Importing both put the default theme in a shared chunk that
+// Vite's production build loaded after stylesheet.scss, overriding the app's nav styles.
+import '@/core/jquery-global'; // must come before jqtree
 import 'jqtree';
 import 'jqtree/jqtree.css';
 import 'ag-grid-community/dist/styles/ag-grid.css';

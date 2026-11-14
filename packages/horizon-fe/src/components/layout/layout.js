@@ -1,3 +1,4 @@
+import $ from 'jquery';
 import { store } from '@/store';
 import { account_manager } from '@/core/context/account/account-manager';
 

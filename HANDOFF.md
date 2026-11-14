@@ -14,27 +14,29 @@ the gotchas, and what to do next.
    `CLAUDE.md` just imports it.
 2. Read the playbook in `.agents/skills/` that matches your task (the index is in `AGENTS.md`).
 3. Steps 1 (UI smoke baseline) and 2.1 (merge `horizon-auth-fe` into `horizon-fe`) of
-   "Suggested next steps" are done and merged. The next job is **step 2.2: Vue CLI 4 / webpack 4 → Vite, still on
-   Vue 2.7**. Read the "Two areas" gotcha first. Run the `verify-frontend` playbook after every
-   stage.
+   "Suggested next steps" are done and merged. Step 2.2 (Vue CLI 4 / webpack 4 → Vite on Vue
+   2.7) is done and merged too. The next job is **step 2.3: Element
+   UI → Element Plus, `ag-grid-vue` → `ag-grid-vue3`, and jQuery / jqtree out of `h-tree`, still
+   on Vue 2.7**. Read the "Two areas" gotcha first. Check each change with the frontend
+   build and lint. Run the UI smoke test (`verify-frontend`) only when the user asks for it.
 4. Work on a branch. The user merges to `main` and pushes once they approve. Formatting
    happens in the pre-commit hook (`npm install` at the root turns it on).
 
 ## Current state
 
-|               |                                                                                                                                                                  |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `main`        | Local dev revamp, legacy-ops clean-up, secrets, demo data, backend upgrade, agent tooling + prettier, UI smoke test, `horizon-auth-fe` merged into `horizon-fe`. |
-| Repo          | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below).                                                        |
-| Runs locally? | Yes. `npm run dev` starts the backend and the frontend, and login, the API and Mongo writes work.                                                                |
-| Production    | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild.                                                                          |
+|               |                                                                                                                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main`        | Local dev revamp, legacy-ops clean-up, secrets, demo data, backend upgrade, agent tooling + prettier, UI smoke test, `horizon-auth-fe` merged into `horizon-fe`, Vite. |
+| Repo          | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below).                                                              |
+| Runs locally? | Yes. `npm run dev` starts the backend and the frontend, and login, the API and Mongo writes work.                                                                      |
+| Production    | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild.                                                                                |
 
 ### Apps
 
-| Package               | What                                                                                                          | Dev URL          |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `packages/horizon-be` | NestJS 11 API + websocket server. Postgres via TypeORM 0.3, MongoDB via the native `mongodb` 6 driver.        | :8001 (ws :9000) |
-| `packages/horizon-fe` | Vue 2, Vue CLI 4, ag-grid, Element UI. Public site (marketing, login, signup, checkout) at `/`, app at `/app` | :8000            |
+| Package               | What                                                                                                         | Dev URL          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------- |
+| `packages/horizon-be` | NestJS 11 API + websocket server. Postgres via TypeORM 0.3, MongoDB via the native `mongodb` 6 driver.       | :8001 (ws :9000) |
+| `packages/horizon-fe` | Vue 2.7, Vite 6, ag-grid, Element UI. Public site (marketing, login, signup, checkout) at `/`, app at `/app` | :8000            |
 
 Logins: `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, all with password `password`.
 
@@ -60,6 +62,41 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
   harmless with no deployment, but move them to env vars before deploying anywhere.
 
 ## What changed, and why
+
+### Vue CLI 4 / webpack 4 → Vite 6 (2026-11-14, merged)
+
+- **Toolchain:** Vue 2.6.11 → 2.7.16 (`@vitejs/plugin-vue2` needs 2.7), Vite 6.4.6 and
+  `@vitejs/plugin-vue2` 2.3.4. `autoprefixer` is now an explicit dev dependency for the existing
+  PostCSS config. Removed Vue CLI, babel, jest, `sass-loader`, `vue-template-compiler`, `rimraf`
+  and `node-ensure` (about 1,260 packages). esbuild and rollup install prebuilt `darwin-arm64`
+  binaries, so nothing is compiled. `--openssl-legacy-provider` is gone from `env.sh`.
+- **Config:** `vite.config.js` (alias `@`, `.vue` directory imports, `strictPort`, the legacy
+  Sass API because `sass` is still 1.32 for Element UI's theme SCSS). `index.html` moved to the
+  package root. Scripts: `start` (`vite`), `build`, `preview`, and `lint` (plain `eslint`; there's
+  no lint-on-save any more until step 2.5). Removed `vue.config.js`, `babel.config.js`,
+  `internals/build.js`, `internals/webpack.config.js`, and the dead `src/view/router.js` left over
+  from the merge.
+- **Source changes Vite needed:**
+  - `require('@/assets/…')` in templates → `src="@/assets/…"`, and the home page's dynamic
+    screenshots → imports.
+  - `~` in SCSS imports and `url()`.
+  - `process.env.BASE_URL` → `import.meta.env.BASE_URL`.
+  - `import * as moment` → default import (ESM forbids assigning to a namespace).
+  - Explicit `jquery`/`lodash` imports in 11 files, replacing webpack's ProvidePlugin.
+  - `src/core/jquery-global.js` sets `window.jQuery`, because jqtree looks it up when it
+    registers. Without it the smoke test found `/app` crashing.
+- **Prod-only CSS bug found and fixed:** the app shell imported both Element's default theme CSS
+  and `stylesheet.scss`, which compiles the whole themed Element CSS itself. In Vite's production
+  build the default theme landed in a shared chunk that loaded _after_ the app CSS and reset the
+  nav styles. Dropping the redundant import fixed it, and each area now ships exactly one CSS file.
+- **How it was verified:** the smoke test passes on the dev server and on `vite preview`, with
+  JSON identical to the last webpack run. Screenshots of all public pages and app screens match
+  the original Vue CLI app pixel for pixel, except the auto-rotating home carousel and the known
+  smoothing on one scaled Guide image. Production build time: about 4s. The entry JS is a single
+  2.3 MB chunk (577 kB gzip), about the same total as before. Vite warns about its size, and
+  splitting it is optional future work.
+- **Not done:** the `Dockerfile` (`node:10`, `npm run build`) and `ops/` weren't updated (see
+  step 5).
 
 ### `horizon-auth-fe` merged into `horizon-fe` (2026-11-14, merged)
 
@@ -135,7 +172,7 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
   styles (4 spaces, single quotes, no trailing commas, `arrowParens: avoid`, width 100, or 80 in
   `horizon-fe`), so prettier 3 itself changes very little. The per-package `prettier` keys and
   `format` scripts were removed, and the backend's direct prettier 1.19 dependency is gone. The
-  frontends still have 1.19 inside `node_modules` through Vue CLI, so editors and the
+  frontend still has 1.19 inside `node_modules` (now via its ESLint prettier plugin), so editors and the
   pre-commit hook point at the root install. ESLint's `prettier/prettier` rule is off in both frontends, so that 1.19
   copy doesn't fight 3.x during `lintOnSave`.
 - Format on save: `.vscode/settings.json` (root and per package), the workspace file, and
@@ -205,7 +242,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
 - The Google Fonts webpack plugin was broken (its API is gone), so it was replaced with a
   `<link>` tag in each `public/index.html`.
 - Babel packages were updated to fix a version mismatch from the old lockfile.
-- Vue CLI 4 / webpack 4 need `NODE_OPTIONS=--openssl-legacy-provider`. `env.sh` sets it.
+- Vue CLI 4 / webpack 4 needed `NODE_OPTIONS=--openssl-legacy-provider` (removed with the Vite move).
 
 ### From `cleanup-legacy-ops` (merged)
 
@@ -281,11 +318,10 @@ than what this upgrade was validated against. Moving to them from here is a smal
    Check that Playwright's browser download doesn't need native builds (see the Xcode gotcha).
    `--browser chrome` uses the installed Chrome.
 
-2. **Vue 2 → Vue 3 + Vite, in stages**, each on its own branch, re-running the UI smoke test
-   after each stage:
+2. **Vue 2 → Vue 3 + Vite, in stages**, each on its own branch (build + lint after each; the UI
+   smoke test only when the user asks):
    1. ~~Merge `horizon-auth-fe` into `horizon-fe`~~ **Done** (see above).
-   2. Vue CLI 4 / webpack 4 → Vite while still on Vue 2.7. This drops
-      `--openssl-legacy-provider`.
+   2. ~~Vue CLI 4 / webpack 4 → Vite while still on Vue 2.7~~ **Done** (see above).
    3. Clear the hardest blockers while still on Vue 2.7: Element UI → Element Plus,
       `ag-grid-vue` → `ag-grid-vue3`, and remove jQuery / jqtree from `h-tree`.
    4. Switch to Vue 3 (the compat build first). Vuex → Pinia now or later.

@@ -1,3 +1,4 @@
+import $ from 'jquery';
 import { tree_consts } from './h-tree-consts';
 import { store } from '@/store';
 

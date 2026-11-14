@@ -13,5 +13,3 @@ set -a
 source "$HORIZON_ENV_FILE"
 set +a
 mkdir -p "$HORIZON_FILE_SHARE/temp"
-# Vue CLI 4 / webpack 4 use md4 hashing, which Node 17+ disables by default
-export NODE_OPTIONS="--openssl-legacy-provider ${NODE_OPTIONS:-}"

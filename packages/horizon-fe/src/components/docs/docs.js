@@ -1,3 +1,4 @@
+import $ from 'jquery';
 const hljs = window.hljs;
 import javascript from 'highlight.js/lib/languages/javascript';
 hljs.registerLanguage('javascript', javascript);

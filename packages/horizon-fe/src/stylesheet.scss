@@ -36,8 +36,8 @@ $yellow500: #babf0f;
 
 $--color-primary: $purple300;
 $--color-success: $green500;
-$--font-path: '~element-ui/lib/theme-chalk/fonts';
-@import '~element-ui/packages/theme-chalk/src/index';
+$--font-path: 'element-ui/lib/theme-chalk/fonts';
+@import 'element-ui/packages/theme-chalk/src/index';
 
 html {
     height: 100%;
@@ -529,11 +529,11 @@ $nav_active_color: #ffffff;
 }
 .gutter.gutter-horizontal {
     cursor: col-resize;
-    background-image: url('~@/assets/vertical.png');
+    background-image: url('@/assets/vertical.png');
 }
 .gutter.gutter-vertical {
     cursor: row-resize;
-    background-image: url('~@/assets/horizontal.png');
+    background-image: url('@/assets/horizontal.png');
 }
 .split.split-horizontal,
 .gutter.gutter-horizontal {

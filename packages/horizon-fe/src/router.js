@@ -27,7 +27,6 @@ Vue.use(Router);
 // loaded lazily, and moving between the areas is a full page load (window.location), so the
 // two stylesheets are never on the page together. Within an area, use the router as normal.
 const Site = () => import(/* webpackChunkName: "site" */ '@/view/site.vue');
-// ("app" is taken: it's Vue CLI's entry chunk name)
 const App = () =>
     import(/* webpackChunkName: "signed-in" */ '@/components/app.vue');
 
@@ -35,7 +34,7 @@ export const APP_PATH = '/app';
 
 let router = new Router({
     mode: 'history',
-    base: process.env.BASE_URL,
+    base: import.meta.env.BASE_URL,
     routes: [
         {
             path: APP_PATH,

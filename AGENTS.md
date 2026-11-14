@@ -143,7 +143,11 @@ Defined in `.mcp.json` at the repo root, which Claude Code reads directly. For o
 copy the same entries into their MCP config.
 
 - `playwright`: drive Chrome to check UI changes at http://127.0.0.1:8000 (site) and :8000/app.
-- `mongodb`: **read-only** access to local Mongo (`horizon*` databases).
+- `mongodb`: **read-only** access to local Mongo (`horizon*` databases). Use
+  `connectionId: "preconfigured"`; no `connect` call is needed.
+
+Playwright saves page snapshots and console logs as files in `.playwright-mcp/` (gitignored)
+rather than inline, so read the file it links, or call `browser_snapshot` for an inline one.
 
 Postgres has no MCP server. Use `psql` (`PGHOST=127.0.0.1 PGUSER=postgres psql horizon`).
 

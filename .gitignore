@@ -45,3 +45,4 @@ ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa.pub
 
 # Claude Code personal settings, if anyone creates them
 .claude/settings.local.json
+.playwright-mcp/

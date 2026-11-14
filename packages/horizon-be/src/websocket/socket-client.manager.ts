@@ -6,7 +6,7 @@ const client_util = require('util');
 
 const SOCKET_RECONNECT_TIMER = 10000; // 10 seconds
 
-const SocketManagerClient = function(id) {
+const SocketManagerClient = function (id) {
     this.id = id || null;
     this.open = false;
     this.socket = undefined;
@@ -15,7 +15,7 @@ const SocketManagerClient = function(id) {
 
 client_util.inherits(SocketManagerClient, Client_EventEmitter);
 
-SocketManagerClient.prototype.connect = function(endpoint) {
+SocketManagerClient.prototype.connect = function (endpoint) {
     if (!endpoint) return 'SocketManagerClient: Must provide an endpoint to connect to';
     this.endpoint = endpoint;
 
@@ -25,14 +25,14 @@ SocketManagerClient.prototype.connect = function(endpoint) {
     this.emit('connect');
 };
 
-SocketManagerClient.prototype.onopen = function() {
+SocketManagerClient.prototype.onopen = function () {
     this.open = true;
     this.socket.onmessage = this.messageMgr.bind(this);
     this.socket.onclose = this.onclose.bind(this);
     this.emit('open');
 };
 
-SocketManagerClient.prototype.register = function(token, metadata) {
+SocketManagerClient.prototype.register = function (token, metadata) {
     if (!this.id) return;
     const obj = {
         action: 'register',
@@ -45,7 +45,7 @@ SocketManagerClient.prototype.register = function(token, metadata) {
     this.send.call(this, JSON.stringify(obj));
 };
 
-SocketManagerClient.prototype.onerror = function(error) {
+SocketManagerClient.prototype.onerror = function (error) {
     // Log error
     // this.emit('info', 'Connection to ' + this.endpoint + ' failed.');
 
@@ -53,7 +53,7 @@ SocketManagerClient.prototype.onerror = function(error) {
     setTimeout(this.connect.bind(this, this.endpoint), 10000);
 };
 
-SocketManagerClient.prototype.onclose = function() {
+SocketManagerClient.prototype.onclose = function () {
     // this.emit('info', 'Disconnected from ' + this.endpoint);
     this.open = false;
     this.socket.close();
@@ -61,7 +61,7 @@ SocketManagerClient.prototype.onclose = function() {
     this.emit('close');
 };
 
-SocketManagerClient.prototype.messageMgr = function(message) {
+SocketManagerClient.prototype.messageMgr = function (message) {
     let msg;
 
     try {
@@ -95,16 +95,16 @@ SocketManagerClient.prototype.messageMgr = function(message) {
     });
 };
 
-SocketManagerClient.prototype.onMessage = function(handler) {
+SocketManagerClient.prototype.onMessage = function (handler) {
     this.messageHandlers.push(handler);
 };
 
-SocketManagerClient.prototype.removeOnMessage = function(handler) {
+SocketManagerClient.prototype.removeOnMessage = function (handler) {
     let index = this.messageHandlers.indexOf(handler);
     if (index > -1) this.messageHandlers.splice(index, 1);
 };
 
-SocketManagerClient.prototype.sendToClient = function(message) {
+SocketManagerClient.prototype.sendToClient = function (message) {
     if (this.open)
         this.socket.send(
             JSON.stringify({
@@ -116,7 +116,7 @@ SocketManagerClient.prototype.sendToClient = function(message) {
         );
 };
 
-SocketManagerClient.prototype.sendToClientAccount = function(message) {
+SocketManagerClient.prototype.sendToClientAccount = function (message) {
     if (this.open)
         this.socket.send(
             JSON.stringify({
@@ -129,7 +129,7 @@ SocketManagerClient.prototype.sendToClientAccount = function(message) {
         );
 };
 
-SocketManagerClient.prototype.send = function(message) {
+SocketManagerClient.prototype.send = function (message) {
     if (this.open) this.socket.send(message);
 };
 

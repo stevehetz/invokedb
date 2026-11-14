@@ -1,14 +1,4 @@
-import {
-    Controller,
-    Get,
-    Post,
-    Put,
-    Request,
-    Query,
-    Body,
-    Param,
-    UseGuards
-} from '@nestjs/common';
+import { Controller, Get, Post, Put, Request, Query, Body, Param, UseGuards } from '@nestjs/common';
 
 import { FileDirectoryService } from '@app/application/file-directory/file-directory.service';
 import { FileDirectoryGetDto } from '@app/application/file-directory/dto/file-directory-get.dto';

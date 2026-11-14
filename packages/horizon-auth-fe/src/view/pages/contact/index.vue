@@ -1,2 +1,2 @@
-<template src="./contact.html"> </template>
+<template src="./contact.html"></template>
 <script src="./contact.js"></script>

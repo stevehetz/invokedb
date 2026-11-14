@@ -16,11 +16,11 @@ const env = {
 
 if (args[0]) {
     if (args[0] == 'dist')
-        jsonfile.writeFile('dist/env.txt', env, function(err) {
+        jsonfile.writeFile('dist/env.txt', env, function (err) {
             if (err) console.log(err);
         });
     else if (args[0] == 'public')
-        jsonfile.writeFile('public/env.txt', env, function(err) {
+        jsonfile.writeFile('public/env.txt', env, function (err) {
             if (err) console.log(err);
         });
 }

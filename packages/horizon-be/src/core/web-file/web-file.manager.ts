@@ -570,9 +570,12 @@ export class WebFileManager {
 
         if (original.col_type !== data.col_type) {
             this.throw_timeout_error = false;
-            setTimeout(() => {
-                this.throw_timeout_error = true;
-            }, _c.JOB_PROCESSOR_TIMEOUT_MIN * 1000 * 60);
+            setTimeout(
+                () => {
+                    this.throw_timeout_error = true;
+                },
+                _c.JOB_PROCESSOR_TIMEOUT_MIN * 1000 * 60
+            );
 
             const { field } = data;
             const row_coll = await this._collections.get_dg_row(acct_id, file_id);

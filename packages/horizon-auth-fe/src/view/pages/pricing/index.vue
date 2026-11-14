@@ -1,2 +1,2 @@
-<template src="./pricing.html"> </template>
+<template src="./pricing.html"></template>
 <script src="./pricing.js"></script>

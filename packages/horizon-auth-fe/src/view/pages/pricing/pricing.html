@@ -3,30 +3,23 @@
         <div class="main-heading">
             <div class="flex-row">
                 <div class="col col-25">
-                    <router-link class="title-link"
-                                 to="/">
-                        <img class="heading-logo-title"
-                             v-bind:src="require('@/assets/logo-title.svg')" />
-                        <img class="heading-logo-icon"
-                             v-bind:src="require('@/assets/logo.svg')" />
+                    <router-link class="title-link" to="/">
+                        <img
+                            class="heading-logo-title"
+                            v-bind:src="require('@/assets/logo-title.svg')"
+                        />
+                        <img class="heading-logo-icon" v-bind:src="require('@/assets/logo.svg')" />
                     </router-link>
                 </div>
                 <div class="col col-75 pull-right">
                     <router-link to="/contact">Contact</router-link>
-                    <router-link to="/pricing"
-                                 class="active">Pricing</router-link>
-                    <router-link to="/create-account"
-                                 v-if="!account">Sign Up</router-link>
-                    <router-link to="/login"
-                                 class="sign-in"
-                                 v-if="!account">
+                    <router-link to="/pricing" class="active">Pricing</router-link>
+                    <router-link to="/create-account" v-if="!account">Sign Up</router-link>
+                    <router-link to="/login" class="sign-in" v-if="!account">
                         <span>Sign In</span>
                         <i class="fa fa-arrow-right"></i>
                     </router-link>
-                    <a href=""
-                       class="sign-in"
-                       v-if="account"
-                       @click="go_to_database">
+                    <a href="" class="sign-in" v-if="account" @click="go_to_database">
                         <span>Database</span>
                         <i class="fa fa-arrow-right"></i>
                     </a>
@@ -51,12 +44,15 @@
                     <p class="item"><i class="fa fa-check"></i> Column indexing</p>
                     <p class="item"><i class="fa fa-check"></i> Column types</p>
                     <p class="item"><i class="fa fa-check"></i> Column sorting</p>
-                    <router-link to="/create-account"
-                                 class="pricing-button"
-                                 v-if="!account">Get Started</router-link>
-                    <router-link :to="checkout_link"
-                                 class="change-plan-link pricing-button"
-                                 v-if="account">Change Plan</router-link>
+                    <router-link to="/create-account" class="pricing-button" v-if="!account"
+                        >Get Started</router-link
+                    >
+                    <router-link
+                        :to="checkout_link"
+                        class="change-plan-link pricing-button"
+                        v-if="account"
+                        >Change Plan</router-link
+                    >
                 </div>
                 <div class="pricing-block">
                     <p class="title">Basic</p>
@@ -75,12 +71,15 @@
                     <p class="item"><i class="fa fa-check"></i> Column indexing</p>
                     <p class="item"><i class="fa fa-check"></i> Column types</p>
                     <p class="item"><i class="fa fa-check"></i> Column sorting</p>
-                    <router-link to="/create-account"
-                                 class="pricing-button"
-                                 v-if="!account">Get Started</router-link>
-                    <router-link :to="checkout_link"
-                                 class="change-plan-link pricing-button"
-                                 v-if="account">Change Plan</router-link>
+                    <router-link to="/create-account" class="pricing-button" v-if="!account"
+                        >Get Started</router-link
+                    >
+                    <router-link
+                        :to="checkout_link"
+                        class="change-plan-link pricing-button"
+                        v-if="account"
+                        >Change Plan</router-link
+                    >
                 </div>
                 <div class="pricing-block">
                     <p class="title">Plus</p>
@@ -99,12 +98,15 @@
                     <p class="item"><i class="fa fa-check"></i> Column indexing</p>
                     <p class="item"><i class="fa fa-check"></i> Column types</p>
                     <p class="item"><i class="fa fa-check"></i> Column sorting</p>
-                    <router-link to="/create-account"
-                                 class="pricing-button"
-                                 v-if="!account">Get Started</router-link>
-                    <router-link :to="checkout_link"
-                                 class="change-plan-link pricing-button"
-                                 v-if="account">Change Plan</router-link>
+                    <router-link to="/create-account" class="pricing-button" v-if="!account"
+                        >Get Started</router-link
+                    >
+                    <router-link
+                        :to="checkout_link"
+                        class="change-plan-link pricing-button"
+                        v-if="account"
+                        >Change Plan</router-link
+                    >
                 </div>
                 <!-- <div class="pricing-block">
                     <p class="title">Premium</p>
@@ -135,8 +137,7 @@
         <div class="pricing-body desktop">
             <div class="pricing-body__wrapper">
                 <div class="flex-row pricing-body__row pricing-body__header">
-                    <div class="col col-25">
-                    </div>
+                    <div class="col col-25"></div>
                     <div class="col col-20">
                         <span>Free</span>
                     </div>
@@ -154,8 +155,7 @@
                     </div> -->
                 </div>
                 <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                    </div>
+                    <div class="col col-25"></div>
                     <div class="col col-20">
                         <span class="price">$0</span>
                         <span>per month</span>
@@ -177,12 +177,9 @@
                     <div class="col col-25">
                         <span><b>Resources</b></span>
                     </div>
-                    <div class="col col-20">
-                    </div>
-                    <div class="col col-20">
-                    </div>
-                    <div class="col col-20">
-                    </div>
+                    <div class="col col-20"></div>
+                    <div class="col col-20"></div>
+                    <div class="col col-20"></div>
                     <!-- <div class="col col-20">
                     </div> -->
                 </div>
@@ -292,13 +289,10 @@
                     <div class="col col-25">
                         <span><b>Table Administration</b></span>
                     </div>
-                    <div class="col col-20">
-                    </div>
-                    <div class="col col-20">
-                    </div>
-                    <div class="col col-20">
-                    </div>
-                   <!--  <div class="col col-20">
+                    <div class="col col-20"></div>
+                    <div class="col col-20"></div>
+                    <div class="col col-20"></div>
+                    <!--  <div class="col col-20">
                     </div> -->
                 </div>
                 <div class="flex-row pricing-body__row">
@@ -365,7 +359,7 @@
                     <div class="col col-20">
                         <i class="fa fa-check"></i>
                     </div>
-                   <!--  <div class="col col-20">
+                    <!--  <div class="col col-20">
                         <i class="fa fa-check"></i>
                     </div> -->
                 </div>
@@ -416,7 +410,7 @@
                     <div class="col col-20">
                         <i class="fa fa-check"></i>
                     </div>
-                   <!--  <div class="col col-20">
+                    <!--  <div class="col col-20">
                         <i class="fa fa-check"></i>
                     </div> -->
                 </div>
@@ -442,25 +436,22 @@
                         <span></span>
                     </div>
                     <div class="col col-20">
-                        <router-link to="/create-account"
-                                     v-if="!account">Get Started</router-link>
-                        <router-link :to="checkout_link"
-                                     class="change-plan-link"
-                                     v-if="account">Change Plan</router-link>
+                        <router-link to="/create-account" v-if="!account">Get Started</router-link>
+                        <router-link :to="checkout_link" class="change-plan-link" v-if="account"
+                            >Change Plan</router-link
+                        >
                     </div>
                     <div class="col col-20">
-                        <router-link to="/create-account"
-                                     v-if="!account">Get Started</router-link>
-                        <router-link :to="checkout_link"
-                                     class="change-plan-link"
-                                     v-if="account">Change Plan</router-link>
+                        <router-link to="/create-account" v-if="!account">Get Started</router-link>
+                        <router-link :to="checkout_link" class="change-plan-link" v-if="account"
+                            >Change Plan</router-link
+                        >
                     </div>
                     <div class="col col-20">
-                        <router-link to="/create-account"
-                                     v-if="!account">Get Started</router-link>
-                        <router-link :to="checkout_link"
-                                     class="change-plan-link"
-                                     v-if="account">Change Plan</router-link>
+                        <router-link to="/create-account" v-if="!account">Get Started</router-link>
+                        <router-link :to="checkout_link" class="change-plan-link" v-if="account"
+                            >Change Plan</router-link
+                        >
                     </div>
                     <!-- <div class="col col-20">
                         <router-link to="/create-account"
@@ -475,8 +466,7 @@
         <div class="footer">
             <div class="flex-row">
                 <div class="col">
-                    <span>© InvokeDB, LLC</span>•
-                    <router-link to="/tos">Terms</router-link>•
+                    <span>© InvokeDB, LLC</span>• <router-link to="/tos">Terms</router-link>•
                     <router-link to="/privacy">Privacy</router-link>
                 </div>
             </div>

@@ -12,7 +12,7 @@ const EventEmitter = require('events').EventEmitter;
 const util = require('util');
 const _c = require('@app/constants').default;
 
-const SocketManagerServer = function(id) {
+const SocketManagerServer = function (id) {
     this.id = id || null;
     this.client_count_cache = 0;
     this.open = false;
@@ -32,7 +32,7 @@ util.inherits(SocketManagerServer, EventEmitter);
 /**
  * Starts the websocket server
  */
-SocketManagerServer.prototype.startHost = function(port, opts) {
+SocketManagerServer.prototype.startHost = function (port, opts) {
     this.port = port;
     this.require_auth = opts.require_auth || this.require_auth;
     this.auth_middleware = opts.auth_middleware || null;
@@ -51,7 +51,7 @@ SocketManagerServer.prototype.startHost = function(port, opts) {
 /**
  * Handle a new server connection
  */
-SocketManagerServer.prototype.onConnection = function(socket) {
+SocketManagerServer.prototype.onConnection = function (socket) {
     const client: any = {};
     client.ponged = true;
     client.socket = socket;
@@ -67,7 +67,7 @@ SocketManagerServer.prototype.onConnection = function(socket) {
 /**
  * Client closes a connection
  */
-SocketManagerServer.prototype.onClientClose = function(client) {
+SocketManagerServer.prototype.onClientClose = function (client) {
     if (client.pingPongTimeout) clearTimeout(client.pingPongTimeout);
     client.socket.terminate();
     this.unsubscribeClient(client);
@@ -78,7 +78,7 @@ SocketManagerServer.prototype.onClientClose = function(client) {
 /**
  * Client has an error
  */
-SocketManagerServer.prototype.onClientError = function(client, error) {
+SocketManagerServer.prototype.onClientError = function (client, error) {
     client.socket.terminate();
     this.unsubscribeClient(client);
     this.unregisterClient(client);
@@ -90,7 +90,7 @@ SocketManagerServer.prototype.onClientError = function(client, error) {
  * Handle ping pong with client to make
  * sure they are still there
  */
-SocketManagerServer.prototype.checkForClientPong = function(client) {
+SocketManagerServer.prototype.checkForClientPong = function (client) {
     if (client.ponged) {
         client.ponged = false;
         this.sendToClient(this.id, client, 'ping');
@@ -109,7 +109,7 @@ SocketManagerServer.prototype.checkForClientPong = function(client) {
  * This function will analyze the message and may eventually
  * pass it along to the appropriate handler
  */
-SocketManagerServer.prototype.clientMessageMgr = function(client, message) {
+SocketManagerServer.prototype.clientMessageMgr = function (client, message) {
     let msg;
 
     try {
@@ -153,7 +153,7 @@ SocketManagerServer.prototype.clientMessageMgr = function(client, message) {
 /**
  * Subscribes client to broadcast messages
  */
-SocketManagerServer.prototype.subscribeClient = function(client) {
+SocketManagerServer.prototype.subscribeClient = function (client) {
     this.unsubscribeClient(client);
     this.broadcastClients.push(client);
     this.emit('info', client.id + ' has subscribed to broadcasts');
@@ -162,7 +162,7 @@ SocketManagerServer.prototype.subscribeClient = function(client) {
 /**
  * Removes subscription
  */
-SocketManagerServer.prototype.unsubscribeClient = function(client) {
+SocketManagerServer.prototype.unsubscribeClient = function (client) {
     try {
         this.broadcastClients.forEach((c, a, i) => {
             if (c.id === client.id) {
@@ -178,7 +178,7 @@ SocketManagerServer.prototype.unsubscribeClient = function(client) {
 /**
  * Auth Middleware
  */
-SocketManagerServer.prototype.authenticate = function(token) {
+SocketManagerServer.prototype.authenticate = function (token) {
     return new Promise((resolve, reject) => {
         try {
             if (token === _c.WS_SERVER_TOKEN) {
@@ -199,7 +199,7 @@ SocketManagerServer.prototype.authenticate = function(token) {
  * A client has passed registration info.
  * Try and Register this client
  */
-SocketManagerServer.prototype.registerClient = function(client, payload) {
+SocketManagerServer.prototype.registerClient = function (client, payload) {
     const self = this;
     const { id, token, metadata } = payload;
     if (self.require_auth) {
@@ -265,7 +265,7 @@ SocketManagerServer.prototype.registerClient = function(client, payload) {
 /**
  * Unregister the client after closing
  */
-SocketManagerServer.prototype.unregisterClient = function(client) {
+SocketManagerServer.prototype.unregisterClient = function (client) {
     if (this.clientRegistry[client.id]) {
         delete this.clientRegistry[client.id];
         // this.emit('debug', 'client with id ' + client.id + ' has been removed');
@@ -275,7 +275,7 @@ SocketManagerServer.prototype.unregisterClient = function(client) {
 /**
  * Handle server error
  */
-SocketManagerServer.prototype.handleServerError = function(error, message) {
+SocketManagerServer.prototype.handleServerError = function (error, message) {
     this.sendStatus(message);
     this.emit('error', message);
     if (error) this.emit('error', error);
@@ -285,7 +285,7 @@ SocketManagerServer.prototype.handleServerError = function(error, message) {
  * Used to send a message from 1
  * client to another client
  */
-SocketManagerServer.prototype.sendDirectMessage = function(senderClient, msg) {
+SocketManagerServer.prototype.sendDirectMessage = function (senderClient, msg) {
     const { senderId, recipientId, payload } = msg;
     if (!senderId || !recipientId || !payload)
         return this.sendError(senderClient, 'You must pass a senderId, recipientId and payload.');
@@ -313,7 +313,7 @@ SocketManagerServer.prototype.sendDirectMessage = function(senderClient, msg) {
  * Used to send a message from 1
  * client to another client with a specific account
  */
-SocketManagerServer.prototype.sendDirectMessageAccount = function(senderClient, msg) {
+SocketManagerServer.prototype.sendDirectMessageAccount = function (senderClient, msg) {
     const { senderId, recipientId, accountId, payload } = msg;
     if (!senderId || !recipientId || !accountId || !payload)
         return this.sendError(
@@ -344,14 +344,14 @@ SocketManagerServer.prototype.sendDirectMessageAccount = function(senderClient, 
 /**
  * Error notifier
  */
-SocketManagerServer.prototype.sendError = function(client, message) {
+SocketManagerServer.prototype.sendError = function (client, message) {
     this.sendToClient(this.id, client, 'error', message);
 };
 
 /**
  * Status notifier
  */
-SocketManagerServer.prototype.sendStatus = function(message) {
+SocketManagerServer.prototype.sendStatus = function (message) {
     this.broadcast(this.id, 'status', message);
 };
 
@@ -359,7 +359,7 @@ SocketManagerServer.prototype.sendStatus = function(message) {
  * Broadcast message to all clients who subscribed
  * to broadcast messages
  */
-SocketManagerServer.prototype.broadcast = function(senderId, action, payload) {
+SocketManagerServer.prototype.broadcast = function (senderId, action, payload) {
     this.broadcastClients.forEach(c => {
         this.sendToClient(senderId, c, action, payload);
     });
@@ -368,7 +368,7 @@ SocketManagerServer.prototype.broadcast = function(senderId, action, payload) {
 /**
  * Send message to a client
  */
-SocketManagerServer.prototype.sendToClient = function(senderId, client, action, payload) {
+SocketManagerServer.prototype.sendToClient = function (senderId, client, action, payload) {
     let obj: any = {};
     obj.senderId = senderId;
     obj.action = action;
@@ -382,7 +382,7 @@ SocketManagerServer.prototype.sendToClient = function(senderId, client, action, 
     }
 };
 
-SocketManagerServer.prototype.onClientMessage = function(handler) {
+SocketManagerServer.prototype.onClientMessage = function (handler) {
     this.messageHandlers.push(handler);
 };
 

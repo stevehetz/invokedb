@@ -104,7 +104,9 @@ export class FileDirectoryService {
         return new Promise(async (resolve, reject) => {
             try {
                 let updated = 0;
-                const file_directories = await this.file_directory_repository.findBy({ id: In(data.ids) });
+                const file_directories = await this.file_directory_repository.findBy({
+                    id: In(data.ids)
+                });
                 file_directories.forEach(async (file_directory: FileDirectory) => {
                     file_directory.deleted = true;
                     this.web_file_prc_notify_svc.file_delete_request(

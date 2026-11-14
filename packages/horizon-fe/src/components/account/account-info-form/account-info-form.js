@@ -9,13 +9,13 @@ export default {
     mixins: [form_mixin],
 
     watch: {
-        account: function(data) {
+        account: function (data) {
             this.$_form_set(data);
         }
     },
 
     methods: {
-        on_save: async function(data) {
+        on_save: async function (data) {
             await account_manager.update_account(data);
             this.$bus.$emit('notify:success', 'Saved succesfully');
         }

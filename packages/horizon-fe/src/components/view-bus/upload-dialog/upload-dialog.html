@@ -1,5 +1,12 @@
 <div class="dialog upload-dialog">
-    <el-dialog width="500px" v-bind:title="title" :visible.sync="dialog_visible" @open="on_open" :close-on-click-modal="false" :show-close="false">
+    <el-dialog
+        width="500px"
+        v-bind:title="title"
+        :visible.sync="dialog_visible"
+        @open="on_open"
+        :close-on-click-modal="false"
+        :show-close="false"
+    >
         <!--<div class="type-box">
             <label>
                 Type:
@@ -15,9 +22,7 @@
             </el-select>
         </div>-->
         <div class="file-box">
-            <label>
-                File:
-            </label>
+            <label> File: </label>
             <div class="upload-container">
                 <el-upload
                     class="single-file-upload"
@@ -35,16 +40,15 @@
                         @click="trigger_clicked"
                         slot="trigger"
                         size="small"
-                        type="primary">
+                        type="primary"
+                    >
                         <i class="fa fa-upload"></i>
                     </el-button>
                 </el-upload>
             </div>
         </div>
         <div class="new-name-box">
-            <label>
-                Name:
-            </label>
+            <label> Name: </label>
             <el-input
                 class="new-name"
                 ref="new_name"
@@ -62,7 +66,12 @@
         </div>
         <span slot="footer" class="dialog-footer">
             <el-button @click="cancel_handler">Cancel</el-button>
-            <el-button type="primary" @click="upload_handler" :disabled="running">Upload</el-button>
+            <el-button
+                type="primary"
+                @click="upload_handler"
+                :disabled="running"
+                >Upload</el-button
+            >
         </span>
     </el-dialog>
 </div>

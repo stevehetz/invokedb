@@ -20,7 +20,7 @@ export default {
         'doc-container': doc_container
     },
 
-    data: function() {
+    data: function () {
         return {
             h_tree_state: [],
             tree_items: [],
@@ -83,8 +83,9 @@ export default {
             this.refresh_tabs(message.file);
             this.$bus.$emit(
                 'notify:error',
-                `Error processing ${message.file.name}: ${error ||
-                    'Server Error'}`
+                `Error processing ${message.file.name}: ${
+                    error || 'Server Error'
+                }`
             );
         },
 
@@ -429,7 +430,7 @@ export default {
         decorate_tabs() {
             let self = this;
             window.setTimeout(() => {
-                $('.el-tabs__item').each(function() {
+                $('.el-tabs__item').each(function () {
                     let $tab = $(this);
                     $tab.find('i').remove();
                     const icon = self.get_tab_icon($tab);

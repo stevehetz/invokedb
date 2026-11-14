@@ -7,6 +7,7 @@ Remove use of mailgun
 Remove use of slack logging
 
 # To Do
+
 1. Start mongo locally
 2. Connect back end to mongo
 3. Remove connectiong to postgres and other things above

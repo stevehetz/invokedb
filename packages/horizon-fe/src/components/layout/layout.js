@@ -48,7 +48,7 @@ export default {
             let self = this;
             let $nav = $(this.$refs.nav.$el);
             $('body').addClass('nav-popper-hidden');
-            $nav.click(function(e) {
+            $nav.click(function (e) {
                 $('body').removeClass('nav-popper-hidden');
             });
             $nav.on('mouseenter', () => {
@@ -78,9 +78,8 @@ export default {
 
         async logout() {
             await account_manager.logout();
-            window.location.href = store.get(
-                'env'
-            ).HORIZON_AUTH_FE_PUB_HTTP_URL;
+            window.location.href =
+                store.get('env').HORIZON_AUTH_FE_PUB_HTTP_URL;
         },
 
         async nav_selected(e) {

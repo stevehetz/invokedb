@@ -57,8 +57,6 @@ export class AllExceptionFilter implements ExceptionFilter {
             json_response.message = message;
         }
 
-        ctx.getResponse<Response>()
-            .status(status)
-            .json(json_response);
+        ctx.getResponse<Response>().status(status).json(json_response);
     }
 }

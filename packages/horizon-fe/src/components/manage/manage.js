@@ -3,7 +3,7 @@ export default {
 
     components: {},
 
-    data: function() {
+    data: function () {
         return {
             start_page: 'api',
             active_page: null

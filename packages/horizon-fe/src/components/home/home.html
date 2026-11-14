@@ -23,7 +23,12 @@
             @tab-click="tab_clicked"
             closable
         >
-            <el-tab-pane v-for="item in tabs" :key="item.id" :label="item.name" :name="item.name">
+            <el-tab-pane
+                v-for="item in tabs"
+                :key="item.id"
+                :label="item.name"
+                :name="item.name"
+            >
                 <doc-container
                     :file="item"
                     :file_directory_id="item.id"

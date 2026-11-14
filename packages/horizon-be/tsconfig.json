@@ -1,23 +1,23 @@
 {
-  "compilerOptions": {
-    "module": "commonjs",
-    "declaration": true,
-    "noImplicitAny": false,
-    "removeComments": true,
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "skipLibCheck": true,
-    "target": "es2022",
-    "useDefineForClassFields": false,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
-    "types": ["node"],
-    "paths": {
-      "@app/*": ["./src/*"]
-    }
-  },
-  "exclude": ["node_modules", "dist"]
+    "compilerOptions": {
+        "module": "commonjs",
+        "declaration": true,
+        "noImplicitAny": false,
+        "removeComments": true,
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "skipLibCheck": true,
+        "target": "es2022",
+        "useDefineForClassFields": false,
+        "sourceMap": true,
+        "outDir": "./dist",
+        "baseUrl": "./",
+        "types": ["node"],
+        "paths": {
+            "@app/*": ["./src/*"]
+        }
+    },
+    "exclude": ["node_modules", "dist"]
 }

@@ -1,7 +1,7 @@
 import Vue from 'vue';
 
 export default Vue.extend({
-    data: function() {
+    data: function () {
         return {
             show_toast: false,
             type: 'info',

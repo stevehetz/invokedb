@@ -6,15 +6,18 @@ let sectionIdTonavigationLink;
 
 function throttle(fn, interval) {
     let lastCall, timeoutId;
-    return function() {
+    return function () {
         let now = new Date().getTime();
         if (lastCall && now < lastCall + interval) {
             // if we are inside the interval we wait
             clearTimeout(timeoutId);
-            timeoutId = setTimeout(function() {
-                lastCall = now;
-                fn.call();
-            }, interval - (now - lastCall));
+            timeoutId = setTimeout(
+                function () {
+                    lastCall = now;
+                    fn.call();
+                },
+                interval - (now - lastCall)
+            );
         } else {
             // otherwise, we directly call the function
             lastCall = now;
@@ -28,7 +31,7 @@ function highlightNavigation() {
     let scrollPosition = $(window).scrollTop();
 
     // iterate the sections
-    $sections.each(function() {
+    $sections.each(function () {
         let currentSection = $(this);
         // get the position of the section
         let sectionTop = currentSection.offset().top;
@@ -74,15 +77,11 @@ export default {
             $navigationLinks = $('.guide-nav > a');
 
             // cache (in reversed order) the sections
-            $sections = $(
-                $('.guide-section-title')
-                    .get()
-                    .reverse()
-            );
+            $sections = $($('.guide-section-title').get().reverse());
 
             // map each section id to their corresponding navigation link
             sectionIdTonavigationLink = {};
-            $sections.each(function() {
+            $sections.each(function () {
                 let id = $(this).attr('id');
                 sectionIdTonavigationLink[id] = $(
                     '.guide-nav > a[href=\\#' + id + ']'

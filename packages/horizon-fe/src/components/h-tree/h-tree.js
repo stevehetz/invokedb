@@ -31,7 +31,7 @@ export default {
     },
 
     watch: {
-        tree_items: function() {
+        tree_items: function () {
             this.reload_tree_data();
         }
     },
@@ -97,7 +97,7 @@ export default {
             $ghost.css('visibility', 'hidden');
         },
 
-        load_tree: function() {
+        load_tree: function () {
             this.set_jq_tree_reference();
             this.setup_tree_event_handlers();
             this.initialize_tree();
@@ -110,11 +110,11 @@ export default {
         setup_tree_event_handlers() {
             let self = this;
 
-            this.$tree.bind('tree.select', function(event) {
+            this.$tree.bind('tree.select', function (event) {
                 event.preventDefault();
             });
 
-            this.$tree.bind('tree.move', function(event) {
+            this.$tree.bind('tree.move', function (event) {
                 event.preventDefault();
 
                 let { moved_node, target_node } = event.move_info;
@@ -138,16 +138,16 @@ export default {
                 self.$tree.find('.drag-background').remove();
             });
 
-            this.$tree.bind('tree.open', function(event) {
+            this.$tree.bind('tree.open', function (event) {
                 self.tree_state = self.$tree.tree('getState');
             });
 
-            this.$tree.bind('tree.close', function(event) {
+            this.$tree.bind('tree.close', function (event) {
                 self.tree_state = self.$tree.tree('getState');
             });
 
             // Manage - For tree management
-            this.$tree.bind('tree.click', function(event) {
+            this.$tree.bind('tree.click', function (event) {
                 event.preventDefault();
                 self.managed = [event.node.id];
                 self.style_managed_item_by_node(event.node);
@@ -155,7 +155,7 @@ export default {
 
             // Select - For parent to bind to a second component such
             // as tabs
-            this.$tree.bind('tree.dblclick', function(event) {
+            this.$tree.bind('tree.dblclick', function (event) {
                 if (event.node.type === 'dir') return;
                 self.$tree.tree('selectNode', event.node);
                 self.tree_state = self.$tree.tree('getState');

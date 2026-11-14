@@ -9,79 +9,122 @@
         </div>
         <div class="docs-body">
             <div class="docs-body-container">
-                <h1>
-                    API Documentation
-                </h1>
-                <p class="api-key-message">Your can find your api key in the <router-link to="/account">account</router-link> page.</p>
+                <h1>API Documentation</h1>
+                <p class="api-key-message">
+                    Your can find your api key in the
+                    <router-link to="/account">account</router-link> page.
+                </p>
                 <div class="docs-section">
-                    <h3 id="get"
-                        class="overview-title">
-                        [GET] Get
-                    </h3>
+                    <h3 id="get" class="overview-title">[GET] Get</h3>
                     <div class="overview-block">
                         <h4 class="overview-block-title">URL</h4>
                         <p>{{ base_url }}/get</p>
-                        <p class="url-query"> ?table={table}</p>
-                        <p class="url-query"> &skip={skip}</p>
-                        <p class="url-query"> &limit={limit}</p>
-                        <p class="url-query"> &sort_by={sort_by}</p>
-                        <p class="url-query"> &sort_dir={sort_dir}</p>
-                        <br>
+                        <p class="url-query">?table={table}</p>
+                        <p class="url-query">&skip={skip}</p>
+                        <p class="url-query">&limit={limit}</p>
+                        <p class="url-query">&sort_by={sort_by}</p>
+                        <p class="url-query">&sort_dir={sort_dir}</p>
+                        <br />
                         <h4 class="overview-block-title">Headers</h4>
-                        <p><label class="query-param-label">Authorization</label> Bearer token</p>
-                        <br>
+                        <p>
+                            <label class="query-param-label"
+                                >Authorization</label
+                            >
+                            Bearer token
+                        </p>
+                        <br />
                         <h4 class="overview-block-title">Query Params</h4>
-                        <p><label class="query-param-label">table</label> name of the table</p>
-                        <p><label class="query-param-label">skip</label> amount of records to skip</p>
-                        <p><label class="query-param-label">limit</label> amount of records to return</p>
-                        <p><label class="query-param-label">sort_by (optional)</label> field to sort</p>
-                        <p><label class="query-param-label">sort_dir (optional)</label> direction to sort</p>
+                        <p>
+                            <label class="query-param-label">table</label> name
+                            of the table
+                        </p>
+                        <p>
+                            <label class="query-param-label">skip</label> amount
+                            of records to skip
+                        </p>
+                        <p>
+                            <label class="query-param-label">limit</label>
+                            amount of records to return
+                        </p>
+                        <p>
+                            <label class="query-param-label"
+                                >sort_by (optional)</label
+                            >
+                            field to sort
+                        </p>
+                        <p>
+                            <label class="query-param-label"
+                                >sort_dir (optional)</label
+                            >
+                            direction to sort
+                        </p>
                     </div>
-                    <h4 id="get-paging"
-                        class="docs-example__subtitle">Example - [GET] Get - paging</h4>
+                    <h4 id="get-paging" class="docs-example__subtitle">
+                        Example - [GET] Get - paging
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['get_paging']"></code>
                         </pre>
                     </div>
-                    <h4 id="get-sorting"
-                        class="docs-example__subtitle">Example - [GET] Get - sorting</h4>
+                    <h4 id="get-sorting" class="docs-example__subtitle">
+                        Example - [GET] Get - sorting
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['get_sorting']"></code>
                         </pre>
                     </div>
-                    <h3 id="search"
-                        class="overview-title">
-                        [POST] Search
-                    </h3>
+                    <h3 id="search" class="overview-title">[POST] Search</h3>
                     <div class="overview-block">
                         <h4 class="overview-block-title">URL</h4>
                         <p>{{ base_url }}/search</p>
-                        <p class="url-query"> ?table={table}</p>
-                        <p class="url-query"> &skip={skip}</p>
-                        <p class="url-query"> &limit={limit}</p>
-                        <p class="url-query"> &sort_by={sort_by}</p>
-                        <p class="url-query"> &sort_dir={sort_dir}</p>
-                        <br>
+                        <p class="url-query">?table={table}</p>
+                        <p class="url-query">&skip={skip}</p>
+                        <p class="url-query">&limit={limit}</p>
+                        <p class="url-query">&sort_by={sort_by}</p>
+                        <p class="url-query">&sort_dir={sort_dir}</p>
+                        <br />
                         <h4 class="overview-block-title">Headers</h4>
-                        <p><label class="query-param-label">Authorization</label> Bearer token</p>
-                        <br>
+                        <p>
+                            <label class="query-param-label"
+                                >Authorization</label
+                            >
+                            Bearer token
+                        </p>
+                        <br />
                         <h4 class="overview-block-title">Query Params</h4>
-                        <p><label class="query-param-label">table</label> name of the table</p>
-                        <p><label class="query-param-label">skip</label> amount of records to skip</p>
-                        <p><label class="query-param-label">limit</label> amount of records to return</p>
-                        <p><label class="query-param-label">sort_by (optional)</label> field to sort</p>
-                        <p><label class="query-param-label">sort_dir (optional)</label> direction to sort</p>
-                        <br>
+                        <p>
+                            <label class="query-param-label">table</label> name
+                            of the table
+                        </p>
+                        <p>
+                            <label class="query-param-label">skip</label> amount
+                            of records to skip
+                        </p>
+                        <p>
+                            <label class="query-param-label">limit</label>
+                            amount of records to return
+                        </p>
+                        <p>
+                            <label class="query-param-label"
+                                >sort_by (optional)</label
+                            >
+                            field to sort
+                        </p>
+                        <p>
+                            <label class="query-param-label"
+                                >sort_dir (optional)</label
+                            >
+                            direction to sort
+                        </p>
+                        <br />
                         <h4 class="overview-block-title">Body</h4>
-                        <p>The body of the POST is used to pass the filter object. Any column can be filtered against.
+                        <p>
+                            The body of the POST is used to pass the filter
+                            object. Any column can be filtered against.
                         </p>
                         <p>A filter object uses the following format.</p>
                         <pre class="lang-javascript overview-code">
@@ -98,10 +141,14 @@
 }
                             </code>
                         </pre>
-                        <h5 class="overview-block-subtitle">Filters by column type</h5>
-                        <p>There are currently 3 column types in InvokeDB: Text, Number and Date. Listed below are the
-                            filter object
-                            types for each.</p>
+                        <h5 class="overview-block-subtitle">
+                            Filters by column type
+                        </h5>
+                        <p>
+                            There are currently 3 column types in InvokeDB:
+                            Text, Number and Date. Listed below are the filter
+                            object types for each.
+                        </p>
                         <div class="column-type-block">
                             <p class="column-type-header">Text Filter</p>
                             <pre class="lang-javascript overview-code">
@@ -136,11 +183,15 @@
                                 </code>
                             </pre>
                         </div>
-                        <br>
-                        <h5 class="overview-block-subtitle">1 Column, multiple conditions</h5>
-                        <p>To pass multiple conditions to the same field you must use an array instead of an object for
-                            the field
-                            value as follows:</p>
+                        <br />
+                        <h5 class="overview-block-subtitle">
+                            1 Column, multiple conditions
+                        </h5>
+                        <p>
+                            To pass multiple conditions to the same field you
+                            must use an array instead of an object for the field
+                            value as follows:
+                        </p>
                         <pre class="lang-javascript overview-code">
                             <code>
 {
@@ -154,16 +205,24 @@
 }
                             </code>
                         </pre>
-                        <p>Note: This is similar to an <span class="overview-word-highlight">AND</span> select in sql.
-                            To do an
-                            <span class="overview-word-highlight">OR</span> see the next section.</p>
-                        <br>
-                        <h5 class="overview-block-subtitle">Multiple filters (OR)</h5>
-                        <p>By default multiple filters are queried using an <span
-                                  class="overview-word-highlight">AND</span>
-                            operator. To query the table as an <span class="overview-word-highlight">OR</span> instead,
-                            use the $or
-                            operator as follows:</p>
+                        <p>
+                            Note: This is similar to an
+                            <span class="overview-word-highlight">AND</span>
+                            select in sql. To do an
+                            <span class="overview-word-highlight">OR</span> see
+                            the next section.
+                        </p>
+                        <br />
+                        <h5 class="overview-block-subtitle">
+                            Multiple filters (OR)
+                        </h5>
+                        <p>
+                            By default multiple filters are queried using an
+                            <span class="overview-word-highlight">AND</span>
+                            operator. To query the table as an
+                            <span class="overview-word-highlight">OR</span>
+                            instead, use the $or operator as follows:
+                        </p>
                         <pre class="lang-javascript overview-code">
                             <code>
 {
@@ -183,118 +242,128 @@
 }
                             </code>
                                         </pre>
-                        <p>The above will perform an <span class="overview-word-highlight">OR</span> query on the both
-                            columns as
-                            well as both conditions for the first column.</p>
+                        <p>
+                            The above will perform an
+                            <span class="overview-word-highlight">OR</span>
+                            query on the both columns as well as both conditions
+                            for the first column.
+                        </p>
                     </div>
-                    <h4 id="search-text-contains"
-                        class="docs-example__subtitle">Example - Search [POST] - text, contains</h4>
+                    <h4
+                        id="search-text-contains"
+                        class="docs-example__subtitle"
+                    >
+                        Example - Search [POST] - text, contains
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['search_text_contains']"></code>
                         </pre>
                     </div>
-                    <h4 id="search-text-exact"
-                        class="docs-example__subtitle">Example - Search [POST] - text, exact</h4>
+                    <h4 id="search-text-exact" class="docs-example__subtitle">
+                        Example - Search [POST] - text, exact
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['search_text_exact']"></code>
                         </pre>
                     </div>
-                    <h4 id="search-number"
-                        class="docs-example__subtitle">Example - Search [POST] - number</h4>
+                    <h4 id="search-number" class="docs-example__subtitle">
+                        Example - Search [POST] - number
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['search_number']"></code>
                         </pre>
                     </div>
-                    <h4 id="search-date"
-                        class="docs-example__subtitle">Example - Search [POST] - date</h4>
+                    <h4 id="search-date" class="docs-example__subtitle">
+                        Example - Search [POST] - date
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['search_date']"></code>
                         </pre>
                     </div>
-                    <h4 id="search-one-column-or"
-                        class="docs-example__subtitle">Example - Search [POST] - 1 column (OR), must meet all conditions
+                    <h4
+                        id="search-one-column-or"
+                        class="docs-example__subtitle"
+                    >
+                        Example - Search [POST] - 1 column (OR), must meet all
+                        conditions
                     </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['search_one_column_and']"></code>
                         </pre>
                     </div>
-                    <h4 id="search-one-column-and"
-                        class="docs-example__subtitle">Example - Search [POST] - 1 column (AND), must meet 1 condition
+                    <h4
+                        id="search-one-column-and"
+                        class="docs-example__subtitle"
+                    >
+                        Example - Search [POST] - 1 column (AND), must meet 1
+                        condition
                     </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['search_one_column_or']"></code>
                         </pre>
                     </div>
-                    <h4 id="search-multiple-columns-and"
-                        class="docs-example__subtitle">Example - Search [POST] - multiple columns (AND), must meet all
-                        conditions
+                    <h4
+                        id="search-multiple-columns-and"
+                        class="docs-example__subtitle"
+                    >
+                        Example - Search [POST] - multiple columns (AND), must
+                        meet all conditions
                     </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['search_two_columns_and']"></code>
                         </pre>
                     </div>
-                    <h4 id="search-multiple-columns-or"
-                        class="docs-example__subtitle">Example - Search [POST] - multiple columns (OR), must meet 1
-                        condition</h4>
+                    <h4
+                        id="search-multiple-columns-or"
+                        class="docs-example__subtitle"
+                    >
+                        Example - Search [POST] - multiple columns (OR), must
+                        meet 1 condition
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['search_two_columns_or']"></code>
                         </pre>
                     </div>
-                    <h4 id="search-group"
-                        class="docs-example__subtitle">Example - Search [POST] - Group/Distinct</h4>
+                    <h4 id="search-group" class="docs-example__subtitle">
+                        Example - Search [POST] - Group/Distinct
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                                                 <code v-html="code['search_group']"></code>
                                             </pre>
                     </div>
-                    <h3 id="create"
-                        class="overview-title">
-                        [POST] Create
-                    </h3>
+                    <h3 id="create" class="overview-title">[POST] Create</h3>
                     <div class="overview-block">
                         <h4 class="overview-block-title">URL</h4>
                         <p>{{ base_url }}/create?table={table}</p>
-                        <br>
+                        <br />
                         <h4 class="overview-block-title">Query Params</h4>
-                        <p><label class="query-param-label">table</label> name of the table</p>
-                        <br>
+                        <p>
+                            <label class="query-param-label">table</label> name
+                            of the table
+                        </p>
+                        <br />
                         <h4 class="overview-block-title">Body</h4>
-                        <p>An array of objects that contain field/value pairs.</p>
+                        <p>
+                            An array of objects that contain field/value pairs.
+                        </p>
                         <pre class="lang-javascript overview-code">
                             <code>
         
@@ -306,32 +375,39 @@
                             </code>
                         </pre>
                     </div>
-                    <h4 id="create-example"
-                        class="docs-example__subtitle">Example - [POST] Create</h4>
+                    <h4 id="create-example" class="docs-example__subtitle">
+                        Example - [POST] Create
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['create']"></code>
                         </pre>
                     </div>
-                    <h3 id="update"
-                        class="overview-title">
-                        [PUT] Update
-                    </h3>
+                    <h3 id="update" class="overview-title">[PUT] Update</h3>
                     <div class="overview-block">
                         <h4 class="overview-block-title">URL</h4>
                         <p>{{ base_url }}/update?table={table}</p>
-                        <br>
+                        <br />
                         <h4 class="overview-block-title">Headers</h4>
-                        <p><label class="query-param-label">Authorization</label> Bearer token</p>
-                        <br>
+                        <p>
+                            <label class="query-param-label"
+                                >Authorization</label
+                            >
+                            Bearer token
+                        </p>
+                        <br />
                         <h4 class="overview-block-title">Query Params</h4>
-                        <p><label class="query-param-label">table</label> name of the table</p>
-                        <br>
+                        <p>
+                            <label class="query-param-label">table</label> name
+                            of the table
+                        </p>
+                        <br />
                         <h4 class="overview-block-title">Body</h4>
-                        <p>An array of objects that contain field/value pairs along with the _id for each row.</p>
+                        <p>
+                            An array of objects that contain field/value pairs
+                            along with the _id for each row.
+                        </p>
                         <pre class="lang-javascript overview-code">
                             <code>
             
@@ -344,30 +420,34 @@
                             </code>
                         </pre>
                     </div>
-                    <h4 id="update-example"
-                        class="docs-example__subtitle">Example - [PUT] Update</h4>
+                    <h4 id="update-example" class="docs-example__subtitle">
+                        Example - [PUT] Update
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['update']"></code>
                         </pre>
                     </div>
-                    <h3 id="delete"
-                        class="overview-title">
-                        [POST] Delete
-                    </h3>
+                    <h3 id="delete" class="overview-title">[POST] Delete</h3>
                     <div class="overview-block">
                         <h4 class="overview-block-title">URL</h4>
                         <p>{{ base_url }}/delete?table={table}</p>
-                        <br>
+                        <br />
                         <h4 class="overview-block-title">Headers</h4>
-                        <p><label class="query-param-label">Authorization</label> Bearer token</p>
-                        <br>
+                        <p>
+                            <label class="query-param-label"
+                                >Authorization</label
+                            >
+                            Bearer token
+                        </p>
+                        <br />
                         <h4 class="overview-block-title">Query Params</h4>
-                        <p><label class="query-param-label">table</label> name of the table</p>
-                        <br>
+                        <p>
+                            <label class="query-param-label">table</label> name
+                            of the table
+                        </p>
+                        <br />
                         <h4 class="overview-block-title">Body</h4>
                         <p>An array of row _id values</p>
                         <pre class="lang-javascript overview-code">
@@ -377,12 +457,11 @@
                             </code>
                         </pre>
                     </div>
-                    <h4 id="delete-example"
-                        class="docs-example__subtitle">Example - [POST] Delete</h4>
+                    <h4 id="delete-example" class="docs-example__subtitle">
+                        Example - [POST] Delete
+                    </h4>
                     <div class="docs-example__code-block">
-                        <div class="language-setting">
-                            JS
-                        </div>
+                        <div class="language-setting">JS</div>
                         <pre class="lang-javascript">
                             <code v-html="code['remove']"></code>
                         </pre>

@@ -1,5 +1,5 @@
 export const form_mixin = {
-    data: function() {
+    data: function () {
         return {
             $_form: {
                 // The form element reference

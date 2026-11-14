@@ -4,8 +4,7 @@
             <div class="left">
                 <h3>Subscription</h3>
             </div>
-            <div class="right">
-            </div>
+            <div class="right"></div>
         </div>
     </div>
     <div class="form-body loading" v-if="loading">
@@ -13,34 +12,34 @@
     </div>
     <div class="form-body" v-if="!loading">
         <div class="subscription-tier">
-            <label>
-                Subscription Tier:
-            </label>
-            <span class=""
-                  v-if="account">
-                {{account.subscription ? account.subscription.name + ' - $' + account.subscription.price : 'Free'}}
+            <label> Subscription Tier: </label>
+            <span class="" v-if="account">
+                {{account.subscription ? account.subscription.name + ' - $' +
+                account.subscription.price : 'Free'}}
             </span>
         </div>
-        <div class="subscription-end-message"
-             :class="{
+        <div
+            class="subscription-end-message"
+            :class="{
                  renew: !this.cancel_at_period_end,
                  end: this.cancel_at_period_end
              }"
-             v-if="subscription_end_message">
+            v-if="subscription_end_message"
+        >
             <i class="fa fa-info-circle"></i>
             <span>{{ subscription_end_message }}</span>
         </div>
         <div class="links">
-            <a :href="checkout_link"
-               class="change-plan-link">Change Plan</a>
-            <a :href="pricing_link"
-               class="pricing-link">
+            <a :href="checkout_link" class="change-plan-link">Change Plan</a>
+            <a :href="pricing_link" class="pricing-link">
                 Go to Pricing Page
             </a>
         </div>
         <div class="locked-message" v-if="account_locked">
             <span>Account Locked</span>
-            <span v-if="account_locked_reason">: {{ account_locked_reason }}</span>
+            <span v-if="account_locked_reason"
+                >: {{ account_locked_reason }}</span
+            >
         </div>
     </div>
 </div>

@@ -10,7 +10,10 @@ const SocketServerManager = require('../../websocket/socket-server.manager');
 export class WebsocketServer {
     socket_manager: any;
 
-    constructor(private _auth: AuthService, private _job: JobService) {
+    constructor(
+        private _auth: AuthService,
+        private _job: JobService
+    ) {
         try {
             if (env.IS_HORIZON_SB === 'true') {
                 this.start();

@@ -3,26 +3,21 @@
         <div class="main-heading">
             <div class="flex-row">
                 <div class="col col-25">
-                    <img class="heading-logo-title"
-                         v-bind:src="require('@/assets/logo-title.svg')" />
-                    <img class="heading-logo-icon"
-                         v-bind:src="require('@/assets/logo.svg')" />
+                    <img
+                        class="heading-logo-title"
+                        v-bind:src="require('@/assets/logo-title.svg')"
+                    />
+                    <img class="heading-logo-icon" v-bind:src="require('@/assets/logo.svg')" />
                 </div>
                 <div class="col col-75 pull-right">
                     <router-link to="/contact">Contact</router-link>
                     <router-link to="/pricing">Pricing</router-link>
-                    <router-link to="/create-account"
-                                 v-if="!account">Sign Up</router-link>
-                    <router-link to="/login"
-                                 class="sign-in"
-                                 v-if="!account">
+                    <router-link to="/create-account" v-if="!account">Sign Up</router-link>
+                    <router-link to="/login" class="sign-in" v-if="!account">
                         <span>Sign In</span>
                         <i class="fa fa-arrow-right"></i>
                     </router-link>
-                    <a href=""
-                       class="sign-in"
-                       v-if="account"
-                       @click="go_to_database">
+                    <a href="" class="sign-in" v-if="account" @click="go_to_database">
                         <span>Database</span>
                         <i class="fa fa-arrow-right"></i>
                     </a>
@@ -31,8 +26,12 @@
         </div>
         <div class="banner">
             <div class="banner-content">
-                <span class="banner-text">All-In-One API and Database for JavaScript Developers</span>
-                <span class="banner-subtext">Rapid UI Prototyping. Full CRUD API generated for each Data Table.</span>
+                <span class="banner-text"
+                    >All-In-One API and Database for JavaScript Developers</span
+                >
+                <span class="banner-subtext"
+                    >Rapid UI Prototyping. Full CRUD API generated for each Data Table.</span
+                >
             </div>
         </div>
         <div class="info content-block">
@@ -41,9 +40,7 @@
                     <div class="info-icon">
                         <i class="fa fa-table"></i>
                     </div>
-                    <div class="info-header">
-                        Table Administration
-                    </div>
+                    <div class="info-header">Table Administration</div>
                     <div class="info-content">
                         Row and column editing, sorting, filtering, indexing and more
                     </div>
@@ -52,9 +49,7 @@
                     <div class="info-icon">
                         <i class="fa fa-file"></i>
                     </div>
-                    <div class="info-header">
-                        CSV to Data Table
-                    </div>
+                    <div class="info-header">CSV to Data Table</div>
                     <div class="info-content">
                         Turn your CSVs into a fully-functional API in minutes
                     </div>
@@ -63,9 +58,7 @@
                     <div class="info-icon">
                         <i class="fa fa-plug"></i>
                     </div>
-                    <div class="info-header">
-                        External API
-                    </div>
+                    <div class="info-header">External API</div>
                     <div class="info-content">
                         Integrate your app using CRUD based operations and complex search filtering
                     </div>
@@ -73,44 +66,49 @@
             </div>
         </div>
         <div class="screenshots content-block">
-            <div class="section-header">
-                Data Table UI
-            </div>
-            <el-carousel trigger="click"
-                         indicator-position="outside"
-                         :autoplay="false"
-                         arrow="always">
-                <el-carousel-item v-for="screenshot in screenshots"
-                                  :key="screenshot">
+            <div class="section-header">Data Table UI</div>
+            <el-carousel
+                trigger="click"
+                indicator-position="outside"
+                :autoplay="false"
+                arrow="always"
+            >
+                <el-carousel-item v-for="screenshot in screenshots" :key="screenshot">
                     <img v-bind:src="require('@/assets/' + screenshot)" />
                 </el-carousel-item>
             </el-carousel>
         </div>
         <div class="examples content-block">
-            <div class="section-header">
-                Built For Developers
-            </div>
+            <div class="section-header">Built For Developers</div>
             <div class="example__body">
                 <div class="flex-row">
                     <div class="col-15 example-menu">
-                        <div class="example-menu__item"
-                             :class="{active: active_code === 'create'}"
-                             @click="change_code_sample('create')">
+                        <div
+                            class="example-menu__item"
+                            :class="{active: active_code === 'create'}"
+                            @click="change_code_sample('create')"
+                        >
                             Create
                         </div>
-                        <div class="example-menu__item"
-                             :class="{active: active_code === 'search'}"
-                             @click="change_code_sample('search')">
+                        <div
+                            class="example-menu__item"
+                            :class="{active: active_code === 'search'}"
+                            @click="change_code_sample('search')"
+                        >
                             Search
                         </div>
-                        <div class="example-menu__item"
-                             :class="{active: active_code === 'update'}"
-                             @click="change_code_sample('update')">
+                        <div
+                            class="example-menu__item"
+                            :class="{active: active_code === 'update'}"
+                            @click="change_code_sample('update')"
+                        >
                             Update
                         </div>
-                        <div class="example-menu__item"
-                             :class="{active: active_code === 'remove'}"
-                             @click="change_code_sample('remove')">
+                        <div
+                            class="example-menu__item"
+                            :class="{active: active_code === 'remove'}"
+                            @click="change_code_sample('remove')"
+                        >
                             Delete
                         </div>
                     </div>
@@ -125,8 +123,7 @@
         <div class="footer">
             <div class="flex-row">
                 <div class="col">
-                    <span>© InvokeDB, LLC</span>•
-                    <router-link to="/tos">Terms</router-link>•
+                    <span>© InvokeDB, LLC</span>• <router-link to="/tos">Terms</router-link>•
                     <router-link to="/privacy">Privacy</router-link>
                 </div>
             </div>

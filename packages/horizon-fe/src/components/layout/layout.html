@@ -5,25 +5,37 @@
                 <img v-bind:src="require('@/assets/logo.svg')" />
                 <div class="cover" v-if="active_index === '/'"></div>
             </div>
-            <el-menu class="nav"
-                     ref="nav"
-                     mode="horizontal"
-                     @select="nav_selected">
-                <el-menu-item index="/" :class="{'is-active2': active_index === '/'}">
+            <el-menu
+                class="nav"
+                ref="nav"
+                mode="horizontal"
+                @select="nav_selected"
+            >
+                <el-menu-item
+                    index="/"
+                    :class="{'is-active2': active_index === '/'}"
+                >
                     <i class="menu-icon fa fa-table"></i>
                     <span class="menu-text">Tables</span>
                 </el-menu-item>
-                <el-menu-item index="/api" :class="{'is-active2': active_index === '/api'}">
+                <el-menu-item
+                    index="/api"
+                    :class="{'is-active2': active_index === '/api'}"
+                >
                     <i class="menu-icon fa fa-file-code"></i>
                     <span class="menu-text">Api</span>
                 </el-menu-item>
-                <el-menu-item index="/guide"
-                              :class="{'is-active2': active_index === '/guide'}">
+                <el-menu-item
+                    index="/guide"
+                    :class="{'is-active2': active_index === '/guide'}"
+                >
                     <i class="menu-icon fa fa-file-alt"></i>
                     <span class="menu-text">Guide</span>
                 </el-menu-item>
-                <el-menu-item index="/account"
-                              :class="{'is-active2': active_index === '/account'}">
+                <el-menu-item
+                    index="/account"
+                    :class="{'is-active2': active_index === '/account'}"
+                >
                     <i class="menu-icon fa fa-user"></i>
                     <span class="menu-text">Account</span>
                 </el-menu-item>

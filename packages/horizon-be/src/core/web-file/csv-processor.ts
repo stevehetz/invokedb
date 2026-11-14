@@ -53,9 +53,12 @@ export class CsvProcessor {
 
         return new Promise(async (resolve, reject) => {
             try {
-                setTimeout(() => {
-                    this.throw_timeout_error = true;
-                }, _c.JOB_PROCESSOR_TIMEOUT_MIN * 1000 * 60);
+                setTimeout(
+                    () => {
+                        this.throw_timeout_error = true;
+                    },
+                    _c.JOB_PROCESSOR_TIMEOUT_MIN * 1000 * 60
+                );
                 const total_rows = await this.count_rows(file_path);
                 if (total_rows === -1) {
                     return reject({ message: 'No data to process' });

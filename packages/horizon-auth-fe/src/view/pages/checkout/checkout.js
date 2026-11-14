@@ -93,7 +93,7 @@ export default {
             const elements = this.stripe.elements();
             this.card_element = elements.create('card', { style: this.stripe_styles });
             this.card_element.mount('#card-element');
-            this.card_element.addEventListener('change', function(event) {
+            this.card_element.addEventListener('change', function (event) {
                 const display_error = document.getElementById('card-errors');
                 if (event.error) {
                     display_error.textContent = event.error.message;

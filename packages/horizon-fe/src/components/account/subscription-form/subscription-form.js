@@ -21,7 +21,7 @@ export default {
     props: ['account'],
 
     watch: {
-        account: async function(_account) {
+        account: async function (_account) {
             this.account_locked = _account.locked;
             this.account_locked_reason = _account.locked_reason;
             this.set_checkout_link(_account);
@@ -46,12 +46,11 @@ export default {
 
         async set_subscription_info(account) {
             if (account.subscription) {
-                this.stripe_subscription = await subscription_http.get_stripe_subscription();
+                this.stripe_subscription =
+                    await subscription_http.get_stripe_subscription();
 
-                const {
-                    cancel_at_period_end,
-                    current_period_end
-                } = this.stripe_subscription;
+                const { cancel_at_period_end, current_period_end } =
+                    this.stripe_subscription;
 
                 this.cancel_at_period_end = cancel_at_period_end;
 

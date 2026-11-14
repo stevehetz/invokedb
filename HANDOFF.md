@@ -14,8 +14,7 @@ the gotchas, and what to do next.
    `CLAUDE.md` just imports it.
 2. Read the playbook in `.agents/skills/` that matches your task (the index is in `AGENTS.md`).
 3. Steps 1 (UI smoke baseline) and 2.1 (merge `horizon-auth-fe` into `horizon-fe`) of
-   "Suggested next steps" are done, on branches `ui-smoke` and `merge-auth-fe` (stacked) until
-   the user merges them. The next job is **step 2.2: Vue CLI 4 / webpack 4 → Vite, still on
+   "Suggested next steps" are done and merged. The next job is **step 2.2: Vue CLI 4 / webpack 4 → Vite, still on
    Vue 2.7**. Read the "Two areas" gotcha first. Run the `verify-frontend` playbook after every
    stage.
 4. Work on a branch. The user merges to `main` and pushes once they approve. Formatting
@@ -23,14 +22,12 @@ the gotchas, and what to do next.
 
 ## Current state
 
-|                 |                                                                                                                        |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `main`          | Local dev revamp, legacy-ops clean-up, secrets, demo data, backend upgrade, agent tooling + prettier. The only branch. |
-| Repo            | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below).              |
-| Runs locally?   | Yes. `npm run dev` starts the backend and the frontend, and login, the API and Mongo writes work.                      |
-| `ui-smoke`      | UI smoke test (`scripts/ui-smoke.mjs`), `smoke-env.sh`, `verify-frontend` playbook. Awaiting review.                   |
-| `merge-auth-fe` | On top of `ui-smoke`: `horizon-auth-fe` merged into `horizon-fe` (site at `/`, app at `/app`). Awaiting review.        |
-| Production      | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild.                                |
+|               |                                                                                                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main`        | Local dev revamp, legacy-ops clean-up, secrets, demo data, backend upgrade, agent tooling + prettier, UI smoke test, `horizon-auth-fe` merged into `horizon-fe`. |
+| Repo          | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below).                                                        |
+| Runs locally? | Yes. `npm run dev` starts the backend and the frontend, and login, the API and Mongo writes work.                                                                |
+| Production    | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild.                                                                          |
 
 ### Apps
 
@@ -64,7 +61,7 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
 
 ## What changed, and why
 
-### `horizon-auth-fe` merged into `horizon-fe` (2026-11-14, branch `merge-auth-fe`)
+### `horizon-auth-fe` merged into `horizon-fe` (2026-11-14, merged)
 
 - **One frontend package, one dev server, one origin.** The auth app's `src/view/` (pages,
   shell, stylesheet) and `src/network/` moved into `horizon-fe/src/` unchanged, with `git mv`.
@@ -100,7 +97,7 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
   before any redeploy (see step 5), and the server needs an SPA fallback for `/app/*` and the site
   paths.
 
-### UI smoke baseline (2026-11-14, branch `ui-smoke`)
+### UI smoke baseline (2026-11-14, merged)
 
 - **`scripts/ui-smoke.mjs`** runs 11 steps in Chrome through the `playwright` npm package
   (root devDependency, pinned to 1.56.1, `channel: 'chrome'`): no browser download and no native
@@ -268,7 +265,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
 
 ## Suggested next steps
 
-1. ~~**UI smoke baseline**~~ **Done** (branch `ui-smoke`, see above). Original plan: the Vue 3 rewrite needs something
+1. ~~**UI smoke baseline**~~ **Done** (see above). Original plan: the Vue 3 rewrite needs something
    to compare against. Write a Playwright script (`scripts/ui-smoke.mjs`, next to
    `api-smoke.mjs`; use the `playwright` npm package or the MCP server to work it out) that
    covers:
@@ -286,7 +283,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
 
 2. **Vue 2 → Vue 3 + Vite, in stages**, each on its own branch, re-running the UI smoke test
    after each stage:
-   1. ~~Merge `horizon-auth-fe` into `horizon-fe`~~ **Done** (branch `merge-auth-fe`, see above).
+   1. ~~Merge `horizon-auth-fe` into `horizon-fe`~~ **Done** (see above).
    2. Vue CLI 4 / webpack 4 → Vite while still on Vue 2.7. This drops
       `--openssl-legacy-provider`.
    3. Clear the hardest blockers while still on Vue 2.7: Element UI → Element Plus,

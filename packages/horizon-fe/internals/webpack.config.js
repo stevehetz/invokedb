@@ -1,5 +1,4 @@
 const webpack = require('webpack');
-const GoogleFontsPlugin = require('@beyonk/google-fonts-webpack-plugin');
 
 module.exports = {
     devtool: process.env.NODE_ENV === 'production' ? false : 'eval-source-map',
@@ -23,11 +22,6 @@ module.exports = {
             $: 'jquery',
             jQuery: 'jquery',
             _: 'lodash'
-        }),
-        new GoogleFontsPlugin({
-            fonts: [
-                { family: 'Open Sans', variants: ['300', '400', '500', '600'] }
-            ]
         })
     ]
 };

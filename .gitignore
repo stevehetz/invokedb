@@ -39,3 +39,7 @@ ops/azure-prod/azure-prod-env.values.sh
 ops/azure-base/azure-base.values.sh
 ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa
 ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa.pub
+
+# local dev
+.env
+.data

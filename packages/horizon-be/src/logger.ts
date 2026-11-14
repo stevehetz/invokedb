@@ -1,6 +1,5 @@
 const { createLogger, format, transports } = require('winston');
 const SlackHook = require('winston-slack-webhook-transport');
-const Postgres = require('@pauleliet/winston-pg-native');
 import * as moment from 'moment';
 import env from '@app/env';
 
@@ -59,27 +58,36 @@ if (env.IS_LOCAL) {
             )
         })
     );
-    logger_transports.push(
-        new SlackHook({
-            level: env.SLACK_LOG_LEVEL,
-            webhookUrl: env.SLACK_WEBHOOK_URL,
-            formatter: data => {
-                const message =
-                    data.message && data.message.trim ? data.message.trim() : data.message;
-                return {
-                    text: message || ' '
-                };
-            }
-        })
-    );
+    if (env.SLACK_WEBHOOK_URL) {
+        logger_transports.push(
+            new SlackHook({
+                level: env.SLACK_LOG_LEVEL,
+                webhookUrl: env.SLACK_WEBHOOK_URL,
+                formatter: data => {
+                    const message =
+                        data.message && data.message.trim ? data.message.trim() : data.message;
+                    return {
+                        text: message || ' '
+                    };
+                }
+            })
+        );
+    }
 
-    logger_transports.push(
-        new Postgres({
-            connectionString: `postgres://${env.HORIZON_POSTGRES_USERNAME}:${env.HORIZON_POSTGRES_PASSWORD}@${env.HORIZON_POSTGRES_HOST}:${env.HORIZON_POSTGRES_PORT}/horizon_logs`,
-            level: env.POSTGRES_LOG_LEVEL,
-            tableName: 'log'
-        })
-    );
+    // Postgres log transport needs the native libpq bindings (optional dependency).
+    try {
+        // tslint:disable-next-line:no-var-requires
+        const Postgres = require('@pauleliet/winston-pg-native');
+        logger_transports.push(
+            new Postgres({
+                connectionString: `postgres://${env.HORIZON_POSTGRES_USERNAME}:${env.HORIZON_POSTGRES_PASSWORD}@${env.HORIZON_POSTGRES_HOST}:${env.HORIZON_POSTGRES_PORT}/horizon_logs`,
+                level: env.POSTGRES_LOG_LEVEL,
+                tableName: 'log'
+            })
+        );
+    } catch (e) {
+        // not installed; console + slack only
+    }
 }
 
 logger = createLogger({

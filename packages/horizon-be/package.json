@@ -32,10 +32,9 @@
         "@nestjs/swagger": "^4.3.2",
         "@nestjs/typeorm": "^7.1.0",
         "@nestjs/websockets": "^7.3.2",
-        "@pauleliet/winston-pg-native": "^4.4.0",
         "@slack/webhook": "^5.0.3",
         "@types/mongodb": "^3.5.2",
-        "bcrypt": "^4.0.1",
+        "bcryptjs": "^2.4.3",
         "camelcase": "^5.3.1",
         "class-transformer": "^0.2.3",
         "class-validator": "^0.11.0",
@@ -45,11 +44,11 @@
         "moment": "^2.24.0",
         "mongodb-backup-4x": "^3.2.1",
         "mongodb-restore": "^1.6.2",
-        "mongoose": "^5.9.3",
+        "mongoose": "^5.13.22",
         "multer": "^1.4.2",
         "passport": "^0.4.1",
         "passport-http-bearer": "^1.0.1",
-        "pg": "^7.18.2",
+        "pg": "^8.11.3",
         "reflect-metadata": "^0.1.13",
         "request": "^2.88.2",
         "rimraf": "^3.0.2",
@@ -101,5 +100,8 @@
     },
     "_moduleAliases": {
         "@app": "./dist"
+    },
+    "optionalDependencies": {
+        "@pauleliet/winston-pg-native": "^4.4.0"
     }
 }

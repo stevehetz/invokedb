@@ -6,7 +6,7 @@ import { Account } from '@app/core/account/account.entity';
 import { ResetPassword } from '../reset-password/reset-password.entity';
 import { validate_email, validate_password } from '@app/core/helpers/validators';
 
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 @Injectable()
 export class AccountManager {

@@ -9,6 +9,7 @@
         "url": "git+ssh://git@bitbucket.org-shetzel84:shetzel84/horizon.git"
     },
     "scripts": {
+        "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
         "setup": "bash scripts/setup.sh",
         "dev": "bash scripts/dev.sh",
         "format": "prettier --write .",

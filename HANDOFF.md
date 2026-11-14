@@ -51,23 +51,28 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
 
 ### Agent tooling + prettier (2026-11-14, merged)
 
-- `AGENTS.md` is the shared agent instructions (commands, hard rules, conventions, gotchas).
-  `CLAUDE.md` imports it with `@AGENTS.md` and adds the Claude-only notes.
-- `.agents/` holds everything that isn't tied to one tool: `skills/` (`dev-stack`,
-  `verify-backend`, `db-migration`) and `hooks/format-file.mjs`. `.claude/` is a thin shim,
-  because Claude Code only reads its own folder: `settings.json` (the format hook) plus a
-  `skills` symlink to `.agents/skills`.
+- `AGENTS.md` is the single source of truth for coding agents (commands, hard rules,
+  conventions, gotchas). `CLAUDE.md` is just `@AGENTS.md`.
+- `.agents/skills/` holds tool-neutral playbooks (`dev-stack`, `verify-backend`,
+  `db-migration`), indexed in `AGENTS.md` with when to read each one. There's deliberately no
+  `.claude/` folder. The trade-offs: the playbooks aren't registered Claude Code skills (no
+  `/dev-stack`), and nothing formats files as an agent edits them. Formatting happens at commit
+  time instead.
+- **Pre-commit formatting:** `.githooks/pre-commit` → `scripts/format-staged.mjs`. It formats
+  fully staged files and stages them again. Partly staged files only get a warning, so unstaged
+  hunks never slip into a commit. A file prettier can't parse blocks the commit. The root
+  `prepare` script sets `core.hooksPath` on `npm install`.
 - `.mcp.json`: Playwright MCP (`@playwright/mcp@0.0.84`, using your Chrome) for UI checks, and
   `mongodb-mcp-server@3.2.2` in `--readOnly` mode against local Mongo. Postgres goes through `psql`.
 - **Prettier 3.9.10 at the root** with one `.prettierrc.json`. It keeps the old per-package
   styles (4 spaces, single quotes, no trailing commas, `arrowParens: avoid`, width 100, or 80 in
   `horizon-fe`), so prettier 3 itself changes very little. The per-package `prettier` keys and
   `format` scripts were removed, and the backend's direct prettier 1.19 dependency is gone. The
-  frontends still have 1.19 inside `node_modules` through Vue CLI, so editors and hooks point at
+  frontends still have 1.19 inside `node_modules` through Vue CLI, so editors and the pre-commit hook point at
   the root install. ESLint's `prettier/prettier` rule is off in both frontends, so that 1.19
   copy doesn't fight 3.x during `lintOnSave`.
 - Format on save: `.vscode/settings.json` (root and per package), the workspace file, and
-  `.editorconfig`. Claude Code formats every file it edits through the hook.
+  `.editorconfig`, plus the pre-commit hook.
 - `.prettierignore` skips `ops/` (Helm templates break), the backend email `.html` templates
   (whitespace shows up in the sent email) and the demo dumps.
 - **One-off reformat of the whole repo** in its own commit (`style: format the repo with

@@ -75,12 +75,14 @@ VS Code formats on save (`.vscode/settings.json`; install the recommended Pretti
 It's pointed at the root prettier, because the frontends carry an older prettier 1.19 inside
 `node_modules`.
 
+Staged files are also formatted when you commit (`.githooks/pre-commit`). `npm install` at the
+root turns this on by setting `git config core.hooksPath .githooks`.
+
 ## Coding agents
 
-`AGENTS.md` holds the shared instructions for coding agents, and `CLAUDE.md` imports it for
-Claude Code. Skills live in `.agents/skills` (`.claude/skills` links to them). `.mcp.json` adds
-Playwright (browser) and a read-only MongoDB MCP server. Claude Code formats every file it edits
-through a hook in `.claude/settings.json`.
+`AGENTS.md` holds the instructions for any coding agent, and `CLAUDE.md` just imports it.
+Agent playbooks ("skills") are in `.agents/skills`, and `AGENTS.md` says when to read each one.
+`.mcp.json` adds Playwright (browser) and a read-only MongoDB MCP server.
 
 ## Versioning
 

@@ -1,7 +1,8 @@
 # AGENTS.md
 
-Instructions for coding agents (Claude Code, Codex, Cursor, etc.) working in this repo.
-Humans: see `README.md` for commands and `HANDOFF.md` for project status and history.
+The single source of truth for coding agents (Claude Code, Codex, Cursor, and others) in this
+repo. `CLAUDE.md` only imports this file. People should read `README.md` for commands and
+`HANDOFF.md` for project status and history.
 
 ## What this is
 
@@ -57,9 +58,12 @@ changes in a browser (the Playwright MCP server).
 
 - One root prettier 3 (`.prettierrc.json`, `.prettierignore`): 4-space indent, single quotes,
   no trailing commas, `arrowParens: avoid`, print width 100 (80 in `horizon-fe`).
-- **Claude Code formats every file it edits automatically** (PostToolUse hook →
-  `.agents/hooks/format-file.mjs`). Other agents: run `node .agents/hooks/format-file.mjs <files>`
-  after editing, or `npm run format`.
+- **Formatting happens at commit time.** `.githooks/pre-commit` runs
+  `scripts/format-staged.mjs`, which formats staged files and stages them again. `npm install`
+  turns it on through the `prepare` script, which sets `core.hooksPath`. Editors format on save.
+- Don't reformat by hand while editing. When you finish a task, run
+  `node_modules/.bin/prettier --write <files you changed>` (from the repo root) so the diff the
+  user reviews is already formatted. If prettier reports a syntax error, the file doesn't parse.
 - Always use the **root** prettier. The frontends have prettier 1.19 inside `node_modules`
   (pulled in by Vue CLI), and it formats differently.
 - `ops/` and the backend email `.html` templates are intentionally not formatted.
@@ -96,26 +100,37 @@ changes in a browser (the Playwright MCP server).
 ## Gotchas
 
 - **Postgres.app permission dialog:** the first connection from a new client app needs a click.
-  If the backend is started without a terminal, it fails after 60s with `failed to verify
-"trust" authentication`. Ask the user to start `npm run dev` in their own terminal if that
-  happens.
+  If the backend is started without a terminal, it fails after 60s with
+  `failed to verify "trust" authentication`. Ask the user to start `npm run dev` in their own
+  terminal if that happens.
+- Run long-lived servers (`npm run dev`) in the background, never as a blocking foreground
+  command.
 - Stripe keys are read once, by the Initial migration, into the `stripe_env` table.
 - Mailgun and Slack are optional. Without keys, emails go to the backend log.
 
-## Skills and tools for agents
+## Skills
 
-Shared skills live in `.agents/skills/<name>/SKILL.md` (`.claude/skills` is a symlink to it):
+Skills are step-by-step playbooks in `.agents/skills/<name>/SKILL.md`. They aren't registered
+with any agent tool. **Read the matching file before you start a task in the table below**, and
+follow it. When a playbook mentions another skill by name, it means that skill's file here.
 
-- `dev-stack`: start, check and stop the local stack; inspect Postgres and Mongo.
-- `verify-backend`: prove a backend change didn't alter API behaviour (build + smoke diff).
-- `db-migration`: create, run and revert TypeORM migrations safely.
+| Skill            | Read it when you are about to…                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------- |
+| `dev-stack`      | start, restart, health-check or stop the app; read its logs; inspect local Postgres or Mongo data |
+| `verify-backend` | call a `horizon-be` change done (any service, entity, query, config or dependency change)         |
+| `db-migration`   | add or change an entity or column, write a migration or seed data, or run or revert migrations    |
 
-MCP servers (`.mcp.json`):
+For starting this app, use `dev-stack` rather than any generic "run the app" behaviour.
+
+## MCP servers
+
+Defined in `.mcp.json` at the repo root, which Claude Code reads directly. For other tools,
+copy the same entries into their MCP config.
 
 - `playwright`: drive Chrome to check UI changes at http://127.0.0.1:8005 → :8000.
 - `mongodb`: **read-only** access to local Mongo (`horizon*` databases).
 
 Postgres has no MCP server. Use `psql` (`PGHOST=127.0.0.1 PGUSER=postgres psql horizon`).
 
-Keep this file current. If you learn something a future agent would trip over, add it here
+Keep this file current. If you learn something a future session would trip over, add it here
 (briefly) or to the relevant skill.

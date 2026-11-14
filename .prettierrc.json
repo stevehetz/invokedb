@@ -1,0 +1,19 @@
+{
+    "tabWidth": 4,
+    "singleQuote": true,
+    "semi": true,
+    "trailingComma": "none",
+    "arrowParens": "avoid",
+    "endOfLine": "lf",
+    "printWidth": 100,
+    "overrides": [
+        {
+            "files": "packages/horizon-fe/**",
+            "options": { "printWidth": 80 }
+        },
+        {
+            "files": ["*.yml", "*.yaml", "*.md"],
+            "options": { "tabWidth": 2 }
+        }
+    ]
+}

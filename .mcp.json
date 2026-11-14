@@ -1,0 +1,16 @@
+{
+    "mcpServers": {
+        "playwright": {
+            "command": "npx",
+            "args": ["-y", "@playwright/mcp@0.0.84", "--browser", "chrome", "--isolated"]
+        },
+        "mongodb": {
+            "command": "npx",
+            "args": ["-y", "mongodb-mcp-server@3.2.2", "--readOnly", "--disabledTools", "atlas"],
+            "env": {
+                "MDB_MCP_CONNECTION_STRING": "mongodb://127.0.0.1:27017",
+                "MDB_MCP_TELEMETRY": "disabled"
+            }
+        }
+    }
+}

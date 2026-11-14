@@ -42,3 +42,6 @@ ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa.pub
 # local dev
 .env
 .data
+
+# agent tooling (personal overrides)
+.claude/settings.local.json

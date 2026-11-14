@@ -9,19 +9,20 @@ the gotchas, and what to do next.
 
 ## Current state
 
-| | |
-|---|---|
-| `main` | Local dev revamp, legacy-ops clean-up, secrets handling, demo data, backend upgrade. The only branch. |
-| Repo | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below). |
-| Runs locally? | Yes. `npm run dev` starts all three apps, and login, the API and Mongo writes work. |
-| Production | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild. |
+|               |                                                                                                           |
+| ------------- | --------------------------------------------------------------------------------------------------------- |
+| `main`        | Local dev revamp, legacy-ops clean-up, secrets handling, demo data, backend upgrade. The only branch.     |
+| Repo          | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below). |
+| Runs locally? | Yes. `npm run dev` starts all three apps, and login, the API and Mongo writes work.                       |
+| Production    | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild.                   |
 
 ### Apps
-| Package | What | Dev URL |
-|---|---|---|
-| `packages/horizon-be` | NestJS 11 API + websocket server. Postgres via TypeORM 0.3, MongoDB via the native `mongodb` 6 driver. | :8001 (ws :9000) |
-| `packages/horizon-fe` | Main app (Vue 2, Vue CLI 4, ag-grid, Element UI) | :8000 |
-| `packages/horizon-auth-fe` | Marketing / login / signup / checkout (Vue 2) | :8005 |
+
+| Package                    | What                                                                                                   | Dev URL          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------- |
+| `packages/horizon-be`      | NestJS 11 API + websocket server. Postgres via TypeORM 0.3, MongoDB via the native `mongodb` 6 driver. | :8001 (ws :9000) |
+| `packages/horizon-fe`      | Main app (Vue 2, Vue CLI 4, ag-grid, Element UI)                                                       | :8000            |
+| `packages/horizon-auth-fe` | Marketing / login / signup / checkout (Vue 2)                                                          | :8005            |
 
 Logins: `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, all with password `password`.
 
@@ -32,7 +33,9 @@ If Stripe comes back, create new keys rather than reusing the originals in Dropb
 `secret/invokedb/stripe.env`.
 
 ### History scrub (2026-11-14)
+
 The repo is public, so `git filter-repo` rewrote all of history and the result was force-pushed:
+
 - Every version of `ops/shared/dumps/demo/postgres/horizon.bak` was replaced with the clean
   rebuilt dump. The old one had the Stripe live and test keys and a customer ID.
 - `ops/azure-prod/azure-prod-build.values.sh` was removed from all commits. It had the Azure
@@ -46,10 +49,38 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
 
 ## What changed, and why
 
+### Agent tooling + prettier (2026-11-14, uncommitted)
+
+- `AGENTS.md` is the shared agent instructions (commands, hard rules, conventions, gotchas).
+  `CLAUDE.md` imports it with `@AGENTS.md` and adds the Claude-only notes.
+- `.agents/` holds everything that isn't tied to one tool: `skills/` (`dev-stack`,
+  `verify-backend`, `db-migration`) and `hooks/format-file.mjs`. `.claude/` is a thin shim,
+  because Claude Code only reads its own folder: `settings.json` (the format hook) plus a
+  `skills` symlink to `.agents/skills`.
+- `.mcp.json`: Playwright MCP (`@playwright/mcp@0.0.84`, using your Chrome) for UI checks, and
+  `mongodb-mcp-server@3.2.2` in `--readOnly` mode against local Mongo. Postgres goes through `psql`.
+- **Prettier 3.9.10 at the root** with one `.prettierrc.json`. It keeps the old per-package
+  styles (4 spaces, single quotes, no trailing commas, `arrowParens: avoid`, width 100, or 80 in
+  `horizon-fe`), so prettier 3 itself changes very little. The per-package `prettier` keys and
+  `format` scripts were removed, and the backend's direct prettier 1.19 dependency is gone. The
+  frontends still have 1.19 inside `node_modules` through Vue CLI, so editors and hooks point at
+  the root install. ESLint's `prettier/prettier` rule is off in both frontends, so that 1.19
+  copy doesn't fight 3.x during `lintOnSave`.
+- Format on save: `.vscode/settings.json` (root and per package), the workspace file, and
+  `.editorconfig`. Claude Code formats every file it edits through the hook.
+- `.prettierignore` skips `ops/` (Helm templates break), the backend email `.html` templates
+  (whitespace shows up in the sent email) and the demo dumps.
+- **Not done yet: a one-off reformat of the whole repo.** About 115 files aren't
+  prettier-clean, mostly SCSS, Vue `.html` templates and docs that were never formatted. Until
+  that commit lands, the first edit to one of those files reformats all of it. Do it as its own
+  commit, add the SHA to `.git-blame-ignore-revs`, and build both frontends afterwards.
+
 ### Backend upgrade (2026-11-14, merged)
+
 Targets: **NestJS 7 → 11, TypeORM 0.2 → 0.3.31, `mongodb` driver 3.7 → 6, TypeScript 3.8 → 5.9**,
 Express 4 → 5, `ws` 7 → 8, jest 25 → 29. Nest 12 and TypeORM 1.x exist now, but they're newer
 than what this upgrade was validated against. Moving to them from here is a smaller, separate step.
+
 - **Mongoose was never used.** The code talks to Mongo through the native driver, which it
   got transitively from mongoose. `mongoose` is gone and `mongodb` is a direct dependency.
 - **Removed (unused or replaced):** `@nestjs/swagger`, `@nestjs/platform-ws`, `mongoose`,
@@ -61,7 +92,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
   The CLI now uses `src/database/data-source.ts`. `_ormconfig.ts` is the one config shared by the app and the CLI.
 - **`invalidWhereValuesBehavior: throw`** is set for `null` and `undefined`. TypeORM 0.3 silently
   drops `undefined` from find conditions, so `findOneBy({ token: undefined })` would return
-  the *first session in the table*. Now it throws. Lookups where a missing value is a normal
+  the _first session in the table_. Now it throws. Lookups where a missing value is a normal
   input (`authorize`/`logout` without a token, login/reset/signup without an email, API-key
   and Stripe-customer lookups) return early with the old response instead.
 - **`subscription.price` is now `@Column({ type: 'decimal' })`.** 0.3 `parseInt`s a bare
@@ -82,6 +113,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
   and `tsc` build + `node dist/main.js`.
 
 ### On `main` (local dev revamp)
+
 - **No minikube, Helm or tmux.** The app uses your local Postgres (Postgres.app) and MongoDB.
   `scripts/dev.sh` runs all three apps through `concurrently`.
 - **One `.env` file** at the repo root, created from `.env.example` and loaded by
@@ -103,6 +135,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
 - Vue CLI 4 / webpack 4 need `NODE_OPTIONS=--openssl-legacy-provider`. `env.sh` sets it.
 
 ### From `cleanup-legacy-ops` (merged)
+
 - Deleted `ops/local/`, `docs/ops/ops-local.md`, `docs/ops/ops-minikube.md`,
   `workspaces/horizon-sh-mac.code-workspace` (stale absolute paths) and `lerna.json`.
 - **Secrets are copied instead of symlinked.** `scripts/secrets.sh` (`npm run secrets:pull`,
@@ -141,6 +174,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
   are now done, or optional.
 
 ## Not yet tested
+
 - Full UI flows in a browser, beyond what was checked by hand: CSV upload, the data grid,
   websocket updates, the API key page.
 - Stripe checkout.
@@ -148,6 +182,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
 - Production Docker images. The Dockerfiles still use `node:10` and will need updating.
 
 ## Suggested next steps
+
 1. **Frontend upgrade:** Vue 2 → Vue 3 + Vite. This is the biggest job. Element UI → Element
    Plus, `ag-grid-vue` → `ag-grid-vue3`, and jQuery / jqtree in `h-tree` should go.
    Consider merging `horizon-auth-fe` into `horizon-fe`.
@@ -160,15 +195,16 @@ than what this upgrade was validated against. Moving to them from here is a smal
    mostly dev tooling).
 
 ## Key files
-| File | Purpose |
-|---|---|
-| `scripts/env.sh` | Loads `.env` and sets `HORIZON_ROOT` and `NODE_OPTIONS` |
-| `scripts/dev.sh` | Starts all three apps |
-| `scripts/setup.sh` | First-time install + secrets pull + DB setup |
-| `scripts/db-setup.sh` | Creates the DBs and runs migrations (`--reset` to drop `horizon*` first) |
-| `scripts/db-demo.sh` | Loads the demo dataset |
-| `scripts/secrets.sh` | Copies secret files to and from the Dropbox secret folder |
-| `scripts/be-run.sh` | Runs a backend npm script with `.env` loaded (used for migrations) |
-| `packages/horizon-be/src/env.ts` | Every env var the backend reads |
-| `packages/horizon-be/src/database/_ormconfig.ts` | TypeORM options shared by the app and the CLI (`data-source.ts`) |
-| `packages/horizon-be/src/database/migration/` | TypeORM migrations, including seed and test data |
+
+| File                                             | Purpose                                                                  |
+| ------------------------------------------------ | ------------------------------------------------------------------------ |
+| `scripts/env.sh`                                 | Loads `.env` and sets `HORIZON_ROOT` and `NODE_OPTIONS`                  |
+| `scripts/dev.sh`                                 | Starts all three apps                                                    |
+| `scripts/setup.sh`                               | First-time install + secrets pull + DB setup                             |
+| `scripts/db-setup.sh`                            | Creates the DBs and runs migrations (`--reset` to drop `horizon*` first) |
+| `scripts/db-demo.sh`                             | Loads the demo dataset                                                   |
+| `scripts/secrets.sh`                             | Copies secret files to and from the Dropbox secret folder                |
+| `scripts/be-run.sh`                              | Runs a backend npm script with `.env` loaded (used for migrations)       |
+| `packages/horizon-be/src/env.ts`                 | Every env var the backend reads                                          |
+| `packages/horizon-be/src/database/_ormconfig.ts` | TypeORM options shared by the app and the CLI (`data-source.ts`)         |
+| `packages/horizon-be/src/database/migration/`    | TypeORM migrations, including seed and test data                         |

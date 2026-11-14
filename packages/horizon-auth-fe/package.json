@@ -7,8 +7,7 @@
         "env": "node env.js",
         "build": "vue-cli-service build",
         "lint": "vue-cli-service lint",
-        "serve:dev": "vue-cli-service serve",
-        "format": "prettier --write 'src/**/*.{js,vue}'"
+        "serve:dev": "vue-cli-service serve"
     },
     "dependencies": {
         "element-ui": "^2.13.0",
@@ -32,12 +31,6 @@
         "sass-loader": "^8.0.2",
         "vue-template-compiler": "^2.6.11"
     },
-    "prettier": {
-        "printWidth": 100,
-        "tabWidth": 4,
-        "singleQuote": true,
-        "semi": true
-    },
     "eslintConfig": {
         "root": true,
         "env": {
@@ -55,7 +48,8 @@
         "rules": {
             "no-console": 0,
             "no-unused-vars": 0,
-            "no-prototype-builtins": 0
+            "no-prototype-builtins": 0,
+            "prettier/prettier": 0
         },
         "parserOptions": {
             "parser": "babel-eslint"

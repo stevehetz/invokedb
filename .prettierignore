@@ -1,0 +1,21 @@
+# Generated / vendored
+node_modules
+dist
+coverage
+package-lock.json
+.data
+packages/horizon-be/uploads
+packages/horizon-be/tmp_prc
+packages/horizon-be/tmp_fs
+
+# Data dumps and binary-ish fixtures
+ops/shared/dumps
+
+# Third-party / static assets copied verbatim into builds
+packages/*/public
+
+# Legacy Azure/Helm ops (Helm templates are not valid YAML for prettier)
+ops
+
+# Email templates: whitespace is part of the rendered output
+packages/horizon-be/src/email/**/*.html

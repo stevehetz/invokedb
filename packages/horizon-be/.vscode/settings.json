@@ -1,15 +1,7 @@
 {
-  "[typescript]": {
     "editor.formatOnSave": true,
-    "editor.tabSize": 4
-  },
-  "[scss]": {
-    "editor.tabSize": 4
-  },
-  "[css]": {
-    "editor.tabSize": 4
-  },
-  "[html]": {
-    "editor.tabSize": 4
-  }
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "prettier.requireConfig": true,
+    "prettier.prettierPath": "../../node_modules/prettier",
+    "explorer.compactFolders": false
 }

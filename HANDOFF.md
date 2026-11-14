@@ -49,7 +49,7 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
 
 ## What changed, and why
 
-### Agent tooling + prettier (2026-11-14, uncommitted)
+### Agent tooling + prettier (2026-11-14, branch `agent-tooling`)
 
 - `AGENTS.md` is the shared agent instructions (commands, hard rules, conventions, gotchas).
   `CLAUDE.md` imports it with `@AGENTS.md` and adds the Claude-only notes.
@@ -70,10 +70,11 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
   `.editorconfig`. Claude Code formats every file it edits through the hook.
 - `.prettierignore` skips `ops/` (Helm templates break), the backend email `.html` templates
   (whitespace shows up in the sent email) and the demo dumps.
-- **Not done yet: a one-off reformat of the whole repo.** About 115 files aren't
-  prettier-clean, mostly SCSS, Vue `.html` templates and docs that were never formatted. Until
-  that commit lands, the first edit to one of those files reformats all of it. Do it as its own
-  commit, add the SHA to `.git-blame-ignore-revs`, and build both frontends afterwards.
+- **One-off reformat of the whole repo** in its own commit (`style: format the repo with
+prettier 3`), listed in `.git-blame-ignore-revs`. Locally, run
+  `git config blame.ignoreRevsFile .git-blame-ignore-revs` so blame skips it. Both frontends
+  and the backend built before and after the reformat. The compiled CSS is identical apart from
+  whitespace and hex-color case.
 
 ### Backend upgrade (2026-11-14, merged)
 

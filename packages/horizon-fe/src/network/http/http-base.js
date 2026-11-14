@@ -14,7 +14,10 @@ export default class HttpBase {
                 url: path,
                 contentType: 'application/json',
                 beforeSend: xhr => {
-                    xhr.setRequestHeader('Authorization', `BEARER ${this.get_token()}`);
+                    xhr.setRequestHeader(
+                        'Authorization',
+                        `BEARER ${this.get_token()}`
+                    );
                 }
             })
                 .done(res => {
@@ -35,7 +38,10 @@ export default class HttpBase {
                 contentType: 'application/json',
                 data: JSON.stringify(data),
                 beforeSend: xhr => {
-                    xhr.setRequestHeader('Authorization', `BEARER ${this.get_token()}`);
+                    xhr.setRequestHeader(
+                        'Authorization',
+                        `BEARER ${this.get_token()}`
+                    );
                 }
             })
                 .done(res => {
@@ -57,7 +63,10 @@ export default class HttpBase {
                 contentType: 'application/json',
                 data: JSON.stringify(data),
                 beforeSend: xhr => {
-                    xhr.setRequestHeader('Authorization', `BEARER ${this.get_token()}`);
+                    xhr.setRequestHeader(
+                        'Authorization',
+                        `BEARER ${this.get_token()}`
+                    );
                 }
             })
                 .done(res => {

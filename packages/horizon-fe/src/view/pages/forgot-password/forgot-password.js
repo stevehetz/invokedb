@@ -24,7 +24,8 @@ export default {
             e.preventDefault();
             try {
                 await account_http.reset_password(this.email);
-                this.message = 'A link to reset your password has been sent to your inbox.';
+                this.message =
+                    'A link to reset your password has been sent to your inbox.';
             } catch (ex) {
                 this.error.message = ex.message || 'Server error';
             }

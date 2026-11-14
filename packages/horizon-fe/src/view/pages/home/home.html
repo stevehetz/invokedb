@@ -7,17 +7,27 @@
                         class="heading-logo-title"
                         v-bind:src="require('@/assets/logo-title.svg')"
                     />
-                    <img class="heading-logo-icon" v-bind:src="require('@/assets/logo.svg')" />
+                    <img
+                        class="heading-logo-icon"
+                        v-bind:src="require('@/assets/logo.svg')"
+                    />
                 </div>
                 <div class="col col-75 pull-right">
                     <router-link to="/contact">Contact</router-link>
                     <router-link to="/pricing">Pricing</router-link>
-                    <router-link to="/create-account" v-if="!account">Sign Up</router-link>
+                    <router-link to="/create-account" v-if="!account"
+                        >Sign Up</router-link
+                    >
                     <router-link to="/login" class="sign-in" v-if="!account">
                         <span>Sign In</span>
                         <i class="fa fa-arrow-right"></i>
                     </router-link>
-                    <a href="" class="sign-in" v-if="account" @click="go_to_database">
+                    <a
+                        href=""
+                        class="sign-in"
+                        v-if="account"
+                        @click="go_to_database"
+                    >
                         <span>Database</span>
                         <i class="fa fa-arrow-right"></i>
                     </a>
@@ -30,7 +40,8 @@
                     >All-In-One API and Database for JavaScript Developers</span
                 >
                 <span class="banner-subtext"
-                    >Rapid UI Prototyping. Full CRUD API generated for each Data Table.</span
+                    >Rapid UI Prototyping. Full CRUD API generated for each Data
+                    Table.</span
                 >
             </div>
         </div>
@@ -42,7 +53,8 @@
                     </div>
                     <div class="info-header">Table Administration</div>
                     <div class="info-content">
-                        Row and column editing, sorting, filtering, indexing and more
+                        Row and column editing, sorting, filtering, indexing and
+                        more
                     </div>
                 </div>
                 <div class="col">
@@ -60,7 +72,8 @@
                     </div>
                     <div class="info-header">External API</div>
                     <div class="info-content">
-                        Integrate your app using CRUD based operations and complex search filtering
+                        Integrate your app using CRUD based operations and
+                        complex search filtering
                     </div>
                 </div>
             </div>
@@ -73,7 +86,10 @@
                 :autoplay="false"
                 arrow="always"
             >
-                <el-carousel-item v-for="screenshot in screenshots" :key="screenshot">
+                <el-carousel-item
+                    v-for="screenshot in screenshots"
+                    :key="screenshot"
+                >
                     <img v-bind:src="require('@/assets/' + screenshot)" />
                 </el-carousel-item>
             </el-carousel>
@@ -123,7 +139,8 @@
         <div class="footer">
             <div class="flex-row">
                 <div class="col">
-                    <span>© InvokeDB, LLC</span>• <router-link to="/tos">Terms</router-link>•
+                    <span>© InvokeDB, LLC</span>•
+                    <router-link to="/tos">Terms</router-link>•
                     <router-link to="/privacy">Privacy</router-link>
                 </div>
             </div>

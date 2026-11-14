@@ -7,7 +7,10 @@
                         class="heading-logo-title"
                         v-bind:src="require('@/assets/logo-title.svg')"
                     />
-                    <img class="heading-logo-icon" v-bind:src="require('@/assets/logo.svg')" />
+                    <img
+                        class="heading-logo-icon"
+                        v-bind:src="require('@/assets/logo.svg')"
+                    />
                 </router-link>
             </div>
             <div class="col col-75 pull-right">
@@ -24,7 +27,9 @@
             <div class="panel-box">
                 <div class="top">
                     <form>
-                        <h3 class="panel-title">Create your InvokeDB account</h3>
+                        <h3 class="panel-title">
+                            Create your InvokeDB account
+                        </h3>
                         <div class="input-box">
                             <el-input
                                 type="text"
@@ -63,7 +68,10 @@
                         <div class="flex-2-col">
                             <div class="left"></div>
                             <div class="right">
-                                <a href="" class="create-button" @click="create_account($event)"
+                                <a
+                                    href=""
+                                    class="create-button"
+                                    @click="create_account($event)"
                                     >Create <i class="fa fa-arrow-right"></i
                                 ></a>
                             </div>

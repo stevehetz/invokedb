@@ -91,7 +91,9 @@ export default {
 
         init_stripe() {
             const elements = this.stripe.elements();
-            this.card_element = elements.create('card', { style: this.stripe_styles });
+            this.card_element = elements.create('card', {
+                style: this.stripe_styles
+            });
             this.card_element.mount('#card-element');
             this.card_element.addEventListener('change', function (event) {
                 const display_error = document.getElementById('card-errors');
@@ -103,7 +105,9 @@ export default {
             });
 
             const form = document.getElementById('subscription-form');
-            form.addEventListener('submit', event => this.stripe_form_submit(event));
+            form.addEventListener('submit', event =>
+                this.stripe_form_submit(event)
+            );
         },
 
         stripe_form_submit(event) {
@@ -126,7 +130,10 @@ export default {
         stripe_payment_handler(result) {
             if (result.error) {
                 console.log('error submitting payment');
-                this.set_error(result.error, 'There was an error submitting your payment');
+                this.set_error(
+                    result.error,
+                    'There was an error submitting your payment'
+                );
                 return;
             }
 
@@ -152,7 +159,9 @@ export default {
                 if (status === 'requires_action') {
                     this.stripe
                         .confirmCardPayment(client_secret)
-                        .then(result => this.stripe_card_confirm_handler(result));
+                        .then(result =>
+                            this.stripe_card_confirm_handler(result)
+                        );
                 } else {
                     this.on_payment_success();
                 }
@@ -163,7 +172,10 @@ export default {
 
         stripe_subscription_error(error) {
             console.log('error creating subscription');
-            this.set_error(error, 'There was an error creating your subscription');
+            this.set_error(
+                error,
+                'There was an error creating your subscription'
+            );
         },
 
         stripe_card_confirm_handler(result) {

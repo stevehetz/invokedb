@@ -7,18 +7,28 @@
                         class="heading-logo-title"
                         v-bind:src="require('@/assets/logo-title.svg')"
                     />
-                    <img class="heading-logo-icon" v-bind:src="require('@/assets/logo.svg')" />
+                    <img
+                        class="heading-logo-icon"
+                        v-bind:src="require('@/assets/logo.svg')"
+                    />
                 </router-link>
             </div>
             <div class="col col-75 pull-right">
                 <router-link to="/contact" class="active">Contact</router-link>
                 <router-link to="/pricing">Pricing</router-link>
-                <router-link to="/create-account" v-if="!account">Sign Up</router-link>
+                <router-link to="/create-account" v-if="!account"
+                    >Sign Up</router-link
+                >
                 <router-link to="/login" class="sign-in" v-if="!account">
                     <span>Sign In</span>
                     <i class="fa fa-arrow-right"></i>
                 </router-link>
-                <a href="" class="sign-in" v-if="account" @click="go_to_database">
+                <a
+                    href=""
+                    class="sign-in"
+                    v-if="account"
+                    @click="go_to_database"
+                >
                     <span>Database</span>
                     <i class="fa fa-arrow-right"></i>
                 </a>
@@ -32,7 +42,10 @@
                     <div class="success-message">
                         <p>Your request has been submitted successfully.</p>
                         <br />
-                        <p>A support representative will be in contact with you shortly.</p>
+                        <p>
+                            A support representative will be in contact with you
+                            shortly.
+                        </p>
                     </div>
                 </div>
                 <div class="bottom">
@@ -42,13 +55,19 @@
                                 <a href="" @click="back">Back</a>
                             </div>
                             <div class="right">
-                                <router-link to="/">Go to Home Page</router-link>
+                                <router-link to="/"
+                                    >Go to Home Page</router-link
+                                >
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="panel-box" v-if="!success" :class="{submitting: submitting}">
+            <div
+                class="panel-box"
+                v-if="!success"
+                :class="{submitting: submitting}"
+            >
                 <div class="overlay"></div>
                 <div class="top">
                     <form>
@@ -91,7 +110,10 @@
                         <div class="flex-2-col">
                             <div class="left"></div>
                             <div class="right">
-                                <a href="" class="create-button" @click="send($event)"
+                                <a
+                                    href=""
+                                    class="create-button"
+                                    @click="send($event)"
                                     >Send <i class="fa fa-arrow-right"></i
                                 ></a>
                             </div>

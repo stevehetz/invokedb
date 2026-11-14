@@ -7,7 +7,10 @@
                         class="heading-logo-title"
                         v-bind:src="require('@/assets/logo-title.svg')"
                     />
-                    <img class="heading-logo-icon" v-bind:src="require('@/assets/logo.svg')" />
+                    <img
+                        class="heading-logo-icon"
+                        v-bind:src="require('@/assets/logo.svg')"
+                    />
                 </router-link>
             </div>
             <div class="col col-75 pull-right">
@@ -58,11 +61,18 @@
                     <div class="control-box">
                         <div class="flex-2-col">
                             <div class="left">
-                                <router-link to="/create-account">Create Account</router-link>
-                                <router-link to="/forgot-password">Forgot Password</router-link>
+                                <router-link to="/create-account"
+                                    >Create Account</router-link
+                                >
+                                <router-link to="/forgot-password"
+                                    >Forgot Password</router-link
+                                >
                             </div>
                             <div class="right">
-                                <a href="" class="login-button" @click="login($event)"
+                                <a
+                                    href=""
+                                    class="login-button"
+                                    @click="login($event)"
                                     >Login <i class="fa fa-sign-in"></i
                                 ></a>
                             </div>

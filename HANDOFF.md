@@ -49,7 +49,7 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
 
 ## What changed, and why
 
-### Agent tooling + prettier (2026-11-14, branch `agent-tooling`)
+### Agent tooling + prettier (2026-11-14, merged)
 
 - `AGENTS.md` is the shared agent instructions (commands, hard rules, conventions, gotchas).
   `CLAUDE.md` imports it with `@AGENTS.md` and adds the Claude-only notes.

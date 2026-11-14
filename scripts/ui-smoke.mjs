@@ -1,7 +1,7 @@
-// UI smoke test for horizon-fe + horizon-auth-fe: node scripts/ui-smoke.mjs [--out out.json] [--headed] [--keep]
+// UI smoke test for horizon-fe: node scripts/ui-smoke.mjs [--out out.json] [--headed] [--keep]
 //
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
-// log in on the auth app, upload a CSV, sort / filter / edit cells in the grid, add and remove
+// render the public site's pages, log in, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
 // read the API key from the account page and call /api/v1 with it, then delete the table
 // through the UI and log out. Stops at the first failing step and saves a screenshot.
@@ -22,8 +22,9 @@ const flag = name => args.includes(name);
 const opt = name => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 
 const env = process.env;
-const AUTH_URL = env.HORIZON_AUTH_FE_PUB_HTTP_URL || 'http://127.0.0.1:8005';
+// One frontend: the public site at /, the signed-in app under /app
 const FE_URL = env.HORIZON_FE_PUB_HTTP_URL || 'http://127.0.0.1:8000';
+const APP_URL = `${FE_URL}/app`;
 const BE_URL = env.HORIZON_BE_PUB_HTTP_URL || 'http://127.0.0.1:8001';
 const API_URL = env.HORIZON_API_PUB_HTTP_URL || `${BE_URL}/api`;
 const WS_URL = env.HORIZON_SB_PUB_WS_URL || 'ws://127.0.0.1:9000';
@@ -204,6 +205,23 @@ async function edit_header(name) {
     return cells.nth(i);
 }
 
+// Selectors from each area's global stylesheet that are on the page. The site and the app must
+// never have each other's CSS loaded (see router.js in horizon-fe).
+async function loaded_css(markers) {
+    return page.evaluate(markers => {
+        const text = [];
+        for (const sheet of document.styleSheets) {
+            try {
+                for (const rule of sheet.cssRules) text.push(rule.selectorText || '');
+            } catch {} // cross-origin CDN sheets
+        }
+        const all = text.join(' ');
+        return markers.filter(m => all.includes(m));
+    }, markers);
+}
+const SITE_CSS = '.panel-box'; // only in the site stylesheet
+const APP_CSS = '.h-data-grid'; // only in the app stylesheet
+
 function ws_events_since(i) {
     return results.ws_events.slice(i).map(e => e.event);
 }
@@ -237,15 +255,46 @@ let be_s;
 let failed = false;
 
 try {
+    await step('public_pages', async () => {
+        const pages = {
+            '/': '.home-page',
+            '/pricing': '.pricing-page',
+            '/contact': '.contact-page',
+            '/create-account': '.create-account-page',
+            '/forgot-password': '.forgot-password-page',
+            '/tos': '.tos-page',
+            '/privacy': '.privacy-page',
+            '/login': '.login-page'
+        };
+        results.observed.public_pages = {};
+        for (const [p, root] of Object.entries(pages)) {
+            await page.goto(FE_URL + p);
+            await page.locator(root).first().waitFor();
+            results.observed.public_pages[p] = await loaded_css([SITE_CSS, APP_CSS]);
+            check(
+                results.observed.public_pages[p].join() === SITE_CSS,
+                `${p} has CSS ${results.observed.public_pages[p]} (want only the site's)`
+            );
+        }
+        // Signed out, the app sends you to the login page
+        await page.goto(APP_URL);
+        await page.waitForURL(u => u.pathname === '/login', { timeout: 15000 });
+    });
+
     await step('login', async () => {
-        await page.goto(`${AUTH_URL}/login`);
+        await page.goto(`${FE_URL}/login`);
         await page.getByPlaceholder('Email').fill(EMAIL);
         await page.getByPlaceholder('Password').fill(PASSWORD);
         await page.locator('.login-button').click();
-        await page.waitForURL(u => u.href.startsWith(FE_URL), { timeout: 30000 });
+        await page.waitForURL(u => u.href.startsWith(APP_URL), { timeout: 30000 });
         await page.locator('.layout .header-text', { hasText: EMAIL }).waitFor();
-        // The token arrives in the query string and must not stay in the address bar
-        results.observed.token_left_in_url = new URL(page.url()).searchParams.has('token');
+        results.observed.token_in_url = page.url().includes('token');
+        check(!results.observed.token_in_url, `session token is in the URL: ${page.url()}`);
+        results.observed.app_css = await loaded_css([SITE_CSS, APP_CSS]);
+        check(
+            results.observed.app_css.join() === APP_CSS,
+            `the app has CSS ${results.observed.app_css} (want only the app's)`
+        );
     });
 
     await step('upload_csv', async () => {
@@ -432,7 +481,10 @@ try {
 
     await step('logout', async () => {
         await page.locator('.layout .header-link .fa-sign-out-alt').click();
-        await page.waitForURL(u => u.href.startsWith(AUTH_URL), { timeout: 15000 });
+        await page.waitForURL(u => u.href.startsWith(FE_URL) && !u.pathname.startsWith('/app'), {
+            timeout: 15000
+        });
+        await page.locator('.home-page').waitFor();
     });
 } catch {
     failed = true;

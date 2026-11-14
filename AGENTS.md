@@ -7,13 +7,12 @@ repo. `CLAUDE.md` only imports this file. People should read `README.md` for com
 ## What this is
 
 InvokeDB (code name "horizon"): a web app for building data tables you can query through an
-API. A monorepo of three apps with **separate `node_modules`** (no npm workspaces):
+API. A monorepo of two packages with **separate `node_modules`** (no npm workspaces):
 
-| Package                    | Stack                                                                | Dev URL                 |
-| -------------------------- | -------------------------------------------------------------------- | ----------------------- |
-| `packages/horizon-be`      | NestJS 11, TypeORM 0.3 (Postgres), native `mongodb` 6 driver, `ws` 8 | :8001 (websocket :9000) |
-| `packages/horizon-fe`      | Main app: Vue 2, Vue CLI 4, ag-grid, Element UI, Vuex                | :8000                   |
-| `packages/horizon-auth-fe` | Marketing / login / signup / checkout: Vue 2                         | :8005                   |
+| Package               | Stack                                                                    | Dev URL                 |
+| --------------------- | ------------------------------------------------------------------------ | ----------------------- |
+| `packages/horizon-be` | NestJS 11, TypeORM 0.3 (Postgres), native `mongodb` 6 driver, `ws` 8     | :8001 (websocket :9000) |
+| `packages/horizon-fe` | Vue 2, Vue CLI 4, ag-grid, Element UI. Public site at `/`, app at `/app` | :8000                   |
 
 Logins (local and demo data): `demo@invokedb.com` … `demo7@invokedb.com`, password `password`.
 
@@ -22,7 +21,7 @@ Logins (local and demo data): `demo@invokedb.com` … `demo7@invokedb.com`, pass
 Run from the repo root. Every script loads `.env` through `scripts/env.sh`.
 
 ```sh
-npm run dev                  # all three apps (concurrently); Ctrl-C stops all
+npm run dev                  # backend + frontend (concurrently); Ctrl-C stops both
 npm run db:setup             # create missing DBs + run pending migrations (safe)
 npm run migration:create -- Name
 npm run migration:run | migration:revert
@@ -90,10 +89,17 @@ throwaway stack, never the user's data.
   Add a new one (see the `db-migration` skill).
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
-## Frontend conventions (`horizon-fe`, `horizon-auth-fe`)
+## Frontend conventions (`horizon-fe`)
 
 - Vue 2 Options API. Components are often split into `index.vue` + `<name>.html` (template, via
   `<template src>`) + `<name>.js` + `.scss`. Keep that split when editing an existing component.
+- **Two areas, one app.** The public site (marketing, login, signup, checkout: `src/view/`,
+  `src/network/`) is served at `/`, and the signed-in app (`src/components/`, `src/core/`) at
+  `/app`. They were separate apps until 2026-11, and their global stylesheets clash. So each
+  area's shell (`src/view/site.vue`, `src/components/app.vue`) imports its own CSS and is
+  lazy-loaded, and **moving between the areas is a full page load** (`window.location` or a
+  plain `<a href>`), never `router.push` or `<router-link>`. Within an area, use the router as
+  normal. Don't import global CSS anywhere else. The UI smoke test checks this.
 - Vue CLI 4 / webpack 4 need `NODE_OPTIONS=--openssl-legacy-provider`, which `env.sh` sets. Use
   the npm scripts instead of calling `vue-cli-service` directly.
 - A Vue 3 + Vite migration is planned next (see `HANDOFF.md`). Avoid new Vue-2-only patterns
@@ -117,12 +123,12 @@ Skills are step-by-step playbooks in `.agents/skills/<name>/SKILL.md`. They aren
 with any agent tool. **Read the matching file before you start a task in the table below**, and
 follow it. When a playbook mentions another skill by name, it means that skill's file here.
 
-| Skill             | Read it when you are about to…                                                                                 |
-| ----------------- | -------------------------------------------------------------------------------------------------------------- |
-| `dev-stack`       | start, restart, health-check or stop the app; read its logs; inspect local Postgres or Mongo data              |
-| `verify-backend`  | call a `horizon-be` change done (any service, entity, query, config or dependency change)                      |
-| `verify-frontend` | call a `horizon-fe` / `horizon-auth-fe` change done (components, store, routing, deps, build, Vue 3 migration) |
-| `db-migration`    | add or change an entity or column, write a migration or seed data, or run or revert migrations                 |
+| Skill             | Read it when you are about to…                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------- |
+| `dev-stack`       | start, restart, health-check or stop the app; read its logs; inspect local Postgres or Mongo data |
+| `verify-backend`  | call a `horizon-be` change done (any service, entity, query, config or dependency change)         |
+| `verify-frontend` | call a `horizon-fe` change done (components, store, routing, deps, build, Vue 3 migration)        |
+| `db-migration`    | add or change an entity or column, write a migration or seed data, or run or revert migrations    |
 
 For starting this app, use `dev-stack` rather than any generic "run the app" behaviour.
 
@@ -131,7 +137,7 @@ For starting this app, use `dev-stack` rather than any generic "run the app" beh
 Defined in `.mcp.json` at the repo root, which Claude Code reads directly. For other tools,
 copy the same entries into their MCP config.
 
-- `playwright`: drive Chrome to check UI changes at http://127.0.0.1:8005 → :8000.
+- `playwright`: drive Chrome to check UI changes at http://127.0.0.1:8000 (site) and :8000/app.
 - `mongodb`: **read-only** access to local Mongo (`horizon*` databases).
 
 Postgres has no MCP server. Use `psql` (`PGHOST=127.0.0.1 PGUSER=postgres psql horizon`).

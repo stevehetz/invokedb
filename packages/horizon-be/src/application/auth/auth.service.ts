@@ -103,9 +103,10 @@ export class AuthService {
 
         logger.info(`Account created. ID: ${account.id}, Email: ${account.email}.`);
 
+        // One frontend: the public site at /, the signed-in app under /app
         const { subject, body } = welcome_tmpl(
-            env.HORIZON_AUTH_FE_PUB_HTTP_URL,
             env.HORIZON_FE_PUB_HTTP_URL,
+            `${env.HORIZON_FE_PUB_HTTP_URL}/app`,
             account
         );
 
@@ -153,7 +154,7 @@ export class AuthService {
             account_id: account.id
         });
 
-        const { subject, body } = reset_pass_tmpl(env.HORIZON_AUTH_FE_PUB_HTTP_URL, token);
+        const { subject, body } = reset_pass_tmpl(env.HORIZON_FE_PUB_HTTP_URL, token);
 
         this.email_manager.send_html(email, subject, body);
 

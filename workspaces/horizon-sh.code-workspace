@@ -2,8 +2,7 @@
     "folders": [
         { "name": "horizon", "path": ".." },
         { "name": "horizon-be", "path": "../packages/horizon-be" },
-        { "name": "horizon-fe", "path": "../packages/horizon-fe" },
-        { "name": "horizon-auth-fe", "path": "../packages/horizon-auth-fe" }
+        { "name": "horizon-fe", "path": "../packages/horizon-fe" }
     ],
     "settings": {
         // Prettier (root config + root prettier 3) formats on save. Each folder's

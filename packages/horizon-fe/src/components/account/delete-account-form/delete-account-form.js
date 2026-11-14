@@ -1,5 +1,4 @@
 import { account_manager } from '@/core/context/account/account-manager';
-import { store } from '@/store';
 
 export default {
     name: 'DeleteAccountForm',
@@ -14,8 +13,7 @@ export default {
                 callback: async () => {
                     await account_manager.delete_account(this.account.id);
                     await account_manager.logout();
-                    const env = store.get('env');
-                    window.location.href = env.HORIZON_AUTH_FE_PUB_HTTP_URL;
+                    window.location.href = '/';
                 }
             });
         }

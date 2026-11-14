@@ -13,30 +13,31 @@ the gotchas, and what to do next.
    `prod:*`, ask before destructive DB commands, no native npm packages) and conventions.
    `CLAUDE.md` just imports it.
 2. Read the playbook in `.agents/skills/` that matches your task (the index is in `AGENTS.md`).
-3. The UI smoke baseline (step 1 of "Suggested next steps") is done, on branch `ui-smoke`
-   until the user merges it. The next job is **step 2, the Vue 3 + Vite migration**. Its first
-   sub-step is a question for the user: should `horizon-auth-fe` be merged into `horizon-fe`?
-   Ask before starting. Run the `verify-frontend` playbook after every stage.
+3. Steps 1 (UI smoke baseline) and 2.1 (merge `horizon-auth-fe` into `horizon-fe`) of
+   "Suggested next steps" are done, on branches `ui-smoke` and `merge-auth-fe` (stacked) until
+   the user merges them. The next job is **step 2.2: Vue CLI 4 / webpack 4 → Vite, still on
+   Vue 2.7**. Read the "Two areas" gotcha first. Run the `verify-frontend` playbook after every
+   stage.
 4. Work on a branch. The user merges to `main` and pushes once they approve. Formatting
    happens in the pre-commit hook (`npm install` at the root turns it on).
 
 ## Current state
 
-|               |                                                                                                                        |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `main`        | Local dev revamp, legacy-ops clean-up, secrets, demo data, backend upgrade, agent tooling + prettier. The only branch. |
-| Repo          | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below).              |
-| Runs locally? | Yes. `npm run dev` starts all three apps, and login, the API and Mongo writes work.                                    |
-| `ui-smoke`    | UI smoke test (`scripts/ui-smoke.mjs`), `smoke-env.sh`, `verify-frontend` playbook. Awaiting review.                   |
-| Production    | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild.                                |
+|                 |                                                                                                                        |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `main`          | Local dev revamp, legacy-ops clean-up, secrets, demo data, backend upgrade, agent tooling + prettier. The only branch. |
+| Repo            | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below).              |
+| Runs locally?   | Yes. `npm run dev` starts the backend and the frontend, and login, the API and Mongo writes work.                      |
+| `ui-smoke`      | UI smoke test (`scripts/ui-smoke.mjs`), `smoke-env.sh`, `verify-frontend` playbook. Awaiting review.                   |
+| `merge-auth-fe` | On top of `ui-smoke`: `horizon-auth-fe` merged into `horizon-fe` (site at `/`, app at `/app`). Awaiting review.        |
+| Production      | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild.                                |
 
 ### Apps
 
-| Package                    | What                                                                                                   | Dev URL          |
-| -------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------- |
-| `packages/horizon-be`      | NestJS 11 API + websocket server. Postgres via TypeORM 0.3, MongoDB via the native `mongodb` 6 driver. | :8001 (ws :9000) |
-| `packages/horizon-fe`      | Main app (Vue 2, Vue CLI 4, ag-grid, Element UI)                                                       | :8000            |
-| `packages/horizon-auth-fe` | Marketing / login / signup / checkout (Vue 2)                                                          | :8005            |
+| Package               | What                                                                                                          | Dev URL          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `packages/horizon-be` | NestJS 11 API + websocket server. Postgres via TypeORM 0.3, MongoDB via the native `mongodb` 6 driver.        | :8001 (ws :9000) |
+| `packages/horizon-fe` | Vue 2, Vue CLI 4, ag-grid, Element UI. Public site (marketing, login, signup, checkout) at `/`, app at `/app` | :8000            |
 
 Logins: `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, all with password `password`.
 
@@ -62,6 +63,42 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
   harmless with no deployment, but move them to env vars before deploying anywhere.
 
 ## What changed, and why
+
+### `horizon-auth-fe` merged into `horizon-fe` (2026-11-14, branch `merge-auth-fe`)
+
+- **One frontend package, one dev server, one origin.** The auth app's `src/view/` (pages,
+  shell, stylesheet) and `src/network/` moved into `horizon-fe/src/` unchanged, with `git mv`.
+  Their imports didn't collide (the two `store` modules were identical). The public site is at
+  `/` (`/login`, `/pricing`, `/checkout`, …) and the app moved to `/app` (`/app/account`,
+  `/app/api`, `/app/guide`). Routes are in `src/router.js`, and `src/root.vue` loads `env.txt`
+  once for both.
+- **The two global stylesheets clash** (`.page`, `.home-page`, `.flex-*`, `.col-*`, `.app`,
+  different Element UI themes), and scoping about 3,800 lines of CSS by hand was the risky part.
+  Instead, each area's shell (`src/view/site.vue`, `src/components/app.vue`) imports its own
+  CSS and is lazy-loaded, and moving between the areas is a full page load. In practice the two
+  sheets are never loaded together, which the smoke test checks on every page. Unify the styles
+  during the Element Plus stage, then let cross-area links use the router.
+- **No more token in the URL.** Login used to redirect to `:8000?token=…`. Now the cookie is
+  same-origin, so login sets it and goes to `/app`, and `account_manager.get_token()` only
+  reads the cookie.
+- **Removed:** the `horizon-auth-fe` package, `HORIZON_AUTH_FE_PUB_HTTP_URL`/`_PORT` (from
+  `.env.example`, `smoke-env.sh`, `env.js`, backend `env.ts`), the jQuery CDN tag (bundled
+  jQuery is used), and the Universal Analytics tag (UA stopped collecting data in 2024). Stripe.js
+  and the Source Code Pro font moved into `horizon-fe/public/index.html`.
+- **Backend:** welcome and reset-password emails now link to `HORIZON_FE_PUB_HTTP_URL`, with
+  `/app` for the app links. Checked: the reset link opens `/reset-password` and shows the
+  account. Your own `.env` still has the two `AUTH_FE` lines. They're unused, so delete them
+  whenever (and `secrets:push`).
+- **How it was verified:** the smoke test (now 12 steps, with a new `public_pages` step) passes
+  on the dev server and on a production `dist/` build, and its JSON matches the pre-merge run
+  except for the new checks. Screenshots of all 8 public pages (signed out and in) and 4 app
+  screens are pixel-identical to before the merge, apart from smoothing on one scaled image.
+  `/checkout` throws `Please call Stripe() with your publishable key` without Stripe keys, which
+  it did before the merge too.
+- **Not done:** `ops/` still builds and serves `horizon-auth-fe` (Dockerfiles, nginx,
+  `docker-build.sh`, Helm values). It's torn-down infrastructure, so it was left alone. Rework it
+  before any redeploy (see step 5), and the server needs an SPA fallback for `/app/*` and the site
+  paths.
 
 ### UI smoke baseline (2026-11-14, branch `ui-smoke`)
 
@@ -209,13 +246,16 @@ than what this upgrade was validated against. Moving to them from here is a smal
 - Mongo uses one database per account (`horizon:acct_<id>`) plus `horizon:tracking`.
 - In local mode the backend runs all four roles in one process (`IS_HORIZON_BE`, `_PRC`, `_SB`,
   `_FS`). Production ran them as separate pods.
+- **Two areas, one app** (`horizon-fe`): never `router.push` / `<router-link>` between the
+  public site (`/`) and the app (`/app`). Use `window.location` or a plain `<a href>`, because
+  each area's global CSS must not load on the other's pages. See `AGENTS.md` and `src/router.js`.
 - `docs/ops-standalone.md` is an old to-do list. The minikube, Mailgun, Slack and Stripe parts
   are now done, or optional.
 
 ## Not yet tested
 
-- UI flows the smoke test doesn't cover yet: signup, forgot/reset password, Add Row and row
-  delete, renaming a table, the Guide and Api pages, the grid's API dialog, and multiple tabs.
+- UI flows the smoke test doesn't cover yet: signup, submitting forgot/reset password (the
+  reset page itself was checked by hand after the merge), Add Row and row delete, renaming a table, the Guide and Api pages, the grid's API dialog, and multiple tabs.
 - Stripe checkout.
 - `push.sh`.
 - **The MCP servers in `.mcp.json` have never been started.** The UI smoke test uses the
@@ -232,7 +272,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
    to compare against. Write a Playwright script (`scripts/ui-smoke.mjs`, next to
    `api-smoke.mjs`; use the `playwright` npm package or the MCP server to work it out) that
    covers:
-   - log in on :8005 and get redirected to :8000
+   - log in on the auth app and get redirected to the main app
    - CSV upload, waiting for processing to finish
    - grid sort, filter and cell edit
    - add and remove a column
@@ -246,9 +286,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
 
 2. **Vue 2 → Vue 3 + Vite, in stages**, each on its own branch, re-running the UI smoke test
    after each stage:
-   1. Decide whether to merge `horizon-auth-fe` into `horizon-fe`. The recommendation is yes,
-      before porting: one build, one set of dependencies, no redirect between two ports. Ask the
-      user first.
+   1. ~~Merge `horizon-auth-fe` into `horizon-fe`~~ **Done** (branch `merge-auth-fe`, see above).
    2. Vue CLI 4 / webpack 4 → Vite while still on Vue 2.7. This drops
       `--openssl-legacy-provider`.
    3. Clear the hardest blockers while still on Vue 2.7: Element UI → Element Plus,
@@ -262,6 +300,8 @@ than what this upgrade was validated against. Moving to them from here is a smal
    whatever is installed locally.
 5. **Before redeploying anywhere:** update the Dockerfiles (`node:10`) and decide whether to
    keep the AKS/Helm setup or move to something simpler (a single VM, Fly, Render, and so on).
+   `ops/` still assumes a separate `horizon-auth-fe` build and host. The merged app needs one
+   static host with an SPA fallback, and `HORIZON_FE_PUB_HTTP_URL` set to it.
 6. **Backend follow-ups (optional):** Nest 12 / TypeORM 1.x, `stripe` 8 → current (only if
    Stripe comes back), replace `tslint` with ESLint, and work through `npm audit` (15 issues,
    mostly dev tooling).

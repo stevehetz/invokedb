@@ -48,7 +48,7 @@ export default Vue.extend({
 
         go_to_doc_link(hash) {
             this.$bus.$emit('container-dialog:close');
-            this.$router.push(`/api#${hash}`);
+            this.$router.push(`/app/api#${hash}`);
         }
     }
 });

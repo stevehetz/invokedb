@@ -23,7 +23,7 @@ separate databases on separate ports, so it can't touch real data or collide wit
 
 ```sh
 S=<scratch dir>
-bash scripts/smoke-env.sh "$S/smoke.env"   # DBs horizon_smoke*, ports be 8101 / ws 9100 (+ fe 8100 / auth 8105)
+bash scripts/smoke-env.sh "$S/smoke.env"   # DBs horizon_smoke*, ports be 8101 / ws 9100 (+ fe 8100)
 ```
 
 The same env file serves the `verify-frontend` UI smoke test, so one throwaway stack covers both.

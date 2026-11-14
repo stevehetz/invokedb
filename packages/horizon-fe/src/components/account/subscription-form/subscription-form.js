@@ -1,5 +1,4 @@
 import { subscription_http } from '@/core/context/subscription/subscription-http';
-import { store } from '@/store';
 import * as moment from 'moment';
 
 export default {
@@ -31,14 +30,12 @@ export default {
     },
 
     async mounted() {
-        const env = store.get('env');
-        this.pricing_link = env.HORIZON_AUTH_FE_PUB_HTTP_URL + '/pricing';
+        this.pricing_link = '/pricing';
     },
 
     methods: {
         set_checkout_link(account) {
-            const env = store.get('env');
-            this.checkout_link = env.HORIZON_AUTH_FE_PUB_HTTP_URL + '/checkout';
+            this.checkout_link = '/checkout';
             if (account.subscription) {
                 this.checkout_link += '?existing_plan=true';
             }

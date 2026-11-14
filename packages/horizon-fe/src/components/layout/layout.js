@@ -32,16 +32,9 @@ export default {
 
     methods: {
         set_active() {
-            // get the 2nd slash if it exists (ex: /manage/file-store)
-            let end = this.$route.path.substring(1).indexOf('/');
-
-            if (end > -1) {
-                // second slash exists so within subpage
-                this.active_index = this.$route.path.substring(0, end + 1);
-            } else {
-                // second slash not present, so not within subpage
-                this.active_index = this.$route.path;
-            }
+            // The nav item is the first two path segments (ex: /app/manage/file-store -> /app/manage)
+            const parts = this.$route.path.split('/').filter(p => p);
+            this.active_index = '/' + parts.slice(0, 2).join('/');
         },
 
         setup_nav_behavior() {
@@ -70,16 +63,12 @@ export default {
         },
 
         async contact() {
-            window.open(
-                store.get('env').HORIZON_AUTH_FE_PUB_HTTP_URL + '/contact',
-                '_blank'
-            );
+            window.open('/contact', '_blank');
         },
 
         async logout() {
             await account_manager.logout();
-            window.location.href =
-                store.get('env').HORIZON_AUTH_FE_PUB_HTTP_URL;
+            window.location.href = '/'; // the public site: a full page load
         },
 
         async nav_selected(e) {

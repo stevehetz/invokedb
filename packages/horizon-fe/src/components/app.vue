@@ -1,8 +1,13 @@
 <script>
-import cookies from 'js-cookie';
+// The signed-in app's shell (route /app). It owns the app's global CSS; see router.js for why.
+import 'element-ui/lib/theme-chalk/index.css';
+import 'jqtree';
+import 'jqtree/jqtree.css';
+import 'ag-grid-community/dist/styles/ag-grid.css';
+import '@/stylesheet.scss';
+
 import ViewBusContainer from '@/components/view-bus/view-bus-container';
 import Layout from '@/components/layout';
-import { http } from '@/core/http';
 import { store } from '@/store';
 import { account_manager } from '@/core/context/account/account-manager';
 import { socket_service } from '@/core/ws/socket-service';
@@ -24,19 +29,12 @@ export default {
     },
 
     async created() {
-        await this.set_env();
+        this.env = store.get('env');
         await this.set_account();
         this.set_handlers();
     },
 
     methods: {
-        async set_env() {
-            const date = new Date();
-            const env = await http.get(`/env.txt?${date.getTime()}`);
-            this.env = JSON.parse(env);
-            store.set('env', this.env);
-        },
-
         async set_account() {
             try {
                 let token = account_manager.get_token();
@@ -49,10 +47,7 @@ export default {
             }
 
             if (!this.account) {
-                window.location.href = this.env.HORIZON_AUTH_FE_PUB_HTTP_URL;
-            } else if (window.location.search !== '') {
-                let h = window.location.href;
-                window.location.href = h.substring(0, h.indexOf('?'));
+                window.location.href = '/login'; // the public site: a full page load
             } else {
                 this.loading = false;
             }
@@ -60,8 +55,8 @@ export default {
 
         set_handlers() {
             this.$bus.$on('logout', async () => {
-                let res = await account_manager.logout();
-                window.location.href = this.env.HORIZON_AUTH_FE_PUB_HTTP_URL;
+                await account_manager.logout();
+                window.location.href = '/';
             });
         }
     }

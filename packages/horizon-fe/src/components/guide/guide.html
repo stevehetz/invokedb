@@ -81,10 +81,7 @@
                             Depending on your current plan you will be limited
                             to the amount rows, tables and requests per minute
                             your api is allowed to make. See the
-                            <a
-                                :href="env.HORIZON_AUTH_FE_PUB_HTTP_URL + '/pricing'"
-                                >pricing page</a
-                            >
+                            <a href="/pricing">pricing page</a>
                             for the available tiers.
                         </p>
                     </div>
@@ -386,14 +383,15 @@
                             To integrate InvokeDB's API into your application
                             you must first obtain your account's api_key from
                             the
-                            <routerLink to="/account">account</routerLink> page.
+                            <routerLink to="/app/account">account</routerLink>
+                            page.
                         </p>
 
                         <p>
                             The api_key will be used as a query parameter in the
                             API URL endpoints. For documentation on how to use
                             the api, visit the
-                            <routerLink to="/api">api</routerLink> docs.
+                            <routerLink to="/app/api">api</routerLink> docs.
                         </p>
                     </div>
 
@@ -415,10 +413,7 @@
                         <p>
                             For any questions, issues or features requests you
                             can submit a ticket to our support team using the
-                            <a
-                                :href="env.HORIZON_AUTH_FE_PUB_HTTP_URL + '/contact'"
-                                >contact</a
-                            >
+                            <a href="/contact">contact</a>
                             form
                         </p>
                     </div>

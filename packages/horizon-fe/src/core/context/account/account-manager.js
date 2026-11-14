@@ -4,16 +4,8 @@ import { http } from '@/core/http';
 
 export const account_manager = {
     get_token() {
-        // Check url param for new token
-        let url_params = new URLSearchParams(window.location.search);
-        let token = url_params.get('token');
-
-        // If token from url, save to cookie
-        if (token) cookies.set('token', token);
-        // Token not passed by url, check cookie
-        else token = cookies.get('token');
-
-        return token;
+        // Set by the login / create-account pages (same origin since the site and app merged)
+        return cookies.get('token');
     },
 
     async refresh_account_store() {

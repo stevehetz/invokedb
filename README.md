@@ -1,12 +1,11 @@
 # InvokeDB
 
-Monorepo with three apps:
+Monorepo with two packages:
 
-| Package                    | What                                               | Dev URL                          |
-| -------------------------- | -------------------------------------------------- | -------------------------------- |
-| `packages/horizon-be`      | NestJS API + websocket server (Postgres + MongoDB) | http://127.0.0.1:8001 (ws :9000) |
-| `packages/horizon-fe`      | Main app (Vue 2)                                   | http://127.0.0.1:8000            |
-| `packages/horizon-auth-fe` | Marketing / login / signup / checkout (Vue 2)      | http://127.0.0.1:8005            |
+| Package               | What                                                | Dev URL                          |
+| --------------------- | --------------------------------------------------- | -------------------------------- |
+| `packages/horizon-be` | NestJS API + websocket server (Postgres + MongoDB)  | http://127.0.0.1:8001 (ws :9000) |
+| `packages/horizon-fe` | Frontend (Vue 2): public site at `/`, app at `/app` | http://127.0.0.1:8000            |
 
 ## Prerequisites
 
@@ -20,10 +19,10 @@ You don't need Docker, Kubernetes, tmux, or the Stripe CLI for local dev.
 
 ```
 npm run setup     # installs all packages, creates .env, creates DBs, runs migrations
-npm run dev       # starts backend + both frontends; Ctrl-C stops all
+npm run dev       # starts the backend + frontend; Ctrl-C stops both
 ```
 
-Open http://127.0.0.1:8005 and log in:
+Open http://127.0.0.1:8000/login and log in:
 
 ```
 username: shetzel84@gmail.com   (or demo2@invokedb.com … demo7@invokedb.com)

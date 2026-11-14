@@ -19,37 +19,36 @@ If a package has no `node_modules`, run `npm run setup` (or install that package
 ## Start
 
 ```sh
-npm run dev      # backend :8001 (ws :9000), horizon-fe :8000, horizon-auth-fe :8005
+npm run dev      # backend :8001 (ws :9000), horizon-fe :8000 (site at /, app at /app)
 ```
 
 - From an agent, run it with `run_in_background`. The first webpack builds take about 30–60s.
 - **Postgres.app gotcha:** if the backend log shows `failed to verify "trust" authentication`
   after about 60s, Postgres.app is waiting for a permission click. Stop, and ask the user to run
   `npm run dev` in their own terminal (or turn the check off in Postgres.app → Settings).
-- Only one stack can run at a time (fixed ports). Check first: `lsof -nP -iTCP:8001,8000,8005,9000 -sTCP:LISTEN`.
+- Only one stack can run at a time (fixed ports). Check first: `lsof -nP -iTCP:8001,8000,9000 -sTCP:LISTEN`.
 
 ## Health check
 
 ```sh
 curl -s -o /dev/null -w 'be %{http_code}\n'   http://127.0.0.1:8001/auth/authorize   # 200
 curl -s -o /dev/null -w 'fe %{http_code}\n'   http://127.0.0.1:8000/                 # 200
-curl -s -o /dev/null -w 'auth %{http_code}\n' http://127.0.0.1:8005/                 # 200
 curl -s -X POST http://127.0.0.1:8001/auth/login -H 'Content-Type: application/json' \
   -d '{"email":"demo@invokedb.com","password":"password"}' | jq .token
 ```
 
-In a browser (Playwright MCP): open http://127.0.0.1:8005, log in as `demo@invokedb.com` /
-`password`, and it redirects to the main app on :8000.
+In a browser (Playwright MCP): open http://127.0.0.1:8000/login, log in as `demo@invokedb.com` /
+`password`, and it redirects to the app at :8000/app.
 
 ## Logs
 
-All three apps log to the `npm run dev` output, prefixed `[be]`, `[fe]`, `[auth]`. Without
+Both log to the `npm run dev` output, prefixed `[be]` and `[fe]`. Without
 Mailgun keys, emails (welcome, password reset links) are printed in the `[be]` output.
 
 ## Stop
 
 Ctrl-C (or stop the background task). If ports stay taken, kill only the processes listening on
-those ports: `lsof -tiTCP:8001,8000,8005,9000 -sTCP:LISTEN | xargs kill`.
+those ports: `lsof -tiTCP:8001,8000,9000 -sTCP:LISTEN | xargs kill`.
 
 ## Inspect data (read-only unless the user asks)
 

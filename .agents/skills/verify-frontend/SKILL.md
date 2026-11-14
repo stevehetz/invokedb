@@ -1,6 +1,6 @@
 ---
 name: verify-frontend
-description: Verify a horizon-fe or horizon-auth-fe change by running the Playwright UI smoke test against a throwaway stack and diffing its output before and after. Use after any frontend change (components, store, routing, dependencies, build config, the Vue 3 / Vite migration) and before saying a UI change works.
+description: Verify a horizon-fe change by running the Playwright UI smoke test against a throwaway stack and diffing its output before and after. Use after any frontend change (components, store, routing, dependencies, build config, the Vue 3 / Vite migration) and before saying a UI change works.
 ---
 
 # Verify a frontend change
@@ -14,7 +14,8 @@ meant them to).
 
 | Step                       | What it checks                                                                                                                  |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `login`                    | log in on the auth app (:8105), get redirected to the main app (:8100) with the email shown                                     |
+| `public_pages`             | every public page renders with only the site's CSS loaded; `/app` signed out sends you to `/login`                              |
+| `login`                    | `/login` → `/app` with the email shown, no token in the URL, and only the app's CSS loaded                                      |
 | `upload_csv`               | `+` → Table from CSV → upload; tab opens with 3 rows; `WEB_FILE_PROCESS_COMPLETE` arrives over the websocket                    |
 | `sort`                     | header click: ascending, descending, cleared (server-side sort)                                                                 |
 | `filter`                   | floating "contains" filter on `name` narrows to 2 rows, clearing restores 3                                                     |
@@ -24,7 +25,7 @@ meant them to).
 | `websocket_type_change`    | change `age` to number + index → background job; grid reloads only after `WEB_FILE_PROCESS_START`/`COMPLETE` over the websocket |
 | `api_key_and_external_api` | Account page shows the API key; `/api/v1/get` with that key returns the table                                                   |
 | `delete_table`             | select the table in the tree → trash → Confirm; tab closes, backend has no table                                                |
-| `logout`                   | sign-out icon returns to the auth app                                                                                           |
+| `logout`                   | sign-out icon returns to the public site                                                                                        |
 
 It stops at the first failing step, prints a screenshot path, and removes its table
 (`ui_smoke_people` under `demo@invokedb.com`) unless you pass `--keep`. A leftover table from a
@@ -33,7 +34,7 @@ crashed run is removed at the start of the next one. `--headed` shows the browse
 ## 1. Build
 
 ```sh
-bash -c 'source scripts/env.sh && npm --prefix packages/horizon-fe run build && npm --prefix packages/horizon-auth-fe run build'
+bash -c 'source scripts/env.sh && npm --prefix packages/horizon-fe run build'
 ```
 
 `env.sh` must be sourced from bash (it uses `BASH_SOURCE`), and Vue CLI 4 needs the
@@ -44,15 +45,15 @@ migration, use whatever the build command is then.
 
 ```sh
 S=<scratch dir>
-bash scripts/smoke-env.sh "$S/smoke.env"          # DBs horizon_smoke*, ports 8100/8105/8101/9100
+bash scripts/smoke-env.sh "$S/smoke.env"          # DBs horizon_smoke*, ports 8100/8101/9100
 HORIZON_ENV_FILE="$S/smoke.env" bash scripts/db-setup.sh   # creates DBs, runs migrations (seeds demo logins)
 HORIZON_ENV_FILE="$S/smoke.env" bash scripts/dev.sh > "$S/stack.log" 2>&1   # run in the background
 ```
 
-Wait until all three answer (first webpack build: about 30–60s):
+Wait until both answer (first webpack build: about 30–60s):
 
 ```sh
-for p in 8101 8100 8105; do curl -s -o /dev/null -w "$p %{http_code}\n" http://127.0.0.1:$p/; done
+for p in 8101 8100; do curl -s -o /dev/null -w "$p %{http_code}\n" http://127.0.0.1:$p/; done
 ```
 
 The backend answers `404` on `/`; that's fine. The smoke stack runs alongside a normal
@@ -78,6 +79,13 @@ new ones are regressions even when every step passes.
 
 If your change touches a flow the script doesn't cover, add a step (keep it self-cleaning,
 and check the backend saw the change, not just the DOM) rather than checking by hand once.
+
+Production builds load CSS differently (`<link>` chunk files instead of injected `<style>`), so
+for build or bundler changes also run the test against `dist/`. Write `dist/env.txt` with the
+smoke env (`cd packages/horizon-fe && node env.js dist`, with the env loaded), serve `dist/` on
+another port with an SPA fallback (any path that isn't a file returns `index.html`), and run
+`ui-smoke.mjs` with `HORIZON_FE_PUB_HTTP_URL` pointed at that port. Its JSON should match the
+dev run exactly.
 
 ## 4. Writing and fixing steps: selector notes
 

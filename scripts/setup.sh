@@ -8,10 +8,7 @@ cd "$HORIZON_ROOT"
 npm install --no-audit --no-fund
 # --omit=optional skips the native Postgres log transport (needs a C toolchain; only used in prod)
 npm --prefix packages/horizon-be install --no-audit --no-fund --omit=optional
-for pkg in horizon-fe horizon-auth-fe; do
-  echo "== Installing $pkg"
-  npm --prefix "packages/$pkg" install --no-audit --no-fund
-done
+npm --prefix packages/horizon-fe install --no-audit --no-fund
 bash scripts/db-setup.sh
 echo
 echo "Setup complete. Run: npm run dev"

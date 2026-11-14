@@ -1,22 +1,13 @@
 // Vue
 import Vue from 'vue';
 
-// ElementUI
+// ElementUI (each area loads its own theme CSS; see router.js)
 import ElementUI from 'element-ui';
 import lang from 'element-ui/lib/locale/lang/en';
 import locale from 'element-ui/lib/locale';
-import 'element-ui/lib/theme-chalk/index.css';
-
-// Jqtree
-import 'jqtree';
-import 'jqtree/jqtree.css';
-
-// AgGrid
-import 'ag-grid-community/dist/styles/ag-grid.css';
 
 // App
-import './stylesheet.scss';
-import App from '@/components/app.vue';
+import Root from '@/root.vue';
 import router from '@/router';
 import { iframe_manager } from '@/components/_iframe/iframe-manager';
 import { bus } from '@/core/bus';
@@ -37,5 +28,5 @@ Vue.use(ElementUI);
 
 new Vue({
     router,
-    render: h => h(App)
+    render: h => h(Root)
 }).$mount('#root');

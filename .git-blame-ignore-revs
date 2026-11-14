@@ -3,3 +3,6 @@
 
 # style: format the repo with prettier 3
 171b0057ac6b43f6841a59649bdf76f451bdd66d
+
+# style: format the moved site files for horizon-fe's print width
+dbb1bd70da96cba180245b6b4c18d3fc003959dc

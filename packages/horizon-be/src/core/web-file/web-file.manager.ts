@@ -2,7 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ObjectId } from 'mongodb';
-import * as moment from 'moment';
+import moment from 'moment';
 import { MongoDbCollections } from '../mongodb/collections';
 import { TrackingManager } from '../tracking/tracking.manager';
 import { Account } from '../account/account.entity';
@@ -31,7 +31,7 @@ export class WebFileManager {
         const last_col = data.length > 0 ? data[data.length - 1] : null;
         const new_key = last_col ? this.get_next_column_key(last_col.field) : 'a';
 
-        const res = await c.insertOne({
+        const new_col = {
             file_directory_id: parseInt(file_id, 10),
             col_index: last_col ? last_col.col_index + 1 : 1,
             order: last_col ? last_col.col_index + 1 : 1,
@@ -39,8 +39,9 @@ export class WebFileManager {
             headerName: '',
             width: 200,
             deleted: true
-        });
-        return res.ops[0];
+        };
+        const res = await c.insertOne(new_col);
+        return { ...new_col, _id: res.insertedId };
     }
 
     async get_all(acct_id, file_id, collection, page_params: any = {}) {
@@ -224,7 +225,7 @@ export class WebFileManager {
             });
             return { data, count };
         } else {
-            const count = await collection_obj.find(find_obj).count();
+            const count = await collection_obj.countDocuments(find_obj);
             const col_type_map = await this.get_col_type_map(acct_id, file_id);
             data = this.format_data_response(data, col_type_map);
             data = this.add_row_numbers(page_params, count, data);
@@ -391,7 +392,7 @@ export class WebFileManager {
     async create_new(acct_id, file_id, web_file_type) {
         if (web_file_type === 'data-grid') {
             const new_rows = [this.new_row(file_id), this.new_row(file_id), this.new_row(file_id)];
-            const account = await this.account_repository.findOne({ id: acct_id });
+            const account = await this.account_repository.findOneBy({ id: acct_id });
             await this._tracking_manager.add_rows(account, {
                 rows_to_be_added: new_rows.length,
                 file_id
@@ -564,7 +565,7 @@ export class WebFileManager {
                 _id
             },
             { $set: data },
-            { returnOriginal: false }
+            { returnDocument: 'after', includeResultMetadata: true }
         );
 
         if (original.col_type !== data.col_type) {
@@ -575,40 +576,21 @@ export class WebFileManager {
 
             const { field } = data;
             const row_coll = await this._collections.get_dg_row(acct_id, file_id);
-            let bulk = row_coll.initializeUnorderedBulkOp();
-            let counter = 0;
-            const MAX = 1000;
-            let error = null;
-            await row_coll.find({}).forEach(async doc => {
-                try {
-                    this.check_timeout_error();
-                    const value = this.format_row_value(doc[field], data.col_type);
-
-                    bulk.find({ _id: doc._id }).updateOne({
-                        $set: { [field]: value }
-                    });
-
-                    counter++;
-
-                    if (counter === MAX) {
-                        await bulk.execute((err, res) => {
-                            if (err) {
-                                error = error || err;
-                            }
-                            bulk = row_coll.initializeUnorderedBulkOp();
-                        });
-                    }
-                } catch (ex) {
-                    error = error || ex;
+            const BATCH_SIZE = 1000;
+            let ops = [];
+            for await (const doc of row_coll.find({})) {
+                this.check_timeout_error();
+                const value = this.format_row_value(doc[field], data.col_type);
+                ops.push({
+                    updateOne: { filter: { _id: doc._id }, update: { $set: { [field]: value } } }
+                });
+                if (ops.length === BATCH_SIZE) {
+                    await row_coll.bulkWrite(ops, { ordered: false });
+                    ops = [];
                 }
-            });
-            bulk.execute((err, res) => {
-                if (err) {
-                    error = error || err;
-                }
-            });
-            if (error) {
-                throw error;
+            }
+            if (ops.length > 0) {
+                await row_coll.bulkWrite(ops, { ordered: false });
             }
         }
 
@@ -641,7 +623,7 @@ export class WebFileManager {
                 _id
             },
             { $set: formatted_row },
-            { returnOriginal: false }
+            { returnDocument: 'after', includeResultMetadata: true }
         );
 
         return res && res.value ? this.format_row_response(res.value, col_type_map) : null;

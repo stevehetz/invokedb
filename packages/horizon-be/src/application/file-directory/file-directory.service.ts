@@ -1,6 +1,6 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { FileDirectory } from '@app/core/file-directory/file-directory.entity';
 import { FileDirectoryGetDto } from './dto/file-directory-get.dto';
 import { AccountService } from '../account/account.service';
@@ -22,11 +22,11 @@ export class FileDirectoryService {
     ) {}
 
     async get_by_id(file_directory_id: number) {
-        return await this.file_directory_repository.findOne(file_directory_id);
+        return await this.file_directory_repository.findOneBy({ id: file_directory_id });
     }
 
     async get_by_account_id(account_id: number) {
-        return await this.file_directory_repository.find({ account_id, deleted: false });
+        return await this.file_directory_repository.findBy({ account_id, deleted: false });
     }
 
     async get_all(account_id) {
@@ -104,7 +104,7 @@ export class FileDirectoryService {
         return new Promise(async (resolve, reject) => {
             try {
                 let updated = 0;
-                const file_directories = await this.file_directory_repository.findByIds(data.ids);
+                const file_directories = await this.file_directory_repository.findBy({ id: In(data.ids) });
                 file_directories.forEach(async (file_directory: FileDirectory) => {
                     file_directory.deleted = true;
                     this.web_file_prc_notify_svc.file_delete_request(

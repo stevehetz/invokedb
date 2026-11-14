@@ -39,17 +39,19 @@ export class AuthService {
     }
 
     async logout(token: string) {
+        if (!token) return null;
         return await this.session_repository.delete({ token });
     }
 
     async authorize(token: string): Promise<any> {
+        if (!token) return null;
         try {
-            const session = await this.session_repository.findOne({ token });
+            const session = await this.session_repository.findOneBy({ token });
             if (!session) {
                 return null;
             }
 
-            const account = await this.account_repository.findOne({
+            const account = await this.account_repository.findOneBy({
                 id: session.account_id
             });
             if (!account) {
@@ -121,7 +123,7 @@ export class AuthService {
             if (tries < total_tries) {
                 tries++;
                 const api_key = this.account_manager.generate_api_key();
-                const account = await this.account_repository.findOne({ api_key });
+                const account = await this.account_repository.findOneBy({ api_key });
                 if (account) {
                     await go();
                 } else {
@@ -136,7 +138,8 @@ export class AuthService {
     }
 
     async reset_password(email) {
-        const account = await this.account_repository.findOne({ email });
+        if (!email) throw new Error('An account with that email does not exist');
+        const account = await this.account_repository.findOneBy({ email });
         if (!account) throw new Error('An account with that email does not exist');
 
         await this.session_repository.delete({
@@ -167,9 +170,9 @@ export class AuthService {
         try {
             const { token, password } = data;
 
-            const reset_pass = await this.reset_password_repository.findOne({ token });
+            const reset_pass = await this.reset_password_repository.findOneBy({ token });
 
-            const account = await this.account_repository.findOne({
+            const account = await this.account_repository.findOneBy({
                 id: reset_pass.account_id
             });
 

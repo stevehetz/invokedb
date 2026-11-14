@@ -2,8 +2,6 @@ import { Injectable } from '@nestjs/common';
 import env from '@app/env';
 import logger from '@app/logger';
 
-const Mailgun = require('mailgun-js');
-
 @Injectable()
 export class EmailManager {
     constructor() {}
@@ -15,26 +13,29 @@ export class EmailManager {
             return 'success';
         }
 
-        const mailgun = new Mailgun({
-            apiKey: env.MAILGUN_API_KEY,
-            domain: env.MAILGUN_DN
-        });
+        // Fire and forget, as before: callers don't wait on delivery.
+        this.send_mailgun(to, subject, html).catch(err =>
+            logger.error(`Failed to send email to ${to}: ${err}`)
+        );
+        return 'success';
+    }
 
-        const data = {
+    // Mailgun HTTP API: https://documentation.mailgun.com/docs/mailgun/api-reference/
+    private async send_mailgun(to, subject, html) {
+        const body = new URLSearchParams({
             from: 'InvokeDB <noreply@invokedb.com>',
             to,
             subject,
             html
-        };
-
-        mailgun.messages().send(data, (err, body) => {
-            if (err) {
-                logger.error(`Failed to send email to ${to}: ${err}`);
-            } else {
-                return 'success';
-            }
         });
-
-        return 'success';
+        const auth = Buffer.from(`api:${env.MAILGUN_API_KEY}`).toString('base64');
+        const res = await fetch(`https://api.mailgun.net/v3/${env.MAILGUN_DN}/messages`, {
+            method: 'POST',
+            headers: { Authorization: `Basic ${auth}` },
+            body
+        });
+        if (!res.ok) {
+            throw new Error(`Mailgun responded ${res.status}: ${await res.text()}`);
+        }
     }
 }

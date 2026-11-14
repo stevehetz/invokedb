@@ -19,7 +19,7 @@ export class HttpStrategy extends PassportStrategy(Strategy) {
     async validate(key_or_token: string) {
         if (key_or_token) {
             if (key_or_token.indexOf('internal_') > -1) {
-                const session = await this.session_repository.findOne({ token: key_or_token });
+                const session = await this.session_repository.findOneBy({ token: key_or_token });
                 if (session) {
                     return session;
                 }

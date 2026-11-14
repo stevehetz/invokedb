@@ -11,7 +11,8 @@ the gotchas, and what to do next.
 
 | | |
 |---|---|
-| `main` | Local dev revamp + legacy-ops clean-up, secrets handling, demo data. Pushed. The only branch. |
+| `main` | Local dev revamp + legacy-ops clean-up, secrets handling, demo data. Pushed. |
+| `backend-upgrade` | Backend upgrade (Nest 11, TypeORM 0.3, mongodb 6, TS 5.9). Not merged or pushed yet. |
 | Repo | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below). |
 | Runs locally? | Yes. `npm run dev` starts all three apps, and login, the API and Mongo writes work. |
 | Production | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild. |
@@ -19,7 +20,7 @@ the gotchas, and what to do next.
 ### Apps
 | Package | What | Dev URL |
 |---|---|---|
-| `packages/horizon-be` | NestJS 7 API + websocket server. Postgres via TypeORM 0.2, MongoDB via Mongoose 5. | :8001 (ws :9000) |
+| `packages/horizon-be` | NestJS 11 API + websocket server. Postgres via TypeORM 0.3, MongoDB via the native `mongodb` 6 driver. | :8001 (ws :9000) |
 | `packages/horizon-fe` | Main app (Vue 2, Vue CLI 4, ag-grid, Element UI) | :8000 |
 | `packages/horizon-auth-fe` | Marketing / login / signup / checkout (Vue 2) | :8005 |
 
@@ -46,6 +47,41 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
 
 ## What changed, and why
 
+### On `backend-upgrade` (2026-11-14)
+Targets: **NestJS 7 → 11, TypeORM 0.2 → 0.3.31, `mongodb` driver 3.7 → 6, TypeScript 3.8 → 5.9**,
+Express 4 → 5, `ws` 7 → 8, jest 25 → 29. Nest 12 and TypeORM 1.x exist now, but they're newer
+than what this upgrade was validated against. Moving to them from here is a smaller, separate step.
+- **Mongoose was never used.** The code talks to Mongo through the native driver, which it
+  got transitively from mongoose. `mongoose` is gone and `mongodb` is a direct dependency.
+- **Removed (unused or replaced):** `@nestjs/swagger`, `@nestjs/platform-ws`, `mongoose`,
+  `mongodb-backup-4x`, `mongodb-restore` (plus the dead `backup_/restore_dg_row_collection`
+  helpers), `request`, `mailgun-js` (now a plain `fetch` to the Mailgun HTTP API),
+  `rimraf` (now `fs.rm`), `@types/mongodb`, and the unused `HttpModule` / `HttpService`.
+- **TypeORM 0.3:** `findOne({...})` → `findOneBy`, `find({...})` → `findBy`, `count` →
+  `countBy`, `findByIds` → `findBy({ id: In(...) })`, `getManager()` → injected `DataSource`.
+  The CLI now uses `src/database/data-source.ts`. `_ormconfig.ts` is the one config shared by the app and the CLI.
+- **`invalidWhereValuesBehavior: throw`** is set for `null` and `undefined`. TypeORM 0.3 silently
+  drops `undefined` from find conditions, so `findOneBy({ token: undefined })` would return
+  the *first session in the table*. Now it throws. Lookups where a missing value is a normal
+  input (`authorize`/`logout` without a token, login/reset/signup without an email, API-key
+  and Stripe-customer lookups) return early with the old response instead.
+- **`subscription.price` is now `@Column({ type: 'decimal' })`.** 0.3 `parseInt`s a bare
+  `number` column, which turned `"99.99"` into `99`.
+- **mongodb 6:** `res.ops` → `insertedId`, cursor `.count()` → `countDocuments`,
+  `findOneAndUpdate` uses `returnDocument: 'after', includeResultMetadata: true` (same
+  response shape as before), and one `MongoClient` per URI instead of one per database. The
+  column-type conversion loop now awaits its bulk writes and skips empty batches. Before, it
+  fired them without waiting and swallowed errors.
+- **Express 5:** `main.ts` sets `query parser` to `extended` so `sort[a]=desc` style query
+  strings still parse.
+- **How it was verified:** `scripts/api-smoke.mjs` ran about 30 API calls (login, CSV upload + processing,
+  grid reads with filters, row and column updates, type conversion with an index, the external
+  `/api/v1` CRUD with an API key, column and table delete, logout) against the old and new
+  backends on throwaway databases. The responses were diffed and are identical apart from
+  auto-increment IDs. Also checked: signup → reset password → change password → login, a
+  websocket round-trip, all 9 migrations from scratch, `migration:revert` / `run` / `create`,
+  and `tsc` build + `node dist/main.js`.
+
 ### On `main` (local dev revamp)
 - **No minikube, Helm or tmux.** The app uses your local Postgres (Postgres.app) and MongoDB.
   `scripts/dev.sh` runs all three apps through `concurrently`.
@@ -57,7 +93,7 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
   - `bcrypt` → `bcryptjs`. Existing hashes still verify.
   - `node-sass` → `sass`.
   - `pg` 7 → 8, because version 7 hangs on Node 14+.
-  - `mongoose` → 5.13.
+  - `mongoose` → 5.13 (later removed on `backend-upgrade`).
   - The native Postgres log transport (`@pauleliet/winston-pg-native`) is now an optional
     dependency that's skipped when it isn't installed.
 - **Mailgun and Slack are optional.** Without keys, emails and support requests go to the
@@ -106,6 +142,7 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
   are now done, or optional.
 
 ## Not yet tested
+- The `backend-upgrade` branch with the real frontends (`npm run dev`) in a browser. Only the API was exercised.
 - Full UI flows in a browser, beyond what was checked by hand: CSV upload, the data grid,
   websocket updates, the API key page.
 - Stripe checkout.
@@ -113,9 +150,10 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
 - Production Docker images. The Dockerfiles still use `node:10` and will need updating.
 
 ## Suggested next steps
-1. **Backend upgrade:** NestJS 7 → 10, TypeORM 0.2 → 0.3 (the DataSource API changes),
-   Mongoose 5 → 8, TypeScript 3.8 → 5. Mostly mechanical. Replace `mailgun-js` (deprecated) and
-   `request`.
+1. **Finish the backend upgrade:** click through the app on `backend-upgrade` with
+   `npm run dev`, then merge it to `main`. Optional follow-ups: Nest 12 / TypeORM 1.x, `stripe`
+   8 → current (only when Stripe comes back), and replacing `tslint` with ESLint. `npm audit`
+   reports 15 issues, mostly in dev tooling.
 2. **Frontend upgrade:** Vue 2 → Vue 3 + Vite. This is the biggest job. Element UI → Element
    Plus, `ag-grid-vue` → `ag-grid-vue3`, and jQuery / jqtree in `h-tree` should go.
    Consider merging `horizon-auth-fe` into `horizon-fe`.
@@ -135,4 +173,5 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
 | `scripts/secrets.sh` | Copies secret files to and from the Dropbox secret folder |
 | `scripts/be-run.sh` | Runs a backend npm script with `.env` loaded (used for migrations) |
 | `packages/horizon-be/src/env.ts` | Every env var the backend reads |
+| `packages/horizon-be/src/database/_ormconfig.ts` | TypeORM options shared by the app and the CLI (`data-source.ts`) |
 | `packages/horizon-be/src/database/migration/` | TypeORM migrations, including seed and test data |

@@ -17,8 +17,9 @@ export class Subscription {
     @Column()
     stripe_env_id: string;
 
-    @Column()
-    price: number;
+    // Postgres DECIMAL comes back as a string (e.g. "99.99"); a bare number column would be parseInt-ed
+    @Column({ type: 'decimal' })
+    price: string;
 
     @Column()
     max_tables: number;

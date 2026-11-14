@@ -4,20 +4,20 @@
     "declaration": true,
     "noImplicitAny": false,
     "removeComments": true,
-    "noLib": false,
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "target": "es6",
+    "skipLibCheck": true,
+    "target": "es2022",
+    "useDefineForClassFields": false,
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
-    "types": ["mongodb"],
+    "types": ["node"],
     "paths": {
-        "@app/*": [
-            "./src/*"
-        ]
-    },
+      "@app/*": ["./src/*"]
+    }
   },
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "dist"]
 }

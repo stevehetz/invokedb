@@ -1,4 +1,4 @@
-import { Module, HttpModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { EmailModule } from '@app/email/email.module';
 import { CoreModule } from '@app/core/core.module';
@@ -15,7 +15,7 @@ import { WebsocketClientStore } from '@app/websocket/client.store';
 import { JobService } from './job/job.service';
 
 @Module({
-    imports: [HttpModule, CoreModule, EmailModule],
+    imports: [CoreModule, EmailModule],
     providers: [
         AuthService,
         HttpStrategy,

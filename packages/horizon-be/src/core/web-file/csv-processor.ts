@@ -11,7 +11,7 @@ import _c from '@app/constants';
 import env from '@app/env';
 
 const fs = require('fs');
-const csv = require('csv-parse');
+const { parse: csv } = require('csv-parse');
 
 @Injectable()
 export class CsvProcessor {
@@ -65,7 +65,7 @@ export class CsvProcessor {
                 await this.process_columns(account, file_id, first_line);
                 await this.read_and_process_rows(account, file_id, file_path);
 
-                resolve();
+                resolve(undefined);
             } catch (ex) {
                 reject(ex);
             }
@@ -164,7 +164,7 @@ export class CsvProcessor {
                         const end = parseInt(hrtime.bigint(), 10);
                         const seconds = (end - start) / 1e9;
                         logger.info(`Processed ${this.row_index - 1} rows in ${seconds} seconds`);
-                        resolve();
+                        resolve(undefined);
                     });
             } catch (ex) {
                 reject(ex);
@@ -201,7 +201,7 @@ export class CsvProcessor {
 
             // logger.debug('CSV Processor - Rows processed: ' + (this.row_index - 1));
             this.grid_rows = [];
-            resolve();
+            resolve(undefined);
         });
     }
 }

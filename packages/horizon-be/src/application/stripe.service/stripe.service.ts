@@ -12,6 +12,6 @@ export class StripeEnvService {
     ) {}
 
     async get(stripe_env_id) {
-        return await this.stripe_env_repository.findOne({ id: stripe_env_id });
+        return await this.stripe_env_repository.findOneBy({ id: stripe_env_id });
     }
 }

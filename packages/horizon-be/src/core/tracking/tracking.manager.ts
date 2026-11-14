@@ -57,11 +57,11 @@ export class TrackingManager {
 
     private async get_subscription(account) {
         if (account.subscription_id) {
-            return await this.subscription_repository.findOne({
+            return await this.subscription_repository.findOneBy({
                 id: account.subscription_id
             });
         } else {
-            return await this.subscription_repository.findOne({
+            return await this.subscription_repository.findOneBy({
                 id: 'SUB_FREE'
             });
         }
@@ -78,7 +78,7 @@ export class TrackingManager {
 
     private async get_row_count(account, file_id) {
         const row_c = await this.get_row_collection(account, file_id);
-        return await row_c.find().count();
+        return await row_c.countDocuments();
     }
 
     private async update_row_count(account, file_id, row_count) {
@@ -127,7 +127,7 @@ export class TrackingManager {
     private async validate_table_count(account, tables_to_be_added = 0) {
         const limits = await this.get_limits(account);
 
-        let table_count = await this.file_directory_repository.count({
+        let table_count = await this.file_directory_repository.countBy({
             account_id: account.id,
             type: 'file',
             deleted: false
@@ -179,7 +179,7 @@ export class TrackingManager {
 
     public async update_account_table_locks(account) {
         const limits = await this.get_limits(account);
-        const tables = await this.file_directory_repository.find({
+        const tables = await this.file_directory_repository.findBy({
             account_id: account.id,
             deleted: false
         });
@@ -245,12 +245,10 @@ export class TrackingManager {
 
     public async validate_column_count(account, file_id, cols_to_be_added) {
         const col_c = await this.get_col_collection(account, file_id);
-        const curr_col_count = await col_c
-            .find({
-                file_directory_id: file_id,
-                deleted: { $in: [null, false] }
-            })
-            .count();
+        const curr_col_count = await col_c.countDocuments({
+            file_directory_id: file_id,
+            deleted: { $in: [null, false] }
+        });
         const total = cols_to_be_added + curr_col_count;
         if (total > 52) {
             throw new HttpException(EXCEPTIONS.COL_COUNT_EXCEEDED, HttpStatus.FORBIDDEN);
@@ -258,7 +256,7 @@ export class TrackingManager {
     }
 
     public async check_table_lock(file_id) {
-        const file_directory = await this.file_directory_repository.findOne({ id: file_id });
+        const file_directory = await this.file_directory_repository.findOneBy({ id: file_id });
         if (file_directory && file_directory.locked) {
             const msg = file_directory.locked_reason || 'File is locked';
             throw new HttpException(msg, HttpStatus.FORBIDDEN);

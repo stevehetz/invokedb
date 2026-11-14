@@ -71,7 +71,7 @@ export class WebFilePrcNotifyService {
         const { client_id, file_id, event, error, account_id } = opts;
 
         const message: any = {};
-        message.file = await this.file_directory_repository.findOne(file_id);
+        message.file = await this.file_directory_repository.findOneBy({ id: file_id });
 
         const payload = { message, event, error };
 

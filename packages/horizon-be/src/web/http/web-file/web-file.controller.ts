@@ -2,7 +2,6 @@ import {
     Controller,
     Post,
     Put,
-    HttpService,
     Request,
     UseInterceptors,
     UploadedFile,
@@ -28,7 +27,6 @@ import _c from '@app/constants';
 @UseGuards(AuthGuard('bearer'))
 export class WebFileController {
     constructor(
-        private readonly http_service: HttpService,
         private readonly web_file_service: WebFileService,
         private readonly file_dir_service: FileDirectoryService,
         private readonly account_service: AccountService
@@ -128,7 +126,7 @@ export class WebFileController {
                 destination: `${env.HORIZON_FILE_SHARE}/temp`,
                 filename: (req, file, cb) => {
                     const date = new Date();
-                    cb(null, `acct-${req.user.account_id}_${date.getTime()}.csv`);
+                    cb(null, `acct-${(req as any).user.account_id}_${date.getTime()}.csv`);
                 }
             })
         })

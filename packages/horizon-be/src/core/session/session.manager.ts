@@ -40,7 +40,7 @@ export class SessionManager {
     }
 
     async check_session_token(token) {
-        return this.session_repository.findOne({ token });
+        return this.session_repository.findOneBy({ token });
     }
 
     private generate_uuid() {

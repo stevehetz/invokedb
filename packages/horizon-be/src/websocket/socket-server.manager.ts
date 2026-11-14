@@ -83,7 +83,7 @@ SocketManagerServer.prototype.onClientError = function(client, error) {
     this.unsubscribeClient(client);
     this.unregisterClient(client);
     this.handleServerError(error, 'Error with ' + client.id + ', closing connection');
-    this.broadcast(this.id, 'clients', this.socketHost.clients.length);
+    this.broadcast(this.id, 'clients', this.socketHost.clients.size);
 };
 
 /**
@@ -138,7 +138,7 @@ SocketManagerServer.prototype.clientMessageMgr = function(client, message) {
         return this.sendDirectMessageAccount.call(this, client, msg);
 
     if (msg.action === 'totalClients') {
-        return this.sendToClient(this.id, client, 'clients', this.socketHost.clients.length);
+        return this.sendToClient(this.id, client, 'clients', this.socketHost.clients.size);
     }
 
     // TODO: Broadcast

@@ -18,7 +18,8 @@ export class AccountManager {
     ) {}
 
     async authenticate_account(email, password) {
-        const account = await this.account_repository.findOne({ email, deleted: false });
+        if (!email) throw new HttpException('Account not found', HttpStatus.BAD_REQUEST);
+        const account = await this.account_repository.findOneBy({ email, deleted: false });
         if (!account) throw new HttpException('Account not found', HttpStatus.BAD_REQUEST);
 
         const valid_password = await bcrypt.compare(password, account.password_hash);
@@ -30,7 +31,8 @@ export class AccountManager {
     }
 
     async check_if_exists(email) {
-        const existing = await this.account_repository.findOne({ email });
+        if (!email) throw new HttpException('Email is required', HttpStatus.BAD_REQUEST);
+        const existing = await this.account_repository.findOneBy({ email });
 
         if (existing)
             throw new HttpException(
@@ -78,16 +80,17 @@ export class AccountManager {
     }
 
     async check_reset_password_token(token) {
-        return await this.reset_password_repository.findOne({ token });
+        if (!token) return null;
+        return await this.reset_password_repository.findOneBy({ token });
     }
 
     async get_account_from_reset_pass_token(token) {
         try {
-            const reset_pass = await this.reset_password_repository.findOne({ token });
+            const reset_pass = await this.reset_password_repository.findOneBy({ token });
 
             if (!reset_pass) throw new Error('Reset password token not found');
 
-            const account = await this.account_repository.findOne({
+            const account = await this.account_repository.findOneBy({
                 id: reset_pass.account_id
             });
 

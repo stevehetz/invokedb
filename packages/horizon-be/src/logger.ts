@@ -1,6 +1,6 @@
 const { createLogger, format, transports } = require('winston');
 const SlackHook = require('winston-slack-webhook-transport');
-import * as moment from 'moment';
+import moment from 'moment';
 import env from '@app/env';
 
 const _m: any = moment;

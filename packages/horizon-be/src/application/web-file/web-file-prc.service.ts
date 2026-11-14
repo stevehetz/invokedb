@@ -12,8 +12,6 @@ import { WebFilePrcNotifyService } from './web-file-prc-notify.service';
 import { MongoDbCollections } from '@app/core/mongodb/collections';
 
 const fs = require('fs');
-const http = require('http');
-const rimraf = require('rimraf');
 
 @Injectable()
 export class WebFilePrcService {
@@ -37,9 +35,7 @@ export class WebFilePrcService {
     }
 
     start_file_processor() {
-        rimraf(_c.PRC_TMP_DIR, () => {
-            // logger.debug(`${_c.PRC_TMP_DIR} removed`);
-        });
+        fs.rm(_c.PRC_TMP_DIR, { recursive: true, force: true }, () => {});
 
         setTimeout(() => {
             this.wake_file_processor();

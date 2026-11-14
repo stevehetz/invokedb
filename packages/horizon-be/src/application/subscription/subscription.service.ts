@@ -14,15 +14,15 @@ export class SubscriptionService {
     ) {}
 
     async get(id) {
-        return await this.subscription_repository.findOne({ id });
+        return await this.subscription_repository.findOneBy({ id });
     }
 
     async get_by_plan_id(stripe_plan_id) {
-        return await this.subscription_repository.findOne({ stripe_plan_id });
+        return await this.subscription_repository.findOneBy({ stripe_plan_id });
     }
 
     async get_all(stripe_env_id) {
-        return await this.subscription_repository.find({
+        return await this.subscription_repository.findBy({
             stripe_env_id,
             enabled: true
         });

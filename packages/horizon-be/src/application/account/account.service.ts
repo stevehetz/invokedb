@@ -24,11 +24,12 @@ export class AccountService {
     }
 
     async get(id) {
-        return await this.account_repository.findOne({ id });
+        return await this.account_repository.findOneBy({ id });
     }
 
     async get_by_stripe_customer_id(stripe_customer_id) {
-        return await this.account_repository.findOne({ stripe_customer_id });
+        if (!stripe_customer_id) return null;
+        return await this.account_repository.findOneBy({ stripe_customer_id });
     }
 
     async get_all(params) {
@@ -36,7 +37,8 @@ export class AccountService {
     }
 
     async account_from_key(api_key) {
-        return await this.account_repository.findOne({ api_key });
+        if (!api_key) return null;
+        return await this.account_repository.findOneBy({ api_key });
     }
 
     async update(account_id, update_dto: AccountUpdateDto) {
@@ -46,7 +48,7 @@ export class AccountService {
 
     async change_password(account_id: number, passwords_dto: AccountPassChangeDto) {
         const { current_password, new_password } = passwords_dto;
-        const account = await this.account_repository.findOne({ id: account_id });
+        const account = await this.account_repository.findOneBy({ id: account_id });
 
         const validation_errors = [];
 

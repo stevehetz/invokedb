@@ -1,48 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { MongoClient } from 'mongodb';
+import { Db, MongoClient } from 'mongodb';
 import env from '@app/env';
-import logger from '@app/logger';
-
-const mongo_backup = require('mongodb-backup-4x');
-const mongo_restore = require('mongodb-restore');
 
 @Injectable()
 export class MongoDbCollections {
-    connections = {};
+    connections: { [db_name: string]: Db } = {};
+    clients: { [uri: string]: Promise<MongoClient> } = {};
 
     constructor() {}
-
-    async backup_dg_row_collection(acct_id, file_id) {
-        const uri = `${env.HORIZON_MONGO_URI}/horizonacct_${acct_id}`;
-        const collection = `dg:row:file_${file_id}:acct_${acct_id}`;
-        await mongo_backup({
-            uri,
-            root: `${env.HORIZON_FILE_SHARE}/temp`,
-            collections: [collection],
-            callback: err => {
-                if (err) {
-                    logger.error(err);
-                }
-            }
-        });
-    }
-
-    async restore_dg_row_collection(acct_id, file_id) {
-        const uri = `${env.HORIZON_MONGO_URI}/horizonacct_3`;
-        const collection = `dg:row:file_${file_id}:acct_${acct_id}`;
-        await mongo_restore({
-            uri,
-            root: `${env.HORIZON_FILE_SHARE}/temp/horizonacct_${acct_id}`,
-            collections: [collection],
-            dropCollections: [collection],
-            callback: err => {
-                if (err) {
-                    console.log('here');
-                    logger.error(err);
-                }
-            }
-        });
-    }
 
     get_db_name(acct_id) {
         return `${env.HORIZON_MONGO_DB}:acct_${acct_id}`;
@@ -51,10 +16,14 @@ export class MongoDbCollections {
     async get_mongo_db(db_name, mongo_uri?) {
         mongo_uri = mongo_uri || env.HORIZON_MONGO_URI;
         if (!this.connections[db_name]) {
-            const client = await MongoClient.connect(mongo_uri, {
-                useNewUrlParser: true,
-                useUnifiedTopology: true
-            });
+            // One client (connection pool) per URI, shared by every database on it
+            if (!this.clients[mongo_uri]) {
+                this.clients[mongo_uri] = MongoClient.connect(mongo_uri).catch(err => {
+                    delete this.clients[mongo_uri]; // let the next call retry
+                    throw err;
+                });
+            }
+            const client = await this.clients[mongo_uri];
             this.connections[db_name] = client.db(db_name);
         }
 
@@ -71,11 +40,15 @@ export class MongoDbCollections {
         const db = await this.get_mongo_db(db_name, opts.mongo_uri);
         const name = `${collection}:acct_${acct_id}`;
         const exists = await this.collection_exists(name, db);
-        if (exists) {
-            return await db.collection(name);
-        } else {
-            return await db.createCollection(name);
+        if (!exists) {
+            try {
+                await db.createCollection(name);
+            } catch (err) {
+                // 48 = NamespaceExists: a concurrent request created it first
+                if (err.code !== 48) throw err;
+            }
         }
+        return db.collection(name);
     }
 
     async get_dg_row(acct_id, file_id) {

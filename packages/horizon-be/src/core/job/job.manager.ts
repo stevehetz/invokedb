@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, getManager, LessThan } from 'typeorm';
+import { Repository, In, DataSource } from 'typeorm';
 import { Job } from './job.entity';
 import env from '@app/env';
 import _c from '@app/constants';
@@ -11,7 +11,8 @@ export class JobManager {
 
     constructor(
         @InjectRepository(Job)
-        private job_repository: Repository<Job>
+        private job_repository: Repository<Job>,
+        private data_source: DataSource
     ) {}
 
     async create(data) {
@@ -23,14 +24,14 @@ export class JobManager {
     }
 
     async get_running_jobs() {
-        return await this.job_repository.find({
+        return await this.job_repository.findBy({
             status: 'RUNNING'
         });
     }
 
     async get_latest_pending(events) {
         let job;
-        await getManager().transaction('SERIALIZABLE', async entityManager => {
+        await this.data_source.transaction('SERIALIZABLE', async entityManager => {
             job = await entityManager.findOne(Job, {
                 where: {
                     status: 'PENDING',

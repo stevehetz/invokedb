@@ -5,12 +5,15 @@ if (!process.env.IS_TS_NODE) {
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { WebModule } from '@app/web/web.module';
 import { AllExceptionFilter } from './all-exception.filter';
 import env from './env';
 
 async function bootstrap() {
-    const app = await NestFactory.create(WebModule, { cors: true });
+    const app = await NestFactory.create<NestExpressApplication>(WebModule, { cors: true });
+    // Express 5 defaults to the "simple" query parser; keep qs-style nesting (sort[a]=desc)
+    app.set('query parser', 'extended');
     app.useGlobalPipes(
         new ValidationPipe({
             transform: true,

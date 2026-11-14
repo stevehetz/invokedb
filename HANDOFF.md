@@ -10,7 +10,9 @@ what to do next. Git history has the details of past work.
 ## Start here
 
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
-2. The next job is **step 2.3** below. Check each change with the frontend build and lint.
+2. The next job is **step 0** below (bring in the client repos), then **0.1** (README demo
+   GIF), then **step 2.3**. Check
+   frontend changes with the frontend build and lint.
 3. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
 4. Work on a branch. The user merges to `main` and pushes once they approve.
@@ -50,10 +52,32 @@ what to do next. Git history has the details of past work.
 
 ## Next steps
 
-Numbering follows the original plan. Steps 1 (UI smoke baseline), 2.1 (merge the auth
+Numbering follows the original plan (steps 0 and 0.1 were added later and go first). Steps 1 (UI smoke baseline), 2.1 (merge the auth
 frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
 
-- **2.3 (next):** while still on Vue 2.7, Element UI → Element Plus, `ag-grid-vue` →
+- **0 (next): bring in the two client repos.** Move
+  [`stevehetz/invokedb-node`](https://github.com/stevehetz/invokedb-node) (the Node client) and
+  [`stevehetz/invokedb-examples-angular`](https://github.com/stevehetz/invokedb-examples-angular)
+  (an Angular example app) into this repo under `examples/` (`examples/invokedb-node`,
+  `examples/angular`). Both are TypeScript on `master`. Their git history isn't needed: copy
+  the files in from a fresh clone (without `.git`, `node_modules` or build output) as one
+  commit. Check the files for secrets/API keys first, since this repo is public. Keep each one's own `node_modules` (no workspaces), add them to `.prettierignore`
+  or format them once, and mention them in `README.md`/`AGENTS.md`. Afterwards archive the old
+  GitHub repos with a README pointing here.
+- **0.1 (after 0): a demo GIF for `README.md`.** Show the main flow: log in as
+  `demo@invokedb.com`, **upload a CSV** as a new table, sort/filter/edit it in the grid, then
+  query it through the API (a `curl` or the Node client from step 0). No sample CSVs survive (none
+  in the repo or under `~/dev`, `~/Downloads`, `~/Desktop`, `~/Documents`), and the smoke tests
+  only upload an inline 3-row CSV. So first add a made-up, realistic CSV (e.g. 50–200 rows with
+  text, number, date and boolean columns; no real people's data) as `examples/data/sample.csv`,
+  and check that it uploads and every column type comes through. Capture it with a scripted Playwright run (like
+  `scripts/ui-smoke.mjs`) using `recordVideo` on the browser context at a fixed viewport, with
+  short pauses so it's readable. Then convert the `.webm` to a GIF with `ffmpeg` (palettegen +
+  paletteuse) or `gifski`. Neither is installed yet; `brew install ffmpeg` is a prebuilt binary,
+  so the no-native-npm-packages rule doesn't apply. Aim for under ~5 MB and about 15–30 s, save it
+  as `docs/demo.gif`, and keep the recording script in `scripts/` so the GIF can be re-made
+  after the UI changes (2.3/2.4). Record against the throwaway smoke env, not the user's data.
+- **2.3:** while still on Vue 2.7, Element UI → Element Plus, `ag-grid-vue` →
   `ag-grid-vue3`, and remove jQuery / jqtree from `h-tree` (then drop `src/core/jquery-global.js`).
 - **2.4:** switch to Vue 3 (compat build first). Vuex → Pinia now or later.
 - **2.5:** replace the frontend ESLint config (`babel-eslint` / `@vue/prettier`) with a current

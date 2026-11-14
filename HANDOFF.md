@@ -11,8 +11,7 @@ the gotchas, and what to do next.
 
 | | |
 |---|---|
-| `main` | Local dev revamp + legacy-ops clean-up, secrets handling, demo data. Pushed. |
-| `backend-upgrade` | Backend upgrade (Nest 11, TypeORM 0.3, mongodb 6, TS 5.9). Not merged or pushed yet. |
+| `main` | Local dev revamp, legacy-ops clean-up, secrets handling, demo data, backend upgrade. The only branch. |
 | Repo | `stevehetz/invokedb` is **public** on purpose. History was scrubbed of secrets on 2026-11-14 (see below). |
 | Runs locally? | Yes. `npm run dev` starts all three apps, and login, the API and Mongo writes work. |
 | Production | None. The Azure infrastructure was torn down. The scripts are kept for a later rebuild. |
@@ -47,7 +46,7 @@ The repo is public, so `git filter-repo` rewrote all of history and the result w
 
 ## What changed, and why
 
-### On `backend-upgrade` (2026-11-14)
+### Backend upgrade (2026-11-14, merged)
 Targets: **NestJS 7 → 11, TypeORM 0.2 → 0.3.31, `mongodb` driver 3.7 → 6, TypeScript 3.8 → 5.9**,
 Express 4 → 5, `ws` 7 → 8, jest 25 → 29. Nest 12 and TypeORM 1.x exist now, but they're newer
 than what this upgrade was validated against. Moving to them from here is a smaller, separate step.
@@ -93,7 +92,7 @@ than what this upgrade was validated against. Moving to them from here is a smal
   - `bcrypt` → `bcryptjs`. Existing hashes still verify.
   - `node-sass` → `sass`.
   - `pg` 7 → 8, because version 7 hangs on Node 14+.
-  - `mongoose` → 5.13 (later removed on `backend-upgrade`).
+  - `mongoose` → 5.13 (later removed in the backend upgrade).
   - The native Postgres log transport (`@pauleliet/winston-pg-native`) is now an optional
     dependency that's skipped when it isn't installed.
 - **Mailgun and Slack are optional.** Without keys, emails and support requests go to the
@@ -142,7 +141,6 @@ than what this upgrade was validated against. Moving to them from here is a smal
   are now done, or optional.
 
 ## Not yet tested
-- The `backend-upgrade` branch with the real frontends (`npm run dev`) in a browser. Only the API was exercised.
 - Full UI flows in a browser, beyond what was checked by hand: CSV upload, the data grid,
   websocket updates, the API key page.
 - Stripe checkout.
@@ -150,17 +148,16 @@ than what this upgrade was validated against. Moving to them from here is a smal
 - Production Docker images. The Dockerfiles still use `node:10` and will need updating.
 
 ## Suggested next steps
-1. **Finish the backend upgrade:** click through the app on `backend-upgrade` with
-   `npm run dev`, then merge it to `main`. Optional follow-ups: Nest 12 / TypeORM 1.x, `stripe`
-   8 → current (only when Stripe comes back), and replacing `tslint` with ESLint. `npm audit`
-   reports 15 issues, mostly in dev tooling.
-2. **Frontend upgrade:** Vue 2 → Vue 3 + Vite. This is the biggest job. Element UI → Element
+1. **Frontend upgrade:** Vue 2 → Vue 3 + Vite. This is the biggest job. Element UI → Element
    Plus, `ag-grid-vue` → `ag-grid-vue3`, and jQuery / jqtree in `h-tree` should go.
    Consider merging `horizon-auth-fe` into `horizon-fe`.
-3. **Optional:** a `docker-compose.yml` for Postgres and Mongo, so the app doesn't depend on
+2. **Optional:** a `docker-compose.yml` for Postgres and Mongo, so the app doesn't depend on
    whatever is installed locally.
-4. **Before redeploying anywhere:** update the Dockerfiles and decide whether to keep the
+3. **Before redeploying anywhere:** update the Dockerfiles and decide whether to keep the
    AKS/Helm setup or move to something simpler (a single VM, Fly, Render, and so on).
+4. **Backend follow-ups (optional):** Nest 12 / TypeORM 1.x, `stripe` 8 → current (only if
+   Stripe comes back), replace `tslint` with ESLint, and work through `npm audit` (15 issues,
+   mostly dev tooling).
 
 ## Key files
 | File | Purpose |

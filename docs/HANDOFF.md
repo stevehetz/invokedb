@@ -5,7 +5,8 @@ _Last updated 2026-11-15_
 InvokeDB ("horizon") is a web app for building data tables you can query through an API. The
 revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the commands, and
 `AGENTS.md` has the rules, conventions and gotchas. This file covers only where things stand and
-what to do next. Git history has the details of past work.
+what to do next. Git history has the details of past work. The longer-term plans sit beside it
+in `docs/`: `SAAS_PLAN.md` (turning it into a SaaS) and `AI_IDEAS.md` (AI features).
 
 ## Start here
 
@@ -24,6 +25,8 @@ what to do next. Git history has the details of past work.
   backend upgrade (NestJS 11, TypeORM 0.3, mongodb 6), agent tooling + prettier, UI smoke test,
   `horizon-auth-fe` merged into `horizon-fe`, Vue CLI → Vite 6, account scoping fix (0.05),
   frontend on Vue 3 + Element Plus + ag-grid 32 (2.3–2.5).
+- **On branch `chore/env-tokens`, waiting for the user to merge:** step 3, and the move of
+  `HANDOFF.md`, `AI_IDEAS.md` and `SAAS_PLAN.md` from the repo root into `docs/`.
 - **Production:** none. The Azure infrastructure was torn down; the scripts are kept for a rebuild.
 - **Logins:** `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, password
   `password`.
@@ -42,8 +45,6 @@ what to do next. Git history has the details of past work.
   cross-area links use the router. Optional.
 - The entry JS is a single 2.3 MB chunk (577 kB gzip). Vite warns; splitting it is optional.
 - `/api/v1/get` leaves out empty cells. That looks intended.
-- Your `.env` still has two unused `HORIZON_AUTH_FE_*` lines. Delete them whenever (then
-  `secrets:push`).
 - `docs/ops-standalone.md` is an old to-do list, mostly done or obsolete.
 - **MCP servers checked 2026-11-14.** `playwright` drives the real Google Chrome (login as
   `demo@invokedb.com` reaches `/app` with its menu and table tree, websocket connects).
@@ -97,7 +98,8 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
 - **3: done** (2026-11-15). `WS_SERVER_TOKEN` moved from `constants.ts` to the
   `HORIZON_WS_SERVER_TOKEN` env var (see Things to know). The old hardcoded value is in the public
   history and no longer works. `FS_TOKEN` was unused and is gone. An empty token never counts as
-  the server token.
+  the server token. The user's `.env` got the (empty) `HORIZON_WS_SERVER_TOKEN` entry, lost the
+  two unused `HORIZON_AUTH_FE_*` lines, and was synced with `secrets:push` the same day.
 - **4 (optional):** a `docker-compose.yml` for Postgres and Mongo.
 - **5 (test deployment, on `invokedb.com`):** a cheap, simple deploy for testing, not AKS/Helm.
   Plan: one small VM (Hetzner or DigitalOcean, ~$5–10/month) running `docker compose` with the

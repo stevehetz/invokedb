@@ -56,6 +56,6 @@ export class WebsocketClient {
     }
 
     on_socket_open(client) {
-        client.register(_c.WS_SERVER_TOKEN, { server_name: env.SERVER_NAME });
+        client.register(env.HORIZON_WS_SERVER_TOKEN, { server_name: env.SERVER_NAME });
     }
 }

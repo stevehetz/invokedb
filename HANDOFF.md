@@ -10,7 +10,8 @@ what to do next. Git history has the details of past work.
 ## Start here
 
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
-2. The next job is **step 3**. Check frontend changes with the frontend build and lint.
+2. The next job is **step 4** (or 5). Check backend changes with the backend build (see
+   `verify-backend`), and frontend changes with the frontend build and lint.
 3. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
 4. Work on a branch. The user merges to `main` and pushes once they approve.
@@ -32,8 +33,9 @@ what to do next. Git history has the details of past work.
 - **The repo is public.** History was scrubbed of secrets with `git filter-repo` on 2026-11-14
   and force-pushed, so any other clone must be re-cloned. The pre-scrub backup
   `~/dev/invokedb-pre-scrub-2026-11-14.bundle` contains secrets: never push it.
-- `packages/horizon-be/src/constants.ts` hardcodes `FS_TOKEN` / `WS_SERVER_TOKEN`. Harmless
-  with no deployment; move them to env vars before deploying (step 3).
+- **`HORIZON_WS_SERVER_TOKEN`** is the shared secret that backend processes register with the
+  websocket broker. It's optional locally (random per process) and required elsewhere (startup
+  fails without it). Every process in a deployment needs the same value.
 - **Stripe isn't in use**, and the old keys are deliberately not rolled. If it comes back, create
   new keys. `/checkout` throws `Please call Stripe() with your publishable key` without them.
 - The two areas' global stylesheets still clash (see AGENTS.md); unifying them would let
@@ -92,16 +94,20 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   total.
 - **2.6 (optional):** ag-grid 32 → current (Theming API, module registration), and move the
   SCSS off the Sass deprecations that `vite.config.js` silences (`@import`, global `lighten()`).
-- **3 (small, any time):** move `FS_TOKEN` / `WS_SERVER_TOKEN` to env vars.
+- **3: done** (2026-11-15). `WS_SERVER_TOKEN` moved from `constants.ts` to the
+  `HORIZON_WS_SERVER_TOKEN` env var (see Things to know). The old hardcoded value is in the public
+  history and no longer works. `FS_TOKEN` was unused and is gone. An empty token never counts as
+  the server token.
 - **4 (optional):** a `docker-compose.yml` for Postgres and Mongo.
 - **5 (test deployment, on `invokedb.com`):** a cheap, simple deploy for testing, not AKS/Helm.
   Plan: one small VM (Hetzner or DigitalOcean, ~$5–10/month) running `docker compose` with the
   backend, Postgres, Mongo and Caddy (automatic TLS). Caddy serves the built frontend with an
   SPA fallback for `/app/*` and the site paths, and proxies `/api` and the websocket (so `:9000`
-  needs no public port). DNS on Cloudflare. Needs first: step 3, step 4 (reuse the compose
-  file), new Dockerfiles (the current ones use `node:10` and `npm run build`), the backend
-  installed with `--omit=optional`, `HORIZON_FE_PUB_HTTP_URL` set to the public URL, prod
-  secrets kept out of git (extend `scripts/secrets.sh`), and a Mongo/Postgres backup cron.
+  needs no public port). DNS on Cloudflare. Needs first: step 4 (reuse the compose file), new
+  Dockerfiles (the current ones use `node:10` and `npm run build`), the backend installed with
+  `--omit=optional`, `HORIZON_FE_PUB_HTTP_URL` set to the public URL, `HORIZON_WS_SERVER_TOKEN`
+  and other prod secrets kept out of git (extend `scripts/secrets.sh`), and a Mongo/Postgres
+  backup cron.
   `ops/` still builds a separate `horizon-auth-fe`; leave it for reference or delete it.
 - **5a (domain): done.** `invokedb.com` was bought on Cloudflare Registrar on 2026-11-14, so its
   DNS is on Cloudflare. To point it at Azure, use DNS-only (grey cloud) records so Azure's

@@ -1,36 +1,45 @@
 {
   "name": "invokedb",
-  "version": "1.0.27",
-  "description": "InvokeDB javascript client",
-  "main": "dist/cjs/invokedb.js",
-  "types": "dist/cjs/index.d.js",
-  "module": "dist/es/invokedb.js",
-  "scripts": {
-    "start": "rollup --watch --config rollup.config.js",
-    "build": "rollup --config rollup.config.js"
-  },
+  "version": "2.0.0",
+  "description": "InvokeDB JavaScript/TypeScript client (Node 18+ and browsers)",
+  "license": "ISC",
+  "author": "Steve Hetzel",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/stevehetz/invokedb-node.git"
+    "url": "git+https://github.com/stevehetz/invokedb.git",
+    "directory": "examples/invokedb-node"
   },
-  "author": "Steve Hetzel",
-  "license": "ISC",
   "bugs": {
-    "url": "https://github.com/stevehetz/invokedb-node/issues"
+    "url": "https://github.com/stevehetz/invokedb/issues"
   },
-  "homepage": "https://github.com/stevehetz/invokedb-node#readme",
-  "dependencies": {
-    "axios": "^0.20.0"
+  "homepage": "https://github.com/stevehetz/invokedb/tree/main/examples/invokedb-node#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "dist/cjs/index.js",
+  "module": "dist/es/index.js",
+  "types": "dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/es/index.d.ts",
+        "default": "./dist/es/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && echo '{\"type\":\"module\"}' > dist/es/package.json",
+    "start": "tsc -p tsconfig.json --watch"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^15.0.0",
-    "@rollup/plugin-json": "^4.1.0",
-    "@rollup/plugin-node-resolve": "^9.0.0",
-    "@rollup/plugin-replace": "^2.3.3",
-    "rollup": "^2.26.10",
-    "rollup-plugin-terser": "^7.0.2",
-    "rollup-plugin-typescript2": "^0.27.2",
-    "typescript": "^4.0.2"
+    "typescript": "^5.9.3"
   },
   "prettier": {
     "printWidth": 80,

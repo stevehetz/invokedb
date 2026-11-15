@@ -1,0 +1,91 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 14px 16px;
+
+  select {
+    min-width: 150px;
+  }
+
+  .range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .price input {
+    width: 80px;
+  }
+
+  .points input {
+    width: 160px;
+    padding: 0;
+    accent-color: var(--accent);
+  }
+
+  .reset {
+    margin-left: auto;
+  }
+}
+
+.count {
+  margin: 14px 2px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  transition: opacity 0.15s;
+
+  &.loading {
+    opacity: 0.6;
+  }
+}
+
+.wine {
+  padding: 14px 16px;
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .points {
+    font-size: 13px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .price {
+    font-weight: 600;
+  }
+
+  h3 {
+    margin: 10px 0 4px;
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  .meta {
+    margin: 0 0 8px;
+    font-size: 12px;
+  }
+
+  .desc {
+    margin: 0;
+    font-size: 13px;
+  }
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}

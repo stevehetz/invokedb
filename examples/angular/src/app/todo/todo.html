@@ -1,0 +1,53 @@
+<div class="head">
+  <h2>To Do</h2>
+  <span class="muted">{{ openCount() }} open</span>
+  <button class="toggle" (click)="toggleShowCompleted()">
+    {{ showCompleted() ? 'Hide completed' : 'Show completed' }}
+  </button>
+</div>
+
+@if (error()) {
+  <div class="error">{{ error() }}</div>
+}
+
+<form class="panel add" (ngSubmit)="add()">
+  <input name="name" placeholder="Add a task…" [(ngModel)]="newName" autocomplete="off" />
+  <select name="priority" [(ngModel)]="newPriority" aria-label="Priority">
+    <option value="low">Low</option>
+    <option value="medium">Medium</option>
+    <option value="high">High</option>
+  </select>
+  <input name="due" type="date" [(ngModel)]="newDue" aria-label="Due date" />
+  <button class="primary" type="submit" [disabled]="!newName().trim()">Add</button>
+</form>
+
+<ul class="panel list">
+  @for (item of items(); track item._id) {
+    <li [class.done]="item.is_complete === 'yes'">
+      <input
+        type="checkbox"
+        [checked]="item.is_complete === 'yes'"
+        (change)="toggle(item)"
+        [attr.aria-label]="'Complete ' + item.name"
+      />
+      @if (editingId() === item._id) {
+        <input
+          #editInput
+          class="edit"
+          [(ngModel)]="editName"
+          (keyup.enter)="saveEdit(item)"
+          (keyup.escape)="editingId.set(null)"
+          (blur)="saveEdit(item)"
+        />
+      } @else {
+        <span class="name" (dblclick)="startEdit(item)">{{ item.name }}</span>
+      }
+      <span class="badge" [attr.data-priority]="item.priority">{{ item.priority }}</span>
+      <span class="due" [class.overdue]="isOverdue(item)">{{ dateOnly(item.due_date) }}</span>
+      <button class="icon" (click)="startEdit(item)" title="Edit">✎</button>
+      <button class="icon danger" (click)="remove(item)" title="Delete">✕</button>
+    </li>
+  } @empty {
+    <li class="empty muted">{{ loading() ? 'Loading…' : 'Nothing to do.' }}</li>
+  }
+</ul>

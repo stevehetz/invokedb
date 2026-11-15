@@ -1,0 +1,103 @@
+<h2>Contacts</h2>
+
+@if (error()) {
+  <div class="error">{{ error() }}</div>
+}
+
+<div class="layout">
+  <section class="panel list">
+    <input
+      class="search"
+      type="search"
+      placeholder="Search by name…"
+      [value]="search()"
+      (input)="onSearch($any($event.target).value)"
+    />
+    <ul [class.loading]="loading()">
+      @for (c of contacts(); track c._id) {
+        <li>
+          <button [class.active]="c._id === selected()?._id" (click)="select(c)">
+            <span class="name">{{ c.last_name }}, {{ c.first_name }}</span>
+            <span class="muted small">{{ c.city }}, {{ c.state }}</span>
+          </button>
+        </li>
+      } @empty {
+        <li class="empty muted">{{ loading() ? 'Loading…' : 'No contacts found.' }}</li>
+      }
+    </ul>
+    <div class="pager">
+      <button class="icon" (click)="goTo(page() - 1)" [disabled]="page() === 0">‹ Prev</button>
+      <span class="muted small">
+        Page {{ page() + 1 }} of {{ pageCount() }} · {{ total() }} contacts
+      </span>
+      <button class="icon" (click)="goTo(page() + 1)" [disabled]="page() + 1 >= pageCount()">
+        Next ›
+      </button>
+    </div>
+  </section>
+
+  <section class="panel form">
+    <div class="actions">
+      @if (mode() === 'view') {
+        <button class="primary" (click)="startNew()">New contact</button>
+        @if (selected()) {
+          <button (click)="edit()">Edit</button>
+          @if (confirmingDelete()) {
+            <button class="danger" (click)="remove()">Confirm delete</button>
+            <button (click)="confirmingDelete.set(false)">Keep</button>
+          } @else {
+            <button class="danger" (click)="confirmingDelete.set(true)">Delete</button>
+          }
+        }
+      } @else {
+        <button class="primary" (click)="save()" [disabled]="!draft.first_name || !draft.last_name">
+          {{ mode() === 'new' ? 'Create' : 'Save' }}
+        </button>
+        <button (click)="cancel()">Cancel</button>
+      }
+    </div>
+
+    @if (selected() || mode() !== 'view') {
+      <fieldset [disabled]="mode() === 'view'">
+        <label class="field">
+          <span>First name</span>
+          <input type="text" name="first" [(ngModel)]="draft.first_name" />
+        </label>
+        <label class="field">
+          <span>Last name</span>
+          <input type="text" name="last" [(ngModel)]="draft.last_name" />
+        </label>
+        <label class="field">
+          <span>Date of birth</span>
+          <input type="date" name="dob" [(ngModel)]="draft.dob" />
+        </label>
+        <label class="field wide">
+          <span>Email</span>
+          <input type="email" name="email" [(ngModel)]="draft.email" />
+        </label>
+        <label class="field">
+          <span>Phone</span>
+          <input type="text" name="phone" [(ngModel)]="draft.phone" />
+        </label>
+        <label class="field wide">
+          <span>Street address</span>
+          <input type="text" name="address" [(ngModel)]="draft.address" />
+        </label>
+        <label class="field">
+          <span>City</span>
+          <input type="text" name="city" [(ngModel)]="draft.city" />
+        </label>
+        <label class="field">
+          <span>State</span>
+          <input type="text" name="state" [(ngModel)]="draft.state" maxlength="2" />
+        </label>
+      </fieldset>
+    } @else {
+      <p class="muted">Pick a contact, or create a new one.</p>
+    }
+  </section>
+</div>
+
+@if (toast()) {
+  <div class="toast">{{ toast() }}</div>
+}

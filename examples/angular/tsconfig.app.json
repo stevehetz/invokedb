@@ -1,14 +1,13 @@
+/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
+/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "./out-tsc/app",
-    "types": []
+    "types": [],
+    /* Use the client straight from its source in this repo (examples/invokedb-node) */
+    "paths": {
+      "invokedb": ["../invokedb-node/src/index.ts"]
+    }
   },
-  "files": [
-    "src/main.ts",
-    "src/polyfills.ts"
-  ],
-  "include": [
-    "src/**/*.d.ts"
-  ]
+  "include": ["src/**/*.ts", "../invokedb-node/src/**/*.ts"]
 }

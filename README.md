@@ -19,10 +19,12 @@ Monorepo with two packages:
 
 Client code lives under `examples/` (each with its own `node_modules`, outside the root formatter):
 
-- `examples/invokedb-node`: the JavaScript/TypeScript API client, published to npm as
-  [`invokedb`](https://www.npmjs.com/package/invokedb).
-- `examples/angular`: an Angular 10 example app (to-do list, contact form, wine reviews) that
-  uses the client.
+- `examples/invokedb-node`: the JavaScript/TypeScript API client (npm
+  [`invokedb`](https://www.npmjs.com/package/invokedb)), with no dependencies.
+- `examples/angular`: an Angular 22 example app (to-do list, contacts, wine reviews) that uses
+  the client.
+- `examples/data` + `examples/setup.mjs`: made-up example CSVs, and a script that loads them as
+  tables into a running InvokeDB. See `examples/README.md`.
 
 ## Prerequisites
 

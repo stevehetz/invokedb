@@ -1,0 +1,105 @@
+<h2>Wine Reviews</h2>
+
+@if (error()) {
+  <div class="error">{{ error() }}</div>
+}
+
+<section class="panel filters">
+  <label class="field">
+    Variety
+    <select [(ngModel)]="filters.variety" (ngModelChange)="changed()">
+      <option value="">Any</option>
+      @for (v of varieties(); track v) {
+        <option [value]="v">{{ v }}</option>
+      }
+    </select>
+  </label>
+  <label class="field">
+    Country
+    <select [(ngModel)]="filters.country" (ngModelChange)="changed()">
+      <option value="">Any</option>
+      @for (c of countries(); track c) {
+        <option [value]="c">{{ c }}</option>
+      }
+    </select>
+  </label>
+  <label class="field price">
+    Price ($)
+    <span class="range">
+      <input
+        type="number"
+        min="0"
+        placeholder="Min"
+        [(ngModel)]="filters.minPrice"
+        (ngModelChange)="changed()"
+      />
+      <span class="muted">–</span>
+      <input
+        type="number"
+        min="0"
+        placeholder="Max"
+        [(ngModel)]="filters.maxPrice"
+        (ngModelChange)="changed()"
+      />
+    </span>
+  </label>
+  <label class="field points">
+    Min points: {{ filters.minPoints }}
+    <input
+      type="range"
+      min="80"
+      max="100"
+      [(ngModel)]="filters.minPoints"
+      (ngModelChange)="changed()"
+    />
+  </label>
+  <label class="field">
+    Sort by
+    <span class="range">
+      <select [(ngModel)]="filters.sortBy" (ngModelChange)="load()">
+        <option value="points">Points</option>
+        <option value="price">Price</option>
+        <option value="vintage">Vintage</option>
+        <option value="title">Title</option>
+      </select>
+      <button
+        type="button"
+        (click)="toggleDir()"
+        [title]="filters.sortDir === 'asc' ? 'Ascending' : 'Descending'"
+      >
+        {{ filters.sortDir === 'asc' ? '↑' : '↓' }}
+      </button>
+    </span>
+  </label>
+  <button type="button" class="reset" (click)="reset()">Clear filters</button>
+</section>
+
+<p class="muted count">
+  {{ loading() && !wines().length ? 'Loading…' : (total() | number) + ' wines' }}
+</p>
+
+<div class="grid" [class.loading]="loading()">
+  @for (w of wines(); track w._id) {
+    <article class="panel wine">
+      <header>
+        <span class="points">{{ w.points }}</span>
+        <span class="price">${{ w.price }}</span>
+      </header>
+      <h3>{{ w.title }}</h3>
+      <p class="meta muted">{{ w.variety }} · {{ w.region }}, {{ w.country }}</p>
+      <p class="desc">{{ w.description }}</p>
+    </article>
+  } @empty {
+    @if (!loading()) {
+      <p class="muted">No wines match these filters.</p>
+    }
+  }
+</div>
+
+@if (wines().length < total()) {
+  <div class="more">
+    <button (click)="load(true)" [disabled]="loading()">
+      Load more ({{ total() - wines().length }} left)
+    </button>
+  </div>
+}

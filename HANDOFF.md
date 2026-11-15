@@ -57,17 +57,16 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
 - **0: done** (2026-11-15). `stevehetz/invokedb-node` and `stevehetz/invokedb-examples-angular`
   were copied in (no history) as `examples/invokedb-node` and `examples/angular`. They had no
   secrets (the Angular app's `invoke-config.json` is gitignored). Left for the user: archive the
-  two old GitHub repos with a README pointing here. Known issues, not fixed: the client defaults
-  to the dead `https://api.invokedb.com/v1`, and three of the Angular services rely on that
-  default; the Angular README's sample CSVs (Dropbox links) are gone (404); the Angular app is
-  Angular 10 and hasn't been installed or built here.
+  two old GitHub repos with a README pointing here. Follow-up, same day: the client was moved to
+  `fetch` (v2.0.0, unpublished; 1.x bundled axios's browser adapter, so it never ran in Node) and
+  defaults to the local backend; the Angular app was rewritten on Angular 22 against new made-up
+  CSVs in `examples/data` (the old Dropbox CSVs were gone, and the Game of Thrones sigil images
+  were dropped); `examples/setup.mjs` loads the tables and writes the app's API key config.
 - **0.1 (next): a demo GIF for `README.md`.** Show the main flow: log in as
   `demo@invokedb.com`, **upload a CSV** as a new table, sort/filter/edit it in the grid, then
-  query it through the API (a `curl` or the Node client from step 0). No sample CSVs survive (none
-  in the repo or under `~/dev`, `~/Downloads`, `~/Desktop`, `~/Documents`), and the smoke tests
-  only upload an inline 3-row CSV. So first add a made-up, realistic CSV (e.g. 50–200 rows with
-  text, number, date and boolean columns; no real people's data) as `examples/data/sample.csv`,
-  and check that it uploads and every column type comes through. Capture it with a scripted Playwright run (like
+  query it through the API (a `curl` or the Node client from step 0). Use a CSV from
+  `examples/data` (`wine_reviews.csv` has text and number columns; `contacts.csv` and `todo.csv`
+  have dates; there's no boolean column type, `todo.is_complete` is `yes`/`no`). Capture it with a scripted Playwright run (like
   `scripts/ui-smoke.mjs`) using `recordVideo` on the browser context at a fixed viewport, with
   short pauses so it's readable. Then convert the `.webm` to a GIF with `ffmpeg` (palettegen +
   paletteuse) or `gifski`. Neither is installed yet; `brew install ffmpeg` is a prebuilt binary,

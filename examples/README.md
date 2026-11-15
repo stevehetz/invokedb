@@ -5,6 +5,9 @@
 - `data/`: made-up example data. `node examples/data/generate.mjs` regenerates the CSVs (the
   output is the same on every run). All names, addresses and wineries are invented, phone
   numbers use the fictional 555-01xx range and emails use example.com.
+- `data/test/`: made-up order CSVs of three sizes for testing uploads and large grids
+  (`orders_small` 100 rows, `orders_medium` 5,000, `orders_large` 50,000). `setup.mjs` doesn't
+  load them. `node examples/data/test/generate.mjs` regenerates them.
 - `setup.mjs`: loads the CSVs into a running InvokeDB as tables, sets column types and
   indexes, and writes the Angular app's API key config. Its options (`--email`, `--password`,
   `--base`, `--replace`) are described at the top of the file.

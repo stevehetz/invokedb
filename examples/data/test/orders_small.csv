@@ -1,0 +1,101 @@
+order_id,order_date,customer,email,region,product,category,quantity,unit_price,total,status,gift
+ORD-000001,2026-10-10,Maya Abbott,maya.abbott28@example.com,West,Chef Knife,Kitchen,8,64.00,512.00,delivered,false
+ORD-000002,2025-09-28,Theo Hughes,theo.hughes25@example.com,North,Yoga Mat,Fitness,2,29.95,59.90,shipped,true
+ORD-000003,2025-01-29,Hiro Nakamura,hiro.nakamura43@example.com,East,Ceramic Mug,Kitchen,2,14.25,28.50,delivered,false
+ORD-000004,2025-05-09,Elena Lopez,elena.lopez72@example.com,East,Chef Knife,Kitchen,7,64.00,448.00,delivered,false
+ORD-000005,2025-10-04,Elena Moreau,elena.moreau25@example.com,North,Wool Socks,Apparel,3,12.50,37.50,delivered,false
+ORD-000006,2026-08-03,Chloe Evans,chloe.evans24@example.com,Central,Desk Lamp,Home,5,34.99,174.95,delivered,false
+ORD-000007,2026-04-09,Grace Lopez,grace.lopez91@example.com,Central,Dumbbells,Fitness,8,45.50,364.00,refunded,true
+ORD-000008,2025-12-08,Ava Okafor,ava.okafor93@example.com,West,Ceramic Mug,Kitchen,8,14.25,114.00,pending,false
+ORD-000009,2025-09-17,Sam Chen,sam.chen12@example.com,East,Dumbbells,Fitness,2,45.50,91.00,paid,false
+ORD-000010,2026-07-26,Kira Jensen,kira.jensen28@example.com,North,Desk Lamp,Home,7,34.99,244.93,paid,false
+ORD-000011,2025-08-06,Felix Chen,felix.chen12@example.com,North,Rain Jacket,Apparel,5,119.00,595.00,pending,false
+ORD-000012,2025-12-17,Noah Lopez,noah.lopez21@example.com,West,Wool Socks,Apparel,5,12.50,62.50,paid,false
+ORD-000013,2025-01-19,Theo Okafor,theo.okafor98@example.com,South,Desk Lamp,Home,2,34.99,69.98,delivered,false
+ORD-000014,2026-06-14,Ben Evans,ben.evans22@example.com,North,Desk Chair,Office,7,219.99,1539.93,pending,false
+ORD-000015,2026-09-01,Kira Evans,kira.evans86@example.com,West,Desk Chair,Office,3,219.99,659.97,delivered,false
+ORD-000016,2026-09-15,Hiro Fischer,hiro.fischer96@example.com,North,Trail Backpack,Outdoor,3,89.00,267.00,paid,true
+ORD-000017,2025-04-10,Ava Nakamura,ava.nakamura82@example.com,South,Notebook Set,Office,2,9.99,19.98,refunded,false
+ORD-000018,2025-12-25,Ines Lopez,ines.lopez76@example.com,West,Notebook Set,Office,2,9.99,19.98,pending,false
+ORD-000019,2025-10-15,Maya Kowalski,maya.kowalski87@example.com,West,Desk Lamp,Home,3,34.99,104.97,paid,false
+ORD-000020,2026-01-16,Maya Abbott,maya.abbott64@example.com,North,Dumbbells,Fitness,5,45.50,227.50,pending,false
+ORD-000021,2025-07-16,Chloe Moreau,chloe.moreau55@example.com,Central,Ceramic Mug,Kitchen,6,14.25,85.50,pending,true
+ORD-000022,2025-09-12,Dev Lopez,dev.lopez78@example.com,South,Desk Lamp,Home,5,34.99,174.95,pending,false
+ORD-000023,2025-09-19,Theo Abbott,theo.abbott61@example.com,East,Desk Chair,Office,1,219.99,219.99,paid,false
+ORD-000024,2025-12-29,Chloe Evans,chloe.evans5@example.com,North,Dumbbells,Fitness,5,45.50,227.50,delivered,false
+ORD-000025,2025-02-15,Dev Kowalski,dev.kowalski4@example.com,East,Rain Jacket,Apparel,1,119.00,119.00,delivered,false
+ORD-000026,2025-01-16,Priya Kowalski,priya.kowalski86@example.com,Central,Camp Stove,Outdoor,8,54.75,438.00,pending,false
+ORD-000027,2025-02-25,Kira Jensen,kira.jensen68@example.com,South,Notebook Set,Office,1,9.99,9.99,pending,false
+ORD-000028,2026-05-29,Liam Lopez,liam.lopez7@example.com,South,Desk Chair,Office,4,219.99,879.96,delivered,false
+ORD-000029,2026-04-15,Rosa Nakamura,rosa.nakamura4@example.com,Central,Wool Socks,Apparel,2,12.50,25.00,refunded,false
+ORD-000030,2026-02-05,Sam Okafor,sam.okafor44@example.com,South,Rain Jacket,Apparel,4,119.00,476.00,pending,false
+ORD-000031,2025-04-15,Maya Abbott,maya.abbott16@example.com,Central,Rain Jacket,Apparel,5,119.00,595.00,paid,true
+ORD-000032,2025-11-17,Jonah Fischer,jonah.fischer1@example.com,West,Dumbbells,Fitness,6,45.50,273.00,pending,false
+ORD-000033,2026-01-29,Theo Diaz,theo.diaz58@example.com,East,Rain Jacket,Apparel,8,119.00,952.00,delivered,false
+ORD-000034,2026-04-24,Priya Okafor,priya.okafor24@example.com,North,Notebook Set,Office,7,9.99,69.93,refunded,false
+ORD-000035,2025-03-16,Theo Ito,theo.ito76@example.com,West,Rain Jacket,Apparel,4,119.00,476.00,delivered,true
+ORD-000036,2025-08-02,Ava Nakamura,ava.nakamura74@example.com,North,Bookshelf,Home,2,149.00,298.00,paid,true
+ORD-000037,2026-03-26,Grace Patel,grace.patel15@example.com,West,Ceramic Mug,Kitchen,4,14.25,57.00,delivered,false
+ORD-000038,2025-11-07,Jonah Baker,jonah.baker91@example.com,Central,Notebook Set,Office,8,9.99,79.92,delivered,false
+ORD-000039,2025-09-03,Maya Kowalski,maya.kowalski91@example.com,North,Rain Jacket,Apparel,8,119.00,952.00,shipped,false
+ORD-000040,2025-07-25,Ava Ito,ava.ito81@example.com,Central,Yoga Mat,Fitness,7,29.95,209.65,shipped,false
+ORD-000041,2026-03-12,Liam Jensen,liam.jensen52@example.com,East,Notebook Set,Office,8,9.99,79.92,pending,false
+ORD-000042,2025-08-17,Dev Jensen,dev.jensen56@example.com,South,Desk Lamp,Home,5,34.99,174.95,pending,false
+ORD-000043,2025-02-22,Grace Evans,grace.evans39@example.com,North,Rain Jacket,Apparel,5,119.00,595.00,delivered,false
+ORD-000044,2025-08-26,Elena Ito,elena.ito58@example.com,Central,Desk Lamp,Home,2,34.99,69.98,paid,false
+ORD-000045,2026-02-09,Kira Garcia,kira.garcia65@example.com,East,Notebook Set,Office,1,9.99,9.99,pending,false
+ORD-000046,2025-11-21,Ben Kowalski,ben.kowalski80@example.com,East,Dumbbells,Fitness,8,45.50,364.00,pending,false
+ORD-000047,2026-07-30,Sam Abbott,sam.abbott40@example.com,West,Notebook Set,Office,7,9.99,69.93,refunded,false
+ORD-000048,2025-11-20,Dev Abbott,dev.abbott51@example.com,East,Trail Backpack,Outdoor,6,89.00,534.00,paid,false
+ORD-000049,2026-01-02,Priya Nakamura,priya.nakamura35@example.com,Central,Wool Socks,Apparel,8,12.50,100.00,shipped,false
+ORD-000050,2025-05-28,Hiro Okafor,hiro.okafor89@example.com,East,Chef Knife,Kitchen,7,64.00,448.00,delivered,true
+ORD-000051,2025-12-04,Felix Fischer,felix.fischer47@example.com,South,Camp Stove,Outdoor,3,54.75,164.25,delivered,false
+ORD-000052,2025-03-07,Theo Baker,theo.baker39@example.com,West,Dumbbells,Fitness,3,45.50,136.50,paid,false
+ORD-000053,2025-03-07,Hiro Moreau,hiro.moreau33@example.com,South,Desk Chair,Office,6,219.99,1319.94,pending,false
+ORD-000054,2025-07-08,Ben Baker,ben.baker67@example.com,South,Ceramic Mug,Kitchen,4,14.25,57.00,pending,false
+ORD-000055,2025-11-22,Liam Reyes,liam.reyes58@example.com,West,Bookshelf,Home,4,149.00,596.00,pending,false
+ORD-000056,2025-08-12,Hiro Evans,hiro.evans76@example.com,Central,Bookshelf,Home,8,149.00,1192.00,refunded,false
+ORD-000057,2026-08-24,Quinn Hughes,quinn.hughes73@example.com,North,Notebook Set,Office,2,9.99,19.98,paid,false
+ORD-000058,2026-01-23,Maya Nakamura,maya.nakamura5@example.com,South,Desk Lamp,Home,6,34.99,209.94,pending,false
+ORD-000059,2025-01-30,Ben Patel,ben.patel63@example.com,West,Trail Backpack,Outdoor,4,89.00,356.00,refunded,false
+ORD-000060,2025-07-30,Ben Patel,ben.patel6@example.com,Central,Rain Jacket,Apparel,5,119.00,595.00,pending,false
+ORD-000061,2026-08-08,Rosa Evans,rosa.evans13@example.com,West,Notebook Set,Office,8,9.99,79.92,pending,false
+ORD-000062,2025-09-29,Hiro Chen,hiro.chen56@example.com,North,Wool Socks,Apparel,2,12.50,25.00,refunded,false
+ORD-000063,2025-01-03,Ben Hughes,ben.hughes64@example.com,Central,Trail Backpack,Outdoor,3,89.00,267.00,refunded,false
+ORD-000064,2025-02-08,Priya Jensen,priya.jensen8@example.com,North,Trail Backpack,Outdoor,8,89.00,712.00,paid,false
+ORD-000065,2025-09-14,Noah Evans,noah.evans59@example.com,East,Notebook Set,Office,4,9.99,39.96,delivered,false
+ORD-000066,2025-10-10,Olive Abbott,olive.abbott85@example.com,West,Yoga Mat,Fitness,4,29.95,119.80,paid,false
+ORD-000067,2025-01-15,Olive Patel,olive.patel47@example.com,North,Trail Backpack,Outdoor,8,89.00,712.00,delivered,true
+ORD-000068,2025-10-26,Maya Chen,maya.chen27@example.com,West,Wool Socks,Apparel,3,12.50,37.50,pending,true
+ORD-000069,2025-11-14,Felix Lopez,felix.lopez99@example.com,West,Bookshelf,Home,4,149.00,596.00,pending,false
+ORD-000070,2026-02-02,Chloe Diaz,chloe.diaz10@example.com,South,Chef Knife,Kitchen,5,64.00,320.00,delivered,false
+ORD-000071,2026-03-13,Grace Ito,grace.ito90@example.com,West,Camp Stove,Outdoor,8,54.75,438.00,delivered,false
+ORD-000072,2026-06-23,Rosa Nakamura,rosa.nakamura93@example.com,Central,Yoga Mat,Fitness,3,29.95,89.85,pending,false
+ORD-000073,2025-11-01,Jonah Garcia,jonah.garcia23@example.com,East,Wool Socks,Apparel,4,12.50,50.00,refunded,false
+ORD-000074,2025-01-11,Ava Reyes,ava.reyes78@example.com,Central,Chef Knife,Kitchen,6,64.00,384.00,delivered,false
+ORD-000075,2025-11-06,Rosa Lopez,rosa.lopez96@example.com,East,Desk Lamp,Home,6,34.99,209.94,delivered,false
+ORD-000076,2025-05-14,Olive Diaz,olive.diaz39@example.com,North,Chef Knife,Kitchen,3,64.00,192.00,pending,false
+ORD-000077,2025-10-29,Ben Kowalski,ben.kowalski86@example.com,East,Wool Socks,Apparel,3,12.50,37.50,refunded,false
+ORD-000078,2026-01-26,Hiro Ito,hiro.ito45@example.com,East,Ceramic Mug,Kitchen,4,14.25,57.00,pending,false
+ORD-000079,2026-02-12,Liam Abbott,liam.abbott36@example.com,North,Wool Socks,Apparel,2,12.50,25.00,refunded,true
+ORD-000080,2026-05-11,Ben Okafor,ben.okafor58@example.com,West,Trail Backpack,Outdoor,2,89.00,178.00,paid,false
+ORD-000081,2025-06-22,Grace Reyes,grace.reyes33@example.com,South,Bookshelf,Home,2,149.00,298.00,delivered,true
+ORD-000082,2026-03-27,Felix Reyes,felix.reyes74@example.com,South,Yoga Mat,Fitness,3,29.95,89.85,delivered,false
+ORD-000083,2025-11-13,Noah Baker,noah.baker39@example.com,Central,Rain Jacket,Apparel,3,119.00,357.00,shipped,false
+ORD-000084,2026-10-01,Theo Baker,theo.baker10@example.com,West,Notebook Set,Office,7,9.99,69.93,paid,false
+ORD-000085,2026-03-22,Chloe Baker,chloe.baker31@example.com,North,Rain Jacket,Apparel,1,119.00,119.00,paid,false
+ORD-000086,2026-10-27,Olive Nakamura,olive.nakamura26@example.com,Central,Chef Knife,Kitchen,6,64.00,384.00,shipped,false
+ORD-000087,2026-02-12,Felix Nakamura,felix.nakamura68@example.com,Central,Yoga Mat,Fitness,6,29.95,179.70,paid,false
+ORD-000088,2026-06-21,Grace Moreau,grace.moreau68@example.com,North,Rain Jacket,Apparel,4,119.00,476.00,delivered,false
+ORD-000089,2025-08-17,Olive Garcia,olive.garcia83@example.com,South,Wool Socks,Apparel,7,12.50,87.50,delivered,false
+ORD-000090,2025-09-25,Noah Abbott,noah.abbott70@example.com,North,Notebook Set,Office,3,9.99,29.97,shipped,false
+ORD-000091,2025-04-25,Elena Lopez,elena.lopez90@example.com,West,Trail Backpack,Outdoor,8,89.00,712.00,delivered,false
+ORD-000092,2026-03-12,Grace Chen,grace.chen23@example.com,West,Notebook Set,Office,7,9.99,69.93,delivered,false
+ORD-000093,2026-01-30,Theo Hughes,theo.hughes69@example.com,West,Bookshelf,Home,8,149.00,1192.00,refunded,false
+ORD-000094,2025-05-21,Sam Okafor,sam.okafor22@example.com,Central,Camp Stove,Outdoor,4,54.75,219.00,pending,false
+ORD-000095,2026-07-23,Liam Abbott,liam.abbott59@example.com,South,Desk Chair,Office,7,219.99,1539.93,refunded,false
+ORD-000096,2025-06-28,Noah Baker,noah.baker70@example.com,East,Camp Stove,Outdoor,6,54.75,328.50,refunded,false
+ORD-000097,2026-03-26,Felix Garcia,felix.garcia3@example.com,Central,Camp Stove,Outdoor,6,54.75,328.50,refunded,false
+ORD-000098,2025-03-04,Maya Diaz,maya.diaz17@example.com,East,Wool Socks,Apparel,3,12.50,37.50,paid,false
+ORD-000099,2025-10-26,Noah Patel,noah.patel49@example.com,Central,Ceramic Mug,Kitchen,8,14.25,114.00,shipped,false
+ORD-000100,2025-11-12,Kira Hughes,kira.hughes32@example.com,East,Desk Lamp,Home,3,34.99,104.97,delivered,false

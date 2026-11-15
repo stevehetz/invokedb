@@ -674,6 +674,12 @@ $nav_active_color: #ffffff;
     left: 40px !important;
     top: 50px !important;
 }
+// Element Plus puts sub-menus in a light popper (white background, 1px light border) that
+// showed as a white frame around the grey menu
+.h-tree-menu-popper.el-popper {
+    background: transparent;
+    border: none;
+}
 .h-tree-menu-popper .el-menu .el-menu-item * {
     color: #ffffff !important;
 }
@@ -965,8 +971,12 @@ $nav_active_color: #ffffff;
     border-bottom: solid 1px gray;
     font-size: 18px;
 }
+// visible so the column-type and filter-type menus can hang below the header. h-data-grid.js
+// moves the header with the body (body_scrolled), and the clip-path hides the columns
+// scrolled off the left and right while still letting those menus show below.
 .h-data-grid .ag-header .ag-header-viewport {
     overflow: visible;
+    clip-path: inset(0 0 -1000px 0);
 }
 .h-data-grid .ag-header-row {
     overflow: visible;

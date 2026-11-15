@@ -93,6 +93,7 @@ export default {
             onCellDoubleClicked: this.cell_double_clicked,
             onViewportChanged: this.viewport_changed,
             onDragStopped: e => this.drag_stopped(e),
+            onBodyScroll: e => this.body_scrolled(e),
             undoRedoCellEditing: true
         });
     },
@@ -148,6 +149,18 @@ export default {
             } else {
                 this.load_table();
             }
+        },
+
+        // ag-grid scrolls the header by setting scrollLeft on .ag-header-viewport, but
+        // stylesheet.scss makes that viewport overflow: visible (so the column-type and
+        // filter-type menus can hang below the header), which stops it scrolling. Move the
+        // header along with the body ourselves.
+        body_scrolled(e) {
+            if (e.direction !== 'horizontal') return;
+            const header = this.$el.querySelector(
+                '.ag-header-viewport .ag-header-container'
+            );
+            if (header) header.style.transform = `translateX(${-e.left}px)`;
         },
 
         setup_websocket_handler() {

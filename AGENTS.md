@@ -133,6 +133,8 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
   data (`markRaw`, or set them in `created()` rather than `data()`). Custom header/filter
   components are registered in `h-data-grid`'s `components` and named in the col defs, and
   receive `params` as a prop. The app has no ag-grid theme; `stylesheet.scss` styles the grid.
+  Its `.ag-header-viewport` is `overflow: visible` (for the header dropdown menus), so ag-grid
+  can't scroll the header; `h-data-grid`'s `body_scrolled` moves it with the body instead.
 - `this.$bus` / `@/core/bus` is a small emitter with the old `$on`/`$off`/`$emit` names. Remove
   your handler with `$off` in `beforeUnmount`. Prefer props, emits or the store for new code.
 

@@ -1,277 +1,131 @@
-import $ from 'jquery';
 import { tree_consts } from './h-tree-consts';
 import { store } from '@/store';
 
-const $drag_background = $('<div class="drag-background"></div>');
-
+// The table/folder tree (an Element Plus el-tree; it was jqtree). Click "manages" (highlights)
+// an item for the delete/rename buttons; double-click "selects" it, which opens it in a tab.
 export default {
     name: 'HTree',
 
     props: ['tree_items'],
 
+    emits: [
+        'tree_item_selected',
+        'add_tree_item',
+        'remove_tree_items',
+        'edit_tree_items',
+        'move_tree_item'
+    ],
+
     data: () => {
         return {
             account: null,
+            account_subscription: null,
 
-            // Reference to jqtree object
-            $tree: null,
-
-            // Nodes that is managed (Highlighted)
+            // Ids of the items that are managed (highlighted)
             managed: [],
 
-            // Tree state for reloading
-            tree_state: {
-                // Nodes that are selected
-                selected_node: [],
-                // Nodes that are open
-                open_nodes: []
-            },
+            // Id of the item open in the active tab
+            selected_id: null,
 
-            drag_move_element: null
+            // Open folders, kept when the tree data is reloaded
+            expanded_keys: [],
+
+            tree_props: { label: 'name', children: 'children' }
         };
     },
 
-    watch: {
-        tree_items: function () {
-            this.reload_tree_data();
-        }
-    },
-
     mounted() {
-        store.subscribe('account', account => {
+        this.account_subscription = store.subscribe('account', account => {
             this.account = account;
-            this.dom_remove_bindings();
-            this.dom_add_bindings();
-            this.load_tree();
         });
+        document.body.addEventListener('click', this.body_clicked);
     },
 
-    destroyed() {
-        this.dom_remove_bindings();
+    beforeUnmount() {
+        document.body.removeEventListener('click', this.body_clicked);
+        if (this.account_subscription) this.account_subscription.unsubscribe();
     },
 
     methods: {
         /*** Start: Global events ***/
-        dom_add_bindings() {
-            $('body').bind('click.htree', e => {
-                let $t = $(e.target);
-                if ($t.parents('.file-directory-menu').length === 0)
-                    this.$refs.menu.close('1');
-            });
-        },
-
-        dom_remove_bindings() {
-            $('body').unbind('.htree');
+        body_clicked(e) {
+            if (!e.target.closest('.file-directory-menu')) {
+                this.$refs.menu.close('1');
+            }
         },
         /*** End: Global events ***/
 
-        /*** Start: Reload tree and state ***/
-        reload_tree_data() {
-            this.add_ghost_file();
-            this.$tree.tree('loadData', this.tree_items);
-            this.$tree.tree('setState', this.tree_state);
-            this.style_managed_items();
-            window.setTimeout(() => {
-                this.hide_ghost_file();
-            }, 0);
-        },
-        /*** End: Reload tree and state ***/
-
-        /*** Start: Load tree - kicked off when component is mounted ***/
-        add_ghost_file() {
-            let last_item = this.tree_items[this.tree_items.length - 1];
-            if (!last_item || !last_item.ghost) {
-                this.tree_items.push({
-                    id: -1,
-                    ghost: true,
-                    children: null,
-                    name: '',
-                    type: 'file',
-                    web_file_type: null,
-                    parent_id: null
-                });
-            }
+        /*** Start: Node rendering ***/
+        node_classes(data) {
+            return {
+                [String(data.status || '').toLowerCase()]: !!data.status,
+                locked: !!(
+                    data.locked ||
+                    (this.account && this.account.locked)
+                ),
+                managed: this.managed.includes(data.id),
+                selected: this.selected_id === data.id
+            };
         },
 
-        hide_ghost_file() {
-            let $ghost = $('.jqtree-tree > li:last-child');
-            $ghost.css('visibility', 'hidden');
-        },
-
-        load_tree: function () {
-            this.set_jq_tree_reference();
-            this.setup_tree_event_handlers();
-            this.initialize_tree();
-        },
-
-        set_jq_tree_reference() {
-            this.$tree = $(this.$refs.tree);
-        },
-
-        setup_tree_event_handlers() {
-            let self = this;
-
-            this.$tree.bind('tree.select', function (event) {
-                event.preventDefault();
-            });
-
-            this.$tree.bind('tree.move', function (event) {
-                event.preventDefault();
-
-                let { moved_node, target_node } = event.move_info;
-
-                // If parent_id is null, move to root
-                let parent_id = null;
-
-                if (target_node.type === 'file') {
-                    // If target is a doc, find parent
-
-                    if (target_node.parent.id) {
-                        // Parent directory found
-                        parent_id = target_node.parent.id;
-                    }
-                } else {
-                    // Target is a directory
-                    parent_id = target_node.id;
+        node_icon(node, data) {
+            if (data.status === 'ERROR') return tree_consts.ICON_ERROR;
+            if (data.status === 'PENDING') return tree_consts.ICON_PROCESSING;
+            if (data.type === 'dir') {
+                if (!data.children || data.children.length === 0) {
+                    return tree_consts.ICON_EMPTY_DIRECTORY;
                 }
+                return node.expanded
+                    ? tree_consts.ICON_OPEN_DIRECTORY
+                    : tree_consts.ICON_CLOSED_DIRECTORY;
+            }
+            if (data.web_file_type === 'data-grid')
+                return tree_consts.ICON_GRID;
+            return null;
+        },
+        /*** End: Node rendering ***/
 
-                self.$emit('move_tree_item', { moved_node, parent_id });
-                self.$tree.find('.drag-background').remove();
-            });
-
-            this.$tree.bind('tree.open', function (event) {
-                self.tree_state = self.$tree.tree('getState');
-            });
-
-            this.$tree.bind('tree.close', function (event) {
-                self.tree_state = self.$tree.tree('getState');
-            });
-
-            // Manage - For tree management
-            this.$tree.bind('tree.click', function (event) {
-                event.preventDefault();
-                self.managed = [event.node.id];
-                self.style_managed_item_by_node(event.node);
-            });
-
-            // Select - For parent to bind to a second component such
-            // as tabs
-            this.$tree.bind('tree.dblclick', function (event) {
-                if (event.node.type === 'dir') return;
-                self.$tree.tree('selectNode', event.node);
-                self.tree_state = self.$tree.tree('getState');
-                self.$emit('tree_item_selected', event.node);
-            });
+        /*** Start: Tree events ***/
+        node_clicked(data) {
+            this.managed = [data.id];
         },
 
-        initialize_tree() {
-            let self = this;
-            this.$tree.tree({
-                data: this.tree_items,
-                dragAndDrop: true,
-                autoOpen: false,
-                closedIcon: $(tree_consts.ICON_CLOSED_DIRECTORY),
-                openedIcon: $(tree_consts.ICON_OPEN_DIRECTORY),
-                onCreateLi: self.decorate_tree.bind(self),
-                onCanMoveTo: self.can_move_to.bind(self),
-                onDragMove: self.drag_move.bind(self)
-            });
+        node_dblclicked(data) {
+            if (data.type === 'dir') return;
+            this.selected_id = data.id;
+            this.$emit('tree_item_selected', data);
         },
 
-        decorate_tree(node, $li) {
-            this.set_status(node, $li);
-            this.set_locked(node, $li);
-            this.prepend_dup_open_seq(node, $li);
-            this.prepend_icons(node, $li);
-        },
-
-        set_status(node, $li) {
-            if (node.status) {
-                $li.find('.jqtree-title').addClass(node.status.toLowerCase());
+        node_expanded(data) {
+            if (!this.expanded_keys.includes(data.id)) {
+                this.expanded_keys = [...this.expanded_keys, data.id];
             }
         },
 
-        set_locked(node, $li) {
-            if (node.locked || this.account.locked) {
-                $li.find('.jqtree-title').addClass('locked');
-            }
+        node_collapsed(data) {
+            this.expanded_keys = this.expanded_keys.filter(
+                id => id !== data.id
+            );
         },
 
-        prepend_dup_open_seq(node, $li) {
-            if (!node.dup_opened_seq) return;
-            $li.find('.jqtree-title').prepend('(' + node.dup_opened_seq + ') ');
+        // Items are listed by name, so only moves to another folder (or the top level) count
+        allow_drop(dragging, drop, type) {
+            if (type === 'inner') return drop.data.type === 'dir';
+            return (
+                (dragging.data.parent_id || null) !==
+                (drop.data.parent_id || null)
+            );
         },
 
-        prepend_icons(node, $li) {
-            if (node.status === 'ERROR') {
-                $li.find('.jqtree-title').prepend(
-                    this.wrap_icon(tree_consts.ICON_ERROR)
-                );
-            } else if (node.status === 'PENDING') {
-                $li.find('.jqtree-title').prepend(
-                    this.wrap_icon(tree_consts.ICON_PROCESSING)
-                );
-            } else if (node.type === 'dir' && node.children.length === 0) {
-                $li.find('.jqtree-title').prepend(
-                    this.wrap_icon(tree_consts.ICON_EMPTY_DIRECTORY)
-                );
-            } else if (node.web_file_type === 'data-grid') {
-                $li.find('.jqtree-title').prepend(
-                    this.wrap_icon(tree_consts.ICON_GRID)
-                );
-            }
+        node_dropped(dragging, drop, type) {
+            const parent_id =
+                type === 'inner' ? drop.data.id : drop.data.parent_id || null;
+            this.$emit('move_tree_item', {
+                moved_node: dragging.data,
+                parent_id
+            });
         },
-
-        wrap_icon(icon_html) {
-            return `<span class="icon-wrapper">${icon_html}</span>`;
-        },
-
-        can_move_to(moved_node, target_node) {
-            this.$tree.find('.drag-background').remove();
-            let canMove = this.can_move_tree_item(moved_node, target_node);
-
-            if (canMove) {
-                let target_element = null;
-                if (target_node.type === 'file') {
-                    if (target_node.parent.element) {
-                        target_element = target_node.parent.element;
-                    } else {
-                        target_element = $(this.$tree).find('.jqtree-tree')[0];
-                    }
-                } else {
-                    target_element = target_node.element;
-                }
-                const offset_left = this.offset(target_element).left;
-                $drag_background.css({
-                    left: offset_left * -1,
-                    width: 'calc(100% + ' + (offset_left + 16) + 'px)'
-                });
-                if (target_element) $(target_element).append($drag_background);
-            }
-
-            return canMove;
-        },
-
-        can_move_tree_item(item, target) {
-            let canMove = false;
-
-            if (target.type === 'dir') {
-                canMove = true;
-            } else if (item.parent_id !== target.parent_id) {
-                canMove = true;
-            }
-
-            return canMove;
-        },
-
-        drag_move(node, event) {
-            this.$tree.find('.drag-background').remove();
-            if (event) {
-                this.drag_move_element = event.target;
-                console.log(this.drag_move_element);
-            }
-        },
-        /*** End: Load tree - kicked off when component is mounted ***/
+        /*** End: Tree events ***/
 
         /*** Start: Event Handlers ***/
         remove_tree_items() {
@@ -284,9 +138,7 @@ export default {
             if (this.managed.length > 0) {
                 this.$emit(
                     'edit_tree_items',
-                    this.managed.map(id => {
-                        return this.$tree.tree('getNodeById', id);
-                    })
+                    this.managed.map(id => this.find_item(id)).filter(Boolean)
                 );
             }
         },
@@ -294,9 +146,7 @@ export default {
         add_tree_item(item) {
             let parent_id = null;
             if (this.managed.length > 0) {
-                let managed_id = this.managed[0];
-                let node = this.$tree.tree('getNodeById', managed_id);
-
+                const node = this.find_item(this.managed[0]);
                 if (node) {
                     if (node.type === 'dir') parent_id = node.id;
                     else parent_id = node.parent_id;
@@ -306,69 +156,35 @@ export default {
         },
         /*** End: Event Handlers ***/
 
-        /*** Start: Select Items ***/
+        /*** Start: Called by the parent (home) ***/
         select_tree_item_by_id(id) {
             if (!id) {
-                this.tree_state.selected_node = [];
-                this.$tree.tree('setState', this.tree_state);
-            } else {
-                const node = this.$tree.tree('getNodeById', id);
-                if (node.type === 'dir') return;
-                if (this.tree_state.selected_node.indexOf(node.id) < 0) {
-                    this.$tree.tree('selectNode', node);
-                    this.tree_state = this.$tree.tree('getState');
-                }
+                this.selected_id = null;
+                return;
             }
-        },
-        /*** Start: Select Items ***/
-
-        /*** Start: Manage Items ***/
-        style_managed_items() {
-            this.managed.forEach(this.style_managed_item_by_id);
+            const node = this.find_item(id);
+            if (node && node.type !== 'dir') this.selected_id = node.id;
         },
 
         clear_managed_nodes() {
             this.managed = [];
-            this.$tree.find('.highlighter').remove();
         },
 
         managed_tree_item_by_id(id) {
-            if (!id) {
-                this.clear_managed_nodes();
-            } else {
-                this.managed = [id];
-                this.style_managed_item_by_id(id);
-            }
+            this.managed = id ? [id] : [];
         },
+        /*** End: Called by the parent (home) ***/
 
-        style_managed_item_by_id(id) {
-            if (!id) return;
-            const node = this.$tree.tree('getNodeById', id);
-            this.style_managed_item_by_node(node);
-        },
-
-        style_managed_item_by_node(node) {
-            this.$tree.find('.highlighter').remove();
-            let $element = $(node.element).find('.jqtree-element')[0];
-            let $highlighter = $('<div class="highlighter"></div>');
-            const offset_left = this.offset($element).left;
-            $highlighter.css({
-                left: (offset_left - 40) * -1,
-                width: 'calc(100% + ' + (offset_left - 25) + 'px)'
-            });
-            $($element).prepend($highlighter);
-        },
-        /*** Start: Manage Items ***/
-
-        /*** Start: DOM Helpers ***/
-        offset(el) {
-            let rect = el.getBoundingClientRect(),
-                scrollLeft =
-                    window.pageXOffset || document.documentElement.scrollLeft,
-                scrollTop =
-                    window.pageYOffset || document.documentElement.scrollTop;
-            return { top: rect.top + scrollTop, left: rect.left + scrollLeft };
+        find_item(id) {
+            let found = null;
+            const search = items =>
+                (items || []).some(item => {
+                    if (item.id === id) found = item;
+                    else search(item.children);
+                    return !!found;
+                });
+            search(this.tree_items);
+            return found;
         }
-        /*** End: DOM Helpers ***/
     }
 };

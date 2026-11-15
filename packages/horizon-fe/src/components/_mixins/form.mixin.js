@@ -1,3 +1,5 @@
+import { Edit, Check, Close } from '@element-plus/icons-vue';
+
 export const form_mixin = {
     data: function () {
         return {
@@ -12,6 +14,11 @@ export const form_mixin = {
                 rules: {}
             }
         };
+    },
+
+    created() {
+        // Icon components for the edit/save/cancel buttons (not reactive data)
+        this.form_icons = { Edit, Check, Close };
     },
 
     mounted() {

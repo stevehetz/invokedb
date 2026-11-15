@@ -1,8 +1,12 @@
+import { ElNotification } from 'element-plus';
+
 const INFO_DURATION = 2500;
 const WARN_DURATION = 2500;
 const SUCCESS_DURATION = 2500;
 const ERROR_DURATION = 3500;
 
+// Handlers for the bus's notify:* events. (In Vue 2 these reached `$notify` because the bus
+// called them with a Vue instance as `this`; they now call Element Plus directly.)
 export default class Notify {
     /***
      * Supports the following inputs
@@ -23,7 +27,7 @@ export default class Notify {
                 message = m;
             }
         }
-        this.$notify.info({
+        ElNotification.info({
             title,
             message,
             duration: d || INFO_DURATION
@@ -49,7 +53,7 @@ export default class Notify {
                 message = m;
             }
         }
-        this.$notify.warning({
+        ElNotification.warning({
             title,
             message,
             duration: d || WARN_DURATION
@@ -75,7 +79,7 @@ export default class Notify {
                 message = m;
             }
         }
-        this.$notify.success({
+        ElNotification.success({
             title,
             message,
             duration: d || SUCCESS_DURATION
@@ -107,7 +111,7 @@ export default class Notify {
                 }
             }
         }
-        this.$notify.error({
+        ElNotification.error({
             title,
             message,
             duration: d || ERROR_DURATION

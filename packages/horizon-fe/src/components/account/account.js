@@ -29,7 +29,7 @@ export default {
         });
     },
 
-    beforeDestroy() {
+    beforeUnmount() {
         this.account_subscription.unsubscribe();
     }
 };

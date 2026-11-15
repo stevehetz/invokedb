@@ -1,12 +1,10 @@
 <script>
 // The signed-in app's shell (route /app). It owns the app's global CSS; see router.js for why.
-// No 'element-ui/lib/theme-chalk/index.css' here: stylesheet.scss compiles the whole Element theme
+// No 'element-plus/dist/index.css' here: element-theme.scss compiles the whole Element theme
 // (with the app's colours) itself. Importing both put the default theme in a shared chunk that
-// Vite's production build loaded after stylesheet.scss, overriding the app's nav styles.
-import '@/core/jquery-global'; // must come before jqtree
-import 'jqtree';
-import 'jqtree/jqtree.css';
-import 'ag-grid-community/dist/styles/ag-grid.css';
+// Vite's production build loaded after the app's styles, overriding the app's nav styles.
+import 'ag-grid-community/styles/ag-grid.css';
+import '@/element-theme.scss';
 import '@/stylesheet.scss';
 
 import ViewBusContainer from '@/components/view-bus/view-bus-container';
@@ -69,8 +67,9 @@ export default {
 <template>
     <div class="app">
         <layout v-if="account && !loading">
-            <router-view slot="page_overlay" />
-            <router-view slot="body" />
+            <template #body>
+                <router-view />
+            </template>
         </layout>
         <view-bus-container></view-bus-container>
         <div v-if="!account && !loading" class="load-error">

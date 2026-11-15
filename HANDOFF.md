@@ -10,8 +10,7 @@ what to do next. Git history has the details of past work.
 ## Start here
 
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
-2. Steps 2.3–2.5 (Vue 3) are done on branch `feat/vue3`, awaiting review. After it's merged,
-   the next job is **step 3**. Check frontend changes with the frontend build and lint.
+2. The next job is **step 3**. Check frontend changes with the frontend build and lint.
 3. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
 4. Work on a branch. The user merges to `main` and pushes once they approve.
@@ -22,7 +21,8 @@ what to do next. Git history has the details of past work.
   public site at `/`, app at `/app`). Login, the API and Mongo writes work.
 - **Done and on `main`:** local dev revamp, legacy-ops clean-up, secrets sync, demo data,
   backend upgrade (NestJS 11, TypeORM 0.3, mongodb 6), agent tooling + prettier, UI smoke test,
-  `horizon-auth-fe` merged into `horizon-fe`, Vue CLI → Vite 6 on Vue 2.7.
+  `horizon-auth-fe` merged into `horizon-fe`, Vue CLI → Vite 6, account scoping fix (0.05),
+  frontend on Vue 3 + Element Plus + ag-grid 32 (2.3–2.5).
 - **Production:** none. The Azure infrastructure was torn down; the scripts are kept for a rebuild.
 - **Logins:** `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, password
   `password`.
@@ -36,9 +36,8 @@ what to do next. Git history has the details of past work.
   with no deployment; move them to env vars before deploying (step 3).
 - **Stripe isn't in use**, and the old keys are deliberately not rolled. If it comes back, create
   new keys. `/checkout` throws `Please call Stripe() with your publishable key` without them.
-- For step 2.3: `sass` is pinned at 1.32 for Element UI's theme SCSS (Vite uses the legacy Sass
-  API). The two areas' global stylesheets still clash; unify them during the Element Plus work,
-  then cross-area links can use the router.
+- The two areas' global stylesheets still clash (see AGENTS.md); unifying them would let
+  cross-area links use the router. Optional.
 - The entry JS is a single 2.3 MB chunk (577 kB gzip). Vite warns; splitting it is optional.
 - `/api/v1/get` leaves out empty cells. That looks intended.
 - Your `.env` still has two unused `HORIZON_AUTH_FE_*` lines. Delete them whenever (then
@@ -62,7 +61,7 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   defaults to the local backend; the Angular app was rewritten on Angular 22 against new made-up
   CSVs in `examples/data` (the old Dropbox CSVs were gone, and the Game of Thrones sigil images
   were dropped); `examples/setup.mjs` loads the tables and writes the app's API key config.
-- **0.05: done** (2026-11-15, branch `fix/table-ownership`). Internal routes now take the
+- **0.05: done** (2026-11-15). Internal routes now take the
   account from the login session (`web/http/_auth/request-account.ts`) and ignore any
   `account_id` the frontend sends. `/file-directory` checks ownership on list, create, validate,
   update and batch delete, and checks that a `parent_id` is one of the caller's own folders (no
@@ -76,11 +75,23 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   every deleted table (it only did the last one). `api-smoke.mjs` has 19 new cross-account
   checks as `demo2@invokedb.com`; the pre-fix code fails all of them. Left alone: the Stripe
   `/webhook/stripe` route doesn't verify signatures (Stripe is off; fix before it comes back).
-- **2.3:** while still on Vue 2.7, Element UI → Element Plus, `ag-grid-vue` →
-  `ag-grid-vue3`, and remove jQuery / jqtree from `h-tree` (then drop `src/core/jquery-global.js`).
-- **2.4:** switch to Vue 3 (compat build first). Vuex → Pinia now or later.
-- **2.5:** replace the frontend ESLint config (`babel-eslint` / `@vue/prettier`) with a current
-  flat config, and drop the leftover prettier 1.19.
+- **2.3–2.5: done** (2026-11-15). Element Plus and `ag-grid-vue3` need
+  Vue 3, so 2.3 couldn't happen on Vue 2.7; all three steps were done together, straight to Vue
+  3.5 (no compat build): vue-router 4, Element Plus 2.14 (app theme in `src/element-theme.scss`),
+  ag-grid 22 → 32.3 (the last version before v33's theming/modules overhaul; 33+ is a later
+  step), jqtree → Element Plus `el-tree`, all jQuery → DOM/`fetch`, `Vue` event bus → a small
+  emitter, highlight.js bundled from npm instead of the CDN, current `sass`, ESLint 10 flat
+  config. Dropped: `element-ui`, `ag-grid-vue`, `jqtree`, `jquery`, `vue-property-decorator`,
+  and the unused `EventEmitter` package (it pulled in gulp/babel 6). 544 → 265 packages.
+  Checked with build + lint, screenshots of 15 screens against the Vue 2 build (side by side;
+  differences fixed) and a Playwright pass of upload, cell edit, add row, column rename, table
+  add/rename/delete, account save and logout. Not run: `ui-smoke.mjs` (its filter selector was
+  updated for ag-grid 32). Pinia: not needed, the app has no Vuex (it uses `src/store`, an
+  rxjs `BehaviorSubject` map). Known differences: entering Edit Columns now refetches rows
+  (ag-grid 32 reacts to filtering being switched off), so the row count resets to the unfiltered
+  total.
+- **2.6 (optional):** ag-grid 32 → current (Theming API, module registration), and move the
+  SCSS off the Sass deprecations that `vite.config.js` silences (`@import`, global `lighten()`).
 - **3 (small, any time):** move `FS_TOKEN` / `WS_SERVER_TOKEN` to env vars.
 - **4 (optional):** a `docker-compose.yml` for Postgres and Mongo.
 - **5 (test deployment, on `invokedb.com`):** a cheap, simple deploy for testing, not AKS/Helm.

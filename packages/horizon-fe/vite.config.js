@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue2';
+import vue from '@vitejs/plugin-vue';
 
 // Env comes from scripts/env.sh (the repo .env); the browser gets its runtime env from
 // public/env.txt, written by env.js.
@@ -13,8 +13,11 @@ export default defineConfig({
     },
     css: {
         preprocessorOptions: {
-            // sass 1.32 only has the legacy API; Element UI's theme SCSS predates the modern one
-            scss: { api: 'legacy', quietDeps: true }
+            // Element Plus's theme SCSS is still written with `@import`-era globals
+            scss: {
+                quietDeps: true,
+                silenceDeprecations: ['import', 'global-builtin']
+            }
         }
     },
     server: {

@@ -7,19 +7,18 @@
         "env": "node env.js",
         "build": "vite build",
         "preview": "npm run env dist && vite preview",
-        "lint": "eslint --ext .js,.vue src"
+        "lint": "eslint src"
     },
     "dependencies": {
+        "@element-plus/icons-vue": "^2.3.2",
         "@fortawesome/fontawesome-free": "^5.13.0",
-        "ag-grid-community": "^22.1.1",
-        "ag-grid-vue": "^22.1.1",
+        "ag-grid-community": "~32.3.9",
+        "ag-grid-vue3": "~32.3.9",
         "copy-to-clipboard": "^3.3.1",
-        "element-ui": "^2.13.0",
-        "EventEmitter": "^1.0.0",
+        "element-plus": "^2.14.8",
+        "event-emitter": "^0.3.5",
         "express": "^4.17.1",
         "highlight.js": "^10.1.0",
-        "jqtree": "^1.4.12",
-        "jquery": "^3.5.1",
         "js-cookie": "^2.2.1",
         "jsonfile": "^6.0.0",
         "lodash": "^4.17.15",
@@ -29,45 +28,18 @@
         "rxjs": "^6.5.4",
         "rxjs-compat": "^6.5.4",
         "split.js": "^1.5.11",
-        "vue": "^2.7.16",
-        "vue-property-decorator": "^8.4.0",
-        "vue-router": "^3.1.6"
+        "vue": "^3.5.45",
+        "vue-router": "^4.6.5"
     },
     "devDependencies": {
-        "@vitejs/plugin-vue2": "^2.3.4",
-        "@vue/eslint-config-prettier": "^6.0.0",
+        "@vitejs/plugin-vue": "^6.0.11",
         "autoprefixer": "^10.4.21",
-        "babel-eslint": "^10.1.0",
-        "eslint": "^6.8.0",
-        "eslint-plugin-prettier": "^3.1.2",
-        "eslint-plugin-vue": "^6.2.1",
-        "sass": "~1.32.13",
-        "vite": "^6.4.6"
-    },
-    "eslintConfig": {
-        "root": true,
-        "globals": {
-            "_": true
-        },
-        "env": {
-            "browser": true,
-            "commonjs": true,
-            "es6": true,
-            "jquery": true,
-            "node": true
-        },
-        "extends": [
-            "plugin:vue/essential",
-            "@vue/prettier"
-        ],
-        "rules": {
-            "no-console": 0,
-            "no-unused-vars": 0,
-            "prettier/prettier": 0
-        },
-        "parserOptions": {
-            "parser": "babel-eslint"
-        }
+        "eslint": "^10.15.0",
+        "eslint-plugin-vue": "^10.12.1",
+        "globals": "^17.14.0",
+        "sass": "^1.108.2",
+        "vite": "^6.4.6",
+        "vue-eslint-parser": "^10.4.2"
     },
     "postcss": {
         "plugins": {

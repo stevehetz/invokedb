@@ -16,7 +16,7 @@
                         v-if="!$data.$_form.editing"
                         class="icon-btn"
                         type="primary"
-                        icon="el-icon-edit"
+                        :icon="form_icons.Edit"
                         @click="$_form_edit"
                         circle
                     >
@@ -25,7 +25,7 @@
                         v-if="$data.$_form.editing"
                         class="icon-btn"
                         type="success"
-                        icon="el-icon-check"
+                        :icon="form_icons.Check"
                         @click="$_form_save"
                         circle
                     >
@@ -34,7 +34,7 @@
                         v-if="$data.$_form.editing"
                         class="icon-btn"
                         type="danger"
-                        icon="el-icon-close"
+                        :icon="form_icons.Close"
                         @click="$_form_cancel"
                         circle
                     >
@@ -47,7 +47,7 @@
         <el-form-item label="Email" prop="email">
             <el-input
                 v-model="$data.$_form.data.email"
-                @keyup.native.enter="$_form_save"
+                @keyup.enter="$_form_save"
                 :disabled="true"
             >
             </el-input>
@@ -57,7 +57,7 @@
                 <el-form-item label="First Name" prop="first_name">
                     <el-input
                         v-model="$data.$_form.data.first_name"
-                        @keyup.native.enter="$_form_save"
+                        @keyup.enter="$_form_save"
                         :disabled="!$data.$_form.editing"
                     >
                     </el-input>
@@ -67,7 +67,7 @@
                 <el-form-item label="Last Name" prop="last_name">
                     <el-input
                         v-model="$data.$_form.data.last_name"
-                        @keyup.native.enter="$_form_save"
+                        @keyup.enter="$_form_save"
                         :disabled="!$data.$_form.editing"
                     >
                     </el-input>

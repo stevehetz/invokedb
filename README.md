@@ -15,7 +15,7 @@ Monorepo with two packages:
 | Package               | What                                                | Dev URL                          |
 | --------------------- | --------------------------------------------------- | -------------------------------- |
 | `packages/horizon-be` | NestJS API + websocket server (Postgres + MongoDB)  | http://127.0.0.1:8001 (ws :9000) |
-| `packages/horizon-fe` | Frontend (Vue 2): public site at `/`, app at `/app` | http://127.0.0.1:8000            |
+| `packages/horizon-fe` | Frontend (Vue 3): public site at `/`, app at `/app` | http://127.0.0.1:8000            |
 
 Client code lives under `examples/` (each with its own `node_modules`, outside the root formatter):
 
@@ -90,8 +90,7 @@ npm run format:check    # check only
 ```
 
 VS Code formats on save (`.vscode/settings.json`; install the recommended Prettier extension).
-It's pointed at the root prettier, because the frontends carry an older prettier 1.19 inside
-`node_modules`.
+It's pointed at the root prettier.
 
 Staged files are also formatted when you commit (`.githooks/pre-commit`). `npm install` at the
 root turns this on by setting `git config core.hooksPath .githooks`.

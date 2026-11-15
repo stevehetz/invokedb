@@ -1,4 +1,4 @@
-import $ from 'jquery';
+import { request } from './request';
 import file_upload from './file-upload';
 import { store } from '@/store';
 
@@ -36,76 +36,19 @@ export const http = {
     },
 
     get(path) {
-        return new Promise((resolve, reject) => {
-            $.ajax({
-                method: 'GET',
-                url: path,
-                contentType: 'application/json',
-                beforeSend: xhr => {
-                    xhr.setRequestHeader(
-                        'Authorization',
-                        `BEARER ${this.get_token()}`
-                    );
-                }
-            })
-                .done(res => {
-                    if (res.status >= 400) return reject(res);
-                    resolve(res);
-                })
-                .fail(res => {
-                    reject(res.responseJSON);
-                });
-        });
+        return request('GET', path, this.get_token());
     },
 
-    put(path, data, callback) {
-        return new Promise((resolve, reject) => {
-            $.ajax({
-                method: 'PUT',
-                url: path,
-                contentType: 'application/json',
-                data: JSON.stringify(data),
-                beforeSend: xhr => {
-                    xhr.setRequestHeader(
-                        'Authorization',
-                        `BEARER ${this.get_token()}`
-                    );
-                }
-            })
-                .done(res => {
-                    if (res.status >= 400) return reject(res);
-                    if (callback) callback(res);
-                    resolve(res);
-                })
-                .fail(res => {
-                    reject(res.responseJSON);
-                });
-        });
+    async put(path, data, callback) {
+        const res = await request('PUT', path, this.get_token(), data);
+        if (callback) callback(res);
+        return res;
     },
 
-    post(path, data, callback) {
-        return new Promise((resolve, reject) => {
-            $.ajax({
-                method: 'POST',
-                url: path,
-                contentType: 'application/json',
-                data: JSON.stringify(data),
-                beforeSend: xhr => {
-                    xhr.setRequestHeader(
-                        'Authorization',
-                        `BEARER ${this.get_token()}`
-                    );
-                }
-            })
-                .done(res => {
-                    if (res.status >= 400) return reject(res);
-                    if (callback) callback(res);
-                    resolve(res);
-                })
-                .fail(res => {
-                    reject(res.responseJSON);
-                });
-        });
+    async post(path, data, callback) {
+        const res = await request('POST', path, this.get_token(), data);
+        if (callback) callback(res);
+        return res;
     },
 
     delete(path, data) {

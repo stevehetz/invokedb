@@ -2,7 +2,7 @@
     <el-dialog
         width="500px"
         v-bind:title="title"
-        :visible.sync="dialog_visible"
+        v-model="dialog_visible"
         @open="on_open"
         :close-on-click-modal="false"
         :show-close="false"
@@ -35,15 +35,16 @@
                     :on-remove="on_remove"
                     :multiple="false"
                 >
-                    <el-button
-                        :disabled="running"
-                        @click="trigger_clicked"
-                        slot="trigger"
-                        size="small"
-                        type="primary"
-                    >
-                        <i class="fa fa-upload"></i>
-                    </el-button>
+                    <template #trigger>
+                        <el-button
+                            :disabled="running"
+                            @click="trigger_clicked"
+                            size="small"
+                            type="primary"
+                        >
+                            <i class="fa fa-upload"></i>
+                        </el-button>
+                    </template>
                 </el-upload>
             </div>
         </div>
@@ -54,7 +55,7 @@
                 ref="new_name"
                 v-model="new_name"
                 :disabled="running"
-                @keyup.enter.native="upload_handler"
+                @keyup.enter="upload_handler"
             >
             </el-input>
         </div>
@@ -64,14 +65,16 @@
         <div v-if="error_message" class="error-message">
             <span>{{ error_message }}</span>
         </div>
-        <span slot="footer" class="dialog-footer">
-            <el-button @click="cancel_handler">Cancel</el-button>
-            <el-button
-                type="primary"
-                @click="upload_handler"
-                :disabled="running"
-                >Upload</el-button
-            >
-        </span>
+        <template #footer
+            ><span class="dialog-footer">
+                <el-button @click="cancel_handler">Cancel</el-button>
+                <el-button
+                    type="primary"
+                    @click="upload_handler"
+                    :disabled="running"
+                    >Upload</el-button
+                >
+            </span></template
+        >
     </el-dialog>
 </div>

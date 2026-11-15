@@ -21,7 +21,7 @@
             v-if="indexed"
             content="Column is indexed"
             placement="top"
-            :open-delay="0"
+            :show-after="0"
             :enterable="false"
         >
             <div class="grid-header-index">
@@ -91,7 +91,7 @@
         <el-tooltip
             :content="indexed ? 'Column index is on' : 'Column index is off'"
             placement="top"
-            :open-delay="0"
+            :show-after="0"
             :enterable="false"
         >
             <div
@@ -104,7 +104,7 @@
         </el-tooltip>
         <el-input
             class="grid-header-input"
-            @keyup.native="value_change"
+            @keyup="value_change"
             v-model="edit_obj.display_name"
         >
         </el-input>

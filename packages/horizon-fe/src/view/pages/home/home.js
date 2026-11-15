@@ -1,9 +1,7 @@
 import screenshot_row_edit from '@/assets/screenshot-row-edit.png';
 import screenshot_column_edit from '@/assets/screenshot-column-edit.png';
 import screenshot_filter from '@/assets/screenshot-filter.png';
-const hljs = window.hljs;
-import javascript from 'highlight.js/lib/languages/javascript';
-hljs.registerLanguage('javascript', javascript);
+import { highlight_code_blocks } from '@/core/utils/highlight';
 import { store } from '@/store';
 
 import * as samples from './code-samples';
@@ -43,9 +41,7 @@ export default {
         },
 
         highlight() {
-            document.querySelectorAll('pre code').forEach(block => {
-                hljs.highlightBlock(block);
-            });
+            highlight_code_blocks();
         },
 
         change_code_sample(type) {

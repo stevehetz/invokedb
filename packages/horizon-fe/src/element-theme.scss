@@ -1,0 +1,14 @@
+// The signed-in app's Element Plus theme: the whole theme-chalk SCSS, compiled with the app's
+// primary and success colours ($purple300 and $green500 in stylesheet.scss).
+// Imported only by components/app.vue; the public site uses the default theme CSS.
+@forward 'element-plus/theme-chalk/src/common/var.scss' with (
+    $colors: (
+        'primary': (
+            'base': #6858ab
+        ),
+        'success': (
+            'base': #54b358
+        )
+    )
+);
+@use 'element-plus/theme-chalk/src/index.scss' as *;

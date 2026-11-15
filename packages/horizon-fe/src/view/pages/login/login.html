@@ -34,7 +34,7 @@
                         <el-input
                             type="text"
                             v-model="email"
-                            @keyup.enter.native="login"
+                            @keyup.enter="login"
                             placeholder="Email"
                             ref="email"
                         ></el-input>
@@ -43,7 +43,7 @@
                         <el-input
                             type="password"
                             v-model="password"
-                            @keyup.enter.native="login"
+                            @keyup.enter="login"
                             placeholder="Password"
                         ></el-input>
                     </div>

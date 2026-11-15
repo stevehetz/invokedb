@@ -1,12 +1,12 @@
 <template>
     <div class="app" v-if="loaded">
-        <router-view slot="body" />
+        <router-view />
     </div>
 </template>
 <script>
 // The public site's shell (marketing, login, signup, checkout). It owns the site's global CSS;
 // see router.js for why.
-import 'element-ui/lib/theme-chalk/index.css';
+import 'element-plus/dist/index.css';
 import './stylesheet.scss';
 
 import cookies from 'js-cookie';

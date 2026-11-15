@@ -10,7 +10,7 @@ const Server_WS = require('ws');
 const WebSocketServer = Server_WS.Server;
 const EventEmitter = require('events').EventEmitter;
 const util = require('util');
-const _c = require('@app/constants').default;
+const env = require('@app/env').default;
 
 const SocketManagerServer = function (id) {
     this.id = id || null;
@@ -181,7 +181,7 @@ SocketManagerServer.prototype.unsubscribeClient = function (client) {
 SocketManagerServer.prototype.authenticate = function (token) {
     return new Promise((resolve, reject) => {
         try {
-            if (token === _c.WS_SERVER_TOKEN) {
+            if (token && token === env.HORIZON_WS_SERVER_TOKEN) {
                 resolve('secure');
             } else {
                 this.auth_middleware.validate_token(token).then(res => {

@@ -8,8 +8,6 @@ export default {
     HORIZON_PRC_WS_CLIENT_ID: 'horizon-prc',
     HORIZON_FS_WS_CLIENT_ID: 'horizon-fs',
     HORIZON_WS_BROKER_SERVER_ID: 'horizon-ws-broker',
-    FS_TOKEN: 'f17502c1-131a-4269-b18a-19fb8bd0aaef',
-    WS_SERVER_TOKEN: 'f17502c1-131a-4269-b18a-19fb8bd0aaef',
     PostgresDbConnectionToken: 'PostgresDbConnectionToken',
     MongoDbConnectionToken: 'MongoDbConnectionToken',
     MongoDbCollections: {

@@ -2,7 +2,7 @@
 
 The single source of truth for coding agents (Claude Code, Codex, Cursor, and others) in this
 repo. `CLAUDE.md` only imports this file. People should read `README.md` for commands and
-`HANDOFF.md` for project status and history.
+`docs/HANDOFF.md` for project status and history.
 
 ## What this is
 

@@ -24,9 +24,9 @@ in `docs/`: `SAAS_PLAN.md` (turning it into a SaaS) and `AI_IDEAS.md` (AI featur
 - **Done and on `main`:** local dev revamp, legacy-ops clean-up, secrets sync, demo data,
   backend upgrade (NestJS 11, TypeORM 0.3, mongodb 6), agent tooling + prettier, UI smoke test,
   `horizon-auth-fe` merged into `horizon-fe`, Vue CLI → Vite 6, account scoping fix (0.05),
-  frontend on Vue 3 + Element Plus + ag-grid 32 (2.3–2.5).
-- **On branch `chore/env-tokens`, waiting for the user to merge:** step 3, and the move of
-  `HANDOFF.md`, `AI_IDEAS.md` and `SAAS_PLAN.md` from the repo root into `docs/`.
+  frontend on Vue 3 + Element Plus + ag-grid 32 (2.3–2.5), the websocket server token in an env
+  var (3), and `HANDOFF.md`, `AI_IDEAS.md` and `SAAS_PLAN.md` moved from the repo root into
+  `docs/`.
 - **Production:** none. The Azure infrastructure was torn down; the scripts are kept for a rebuild.
 - **Logins:** `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, password
   `password`.

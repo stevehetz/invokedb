@@ -14,6 +14,12 @@ API. A monorepo of two packages with **separate `node_modules`** (no npm workspa
 | `packages/horizon-be` | NestJS 11, TypeORM 0.3 (Postgres), native `mongodb` 6 driver, `ws` 8    | :8001 (websocket :9000) |
 | `packages/horizon-fe` | Vue 2.7, Vite 6, ag-grid, Element UI. Public site at `/`, app at `/app` | :8000                   |
 
+`examples/invokedb-node` (the `invokedb` npm client, rollup + TypeScript) and `examples/angular`
+(an Angular 10 example app that uses it) were moved in from their own repos on 2026-11-15. Each
+has its own `node_modules`, they're in `.prettierignore` (they keep their 2-space style), and
+`npm run push` doesn't version them. `examples/invokedb-node/release.sh` publishes to npm: don't
+run it unless asked.
+
 Logins (local and demo data): `demo@invokedb.com` … `demo7@invokedb.com`, password `password`.
 
 ## Commands

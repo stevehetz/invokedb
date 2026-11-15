@@ -1,6 +1,6 @@
 # InvokeDB revamp: handoff
 
-_Last updated 2026-11-14_
+_Last updated 2026-11-15_
 
 InvokeDB ("horizon") is a web app for building data tables you can query through an API. The
 revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the commands, and
@@ -10,9 +10,8 @@ what to do next. Git history has the details of past work.
 ## Start here
 
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
-2. The next job is **step 0** below (bring in the client repos), then **0.1** (README demo
-   GIF), then **step 2.3**. Check
-   frontend changes with the frontend build and lint.
+2. The next job is **step 0.1** below (README demo GIF), then **step 2.3**. Check frontend
+   changes with the frontend build and lint.
 3. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
 4. Work on a branch. The user merges to `main` and pushes once they approve.
@@ -55,16 +54,14 @@ what to do next. Git history has the details of past work.
 Numbering follows the original plan (steps 0 and 0.1 were added later and go first). Steps 1 (UI smoke baseline), 2.1 (merge the auth
 frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
 
-- **0 (next): bring in the two client repos.** Move
-  [`stevehetz/invokedb-node`](https://github.com/stevehetz/invokedb-node) (the Node client) and
-  [`stevehetz/invokedb-examples-angular`](https://github.com/stevehetz/invokedb-examples-angular)
-  (an Angular example app) into this repo under `examples/` (`examples/invokedb-node`,
-  `examples/angular`). Both are TypeScript on `master`. Their git history isn't needed: copy
-  the files in from a fresh clone (without `.git`, `node_modules` or build output) as one
-  commit. Check the files for secrets/API keys first, since this repo is public. Keep each one's own `node_modules` (no workspaces), add them to `.prettierignore`
-  or format them once, and mention them in `README.md`/`AGENTS.md`. Afterwards archive the old
-  GitHub repos with a README pointing here.
-- **0.1 (after 0): a demo GIF for `README.md`.** Show the main flow: log in as
+- **0: done** (2026-11-15). `stevehetz/invokedb-node` and `stevehetz/invokedb-examples-angular`
+  were copied in (no history) as `examples/invokedb-node` and `examples/angular`. They had no
+  secrets (the Angular app's `invoke-config.json` is gitignored). Left for the user: archive the
+  two old GitHub repos with a README pointing here. Known issues, not fixed: the client defaults
+  to the dead `https://api.invokedb.com/v1`, and three of the Angular services rely on that
+  default; the Angular README's sample CSVs (Dropbox links) are gone (404); the Angular app is
+  Angular 10 and hasn't been installed or built here.
+- **0.1 (next): a demo GIF for `README.md`.** Show the main flow: log in as
   `demo@invokedb.com`, **upload a CSV** as a new table, sort/filter/edit it in the grid, then
   query it through the API (a `curl` or the Node client from step 0). No sample CSVs survive (none
   in the repo or under `~/dev`, `~/Downloads`, `~/Desktop`, `~/Documents`), and the smoke tests

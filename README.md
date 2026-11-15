@@ -17,6 +17,13 @@ Monorepo with two packages:
 | `packages/horizon-be` | NestJS API + websocket server (Postgres + MongoDB)  | http://127.0.0.1:8001 (ws :9000) |
 | `packages/horizon-fe` | Frontend (Vue 2): public site at `/`, app at `/app` | http://127.0.0.1:8000            |
 
+Client code lives under `examples/` (each with its own `node_modules`, outside the root formatter):
+
+- `examples/invokedb-node`: the JavaScript/TypeScript API client, published to npm as
+  [`invokedb`](https://www.npmjs.com/package/invokedb).
+- `examples/angular`: an Angular 10 example app (to-do list, contact form, wine reviews) that
+  uses the client.
+
 ## Prerequisites
 
 - Node 22 (`nvm use`)

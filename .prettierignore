@@ -14,6 +14,10 @@ ops/shared/dumps
 # Third-party / static assets copied verbatim into builds
 packages/*/public
 
+# Client code moved in from its own repos; keeps its own (2-space) prettier style
+examples/invokedb-node
+examples/angular
+
 # Legacy Azure/Helm ops (Helm templates are not valid YAML for prettier)
 ops
 

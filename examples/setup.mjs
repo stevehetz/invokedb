@@ -101,7 +101,30 @@ for (const table of TABLES) {
         d => d.name.toLowerCase() === table.name.toLowerCase()
     );
     if (existing && !opts.replace) {
-        console.log(`- ${table.name}: already exists, skipped (use --replace to re-create it)`);
+        // Table names match case-insensitively, so an unrelated older table (e.g. "Todo") can
+        // stand in for ours. Check it has the CSV's columns before calling it good.
+        const header = fs
+            .readFileSync(path.join(here, 'data', table.csv), 'utf8')
+            .split(/\r?\n/, 1)[0];
+        const cols = await call(
+            'POST',
+            `/web-file/data_grid_column/${existing.id}?skip=0&limit=100`,
+            {
+                token,
+                body: {}
+            }
+        );
+        const have = new Set(cols.data.map(c => c.headerName));
+        const missing = header.split(',').filter(c => !have.has(c));
+        if (missing.length) {
+            console.warn(
+                `- ${table.name}: WARNING, existing table "${existing.name}" is missing ` +
+                    `${missing.join(', ')}; the example won't work with it. ` +
+                    `Re-run with --replace to re-create it.`
+            );
+        } else {
+            console.log(`- ${table.name}: already exists, skipped (use --replace to re-create it)`);
+        }
         continue;
     }
     if (existing) {

@@ -17,9 +17,17 @@
         >
             <span class="active-column-type" v-html="col_type.display"></span>
         </div>
-        <div class="grid-header-index" v-if="indexed" title="Column is indexed">
-            <i class="index-icon fa fa-info"></i>
-        </div>
+        <el-tooltip
+            v-if="indexed"
+            content="Column is indexed"
+            placement="top"
+            :open-delay="0"
+            :enterable="false"
+        >
+            <div class="grid-header-index">
+                <i class="index-icon fa fa-info"></i>
+            </div>
+        </el-tooltip>
         <div class="grid-header-label">{{params.displayName}}</div>
         <div
             v-if="params.enableSorting && desc_sort === 'active'"
@@ -80,14 +88,20 @@
                 <span class="grid-header-type__menu__text">Date</span>
             </div>
         </div>
-        <div
-            class="grid-header-index"
-            :class="{ active: indexed }"
-            @click="index_change"
-            :title="indexed ? 'Column index is on' : 'Column index is off'"
+        <el-tooltip
+            :content="indexed ? 'Column index is on' : 'Column index is off'"
+            placement="top"
+            :open-delay="0"
+            :enterable="false"
         >
-            <i class="index-icon fa fa-info"></i>
-        </div>
+            <div
+                class="grid-header-index"
+                :class="{ active: indexed }"
+                @click="index_change"
+            >
+                <i class="index-icon fa fa-info"></i>
+            </div>
+        </el-tooltip>
         <el-input
             class="grid-header-input"
             @keyup.native="value_change"

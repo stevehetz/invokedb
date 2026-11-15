@@ -1890,6 +1890,7 @@ $nav_active_color: #ffffff;
 }
 .el-tabs .el-tabs__header {
     margin-bottom: 0;
+    user-select: none;
 }
 .el-tabs .el-tabs__content {
     background-color: white;

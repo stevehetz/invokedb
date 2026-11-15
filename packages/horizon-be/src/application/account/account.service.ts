@@ -3,10 +3,8 @@ import { Repository, createQueryBuilder } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from '@app/core/account/account.entity';
 import { AccountManager } from '@app/core/account/account.manager';
-import { AccountGetDto } from './dto/account-get.dto';
 import { AccountUpdateDto } from './dto/account-update.dto';
 import { AccountPassChangeDto } from './dto/account-pass-change.dto';
-import { paging_helper } from '@app/web/http/_paging/paging-helper';
 import { StripeEnvService } from '../stripe.service/stripe.service';
 
 @Injectable()
@@ -30,10 +28,6 @@ export class AccountService {
     async get_by_stripe_customer_id(stripe_customer_id) {
         if (!stripe_customer_id) return null;
         return await this.account_repository.findOneBy({ stripe_customer_id });
-    }
-
-    async get_all(params) {
-        return paging_helper(params, this.account_repository, AccountGetDto);
     }
 
     async account_from_key(api_key) {

@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { Account } from '@app/core/account/account.entity';
 import { ResetPassword } from '../reset-password/reset-password.entity';
+import { is_expired } from '@app/core/helpers/is-expired';
 import { validate_email, validate_password } from '@app/core/helpers/validators';
 
 const bcrypt = require('bcryptjs');
@@ -88,7 +89,8 @@ export class AccountManager {
         try {
             const reset_pass = await this.reset_password_repository.findOneBy({ token });
 
-            if (!reset_pass) throw new Error('Reset password token not found');
+            if (!reset_pass || is_expired(reset_pass.expired_datetime))
+                throw new Error('Reset password token not found');
 
             const account = await this.account_repository.findOneBy({
                 id: reset_pass.account_id

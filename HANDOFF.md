@@ -10,9 +10,8 @@ what to do next. Git history has the details of past work.
 ## Start here
 
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
-2. The next job is **step 0.05** below (fix the table-access security hole), then **0.1**
-   (README demo GIF), then **step 2.3**. Check frontend changes with the frontend build and
-   lint.
+2. Steps 2.3–2.5 (Vue 3) are done on branch `feat/vue3`, awaiting review. After it's merged,
+   the next job is **step 3**. Check frontend changes with the frontend build and lint.
 3. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
 4. Work on a branch. The user merges to `main` and pushes once they approve.
@@ -52,7 +51,7 @@ what to do next. Git history has the details of past work.
 
 ## Next steps
 
-Numbering follows the original plan (steps 0 and 0.1 were added later and go first). Steps 1 (UI smoke baseline), 2.1 (merge the auth
+Numbering follows the original plan (steps 0 and 0.05 were added later and go first). Steps 1 (UI smoke baseline), 2.1 (merge the auth
 frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
 
 - **0: done** (2026-11-15). `stevehetz/invokedb-node` and `stevehetz/invokedb-examples-angular`
@@ -63,30 +62,20 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   defaults to the local backend; the Angular app was rewritten on Angular 22 against new made-up
   CSVs in `examples/data` (the old Dropbox CSVs were gone, and the Game of Thrones sigil images
   were dropped); `examples/setup.mjs` loads the tables and writes the app's API key config.
-- **0.05 (next): fix cross-account table access (security).** Found 2026-11-15, not fixed.
-  `FileDirectoryController` (`src/web/http/file-directory/file-directory.controller.ts`) checks
-  that the caller is logged in, but not that the table belongs to them: `GET
-/file-directory?account_id=N` lists any account's tables (it trusts the query parameter), and
-  `PUT /file-directory/:id` updates any table by id (`FileDirectoryService.update` has no
-  ownership check). Fix: take the account from `req.user` (ignore or verify `account_id`), and
-  check `account_id` on every route that takes a table id. `web-file.service.ts` already has a
-  helper that throws `UnauthorizedException` when `file_directory.account_id` doesn't match;
-  reuse that pattern. Also audit `batch_delete`, the `/web-file/*` routes and the other
-  controllers for the same mistake. Add calls to `scripts/api-smoke.mjs` that try another
-  account's table (as `demo2@invokedb.com`) and expect 401/403, and verify with the
-  `verify-backend` skill. The frontend sends `account_id` today, so keep accepting the
-  parameter (but ignore it) so nothing breaks.
-- **0.1: a demo GIF for `README.md`.** Show the main flow: log in as
-  `demo@invokedb.com`, **upload a CSV** as a new table, sort/filter/edit it in the grid, then
-  query it through the API (a `curl` or the Node client from step 0). Use a CSV from
-  `examples/data` (`wine_reviews.csv` has text and number columns; `contacts.csv` and `todo.csv`
-  have dates; there's no boolean column type, `todo.is_complete` is `yes`/`no`). Capture it with a scripted Playwright run (like
-  `scripts/ui-smoke.mjs`) using `recordVideo` on the browser context at a fixed viewport, with
-  short pauses so it's readable. Then convert the `.webm` to a GIF with `ffmpeg` (palettegen +
-  paletteuse) or `gifski`. Neither is installed yet; `brew install ffmpeg` is a prebuilt binary,
-  so the no-native-npm-packages rule doesn't apply. Aim for under ~5 MB and about 15–30 s, save it
-  as `docs/demo.gif`, and keep the recording script in `scripts/` so the GIF can be re-made
-  after the UI changes (2.3/2.4). Record against the throwaway smoke env, not the user's data.
+- **0.05: done** (2026-11-15, branch `fix/table-ownership`). Internal routes now take the
+  account from the login session (`web/http/_auth/request-account.ts`) and ignore any
+  `account_id` the frontend sends. `/file-directory` checks ownership on list, create, validate,
+  update and batch delete, and checks that a `parent_id` is one of the caller's own folders (no
+  move cycles). `/web-file/*` already checked; the upload now uses the session account.
+  `/account/*` had **no auth at all** (anyone could rename, re-password or delete any account,
+  and `POST /account` listed every account): the routes are guarded and only act on the caller's
+  own account, and the list route is gone. API keys now only work on `/api/v1`, and `/api/v1`
+  only takes an API key (a login token used to crash it with a 500). Also: session
+  and reset-token expiry are enforced (they never were), sessions are revoked when a password
+  reset completes instead of when it's requested, and `batch_delete` now drops the Mongo data of
+  every deleted table (it only did the last one). `api-smoke.mjs` has 19 new cross-account
+  checks as `demo2@invokedb.com`; the pre-fix code fails all of them. Left alone: the Stripe
+  `/webhook/stripe` route doesn't verify signatures (Stripe is off; fix before it comes back).
 - **2.3:** while still on Vue 2.7, Element UI → Element Plus, `ag-grid-vue` →
   `ag-grid-vue3`, and remove jQuery / jqtree from `h-tree` (then drop `src/core/jquery-global.js`).
 - **2.4:** switch to Vue 3 (compat build first). Vuex → Pinia now or later.

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Request, Query, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Request, Body, Param, UseGuards } from '@nestjs/common';
 
 import { FileDirectoryService } from '@app/application/file-directory/file-directory.service';
 import { FileDirectoryGetDto } from '@app/application/file-directory/dto/file-directory-get.dto';
@@ -6,7 +6,10 @@ import { FileDirectoryCreateDto } from '@app/application/file-directory/dto/file
 import { FileDirectoryUpdateDto } from '@app/application/file-directory/dto/file-directory-update.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { AccountService } from '@app/application/account/account.service';
+import { session_account_id } from '@app/web/http/_auth/request-account';
 
+// Every route acts on the caller's own account. The frontend still sends `account_id` (in the
+// query or body); it is accepted but ignored.
 @Controller('file-directory')
 @UseGuards(AuthGuard('bearer'))
 export class FileDirectoryController {
@@ -16,44 +19,38 @@ export class FileDirectoryController {
     ) {}
 
     @Get()
-    async file_directory_get(@Query() query) {
-        const id = query.account_id;
-        return (await this.file_directory_service.get_all(id)) as FileDirectoryGetDto[];
+    async file_directory_get(@Request() req) {
+        const account_id = session_account_id(req.user);
+        return (await this.file_directory_service.get_all(account_id)) as FileDirectoryGetDto[];
     }
 
     @Post()
-    async file_directory_post(
-        @Param('no_file') no_file,
-        @Body() create_dto: FileDirectoryCreateDto,
-        @Request() req
-    ) {
-        no_file = no_file === 'true' ? true : false;
-        const res = await this.file_directory_service.create(
-            req.user.account_id,
-            create_dto,
-            no_file
-        );
+    async file_directory_post(@Body() create_dto: FileDirectoryCreateDto, @Request() req) {
+        const account_id = session_account_id(req.user);
+        const no_file = req.query.no_file === 'true';
+        const res = await this.file_directory_service.create(account_id, create_dto, no_file);
         return res.id;
     }
 
     @Post('validate')
-    async file_directory_validate(@Body() create_dto: FileDirectoryCreateDto) {
-        return await this.file_directory_service.validate(create_dto);
+    async file_directory_validate(@Body() create_dto: FileDirectoryCreateDto, @Request() req) {
+        const account_id = session_account_id(req.user);
+        return await this.file_directory_service.validate({ ...create_dto, account_id });
     }
 
     @Put(':file_directory_id')
     async file_directory_put(
         @Param('file_directory_id') id,
-        @Body() update_dto: FileDirectoryUpdateDto
+        @Body() update_dto: FileDirectoryUpdateDto,
+        @Request() req
     ) {
-        const res = await this.file_directory_service.update(id, update_dto);
-        return res;
+        const account_id = session_account_id(req.user);
+        return await this.file_directory_service.update_owned(account_id, id, update_dto);
     }
 
     @Post('batch_delete')
     async file_directory_delete(@Request() req) {
-        const account = await this.account_service.get(req.user.account_id);
-        const res = await this.file_directory_service.batch_delete(account, req.body);
-        return res;
+        const account = await this.account_service.get(session_account_id(req.user));
+        return await this.file_directory_service.batch_delete(account, req.body);
     }
 }

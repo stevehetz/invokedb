@@ -45,7 +45,8 @@ bash scripts/smoke-env.sh <file>  # throwaway env (horizon_smoke DBs, ports 81xx
 
 There are no unit tests worth running yet (jest is configured, but there are no specs). Verify
 backend changes with `build` plus `api-smoke.mjs` (see the `verify-backend` skill). Verify UI
-changes with `npm --prefix packages/horizon-fe run build` and `run lint`. The Playwright UI smoke
+changes with `npm --prefix packages/horizon-fe run build` and `run lint`; don't drive a browser
+(Playwright MCP or otherwise) to check them unless the user asks. The Playwright UI smoke
 test (`ui-smoke.mjs`, see the `verify-frontend` skill) is slow to set up, so **only run it when
 the user asks**. Both smoke tests run against a throwaway stack, never the user's data.
 
@@ -166,7 +167,9 @@ For starting this app, use `dev-stack` rather than any generic "run the app" beh
 Defined in `.mcp.json` at the repo root, which Claude Code reads directly. For other tools,
 copy the same entries into their MCP config.
 
-- `playwright`: drive Chrome to check UI changes at http://127.0.0.1:8000 (site) and :8000/app.
+- `playwright`: drive Chrome at http://127.0.0.1:8000 (site) and :8000/app. **Never use it
+  (or any browser automation) to test or check your changes unless the user explicitly asks.**
+  Verify UI changes with `build` and `lint`, then let the user look.
 - `mongodb`: **read-only** access to local Mongo (`horizon*` databases). Use
   `connectionId: "preconfigured"`; no `connect` call is needed.
 

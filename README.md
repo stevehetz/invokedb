@@ -1,6 +1,6 @@
 # InvokeDB
 
-A web app for building data tables you can query through an API.
+A SaaS app for building data tables you can query through an API.
 
 **[invokedb.com](https://invokedb.com)**
 

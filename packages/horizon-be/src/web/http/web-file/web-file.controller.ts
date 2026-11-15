@@ -22,6 +22,7 @@ import { validate_file_dir_name, validate_file_dir_msg } from '@app/core/helpers
 import env from '@app/env';
 import logger from '@app/logger';
 import _c from '@app/constants';
+import { session_account_id } from '@app/web/http/_auth/request-account';
 
 @Controller('web-file')
 @UseGuards(AuthGuard('bearer'))
@@ -34,8 +35,8 @@ export class WebFileController {
 
     @Get(':file_directory_id/get_new_column')
     async web_file_new_col(@Request() req) {
-        await this.web_file_service.validate(req.user.account_id, req.params.file_directory_id);
-        const acct_id = req.user.account_id;
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
         const file_id = req.params.file_directory_id;
         const res = await this.web_file_service.get_new_column(acct_id, file_id);
         return res;
@@ -43,8 +44,9 @@ export class WebFileController {
 
     @Post('batch_create/:web_file_type/:file_directory_id')
     async web_file_batch_create(@Request() req) {
-        await this.web_file_service.validate(req.user.account_id, req.params.file_directory_id);
-        const account = await this.account_service.get(req.user.account_id);
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        const account = await this.account_service.get(acct_id);
         const file_id = req.params.file_directory_id;
         const type = req.params.web_file_type;
         const res = await this.web_file_service.batch_create_internal(
@@ -58,8 +60,9 @@ export class WebFileController {
 
     @Post('batch_delete/:web_file_type/:file_directory_id')
     async web_file_batch_delete(@Request() req) {
-        await this.web_file_service.validate(req.user.account_id, req.params.file_directory_id);
-        const account = await this.account_service.get(req.user.account_id);
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        const account = await this.account_service.get(acct_id);
         const file_id = req.params.file_directory_id;
         const type = req.params.web_file_type;
         const res = await this.web_file_service.batch_delete(account, file_id, type, req.body);
@@ -68,8 +71,9 @@ export class WebFileController {
 
     @Post('/:web_file_type/:file_directory_id')
     async web_file_get(@Request() req) {
-        await this.web_file_service.validate(req.user.account_id, req.params.file_directory_id);
-        const account = await this.account_service.get(req.user.account_id);
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        const account = await this.account_service.get(acct_id);
         const file_id = req.params.file_directory_id;
         const type = req.params.web_file_type;
         const params = req.query;
@@ -80,8 +84,9 @@ export class WebFileController {
 
     @Put('batch_update/:web_file_type/:file_directory_id')
     async web_file_batch_update(@Request() req) {
-        await this.web_file_service.validate(req.user.account_id, req.params.file_directory_id);
-        const account = await this.account_service.get(req.user.account_id);
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        const account = await this.account_service.get(acct_id);
         const file_id = req.params.file_directory_id;
         const type = req.params.web_file_type;
         const res = await this.web_file_service.batch_update_internal(
@@ -95,8 +100,9 @@ export class WebFileController {
 
     @Put('batch_update_job/:web_file_type/:file_directory_id')
     async web_file_batch_update_job(@Request() req) {
-        await this.web_file_service.validate(req.user.account_id, req.params.file_directory_id);
-        const account = await this.account_service.get(req.user.account_id);
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        const account = await this.account_service.get(acct_id);
         const file_id = req.params.file_directory_id;
         const type = req.params.web_file_type;
         const res = await this.web_file_service.batch_update_internal(
@@ -111,8 +117,9 @@ export class WebFileController {
 
     @Put(':record_id/:web_file_type/:file_directory_id')
     async web_file_update(@Request() req) {
-        await this.web_file_service.validate(req.user.account_id, req.params.file_directory_id);
-        const account = await this.account_service.get(req.user.account_id);
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        const account = await this.account_service.get(acct_id);
         const file_id = req.params.file_directory_id;
         const type = req.params.web_file_type;
         const res = await this.web_file_service.update(account, file_id, type, req.body);
@@ -138,7 +145,7 @@ export class WebFileController {
                 HttpStatus.INTERNAL_SERVER_ERROR
             );
         }
-        const acct_id = req.user.account_id;
+        const acct_id = session_account_id(req.user);
         const account = await this.account_service.get(acct_id);
 
         // Create new record in postgres
@@ -150,8 +157,9 @@ export class WebFileController {
         const file_res = await this.file_dir_service.create(
             acct_id,
             {
-                account_id: body.account_id,
-                parent_id: body.parent_id || null,
+                account_id: acct_id,
+                // multipart form fields arrive as strings
+                parent_id: body.parent_id ? Number(body.parent_id) : null,
                 name: body.new_name,
                 type: 'file',
                 web_file_type: 'data-grid',

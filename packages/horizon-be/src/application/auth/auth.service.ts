@@ -1,3 +1,4 @@
+import { is_expired } from '@app/core/helpers/is-expired';
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -47,7 +48,7 @@ export class AuthService {
         if (!token) return null;
         try {
             const session = await this.session_repository.findOneBy({ token });
-            if (!session) {
+            if (!session || is_expired(session.expired_datetime)) {
                 return null;
             }
 
@@ -143,10 +144,8 @@ export class AuthService {
         const account = await this.account_repository.findOneBy({ email });
         if (!account) throw new Error('An account with that email does not exist');
 
-        await this.session_repository.delete({
-            account_id: account.id
-        });
-
+        // Sessions are revoked when the reset completes (change_password), not here: anyone can
+        // request a reset for any email, so doing it here would let them log the owner out.
         const token = await this.account_manager.get_reset_password_token();
 
         this.reset_password_repository.save({
@@ -171,7 +170,11 @@ export class AuthService {
         try {
             const { token, password } = data;
 
+            if (!token) throw new Error('No token');
             const reset_pass = await this.reset_password_repository.findOneBy({ token });
+            if (!reset_pass || is_expired(reset_pass.expired_datetime)) {
+                throw new Error('Reset token not found or expired');
+            }
 
             const account = await this.account_repository.findOneBy({
                 id: reset_pass.account_id
@@ -182,6 +185,7 @@ export class AuthService {
             await this.account_repository.update({ id: account.id }, { password_hash });
 
             await this.reset_password_repository.remove(reset_pass);
+            await this.session_repository.delete({ account_id: account.id });
         } catch (ex) {
             throw new Error('Could not reset password');
         }

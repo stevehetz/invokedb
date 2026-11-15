@@ -1,6 +1,7 @@
 // API smoke test for horizon-be: node scripts/api-smoke.mjs [base_url] [out.json]
 // Logs in as demo@invokedb.com, uploads a small CSV as table "smoke_people", exercises the
-// grid + external /api/v1 endpoints, then deletes the table. Writes every response to out.json
+// grid + external /api/v1 endpoints, checks that demo2@invokedb.com can't reach demo's tables
+// or account, then deletes the table. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -32,6 +33,12 @@ async function call(name, method, path, { token, body, form, expectFail } = {}) 
     console.log(`${ok === !expectFail ? 'ok  ' : 'FAIL'} ${res.status} ${name}`);
     if (ok === !!expectFail) console.log('     ', JSON.stringify(data).slice(0, 300));
     return data;
+}
+
+function check(name, pass, detail) {
+    results[name] = pass;
+    console.log(`${pass ? 'ok  ' : 'FAIL'} --- ${name}`);
+    if (!pass && detail !== undefined) console.log('     ', JSON.stringify(detail).slice(0, 300));
 }
 
 const session = await call('login', 'POST', '/auth/login', {
@@ -121,6 +128,102 @@ await call('batch_create_rows', 'POST', `/web-file/batch_create/data_grid_row/${
     token,
     body: [{ a: 'dave', b: 50 }]
 });
+
+// Another account (demo2) must not see or change demo's tables or account
+const other = await call('other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const otoken = other.token;
+const other_list = await call('other_list_spoofed', 'GET', `/file-directory?account_id=${me.id}`, {
+    token: otoken
+});
+check(
+    'other_list_spoofed_is_own',
+    Array.isArray(other_list) && other_list.every(d => d.account_id !== me.id),
+    other_list
+);
+await call('other_rename', 'PUT', `/file-directory/${file_id}`, {
+    token: otoken,
+    body: { id: file_id, account_id: me.id, name: 'hijacked' },
+    expectFail: true
+});
+await call('other_batch_delete', 'POST', '/file-directory/batch_delete', {
+    token: otoken,
+    body: { ids: [file_id] },
+    expectFail: true
+});
+await call('other_get_rows', 'POST', `/web-file/data_grid_row/${file_id}?skip=0&limit=10`, {
+    token: otoken,
+    body: {},
+    expectFail: true
+});
+await call('other_batch_create', 'POST', `/web-file/batch_create/data_grid_row/${file_id}`, {
+    token: otoken,
+    body: [{ a: 'mallory' }],
+    expectFail: true
+});
+await call('other_update_account', 'PUT', `/account/update_account/${me.id}`, {
+    token: otoken,
+    body: { first_name: 'hijacked', last_name: 'hijacked' },
+    expectFail: true
+});
+await call('other_delete_account', 'PUT', `/account/delete_account/${me.id}`, {
+    token: otoken,
+    expectFail: true
+});
+await call('unauth_update_account', 'PUT', `/account/update_account/${me.id}`, {
+    body: { first_name: 'hijacked', last_name: 'hijacked' },
+    expectFail: true
+});
+await call('unauth_list_accounts', 'POST', '/account', { body: {}, expectFail: true });
+await call(
+    'session_token_on_external_api',
+    'GET',
+    '/api/v1/get?table=smoke_people&skip=0&limit=1',
+    {
+        token,
+        expectFail: true
+    }
+);
+await call('api_key_on_internal_route', 'GET', '/file-directory', {
+    token: me.api_key,
+    expectFail: true
+});
+// A body account_id is ignored: the folder is created in demo2's own account...
+const other_dir = await call('other_create_spoofed', 'POST', '/file-directory', {
+    token: otoken,
+    body: { account_id: me.id, name: 'smoke_other_dir', type: 'dir' }
+});
+const own_list = await call('own_list', 'GET', `/file-directory?account_id=${me.id}`, { token });
+check(
+    'other_create_spoofed_not_in_own_account',
+    Array.isArray(own_list) && !own_list.some(d => d.id === other_dir),
+    own_list
+);
+// ...and demo can't put a table (or move one) into demo2's folder
+await call('create_in_other_folder', 'POST', '/file-directory', {
+    token,
+    body: {
+        account_id: me.id,
+        name: 'smoke_x',
+        type: 'file',
+        web_file_type: 'data-grid',
+        parent_id: other_dir
+    },
+    expectFail: true
+});
+await call('move_into_other_folder', 'PUT', `/file-directory/${file_id}`, {
+    token,
+    body: { id: file_id, account_id: me.id, name: 'smoke_people', parent_id: other_dir },
+    expectFail: true
+});
+await call('other_delete_own_dir', 'POST', '/file-directory/batch_delete', {
+    token: otoken,
+    body: { ids: [other_dir] }
+});
+await call('other_logout', 'GET', `/auth/logout?token=${otoken}`);
+const me_after = await call('authorize_after_other', 'GET', `/auth/authorize?token=${token}`);
+check('own_account_unchanged', me_after.first_name === me.first_name, me_after);
 
 // External API with the account API key
 const key = me.api_key;

@@ -12,6 +12,7 @@ import { WebFileService } from '@app/application/web-file/web-file.service';
 import { AccountService } from '@app/application/account/account.service';
 import { FileDirectoryService } from '@app/application/file-directory/file-directory.service';
 import { AuthGuard } from '@nestjs/passport';
+import { api_key_account } from '@app/web/http/_auth/request-account';
 
 @Controller('api/v1')
 @UseGuards(AuthGuard('bearer'))
@@ -22,7 +23,8 @@ export class ExternalV1Controller {
         private readonly file_dir_service: FileDirectoryService
     ) {}
 
-    async get_file_id(account, file_name) {
+    async get_file_id(user, file_name) {
+        const account = api_key_account(user);
         const file_directories = await this.file_dir_service.get_by_account_id(account.id);
         let file_directory;
         if (file_directories && file_directories.length > 0) {

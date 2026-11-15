@@ -5,6 +5,7 @@ import { Strategy } from 'passport-http-bearer';
 import { PassportStrategy } from '@nestjs/passport';
 import { Session } from '@app/core/session/session.entity';
 import { AccountService } from '../account/account.service';
+import { is_expired } from '@app/core/helpers/is-expired';
 
 @Injectable()
 export class HttpStrategy extends PassportStrategy(Strategy) {
@@ -20,7 +21,7 @@ export class HttpStrategy extends PassportStrategy(Strategy) {
         if (key_or_token) {
             if (key_or_token.indexOf('internal_') > -1) {
                 const session = await this.session_repository.findOneBy({ token: key_or_token });
-                if (session) {
+                if (session && !is_expired(session.expired_datetime)) {
                     return session;
                 }
             } else {

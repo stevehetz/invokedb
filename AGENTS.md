@@ -97,6 +97,12 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
 - In local mode one process runs all four backend roles (`IS_HORIZON_BE`, `_PRC`, `_SB`, `_FS`).
 - Migrations live in `src/database/migration/`. Never edit a migration that has already shipped.
   Add a new one (see the `db-migration` skill).
+- **Account scoping:** in an internal route, get the caller's account with
+  `session_account_id(req.user)` (`src/web/http/_auth/request-account.ts`), and in `/api/v1`
+  with `api_key_account(req.user)`; never from the query or body.
+  Check that any table/folder id in the path belongs to it (`FileDirectoryService.assert_owned`,
+  `WebFileService.validate`). `req.user` is a `Session` for a login token and an `Account` for an
+  API key; API keys are only for `/api/v1`.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

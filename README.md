@@ -1,5 +1,13 @@
 # InvokeDB
 
+A web app for building data tables you can query through an API.
+
+![Editing a table in the grid](docs/images/screenshot-tables.png)
+
+Every table gets ready-made API endpoints (get, search, create, update, delete):
+
+![API endpoints for a table](docs/images/screenshot-api.png)
+
 Monorepo with two packages:
 
 | Package               | What                                                | Dev URL                          |

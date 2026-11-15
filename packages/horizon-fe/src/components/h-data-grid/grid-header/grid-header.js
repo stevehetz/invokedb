@@ -1,6 +1,6 @@
-import Vue from 'vue';
+export default {
+    props: ['params'],
 
-export default Vue.extend({
     data() {
         return {
             asc_sort: null,
@@ -167,4 +167,4 @@ export default Vue.extend({
             this.params.delete_header(this.params.column.colDef);
         }
     }
-});
+};

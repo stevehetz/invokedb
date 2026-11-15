@@ -5,14 +5,15 @@
                 ref="menu"
                 class="file-directory-menu"
                 mode="horizontal"
+                :ellipsis="false"
                 menu-trigger="click"
                 @select="add_tree_item"
             >
-                <el-submenu
+                <el-sub-menu
                     index="1"
                     popper-class="h-tree-menu-popper menu-dropdown-popper"
                 >
-                    <template slot="title">
+                    <template #title>
                         <i class="title-icon fa fa-plus"></i>
                     </template>
                     <el-menu-item index="data-grid"
@@ -23,7 +24,7 @@
                         ><i class="fa fa-upload"></i> Table from
                         CSV</el-menu-item
                     >
-                </el-submenu>
+                </el-sub-menu>
             </el-menu>
             <div
                 class="manage-items"
@@ -42,11 +43,46 @@
         </div>
     </div>
     <div class="right">
-        <div class="empty-db-message" v-if="tree_items.length <= 1">
+        <div class="empty-db-message" v-if="tree_items.length === 0">
             <p>Click the <i class="fa fa-plus"></i> to add</p>
             <p>a table</p>
         </div>
-        <div ref="tree" class="tree-wrapper"></div>
+        <div class="tree-wrapper">
+            <el-tree
+                ref="tree"
+                class="h-tree-nodes"
+                :data="tree_items"
+                node-key="id"
+                :props="tree_props"
+                :indent="18"
+                :default-expanded-keys="expanded_keys"
+                :allow-drop="allow_drop"
+                draggable
+                @node-click="node_clicked"
+                @node-drop="node_dropped"
+                @node-expand="node_expanded"
+                @node-collapse="node_collapsed"
+            >
+                <template #default="{ node, data }">
+                    <span
+                        class="tree-node"
+                        :class="node_classes(data)"
+                        @dblclick="node_dblclicked(data)"
+                    >
+                        <span
+                            v-if="node_icon(node, data)"
+                            class="icon-wrapper"
+                            v-html="node_icon(node, data)"
+                        ></span>
+                        <span class="tree-node-title"
+                            ><template v-if="data.dup_opened_seq"
+                                >({{ data.dup_opened_seq }}) </template
+                            >{{ data.name }}</span
+                        >
+                    </span>
+                </template>
+            </el-tree>
+        </div>
     </div>
     <div class="tree-background"></div>
 </div>

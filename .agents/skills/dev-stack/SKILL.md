@@ -1,6 +1,6 @@
 ---
 name: dev-stack
-description: Start, health-check, stop and inspect the local InvokeDB stack (NestJS backend, two Vue 2 frontends, Postgres, MongoDB). Use when asked to run or launch the app, check it's up, look at logs, or query local Postgres/Mongo data.
+description: Start, health-check, stop and inspect the local InvokeDB stack (NestJS backend, Vue 3 frontend, Postgres, MongoDB). Use when asked to run or launch the app, check it's up, look at logs, or query local Postgres/Mongo data.
 ---
 
 # Local dev stack

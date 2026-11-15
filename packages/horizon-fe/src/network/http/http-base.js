@@ -1,4 +1,4 @@
-import $ from 'jquery';
+import { request } from '@/core/http/request';
 import { store } from '@/store';
 
 export default class HttpBase {
@@ -9,76 +9,19 @@ export default class HttpBase {
     }
 
     http_get(path) {
-        return new Promise((resolve, reject) => {
-            $.ajax({
-                method: 'GET',
-                url: path,
-                contentType: 'application/json',
-                beforeSend: xhr => {
-                    xhr.setRequestHeader(
-                        'Authorization',
-                        `BEARER ${this.get_token()}`
-                    );
-                }
-            })
-                .done(res => {
-                    if (res.status >= 400) reject(res);
-                    resolve(res);
-                })
-                .fail(res => {
-                    reject(res.responseJSON);
-                });
-        });
+        return request('GET', path, this.get_token());
     }
 
-    http_put(path, data, callback) {
-        return new Promise((resolve, reject) => {
-            $.ajax({
-                method: 'PUT',
-                url: path,
-                contentType: 'application/json',
-                data: JSON.stringify(data),
-                beforeSend: xhr => {
-                    xhr.setRequestHeader(
-                        'Authorization',
-                        `BEARER ${this.get_token()}`
-                    );
-                }
-            })
-                .done(res => {
-                    if (callback) callback(res);
-                    if (res.status >= 400) reject(res);
-                    resolve(res);
-                })
-                .fail(res => {
-                    reject(res.responseJSON);
-                });
-        });
+    async http_put(path, data, callback) {
+        const res = await request('PUT', path, this.get_token(), data);
+        if (callback) callback(res);
+        return res;
     }
 
-    http_post(path, data, callback) {
-        return new Promise((resolve, reject) => {
-            $.ajax({
-                method: 'POST',
-                url: path,
-                contentType: 'application/json',
-                data: JSON.stringify(data),
-                beforeSend: xhr => {
-                    xhr.setRequestHeader(
-                        'Authorization',
-                        `BEARER ${this.get_token()}`
-                    );
-                }
-            })
-                .done(res => {
-                    if (callback) callback(res);
-                    if (res.status >= 400) reject(res);
-                    resolve(res);
-                })
-                .fail(res => {
-                    reject(res.responseJSON);
-                });
-        });
+    async http_post(path, data, callback) {
+        const res = await request('POST', path, this.get_token(), data);
+        if (callback) callback(res);
+        return res;
     }
 
     http_delete(path, data) {

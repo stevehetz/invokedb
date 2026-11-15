@@ -1,4 +1,3 @@
-import $ from 'jquery';
 import { store } from '@/store';
 import { account_manager } from '@/core/context/account/account-manager';
 
@@ -7,11 +6,11 @@ export default {
     data() {
         return {
             account: null,
-            $nav: null,
             active_index: null,
             show_submenu_timeout: 0,
             hide_submenu_timeout: 200,
-            submenu_timeout: null
+            submenu_timeout: null,
+            nav_listeners: []
         };
     },
 
@@ -21,8 +20,11 @@ export default {
         this.setup_nav_behavior();
     },
 
-    destroyed() {
-        $('body').removeClass('nav-popper-hidden');
+    beforeUnmount() {
+        this.nav_listeners.forEach(([el, type, fn]) =>
+            el.removeEventListener(type, fn)
+        );
+        document.body.classList.remove('nav-popper-hidden');
     },
 
     watch: {
@@ -39,27 +41,29 @@ export default {
         },
 
         setup_nav_behavior() {
-            let self = this;
-            let $nav = $(this.$refs.nav.$el);
-            $('body').addClass('nav-popper-hidden');
-            $nav.click(function (e) {
-                $('body').removeClass('nav-popper-hidden');
-            });
-            $nav.on('mouseenter', () => {
-                window.clearTimeout(self.submenu_timeout);
-            });
-            $('.nav-popper').on('mouseenter', () => {
-                window.clearTimeout(self.submenu_timeout);
-            });
-            $nav.on('mouseleave', () => {
-                self.submenu_timeout = window.setTimeout(() => {
-                    $('body').addClass('nav-popper-hidden');
-                }, 1500);
-            });
-            $('.nav-popper').on('mouseleave', () => {
-                self.submenu_timeout = window.setTimeout(() => {
-                    $('body').addClass('nav-popper-hidden');
-                }, 1500);
+            const body = document.body;
+            const hide_later = () => {
+                this.submenu_timeout = window.setTimeout(
+                    () => body.classList.add('nav-popper-hidden'),
+                    1500
+                );
+            };
+            const keep_open = () => window.clearTimeout(this.submenu_timeout);
+            const listen = (el, type, fn) => {
+                el.addEventListener(type, fn);
+                this.nav_listeners.push([el, type, fn]);
+            };
+
+            const nav = this.$refs.nav.$el;
+            body.classList.add('nav-popper-hidden');
+            listen(nav, 'click', () =>
+                body.classList.remove('nav-popper-hidden')
+            );
+            listen(nav, 'mouseenter', keep_open);
+            listen(nav, 'mouseleave', hide_later);
+            document.querySelectorAll('.nav-popper').forEach(popper => {
+                listen(popper, 'mouseenter', keep_open);
+                listen(popper, 'mouseleave', hide_later);
             });
         },
 

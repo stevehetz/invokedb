@@ -1,5 +1,4 @@
-import Vue from 'vue';
-import Router from 'vue-router';
+import { createRouter, createWebHistory } from 'vue-router';
 
 // Main app (signed in)
 import Home from '@/components/home';
@@ -20,8 +19,6 @@ import Contact from '@/view/pages/contact';
 import Tos from '@/view/pages/tos';
 import Privacy from '@/view/pages/privacy';
 
-Vue.use(Router);
-
 // The public site and the app were separate apps with separate global stylesheets that clash
 // (.page, .home-page, .flex-*, Element UI theme). Each area's shell imports its own CSS and is
 // loaded lazily, and moving between the areas is a full page load (window.location), so the
@@ -32,9 +29,8 @@ const App = () =>
 
 export const APP_PATH = '/app';
 
-let router = new Router({
-    mode: 'history',
-    base: import.meta.env.BASE_URL,
+const router = createRouter({
+    history: createWebHistory(import.meta.env.BASE_URL),
     routes: [
         {
             path: APP_PATH,
@@ -69,7 +65,7 @@ let router = new Router({
                     ]
                 },
                 {
-                    path: '*',
+                    path: ':pathMatch(.*)*',
                     redirect: { name: 'home' }
                 }
             ]
@@ -100,13 +96,13 @@ let router = new Router({
                 { path: 'contact', name: 'contact', component: Contact },
                 { path: 'tos', name: 'tos', component: Tos },
                 { path: 'privacy', name: 'privacy', component: Privacy },
-                { path: '*', redirect: { name: 'site-home' } }
+                { path: ':pathMatch(.*)*', redirect: { name: 'site-home' } }
             ]
         }
     ],
     scrollBehavior(to) {
         // The site scrolled to the top on every page change; the app never did
-        if (!to.path.startsWith(APP_PATH)) return { x: 0, y: 0 };
+        if (!to.path.startsWith(APP_PATH)) return { left: 0, top: 0 };
     }
 });
 

@@ -17,14 +17,14 @@ export default {
 
     methods: {
         redirect() {
-            let { name } = this.$router.history.current;
+            let { name } = this.$route;
             if (name === 'manage') {
                 this.$router.push(`/manage/${this.start_page}`);
             }
         },
 
         set_active() {
-            let { name } = this.$router.history.current;
+            let { name } = this.$route;
             this.active_page = name;
         },
 

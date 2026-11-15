@@ -24,6 +24,7 @@ what to do next. Git history has the details of past work.
 - **Done and on `main`:** local dev revamp, legacy-ops clean-up, secrets sync, demo data,
   backend upgrade (NestJS 11, TypeORM 0.3, mongodb 6), agent tooling + prettier, UI smoke test,
   `horizon-auth-fe` merged into `horizon-fe`, Vue CLI → Vite 6 on Vue 2.7.
+- **Done on branch `feat/vue3` (unmerged):** the frontend on Vue 3 (steps 2.3–2.5, below).
 - **Production:** none. The Azure infrastructure was torn down; the scripts are kept for a rebuild.
 - **Logins:** `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, password
   `password`.
@@ -37,9 +38,8 @@ what to do next. Git history has the details of past work.
   with no deployment; move them to env vars before deploying (step 3).
 - **Stripe isn't in use**, and the old keys are deliberately not rolled. If it comes back, create
   new keys. `/checkout` throws `Please call Stripe() with your publishable key` without them.
-- For step 2.3: `sass` is pinned at 1.32 for Element UI's theme SCSS (Vite uses the legacy Sass
-  API). The two areas' global stylesheets still clash; unify them during the Element Plus work,
-  then cross-area links can use the router.
+- The two areas' global stylesheets still clash (see AGENTS.md); unifying them would let
+  cross-area links use the router. Optional.
 - The entry JS is a single 2.3 MB chunk (577 kB gzip). Vite warns; splitting it is optional.
 - `/api/v1/get` leaves out empty cells. That looks intended.
 - Your `.env` still has two unused `HORIZON_AUTH_FE_*` lines. Delete them whenever (then
@@ -87,11 +87,23 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   so the no-native-npm-packages rule doesn't apply. Aim for under ~5 MB and about 15–30 s, save it
   as `docs/demo.gif`, and keep the recording script in `scripts/` so the GIF can be re-made
   after the UI changes (2.3/2.4). Record against the throwaway smoke env, not the user's data.
-- **2.3:** while still on Vue 2.7, Element UI → Element Plus, `ag-grid-vue` →
-  `ag-grid-vue3`, and remove jQuery / jqtree from `h-tree` (then drop `src/core/jquery-global.js`).
-- **2.4:** switch to Vue 3 (compat build first). Vuex → Pinia now or later.
-- **2.5:** replace the frontend ESLint config (`babel-eslint` / `@vue/prettier`) with a current
-  flat config, and drop the leftover prettier 1.19.
+- **2.3–2.5: done** (2026-11-15, branch `feat/vue3`). Element Plus and `ag-grid-vue3` need
+  Vue 3, so 2.3 couldn't happen on Vue 2.7; all three steps were done together, straight to Vue
+  3.5 (no compat build): vue-router 4, Element Plus 2.14 (app theme in `src/element-theme.scss`),
+  ag-grid 22 → 32.3 (the last version before v33's theming/modules overhaul; 33+ is a later
+  step), jqtree → Element Plus `el-tree`, all jQuery → DOM/`fetch`, `Vue` event bus → a small
+  emitter, highlight.js bundled from npm instead of the CDN, current `sass`, ESLint 10 flat
+  config. Dropped: `element-ui`, `ag-grid-vue`, `jqtree`, `jquery`, `vue-property-decorator`,
+  and the unused `EventEmitter` package (it pulled in gulp/babel 6). 544 → 265 packages.
+  Checked with build + lint, screenshots of 15 screens against the Vue 2 build (side by side;
+  differences fixed) and a Playwright pass of upload, cell edit, add row, column rename, table
+  add/rename/delete, account save and logout. Not run: `ui-smoke.mjs` (its filter selector was
+  updated for ag-grid 32). Pinia: not needed, the app has no Vuex (it uses `src/store`, an
+  rxjs `BehaviorSubject` map). Known differences: entering Edit Columns now refetches rows
+  (ag-grid 32 reacts to filtering being switched off), so the row count resets to the unfiltered
+  total.
+- **2.6 (optional):** ag-grid 32 → current (Theming API, module registration), and move the
+  SCSS off the Sass deprecations that `vite.config.js` silences (`@import`, global `lighten()`).
 - **3 (small, any time):** move `FS_TOKEN` / `WS_SERVER_TOKEN` to env vars.
 - **4 (optional):** a `docker-compose.yml` for Postgres and Mongo.
 - **5 (test deployment, on `invokedb.com`):** a cheap, simple deploy for testing, not AKS/Helm.

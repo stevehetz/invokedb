@@ -9,10 +9,10 @@ repo. `CLAUDE.md` only imports this file. People should read `README.md` for com
 InvokeDB (code name "horizon"): a web app for building data tables you can query through an
 API. A monorepo of two packages with **separate `node_modules`** (no npm workspaces):
 
-| Package               | Stack                                                                   | Dev URL                 |
-| --------------------- | ----------------------------------------------------------------------- | ----------------------- |
-| `packages/horizon-be` | NestJS 11, TypeORM 0.3 (Postgres), native `mongodb` 6 driver, `ws` 8    | :8001 (websocket :9000) |
-| `packages/horizon-fe` | Vue 2.7, Vite 6, ag-grid, Element UI. Public site at `/`, app at `/app` | :8000                   |
+| Package               | Stack                                                                      | Dev URL                 |
+| --------------------- | -------------------------------------------------------------------------- | ----------------------- |
+| `packages/horizon-be` | NestJS 11, TypeORM 0.3 (Postgres), native `mongodb` 6 driver, `ws` 8       | :8001 (websocket :9000) |
+| `packages/horizon-fe` | Vue 3, Vite 6, ag-grid 32, Element Plus. Public site at `/`, app at `/app` | :8000                   |
 
 `examples/` (see `examples/README.md`) holds the `invokedb` npm client (`invokedb-node`,
 TypeScript + `fetch`, built with `tsc`), an Angular 22 example app (`angular`, imports the client
@@ -76,8 +76,7 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
 - Don't reformat by hand while editing. When you finish a task, run
   `node_modules/.bin/prettier --write <files you changed>` (from the repo root) so the diff the
   user reviews is already formatted. If prettier reports a syntax error, the file doesn't parse.
-- Always use the **root** prettier. `horizon-fe` has prettier 1.19 inside `node_modules`
-  (pulled in by its old ESLint prettier plugin), and it formats differently.
+- Always use the **root** prettier (the packages don't install their own).
 - `ops/` and the backend email `.html` templates are intentionally not formatted.
 
 ## Backend conventions (`packages/horizon-be`)
@@ -101,7 +100,7 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
 
 ## Frontend conventions (`horizon-fe`)
 
-- Vue 2 Options API. Components are often split into `index.vue` + `<name>.html` (template, via
+- Vue 3, Options API. Components are often split into `index.vue` + `<name>.html` (template, via
   `<template src>`) + `<name>.js` + `.scss`. Keep that split when editing an existing component.
 - **Two areas, one app.** The public site (marketing, login, signup, checkout: `src/view/`,
   `src/network/`) is served at `/`, and the signed-in app (`src/components/`, `src/core/`) at
@@ -112,13 +111,23 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
   normal. Don't import global CSS anywhere else. The UI smoke test checks this.
 - Built with **Vite 6** (`vite.config.js`, `index.html` at the package root). Use the npm
   scripts (`start`, `build`, `preview`, `lint`), which `env.sh` feeds the env. Static assets in
-  templates are plain `src="@/assets/x.png"`. `jquery` and `lodash` are imported explicitly (no
-  globals), except that `src/core/jquery-global.js` sets `window.jQuery` for jqtree. The app area
-  gets its Element UI theme only from `src/stylesheet.scss`, so don't also import
-  `element-ui/lib/theme-chalk/index.css` there (see the comment in `components/app.vue`).
-- A Vue 3 + Vite migration is planned next (see `HANDOFF.md`). Avoid new Vue-2-only patterns
-  such as filters, `$listeners`, `Vue.set` or event-bus additions when there's a neutral
-  alternative.
+  templates are plain `src="@/assets/x.png"`. `lodash` is imported explicitly (no globals).
+  There is no jQuery: use the DOM API. Lint is ESLint 10 with a flat config
+  (`eslint.config.mjs`, `vue/flat/essential`).
+- **Element Plus.** The app area compiles its theme from `src/element-theme.scss` (the app's
+  colours), so don't also import `element-plus/dist/index.css` there (see the comment in
+  `components/app.vue`); the site uses the default CSS. The app's CSS restyles the inner
+  elements Element UI used to have, so Element Plus's extra wrappers are flattened in
+  `stylesheet.scss` (`.el-input__wrapper`, the `.el-dialog` padding). Horizontal `el-menu`s need
+  `:ellipsis="false"` or they fold items into "…". Use `link` buttons, not `type="text"` (removed
+  in Element Plus 3), and icon components from `@element-plus/icons-vue`, not `el-icon-*` classes.
+- **ag-grid 32** (`ag-grid-vue3`). The grid API comes from `onGridReady`; there's no
+  `columnApi` or `gridOptions.api`. Keep grid options, column defs and the API out of reactive
+  data (`markRaw`, or set them in `created()` rather than `data()`). Custom header/filter
+  components are registered in `h-data-grid`'s `components` and named in the col defs, and
+  receive `params` as a prop. The app has no ag-grid theme; `stylesheet.scss` styles the grid.
+- `this.$bus` / `@/core/bus` is a small emitter with the old `$on`/`$off`/`$emit` names. Remove
+  your handler with `$off` in `beforeUnmount`. Prefer props, emits or the store for new code.
 
 ## Gotchas
 

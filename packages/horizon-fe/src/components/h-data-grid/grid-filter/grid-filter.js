@@ -1,4 +1,3 @@
-import Vue from 'vue';
 import moment from 'moment';
 
 moment.suppressDeprecationWarnings = true;
@@ -16,7 +15,9 @@ const number_filter_types = {
     greaterThanOrEqual: '>='
 };
 
-export default Vue.extend({
+export default {
+    props: ['params'],
+
     data() {
         return {
             input_value: null,
@@ -82,7 +83,8 @@ export default Vue.extend({
                     });
                 }
                 this.params.parentFilterInstance(instance => {
-                    instance.onFloatingFilterChanged(null, value);
+                    // The JSON value carries the real filter type; the text filter just needs a valid one
+                    instance.onFloatingFilterChanged('contains', value);
                 });
             } catch (ex) {
                 console.log(ex);
@@ -147,4 +149,4 @@ export default Vue.extend({
             this.currentValue = !parentModel ? null : parentModel.filter;
         }
     }
-});
+};

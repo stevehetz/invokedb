@@ -1,11 +1,13 @@
 <div class="dialog confirm-dialog">
-    <el-dialog :title="title" :visible.sync="dialog_visible" width="500px">
+    <el-dialog :title="title" v-model="dialog_visible" width="500px">
         <span v-html="message"></span>
-        <span slot="footer" class="dialog-footer">
-            <el-button @click="cancel_handler">Cancel</el-button>
-            <el-button type="primary" @click="confirm_handler"
-                >Confirm</el-button
-            >
-        </span>
+        <template #footer
+            ><span class="dialog-footer">
+                <el-button @click="cancel_handler">Cancel</el-button>
+                <el-button type="primary" @click="confirm_handler"
+                    >Confirm</el-button
+                >
+            </span></template
+        >
     </el-dialog>
 </div>

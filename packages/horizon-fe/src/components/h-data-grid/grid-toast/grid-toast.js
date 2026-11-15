@@ -1,6 +1,4 @@
-import Vue from 'vue';
-
-export default Vue.extend({
+export default {
     data: function () {
         return {
             show_toast: false,
@@ -59,4 +57,4 @@ export default Vue.extend({
             this.type = 'info';
         }
     }
-});
+};

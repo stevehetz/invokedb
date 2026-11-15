@@ -7,7 +7,7 @@
                         <label class="controls-label">
                             File:
                         </label>
-                        <el-button type="text" class="purple" @click="upload_clicked">
+                        <el-button link class="purple" @click="upload_clicked">
                             <i class="fa fa-upload"></i>
                             <span>Upload</span>
                         </el-button>
@@ -15,7 +15,7 @@
                     <div class="control-box">
                         <div class="commit-controls">
                             <el-button
-                                type="text"
+                                link
                                 class="white"
                                 @click="cancel_clicked"
                                 :disabled="saving_columns || (!add_row_mode && !edit_column_mode && !show_delete_rows || table_lock)"
@@ -23,7 +23,7 @@
                                 <i class="fa fa-times"></i>
                             </el-button>
                             <el-button
-                                type="text"
+                                link
                                 class="red"
                                 @click="delete_rows_clicked"
                                 :disabled="saving_columns || (!show_delete_rows || edit_column_mode || table_lock)"
@@ -31,7 +31,7 @@
                                 <i class="fa fa-trash"></i>
                             </el-button>
                             <el-button
-                                type="text"
+                                link
                                 class="blue"
                                 @click="save_clicked"
                                 :disabled="saving_columns ||
@@ -45,7 +45,7 @@
                         </div>
                         <div class="edit-controls">
                             <el-button
-                                type="text"
+                                link
                                 class="purple add-column-button"
                                 @click="add_column_clicked"
                                 :disabled="saving_columns || disable_add_column || table_lock"
@@ -55,7 +55,7 @@
                                 <span>Add Column</span>
                             </el-button>
                             <el-button
-                                type="text"
+                                link
                                 class="green edit-column-button"
                                 @click="edit_columns_clicked"
                                 v-if="!edit_column_mode"
@@ -65,7 +65,7 @@
                                 <span>Edit Columns</span>
                             </el-button>
                             <el-button
-                                type="text"
+                                link
                                 class="orange"
                                 @click="add_row_clicked"
                                 :disabled="saving_columns || edit_column_mode || table_lock"
@@ -74,7 +74,7 @@
                                 <span>Add Row</span>
                             </el-button>
                             <el-button
-                                type="text"
+                                link
                                 class="blue"
                                 @click="refresh_clicked"
                                 :disabled="saving_columns || edit_column_mode || add_row_mode || table_lock"
@@ -100,7 +100,7 @@
                     </p>
                     <div class="api-button">
                         <el-button
-                            type="text"
+                            link
                             @click="api_btn_clicked"
                             :disabled="table_lock"
                         >

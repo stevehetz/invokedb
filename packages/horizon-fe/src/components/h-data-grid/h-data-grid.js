@@ -1,6 +1,6 @@
-import $ from 'jquery';
 import _ from 'lodash';
-import { AgGridVue } from 'ag-grid-vue';
+import { markRaw } from 'vue';
+import { AgGridVue } from 'ag-grid-vue3';
 import { data_grid_manager as mgr } from './data-grid-manager';
 import { bus } from '@/core/bus';
 import GridHeader from './grid-header';
@@ -11,20 +11,34 @@ import ApiDialog from './api-dialog';
 const PAGE_SIZE = 50;
 const ADD_ROW_MODE_ROW_COUNT = 4;
 
+const ROW_INDEX_COLUMN = {
+    order: '0',
+    width: 70,
+    field: 'row_num',
+    headerName: 'Row',
+    suppressMovable: true,
+    suppressHeaderMenuButton: true,
+    editable: false,
+    lockPosition: true,
+    resizable: false
+};
+
 export default {
     name: 'HDataGrid',
 
     props: ['file_directory_id', 'web_file_type', 'file'],
 
+    // GridHeader and GridFilter are registered so the grid can find them by name
+    // (defaultColDef.headerComponent, colDef.floatingFilterComponent).
     components: {
         'ag-grid-vue': AgGridVue,
-        'grid-toast': GridToast
+        'grid-toast': GridToast,
+        GridHeader,
+        GridFilter
     },
 
     data() {
         return {
-            toast: null,
-            grid_api: null,
             table_lock: false,
             total_rows: 0,
             processing: false,
@@ -37,63 +51,60 @@ export default {
             saving_columns: false,
             disable_add_column: false,
             delete_columns: [],
-            cached_col_defs: [],
             add_row_mode: false,
-            show_delete_rows: false,
-            add_data: [],
-            new_rows: [],
-            row_index_column: {
-                order: '0',
-                width: 70,
-                field: 'row_num',
-                headerName: 'Row',
-                suppressMovable: true,
-                suppressMenu: true,
-                editable: false,
-                lockPosition: true,
-                resizable: false
-            },
-            grid_options: {
-                frameworkComponents: {
-                    agColumnHeader: GridHeader,
-                    agColumnFilter: GridFilter
-                },
-                rowData: null,
-                columnDefs: null,
-                rowHeight: 30,
-                headerHeight: 40,
-                floatingFilter: true,
-                rowModelType: 'infinite',
-                rowSelection: 'multiple',
-                rowMultiSelectWithClick: false,
-                cacheBlockSize: PAGE_SIZE,
-                defaultColDef: this.get_default_col_def(),
-                rowClassRules: this.get_row_class_rules(),
-                onColumnVisible: this.column_visible,
-                onCellValueChanged: this.cell_value_changed,
-                onSelectionChanged: this.selection_changed,
-                onCellClicked: this.cell_clicked,
-                onCellDoubleClicked: this.cell_double_clicked,
-                onViewportChanged: this.viewport_changed,
-                onDragStopped: e => this.drag_stopped(e),
-                undoRedoCellEditing: true
-            }
+            show_delete_rows: false
         };
     },
 
-    /*** Start: Mounted ***/
-    async mounted() {
-        this.toast = this.$refs.grid_toast;
-        this.grid_api = this.grid_options.api;
-        this.setup_websocket_handler();
+    // ag-grid owns and mutates its options, column defs and row data, so they stay out of
+    // Vue's reactivity (Vue would wrap them in proxies).
+    created() {
+        this.toast = null;
+        this.grid_api = null;
+        this.cached_col_defs = [];
+        this.add_data = [];
+        this.new_rows = [];
+        this.grid_options = markRaw({
+            rowData: null,
+            columnDefs: null,
+            rowHeight: 30,
+            // stylesheet.scss draws the header row at 35px and the filter row at 30px
+            headerHeight: 35,
+            floatingFiltersHeight: 30,
+            rowModelType: 'infinite',
+            // Click selects a row (ctrl/shift for more); no checkbox column
+            rowSelection: {
+                mode: 'multiRow',
+                enableClickSelection: true,
+                enableSelectionWithoutKeys: false,
+                checkboxes: false,
+                headerCheckbox: false
+            },
+            // Column defs carry the backend's own fields (_id, order, col_type...)
+            suppressPropertyNamesCheck: true,
+            cacheBlockSize: PAGE_SIZE,
+            defaultColDef: this.get_default_col_def(),
+            rowClassRules: this.get_row_class_rules(),
+            onGridReady: params => this.grid_ready(params),
+            onColumnVisible: this.column_visible,
+            onCellValueChanged: this.cell_value_changed,
+            onSelectionChanged: this.selection_changed,
+            onCellClicked: this.cell_clicked,
+            onCellDoubleClicked: this.cell_double_clicked,
+            onViewportChanged: this.viewport_changed,
+            onDragStopped: e => this.drag_stopped(e),
+            undoRedoCellEditing: true
+        });
+    },
 
-        if (this.file.status === 'PENDING') {
-            this.set_table_load_pending();
-        } else if (this.file.status === 'ERROR') {
-            this.set_table_load_error(this.file);
-        } else {
-            this.load_table();
-        }
+    /*** Start: Mounted ***/
+    mounted() {
+        this.toast = this.$refs.grid_toast;
+        this.setup_websocket_handler();
+    },
+
+    beforeUnmount() {
+        bus.$off('websocket:message', this.websocket_message);
     },
     /*** End: Mounted ***/
 
@@ -102,23 +113,24 @@ export default {
         drag_stopped() {
             return _.debounce(e => {
                 this.show_top_bar_info('Saving...', 1000);
-                const orig_defs = e.columnApi
+                const orig_defs = e.api
                     .getAllGridColumns()
-                    .map(c => c.colDef);
-                const new_defs = e.columnApi
+                    .map(c => c.getColDef());
+                const new_defs = e.api
                     .getAllGridColumns()
                     .filter((c, i) => {
+                        const col_def = c.getColDef();
                         if (
-                            c.colDef.width !== c.actualWidth ||
-                            parseInt(c.colDef.order) !== i
+                            col_def.width !== c.getActualWidth() ||
+                            parseInt(col_def.order) !== i
                         ) {
-                            c.colDef.width = c.actualWidth;
-                            c.colDef.order = i;
+                            col_def.width = c.getActualWidth();
+                            col_def.order = i;
                             return true;
                         }
                         return false;
                     })
-                    .map(column => column.colDef);
+                    .map(column => column.getColDef());
 
                 mgr.save_columns(this.file_directory_id, orig_defs, new_defs);
             }, 100);
@@ -127,27 +139,40 @@ export default {
     },
 
     methods: {
+        grid_ready(params) {
+            this.grid_api = markRaw(params.api);
+            if (this.file.status === 'PENDING') {
+                this.set_table_load_pending();
+            } else if (this.file.status === 'ERROR') {
+                this.set_table_load_error(this.file);
+            } else {
+                this.load_table();
+            }
+        },
+
         setup_websocket_handler() {
-            bus.$on('websocket:message', data => {
-                const { event, message } = data;
-                if (
-                    message &&
-                    message.file &&
-                    message.file.id === this.file_directory_id
-                ) {
-                    switch (event) {
-                        case 'WEB_FILE_PROCESS_START':
-                            this.set_table_load_pending();
-                            break;
-                        case 'WEB_FILE_PROCESS_COMPLETE':
-                            this.load_table();
-                            break;
-                        case 'WEB_FILE_PROCESS_ERROR':
-                            this.set_table_load_error(message.file);
-                            break;
-                    }
+            bus.$on('websocket:message', this.websocket_message);
+        },
+
+        websocket_message(data) {
+            const { event, message } = data;
+            if (
+                message &&
+                message.file &&
+                message.file.id === this.file_directory_id
+            ) {
+                switch (event) {
+                    case 'WEB_FILE_PROCESS_START':
+                        this.set_table_load_pending();
+                        break;
+                    case 'WEB_FILE_PROCESS_COMPLETE':
+                        this.load_table();
+                        break;
+                    case 'WEB_FILE_PROCESS_ERROR':
+                        this.set_table_load_error(message.file);
+                        break;
                 }
-            });
+            }
         },
 
         set_table_load_pending() {
@@ -173,22 +198,10 @@ export default {
 
             try {
                 // Get Columns
-                await mgr.get_columns(
-                    this.file_directory_id,
-                    this.grid_options,
-                    this.row_index_column
-                );
-                this.cache_columns();
-                // Get Rows
-                this.grid_api.setDatasource({
-                    getRows: this.get_rows
+                await mgr.get_columns(this.file_directory_id, this.grid_api, {
+                    ...ROW_INDEX_COLUMN
                 });
-
-                /*await mgr.get_columns(
-                this.file_directory_id,
-                this.grid_options,
-                this.row_index_column
-                );*/
+                this.cache_columns();
 
                 this.edit_column_changes = {};
                 this.delete_columns = [];
@@ -199,7 +212,7 @@ export default {
                     this.edit_column_changes
                 ).length;
                 this.grid_api.refreshHeader();
-                this.grid_api.setDatasource({ getRows: this.get_rows });
+                this.set_datasource(this.get_rows);
                 this.table_lock = false;
                 this.saving_columns = false;
                 this.processing = false;
@@ -272,7 +285,9 @@ export default {
                 editable: true,
                 sortable: true,
                 filter: true,
+                floatingFilter: true,
                 resizable: true,
+                headerComponent: 'GridHeader',
                 headerComponentParams: {
                     edit_mode: false,
                     delete_header: this.delete_header,
@@ -288,8 +303,7 @@ export default {
         /*** Start: Retrieve paged rows from server ***/
         async get_rows(params) {
             this.show_top_bar_info('Loading...');
-            const { columnApi } = this.grid_options;
-            const col_defs = columnApi.getAllGridColumns().map(c => c.colDef);
+            const col_defs = this.col_defs();
             let res = await mgr.get_rows(
                 this.file_directory_id,
                 params,
@@ -320,7 +334,7 @@ export default {
         },
 
         column_visible(e) {
-            e.columnApi.setColumnVisible(e.column, true);
+            if (e.column) e.api.setColumnsVisible([e.column], true);
         },
 
         async cell_value_changed(e) {
@@ -384,9 +398,7 @@ export default {
         },
 
         refresh_col_defs() {
-            const { api, columnApi } = this.grid_options;
-            const col_defs = columnApi.getAllGridColumns().map(c => c.colDef);
-            api.setColumnDefs(col_defs);
+            this.set_column_defs(this.col_defs());
         },
 
         edit_columns_clicked() {
@@ -397,28 +409,27 @@ export default {
         },
 
         cache_columns() {
-            const { columnApi } = this.grid_options;
-            this.cached_col_defs = columnApi
-                .getAllGridColumns()
-                .map(c => Object.assign({}, c.colDef));
+            this.cached_col_defs = this.col_defs().map(c =>
+                Object.assign({}, c)
+            );
         },
 
         async add_column_clicked() {
             this.disable_add_column = true;
-            const { api, columnApi } = this.grid_options;
-            let col_defs = columnApi.getAllGridColumns().map(c => c.colDef);
+            let col_defs = this.col_defs();
 
             const new_col = await mgr.get_new_column(this.file_directory_id);
             new_col.edit_mode = true;
 
             col_defs.push(new_col);
 
-            api.setColumnDefs(col_defs);
+            this.set_column_defs(col_defs);
 
-            col_defs = columnApi.getAllGridColumns().map(c => c.colDef);
+            col_defs = this.col_defs();
             const length = col_defs.length;
 
             this.set_column_edit_mode(col_defs[length - 1], true);
+            this.set_column_defs(col_defs);
             this.set_column_lock(true);
             this.scroll_horizontal_end();
             this.disable_add_column = false;
@@ -445,7 +456,7 @@ export default {
         },
 
         reset_columns() {
-            this.grid_options.api.setColumnDefs(
+            this.set_column_defs(
                 this.cached_col_defs.map(c => Object.assign({}, c))
             );
             this.cached_col_defs = [];
@@ -521,12 +532,10 @@ export default {
         },
 
         async save_columns_from_edit_map(edit_map) {
-            const { columnApi } = this.grid_options;
-
             const header_names = [];
 
-            const col_defs = columnApi.getAllGridColumns().map(column => {
-                const colDef = Object.assign({}, column.colDef);
+            const col_defs = this.col_defs().map(col_def => {
+                const colDef = Object.assign({}, col_def);
                 const { field } = colDef;
 
                 if (edit_map[field]) {
@@ -554,7 +563,7 @@ export default {
 
             const res = await mgr.save_columns(
                 this.file_directory_id,
-                columnApi.getAllGridColumns().map(c => c.colDef),
+                this.col_defs(),
                 filtered,
                 this.delete_columns
             );
@@ -566,15 +575,13 @@ export default {
         },
 
         delete_header(col_def) {
-            const { api, columnApi } = this.grid_options;
-            const col_defs = columnApi
-                .getAllGridColumns()
-                .map(col => col.colDef)
-                .filter(def => def.field !== col_def.field);
+            const col_defs = this.col_defs().filter(
+                def => def.field !== col_def.field
+            );
             if (col_def._id) {
                 this.delete_columns.push(col_def);
             }
-            api.setColumnDefs(col_defs);
+            this.set_column_defs(col_defs);
         },
 
         header_clicked() {
@@ -612,12 +619,10 @@ export default {
         },
 
         set_all_columns_edit_mode(mode) {
-            const { api, columnApi } = this.grid_options;
-            const col_defs = columnApi
-                .getAllGridColumns()
-                .map(c => this.set_column_edit_mode(c.colDef, mode));
-
-            api.setColumnDefs(col_defs);
+            const col_defs = this.col_defs().map(c =>
+                this.set_column_edit_mode(c, mode)
+            );
+            this.set_column_defs(col_defs);
         },
 
         set_column_edit_mode(col_def, mode) {
@@ -630,9 +635,8 @@ export default {
         },
 
         set_column_lock(lock) {
-            const { api, columnApi } = this.grid_options;
-            const col_defs = columnApi.getAllGridColumns().map(column => {
-                let col_def = Object.assign({}, column.colDef);
+            const col_defs = this.col_defs().map(def => {
+                let col_def = Object.assign({}, def);
                 if (col_def.field === 'row_num') {
                     col_def.sortable = !lock;
                     col_def.filter = !lock;
@@ -647,7 +651,7 @@ export default {
                 return col_def;
             });
 
-            api.setColumnDefs(col_defs);
+            this.set_column_defs(col_defs);
         },
 
         async add_row_clicked() {
@@ -663,11 +667,9 @@ export default {
                 );
                 let data = this.add_data.concat(this.new_rows);
                 data = mgr.number_new_rows(data, this.total_rows);
-                this.grid_api.setDatasource({
-                    getRows: params => {
-                        params.successCallback(data, data.length);
-                    }
-                });
+                this.set_datasource(params =>
+                    params.successCallback(data, data.length)
+                );
             } else {
                 this.show_top_bar_info('Saving...', 1500);
                 let ids = selected.map(s => s.data._id);
@@ -691,17 +693,11 @@ export default {
 
         /*** Start: Add Mode ***/
         async set_add_row_mode() {
-            const self = this;
-            const { api, columnApi } = this.grid_options;
-            api.setColumnDefs(
-                columnApi
-                    .getAllGridColumns()
-                    .map(c => Object.assign({}, c.colDef))
+            this.set_column_defs(
+                this.col_defs().map(c => Object.assign({}, c))
             );
-            self.show_delete_rows = false;
-            this.grid_api.setDatasource({
-                getRows: self.add_row_mode_get_rows
-            });
+            this.show_delete_rows = false;
+            this.set_datasource(this.add_row_mode_get_rows);
         },
 
         async add_row_mode_get_rows(params) {
@@ -737,29 +733,39 @@ export default {
         },
 
         cover_add_row_mode_header() {
-            let $header_rows = $(`.ag-header-container .ag-header-row`);
-            let $cover = $('<div class="header-cover"></div>');
-            $($header_rows).prepend($cover);
+            this.$el
+                .querySelectorAll('.ag-header-container .ag-header-row')
+                .forEach(row => {
+                    const cover = document.createElement('div');
+                    cover.className = 'header-cover';
+                    row.prepend(cover);
+                });
         },
 
         cover_add_row_mode_rows() {
-            const container = '.ag-center-cols-container';
-            let rows_to_cover =
+            const container = this.$el.querySelector(
+                '.ag-center-cols-container'
+            );
+            if (!container) return;
+            const rows_to_cover =
                 ADD_ROW_MODE_ROW_COUNT > this.total_rows
                     ? this.total_rows
                     : ADD_ROW_MODE_ROW_COUNT;
+            const first_row = container.querySelector('.ag-row[row-id="0"]');
+            const height = first_row ? first_row.offsetHeight : 0;
             for (let i = 0; i < rows_to_cover; i++) {
-                let $rows = $(`${container} .ag-row[row-id="${0}"]`);
-                let height = $($rows[0]).height();
-                let $cover = $('<div class="row-cover"></div>');
-                $cover.css({ height: height + 'px', top: height * i });
-                $(container).prepend($cover);
+                const cover = document.createElement('div');
+                cover.className = 'row-cover';
+                cover.style.height = height + 'px';
+                cover.style.top = height * i + 'px';
+                container.prepend(cover);
             }
         },
 
         clear_add_row_mode_covers() {
-            $('.header-cover').remove();
-            $('.row-cover').remove();
+            this.$el
+                .querySelectorAll('.header-cover, .row-cover')
+                .forEach(el => el.remove());
         },
 
         /*** End: Add Mode ***/
@@ -769,9 +775,23 @@ export default {
             this.new_rows = [];
             this.add_data = [];
             this.add_row_mode = false;
-            this.grid_options.rowSelection = 'multiple';
-            this.grid_api.setDatasource({ getRows: this.get_rows });
+            this.set_datasource(this.get_rows);
             this.grid_api.deselectAll();
+        },
+
+        // Copies, so changing one and passing it back counts as a change to the grid
+        col_defs() {
+            return this.grid_api
+                .getAllGridColumns()
+                .map(c => ({ ...c.getColDef() }));
+        },
+
+        set_column_defs(col_defs) {
+            this.grid_api.setGridOption('columnDefs', col_defs);
+        },
+
+        set_datasource(get_rows) {
+            this.grid_api.setGridOption('datasource', { getRows: get_rows });
         }
         /*** End: Grid Helpers ***/
     }

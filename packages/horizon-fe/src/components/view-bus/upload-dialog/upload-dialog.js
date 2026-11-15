@@ -1,4 +1,3 @@
-import $ from 'jquery';
 import { error_manager } from '@/core/error/error-manager';
 
 export default {
@@ -14,28 +13,13 @@ export default {
             file: null,
             file_ctx: null,
             progress: 0,
-            status: null,
+            status: '',
             http_handler: null,
             on_success: null,
             on_error: null,
             dialog_visible: false,
             error_message: null
         };
-    },
-
-    mounted() {
-        $('.dialog-upload').bind('click.upload_dialog', e => {
-            if (e.target.className === 'el-upload__input') {
-                this.new_name = '';
-                this.progress = 0;
-                this.status = null;
-                this.$refs.upload.clearFiles();
-            }
-        });
-    },
-
-    unmounted() {
-        $('body').unbind('.upload_dialog');
     },
 
     methods: {
@@ -50,7 +34,7 @@ export default {
             this.selected_option =
                 this.options.length > 0 ? this.options[0].id : null;
             this.progress = 0;
-            this.status = null;
+            this.status = '';
             this.on_success = data.on_success || null;
             this.on_error = data.on_error || null;
             this.http_handler = data.http_handler || null;
@@ -73,7 +57,7 @@ export default {
         upload_handler() {
             this.running = true;
             this.progress = 0;
-            this.status = null;
+            this.status = '';
             this.error_message = null;
             this.$refs.upload.submit();
         },
@@ -162,7 +146,7 @@ export default {
             this.file_ctx = null;
             this.progress = 0;
             this.error_message = null;
-            this.status = null;
+            this.status = '';
             this.new_name = '';
             this.$refs.upload.clearFiles();
         }

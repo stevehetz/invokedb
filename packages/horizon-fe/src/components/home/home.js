@@ -1,4 +1,3 @@
-import $ from 'jquery';
 import Split from 'split.js';
 import h_tree from '@/components/h-tree';
 import doc_container from '@/components/doc-container';
@@ -42,27 +41,30 @@ export default {
         this.dom_add_bindings();
     },
 
-    destroyed() {
+    unmounted() {
         this.dom_remove_bindings();
+        bus.$off('websocket:message', this.websocket_message);
     },
 
     methods: {
         /*** Start: Websocket handler ***/
         setup_websocket_handler() {
-            bus.$on('websocket:message', data => {
-                const { event, message, error } = data;
-                switch (event) {
-                    case 'WEB_FILE_PROCESS_START':
-                        this.web_file_process_start(message);
-                        break;
-                    case 'WEB_FILE_PROCESS_COMPLETE':
-                        this.web_file_process_complete(message);
-                        break;
-                    case 'WEB_FILE_PROCESS_ERROR':
-                        this.web_file_process_error(message, error);
-                        break;
-                }
-            });
+            bus.$on('websocket:message', this.websocket_message);
+        },
+
+        websocket_message(data) {
+            const { event, message, error } = data;
+            switch (event) {
+                case 'WEB_FILE_PROCESS_START':
+                    this.web_file_process_start(message);
+                    break;
+                case 'WEB_FILE_PROCESS_COMPLETE':
+                    this.web_file_process_complete(message);
+                    break;
+                case 'WEB_FILE_PROCESS_ERROR':
+                    this.web_file_process_error(message, error);
+                    break;
+            }
         },
 
         web_file_process_start(message) {
@@ -96,7 +98,6 @@ export default {
                 if (t.name === this.active_tab_name) active_tab = t;
             });
             this.tabs = tab_manager.update_tab(this.tabs, new TabVo(file));
-            this.decorate_tabs();
             this.tabs.filter(t => {
                 if (t.id === active_tab.id) this.active_tab_name = t.name;
             });
@@ -127,19 +128,17 @@ export default {
 
         /*** Start: Page level DOM bindings ***/
         dom_add_bindings() {
-            let self = this;
-            $('body').bind('click.home', e => {
-                if (
-                    $(e.target).closest('.left-pane, .gutter, .dialog').length >
-                    0
-                )
-                    return;
-                this.$refs.h_tree.clear_managed_nodes();
-            });
+            document.body.addEventListener('click', this.body_clicked);
         },
 
         dom_remove_bindings() {
-            $('body').unbind('.home');
+            document.body.removeEventListener('click', this.body_clicked);
+        },
+
+        // Clicking anywhere but the tree (or a dialog) clears the managed tree item
+        body_clicked(e) {
+            if (e.target.closest('.left-pane, .gutter, .dialog')) return;
+            if (this.$refs.h_tree) this.$refs.h_tree.clear_managed_nodes();
         },
         /*** End: Page level DOM bindings ***/
 
@@ -149,7 +148,6 @@ export default {
                 this.tree_items,
                 this.tabs
             );
-            this.$refs.h_tree.reload_tree_data();
         },
 
         async tree_item_selected(tree_item) {
@@ -324,8 +322,6 @@ export default {
                 await this.setup_tree();
                 // Update the tab with the new name
                 this.tabs = tab_manager.update_tab(this.tabs, new TabVo(res));
-                // Decorate
-                this.decorate_tabs();
                 // Restore active tab
                 this.tabs.filter(t => {
                     if (t.id === active_tab.id) this.active_tab_name = t.name;
@@ -382,7 +378,6 @@ export default {
             this.tabs = tabs;
             this.active_tab_name = active_tab_name;
             this.handle_duplicate_opened_names();
-            this.decorate_tabs();
         },
 
         create_tab_from_tree_id(id) {
@@ -415,8 +410,8 @@ export default {
             });
         },
 
-        tab_clicked(event) {
-            let tab = this.get_tab_from_name(event.name);
+        tab_clicked(pane) {
+            let tab = this.get_tab_from_name(pane.paneName);
             this.$refs.h_tree.select_tree_item_by_id(tab.id);
         },
 
@@ -428,39 +423,24 @@ export default {
             return tab;
         },
 
-        decorate_tabs() {
-            let self = this;
-            window.setTimeout(() => {
-                $('.el-tabs__item').each(function () {
-                    let $tab = $(this);
-                    $tab.find('i').remove();
-                    const icon = self.get_tab_icon($tab);
-                    $tab.prepend(icon + ' ');
-                });
-            }, 0);
+        // Tab names end in a type suffix (.g grid, .p processing, .e error; see tab-manager),
+        // shown as an icon instead
+
+        tab_label(name) {
+            return /\.[gpe]$/.test(name) ? name.slice(0, -2) : name;
         },
 
-        get_tab_icon($icon) {
-            const text = $icon.text();
-            const ext = text.substring(text.length - 1);
-
-            let icon = null;
-            switch (ext) {
-                case 'g':
-                    icon = tree_consts.ICON_GRID;
-                    break;
-                case 'p':
-                    icon = tree_consts.ICON_PROCESSING;
-                    break;
-                case 'e':
-                    icon = tree_consts.ICON_ERROR;
-                    break;
+        tab_icon(name) {
+            switch (name.slice(-2)) {
+                case '.g':
+                    return tree_consts.ICON_GRID;
+                case '.p':
+                    return tree_consts.ICON_PROCESSING;
+                case '.e':
+                    return tree_consts.ICON_ERROR;
                 default:
-                    icon = '';
-                    break;
+                    return '';
             }
-
-            return icon;
         }
         /*** End: Tab Handlers ***/
     }

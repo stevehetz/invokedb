@@ -97,7 +97,7 @@ export const data_grid_manager = {
     /*** End: Row data ***/
 
     /*** Start: Column data ***/
-    async get_columns(file_directory_id, grid_options, row_index_column) {
+    async get_columns(file_directory_id, grid_api, row_index_column) {
         const { data, count } = await web_file_http.get_by_id(
             file_directory_id,
             'data_grid_column'
@@ -108,16 +108,16 @@ export const data_grid_manager = {
         }
 
         data.forEach(d => {
-            d.suppressMenu = true;
+            d.suppressHeaderMenuButton = true;
             d.filterParams = {
                 caseSensitive: true
             };
-            d.floatingFilterComponent = 'agColumnFilter';
+            d.floatingFilterComponent = 'GridFilter';
         });
 
         let columns = [row_index_column].concat(data);
 
-        grid_options.api.setColumnDefs(_.sortBy(columns, 'order'));
+        grid_api.setGridOption('columnDefs', _.sortBy(columns, 'order'));
     },
 
     async save_columns(

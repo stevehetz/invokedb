@@ -7,15 +7,15 @@
         </span>
     </div>
     <div ref="menu" class="grid-filter-type__menu">
-        <div
-            class="menu__item"
-            v-for="(value, key, index) in filter_types"
-            v-if="selected_type !== key"
-            @click="change_type(key)"
-            :key="key"
-        >
-            {{ value }}
-        </div>
+        <template v-for="(value, key) in filter_types" :key="key">
+            <div
+                v-if="selected_type !== key"
+                class="menu__item"
+                @click="change_type(key)"
+            >
+                {{ value }}
+            </div>
+        </template>
     </div>
     <input
         type="text"

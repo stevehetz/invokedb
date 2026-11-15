@@ -1,3 +1,5 @@
+import { markRaw } from 'vue';
+
 export default {
     name: 'ContainerDialog',
     data: () => {
@@ -12,7 +14,7 @@ export default {
         open_dialog(data) {
             this.props = data.props;
             this.title = data.title;
-            this.child_component = data.component;
+            this.child_component = markRaw(data.component);
             this.dialog_visible = true;
         },
 

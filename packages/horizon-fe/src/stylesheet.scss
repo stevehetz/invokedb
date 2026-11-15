@@ -34,10 +34,7 @@ $green500: #54b358;
 
 $yellow500: #babf0f;
 
-$--color-primary: $purple300;
-$--color-success: $green500;
-$--font-path: 'element-ui/lib/theme-chalk/fonts';
-@import 'element-ui/packages/theme-chalk/src/index';
+// The Element Plus theme (primary $purple300, success $green500) is in element-theme.scss.
 
 html {
     height: 100%;
@@ -364,8 +361,8 @@ $nav_active_color: #ffffff;
     font-size: 16px;
 }
 .nav .el-menu-item,
-.nav .el-submenu,
-.nav .el-submenu .el-submenu__title {
+.nav .el-sub-menu,
+.nav .el-sub-menu .el-sub-menu__title {
     display: flex;
     align-items: center;
     height: 100%;
@@ -373,7 +370,7 @@ $nav_active_color: #ffffff;
     font-weight: bold !important;
 }
 .nav .el-menu-item,
-.nav .el-submenu .el-submenu__title > * {
+.nav .el-sub-menu .el-sub-menu__title > * {
     color: $nav_inactive_color !important;
 }
 .nav .el-menu-item *::selection {
@@ -415,16 +412,16 @@ $nav_active_color: #ffffff;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.nav .el-submenu .el-submenu__title:hover {
+.nav .el-sub-menu .el-sub-menu__title:hover {
     background-color: transparent;
 }
-.nav .el-submenu .el-submenu__title:hover > * {
+.nav .el-sub-menu .el-sub-menu__title:hover > * {
     color: $nav_active_color !important;
 }
-.nav .el-submenu.is-active2 .el-submenu__title {
+.nav .el-sub-menu.is-active2 .el-sub-menu__title {
     border-bottom: solid 2px $nav_active_color;
 }
-.nav .el-submenu.is-active2 .el-submenu__title > * {
+.nav .el-sub-menu.is-active2 .el-sub-menu__title > * {
     color: $nav_active_color !important;
 }
 .nav .menu-icon {
@@ -434,7 +431,7 @@ $nav_active_color: #ffffff;
 .nav-popper-hidden .nav-popper {
     display: none;
 }
-.nav-popper-hidden .nav .el-submenu__title .el-submenu__icon-arrow {
+.nav-popper-hidden .nav .el-sub-menu__title .el-sub-menu__icon-arrow {
     transform: rotateZ(0) !important;
 }
 .nav-popper {
@@ -591,10 +588,10 @@ $nav_active_color: #ffffff;
 .h-tree .file-directory-menu .title-icon {
     font-size: 22px;
 }
-.h-tree .file-directory-menu .el-submenu {
+.h-tree .file-directory-menu .el-sub-menu {
     width: 100%;
 }
-.h-tree .file-directory-menu .el-submenu .el-submenu__title {
+.h-tree .file-directory-menu .el-sub-menu .el-sub-menu__title {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -604,10 +601,10 @@ $nav_active_color: #ffffff;
     border-bottom: none;
     padding: 0;
 }
-.h-tree .file-directory-menu .el-submenu .el-submenu__title:hover {
+.h-tree .file-directory-menu .el-sub-menu .el-sub-menu__title:hover {
     background-color: transparent !important;
 }
-.h-tree .file-directory-menu .el-submenu__icon-arrow {
+.h-tree .file-directory-menu .el-sub-menu__icon-arrow {
     display: none;
 }
 .h-tree .manage-items {
@@ -651,26 +648,26 @@ $nav_active_color: #ffffff;
     align-items: center;
     padding-top: 2px;
 }
-.h-tree .h-tree-header .file-directory-menu .el-submenu__title {
+.h-tree .h-tree-header .file-directory-menu .el-sub-menu__title {
     color: white;
     height: auto;
     line-height: inherit;
     font-size: 1.2rem;
     padding: 0;
 }
-.h-tree .h-tree-header .file-directory-menu .el-submenu__title:hover {
+.h-tree .h-tree-header .file-directory-menu .el-sub-menu__title:hover {
     color: white;
     background-color: transparent;
 }
-.h-tree .h-tree-header .file-directory-menu .el-submenu__title:focus {
+.h-tree .h-tree-header .file-directory-menu .el-sub-menu__title:focus {
     color: white;
     background-color: transparent;
 }
 .h-tree
     .h-tree-header
     .file-directory-menu
-    .el-submenu.is-active
-    .el-submenu__title {
+    .el-sub-menu.is-active
+    .el-sub-menu__title {
     border-bottom: none;
 }
 .h-tree-menu-popper {
@@ -706,119 +703,82 @@ $nav_active_color: #ffffff;
     overflow-y: auto;
     overflow-x: hidden;
 }
-.h-tree .jqtree-border {
-    border: none !important;
-}
-.h-tree .jqtree-tree {
+.h-tree .h-tree-nodes {
     position: relative;
-    margin-top: 0;
     padding: 0 1em;
+    background-color: transparent;
+    --el-tree-node-hover-bg-color: transparent;
 }
-.h-tree .jqtree-tree .icon-wrapper {
+.h-tree .h-tree-nodes .el-tree-node__content {
+    height: 28px;
+    background-color: transparent;
+}
+.h-tree .h-tree-nodes .el-tree-node:focus > .el-tree-node__content {
+    background-color: transparent;
+}
+// A managed (clicked) item gets a full-width band, like jqtree's old highlighter
+.h-tree .h-tree-nodes .el-tree-node__content:has(> .tree-node.managed) {
+    background-color: #eff2f9;
+}
+// Drop target while dragging
+.h-tree .h-tree-nodes .el-tree-node.is-drop-inner > .el-tree-node__content {
+    background-color: #d7d7d7;
+}
+.h-tree .h-tree-nodes .el-tree-node__expand-icon {
+    font-size: 16px;
+    color: #494b4c;
+}
+// Tables have no caret; only folders do
+.h-tree .h-tree-nodes .el-tree-node__expand-icon.is-leaf {
+    display: none;
+}
+.h-tree .tree-node {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    cursor: default;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1.4rem;
+    color: #6c6f70;
+}
+.h-tree .tree-node.selected {
+    color: #2a2a30;
+}
+.h-tree .tree-node.processing {
+    color: gray;
+}
+.h-tree .tree-node .tree-node-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.h-tree .tree-node .icon-wrapper {
     display: inline-block;
+    flex-shrink: 0;
     width: 27px;
     position: relative;
 }
-.h-tree .jqtree-tree .processing {
-    color: gray;
+.h-tree .tree-node .icon-wrapper i {
+    font-size: 18px;
 }
-.h-tree .jqtree-tree .jqtree-title .icon-wrapper .processing-icon {
+.h-tree .tree-node .icon-wrapper .processing-icon {
     color: #7a86c3;
     font-size: 16px;
 }
-.h-tree .jqtree-tree .jqtree-title .icon-wrapper .error-icon {
+.h-tree .tree-node .icon-wrapper .error-icon {
     color: #ff6565;
     font-size: 16px;
 }
-.h-tree .jqtree-tree .dir-icon {
+.h-tree .tree-node .dir-icon {
     position: relative;
-    top: -3px;
-}
-.h-tree .jqtree-tree .jqtree-toggler {
-    cursor: pointer;
-}
-.h-tree .jqtree-tree .jqtree-toggler.jqtree-toggler-left {
-    margin-right: 0;
-}
-.h-tree .jqtree-tree .drag-background {
-    z-index: -1;
-    position: absolute;
-    background-color: #d7d7d7;
-    top: -3px;
-    left: 0;
-    height: 100%;
-    width: 100%;
-}
-.h-tree .jqtree-tree .jqtree-ghost .jqtree-circle {
-    display: none;
-    top: -6px;
-    border: solid 2px #ff9d89;
-}
-.h-tree .jqtree-tree .jqtree-ghost .jqtree-line {
-    display: none;
-    top: -3px;
-    background-color: #ff9d89;
-}
-.h-tree .jqtree-tree .jqtree-moving .jqtree-element .jqtree-title {
-    outline: none;
-}
-.h-tree .jqtree-tree .jqtree_common {
-    position: relative;
-}
-.h-tree .jqtree-tree .jqtree-element {
-    cursor: default;
-    position: relative;
-    margin-bottom: 6px;
-    height: 22px;
-}
-.h-tree .jqtree-tree .jqtree-element .highlighter {
-    z-index: -1;
-    position: absolute;
-    top: -3px;
-    height: calc(100% + 2px);
-    background-color: #eff2f9;
-}
-.h-tree .jqtree-tree .jqtree-element .jqtree-title {
-    position: relative;
-    top: -2px;
-    margin-left: 0;
-    font-size: 16px;
-    font-weight: bold;
-    color: #6c6f70;
-    line-height: 1.4rem;
-}
-.h-tree .jqtree-tree .jqtree-element .jqtree-title-folder {
-    display: inline-block;
-}
-.h-tree .jqtree-tree .jqtree-element .jqtree-title i {
-    font-size: 18px;
-}
-.h-tree .jqtree-tree .jqtree-element .jqtree-toggler {
-    font-size: 18px;
-    color: #494b4c;
-}
-.h-tree .jqtree-tree .jqtree-element .jqtree-border {
-    border: none;
-}
-.h-tree .jqtree-tree .jqtree-folder > .jqtree-element > .jqtree-border {
-    border: solid 1px #ff9d89;
-}
-.h-tree .jqtree-tree .jqtree-selected .jqtree-element {
-    background-color: transparent !important;
-    background: transparent !important;
-}
-.h-tree .jqtree-tree .jqtree-selected .jqtree-element:hover {
-    background-color: transparent;
-}
-.h-tree .jqtree-tree .jqtree-selected .jqtree-element .jqtree-title {
-    color: #2a2a30;
-    text-shadow: none;
-}
-.h-tree .jqtree-tree .jqtree-selected .jqtree-element .jqtree-title:focus {
-    outline: none;
+    top: -1px;
 }
 
 .h-data-grid {
+    // ag-grid reads these from its theme CSS, which the app doesn't load (it styles the grid itself)
+    --ag-row-height: 30px;
+    --ag-header-height: 35px;
+    --ag-list-item-height: 24px;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -881,7 +841,11 @@ $nav_active_color: #ffffff;
     width: 150px;
     padding: 0 2px 0px 10px;
 }
-.h-data-grid .top .controls .edit-controls .el-button--text.add-column-button {
+.h-data-grid
+    .top
+    .controls
+    .edit-controls
+    .el-button.is-link.add-column-button {
     width: 150px;
     padding: 0 2px 0px 10px;
 }
@@ -918,10 +882,10 @@ $nav_active_color: #ffffff;
     height: 100%;
     background-color: #2b2b2b;
 }
-.h-data-grid .top .api-button .el-button--text {
+.h-data-grid .top .api-button .el-button.is-link {
     color: #696fe4;
 }
-.h-data-grid .top .api-button:hover .el-button--text {
+.h-data-grid .top .api-button:hover .el-button.is-link {
     color: #7f84ee;
 }
 .h-data-grid .top .api-button .el-button.is-disabled {
@@ -1120,7 +1084,16 @@ $nav_active_color: #ffffff;
 .h-data-grid .grid-header.edit .grid-header-input {
     height: 100%;
 }
+// Element Plus wraps the input in a padded, shadowed .el-input__wrapper; flatten it
+.h-data-grid .grid-header.edit .grid-header-input .el-input__wrapper {
+    height: 100%;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background-color: transparent;
+}
 .h-data-grid .grid-header.edit .grid-header-input input {
+    height: 100%;
     padding: 0 25px 0 5px;
     margin: 0;
     border: none;
@@ -1595,59 +1568,59 @@ $nav_active_color: #ffffff;
 .el-button.el-button--default.blue:hover {
     background-color: #c0c0e4;
 }
-.el-button.el-button--text {
+.el-button.el-button.is-link {
     border-radius: 2px;
     font-size: 1.05rem;
     padding: 0 0.7em;
     font-weight: bold;
 }
-.el-button.el-button--text > span {
+.el-button.el-button.is-link > span {
     display: flex;
     align-items: center;
 }
-.el-button.el-button--text > span > i {
+.el-button.el-button.is-link > span > i {
     margin-right: 0.5em;
 }
-.el-button.el-button--text:not([disabled]) {
+.el-button.el-button.is-link:not([disabled]) {
     color: #1f1f1f;
 }
-.el-button.el-button--text:not([disabled]):hover {
+.el-button.el-button.is-link:not([disabled]):hover {
     color: lighten(#1f1f1f, 5%);
 }
-.el-button.el-button--text.green:not([disabled]) {
+.el-button.el-button.is-link.green:not([disabled]) {
     color: #4ad257;
 }
-.el-button.el-button--text.green:not([disabled]):hover {
+.el-button.el-button.is-link.green:not([disabled]):hover {
     color: lighten(#4ad257, 10%);
 }
-.el-button.el-button--text.red:not([disabled]) {
+.el-button.el-button.is-link.red:not([disabled]) {
     color: #ff6c54;
 }
-.el-button.el-button--text.red:not([disabled]):hover {
+.el-button.el-button.is-link.red:not([disabled]):hover {
     color: lighten(#ff6c54, 5%);
 }
-.el-button.el-button--text.orange:not([disabled]) {
+.el-button.el-button.is-link.orange:not([disabled]) {
     color: #ef7840;
 }
-.el-button.el-button--text.orange:not([disabled]):hover {
+.el-button.el-button.is-link.orange:not([disabled]):hover {
     color: lighten(#ef7840, 5%);
 }
-.el-button.el-button--text.blue:not([disabled]) {
+.el-button.el-button.is-link.blue:not([disabled]) {
     color: #409eff;
 }
-.el-button.el-button--text.blue:not([disabled]):hover {
+.el-button.el-button.is-link.blue:not([disabled]):hover {
     color: lighten(#409eff, 5%);
 }
-.el-button.el-button--text.purple:not([disabled]) {
+.el-button.el-button.is-link.purple:not([disabled]) {
     color: #8e7eff;
 }
-.el-button.el-button--text.purple:not([disabled]):hover {
+.el-button.el-button.is-link.purple:not([disabled]):hover {
     color: lighten(#8e7eff, 5%);
 }
-.el-button.el-button--text.white:not([disabled]) {
+.el-button.el-button.is-link.white:not([disabled]) {
     color: #e8e8e8;
 }
-.el-button.el-button--text.white:not([disabled]):hover {
+.el-button.el-button.is-link.white:not([disabled]):hover {
     color: lighten(#d2d2d2, 20%);
 }
 .el-button.el-button--default.icon-btn {
@@ -1676,10 +1649,23 @@ $nav_active_color: #ffffff;
 .el-button.icon-btn {
     font-size: 1.2rem;
 }
+.el-button.icon-btn.is-circle {
+    width: 46px;
+    height: 46px;
+}
 
+// Element Plus pads the whole dialog box; put Element UI's section padding back so the
+// header bar runs edge to edge
+.el-dialog {
+    padding: 0;
+}
 .el-dialog .el-dialog__header {
-    padding-top: 15px;
+    padding: 15px 20px 10px;
+    margin-right: 0;
     background-color: $gray400;
+}
+.el-dialog .el-dialog__footer {
+    padding: 10px 20px 20px;
 }
 .el-dialog .el-dialog__header .el-dialog__title {
     color: white;
@@ -1692,6 +1678,7 @@ $nav_active_color: #ffffff;
     color: white;
 }
 .el-dialog .el-dialog__body {
+    padding: 30px 20px;
     font-size: 16px;
     word-break: normal;
 }
@@ -1809,7 +1796,15 @@ $nav_active_color: #ffffff;
 .el-input {
     outline: none;
 }
+// The app styles the <input> itself; Element Plus's wrapper adds its own padding and border
+.el-input .el-input__wrapper {
+    padding: 0;
+    box-shadow: none;
+    background-color: transparent;
+}
 .el-input .el-input__inner {
+    padding-left: 15px;
+    padding-right: 15px;
     border: solid 2px #c1c1c1;
     border-radius: 2px;
     background-color: #f5f5f5;
@@ -1831,6 +1826,7 @@ $nav_active_color: #ffffff;
     height: 35px;
 }
 .single-file-upload .el-upload {
+    z-index: 1; // above the file list, which comes after it in the DOM
     position: absolute;
     top: 0;
     left: 0;
@@ -1879,6 +1875,12 @@ $nav_active_color: #ffffff;
 
 .el-tabs {
     overflow: hidden;
+    --el-tabs-header-height: 35px;
+}
+.el-tabs .el-tabs__item .doc-icon,
+.el-tabs .el-tabs__item .processing-icon,
+.el-tabs .el-tabs__item .error-icon {
+    margin-right: 6px;
 }
 .el-tabs .is-focus {
     box-shadow: 0 0 0 0 !important;
@@ -1941,11 +1943,11 @@ $nav_active_color: #ffffff;
     background-color: #e4e4e4;
     color: $gray400;
 }
-.el-tabs .el-tabs__item .el-icon-close {
+.el-tabs .el-tabs__item .is-icon-close {
     cursor: pointer;
     background-color: #e4e4e4;
 }
-.el-tabs .el-tabs__item .el-icon-close:hover {
+.el-tabs .el-tabs__item .is-icon-close:hover {
     background-color: #e4e4e4;
     color: $gray400;
 }
@@ -1958,15 +1960,15 @@ $nav_active_color: #ffffff;
     color: $gray400;
     background-color: white;
 }
-.el-tabs .el-tabs__item.is-active .el-icon-close {
+.el-tabs .el-tabs__item.is-active .is-icon-close {
     background-color: white;
 }
 .el-tabs .el-tabs__item.is-active:hover {
     background-color: white;
     color: $gray400;
 }
-.el-tabs .el-tabs__item .el-icon-close {
-    margin-left: -16px;
+.el-tabs .el-tabs__item .is-icon-close {
+    margin-left: 6px;
     width: 26px !important;
     height: 25px !important;
     font-size: 18px !important;
@@ -2021,11 +2023,11 @@ $page_nav_active_color: #dcb467;
 .page-nav .el-menu {
     background-color: #4d4d4d;
 }
-.page-nav .el-menu .el-submenu .el-menu {
+.page-nav .el-menu .el-sub-menu .el-menu {
     background-color: #6c6c6c;
 }
 .page-nav .el-menu-item,
-.page-nav .el-submenu .el-submenu__title > * {
+.page-nav .el-sub-menu .el-sub-menu__title > * {
     color: $page_nav_inactive_color !important;
 }
 .page-nav .el-menu-item:hover {
@@ -2038,13 +2040,13 @@ $page_nav_active_color: #dcb467;
     color: $nav_active_color !important;
     background-color: transparent !important;
 }
-.page-nav .el-submenu .el-submenu__title:hover {
+.page-nav .el-sub-menu .el-sub-menu__title:hover {
     background-color: transparent;
 }
-.page-nav .el-submenu .el-submenu__title:hover > * {
+.page-nav .el-sub-menu .el-sub-menu__title:hover > * {
     color: $nav_active_color !important;
 }
-.page-nav .el-submenu.is-active .el-submenu__title > * {
+.page-nav .el-sub-menu.is-active .el-sub-menu__title > * {
     color: $nav_active_color !important;
 }
 .page-nav .nav-icon {
@@ -2510,42 +2512,30 @@ body.default .h-tree .h-tree-header .manage-items .edit-items {
 body.default .h-tree .tree-background {
     background-color: #353535;
 }
-body.default .h-tree .jqtree-tree .drag-background {
+body.default
+    .h-tree
+    .h-tree-nodes
+    .el-tree-node.is-drop-inner
+    > .el-tree-node__content {
     background-color: #d7d7d7;
 }
-body.default .h-tree .jqtree-tree .jqtree-ghost .jqtree-circle {
-    border: solid 2px #ff9d89;
-}
-body.default .h-tree .jqtree-tree .jqtree-ghost .jqtree-line {
-    background-color: #ff9d89;
-}
-body.default .h-tree .jqtree-tree .jqtree-element .highlighter {
+body.default
+    .h-tree
+    .h-tree-nodes
+    .el-tree-node__content:has(> .tree-node.managed) {
     background-color: #58595a;
 }
-body.default .h-tree .jqtree-tree .jqtree-element .jqtree-title {
+body.default .h-tree .tree-node {
     color: #b3b3b3;
 }
-body.default .h-tree .jqtree-tree .jqtree-element .jqtree-toggler {
+body.default .h-tree .h-tree-nodes .el-tree-node__expand-icon {
     color: #494b4c;
 }
-body.default
-    .h-tree
-    .jqtree-tree
-    .jqtree-folder
-    > .jqtree-element
-    > .jqtree-border {
-    border: solid 1px #ff9d89;
-}
-body.default
-    .h-tree
-    .jqtree-tree
-    .jqtree-selected
-    .jqtree-element
-    .jqtree-title {
+body.default .h-tree .tree-node.selected {
     color: #ffffff;
     text-shadow: none;
 }
-body.default .h-tree .jqtree-tree .jqtree-element .jqtree-title.locked {
+body.default .h-tree .tree-node.locked {
     color: #fb4c4c;
 }
 body.default .h-tree-menu-popper .el-menu {
@@ -2565,17 +2555,21 @@ body.default .h-tree-menu-popper .el-menu .el-menu-item.is-active {
 body.default .h-tree-menu-popper .el-menu .el-menu-item.is-active:hover {
     color: #ffffff;
 }
-body.default .h-tree-menu-popper .el-menu .el-submenu {
+body.default .h-tree-menu-popper .el-menu .el-sub-menu {
     background-color: transparent;
 }
-body.default .h-tree-menu-popper .el-menu .el-submenu .el-submenu__title {
+body.default .h-tree-menu-popper .el-menu .el-sub-menu .el-sub-menu__title {
     background-color: transparent;
     color: #ffffff;
 }
-body.default .h-tree-menu-popper .el-menu .el-submenu .el-icon-arrow-right {
+body.default
+    .h-tree-menu-popper
+    .el-menu
+    .el-sub-menu
+    .el-sub-menu__icon-arrow {
     color: #ffffff;
 }
-body.default .h-tree-menu-popper .el-menu .el-submenu.is-opened {
+body.default .h-tree-menu-popper .el-menu .el-sub-menu.is-opened {
     background-color: #6b6b6b;
 }
 body.default .el-tabs .doc-icon.fa-table {

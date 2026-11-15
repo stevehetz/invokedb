@@ -1,8 +1,7 @@
-import Vue from 'vue';
 import copy from 'copy-to-clipboard';
 import { store } from '@/store';
 
-export default Vue.extend({
+export default {
     props: ['props'],
 
     data() {
@@ -51,4 +50,4 @@ export default Vue.extend({
             this.$router.push(`/app/api#${hash}`);
         }
     }
-});
+};

@@ -11,7 +11,7 @@ in `docs/`: `SAAS_PLAN.md` (turning it into a SaaS) and `AI_IDEAS.md` (AI featur
 ## Start here
 
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
-2. The next job is **step 4** (or 5). Check backend changes with the backend build (see
+2. The next job is **step 5**. Check backend changes with the backend build (see
    `verify-backend`), and frontend changes with the frontend build and lint.
 3. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
@@ -100,13 +100,16 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   history and no longer works. `FS_TOKEN` was unused and is gone. An empty token never counts as
   the server token. The user's `.env` got the (empty) `HORIZON_WS_SERVER_TOKEN` entry, lost the
   two unused `HORIZON_AUTH_FE_*` lines, and was synced with `secrets:push` the same day.
-- **4 (optional):** a `docker-compose.yml` for Postgres and Mongo.
+- **4: dropped** (2026-11-15). A dev compose file for Postgres and Mongo isn't needed: local
+  dev uses Postgres.app and brew Mongo, and Docker isn't installed on the Mac. The production
+  compose file belongs to step 5.
 - **5 (test deployment, on `invokedb.com`):** a cheap, simple deploy for testing, not AKS/Helm.
   Plan: one small VM (Hetzner or DigitalOcean, ~$5–10/month) running `docker compose` with the
   backend, Postgres, Mongo and Caddy (automatic TLS). Caddy serves the built frontend with an
   SPA fallback for `/app/*` and the site paths, and proxies `/api` and the websocket (so `:9000`
-  needs no public port). DNS on Cloudflare. Needs first: step 4 (reuse the compose file), new
-  Dockerfiles (the current ones use `node:10` and `npm run build`), the backend installed with
+  needs no public port). DNS on Cloudflare. Needs: a `deploy/docker-compose.yml` for those four
+  services (named volumes, no public DB ports, secrets from an env file; build the images on the
+  VM, so the Mac needs no Docker), new Dockerfiles (the current ones use `node:10` and `npm run build`), the backend installed with
   `--omit=optional`, `HORIZON_FE_PUB_HTTP_URL` set to the public URL, `HORIZON_WS_SERVER_TOKEN`
   and other prod secrets kept out of git (extend `scripts/secrets.sh`), and a Mongo/Postgres
   backup cron.

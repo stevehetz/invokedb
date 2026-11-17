@@ -1,18 +1,24 @@
 # InvokeDB revamp: handoff
 
-_Last updated 2026-11-15_
+_Last updated 2026-11-17_
 
 InvokeDB ("horizon") is a web app for building data tables you can query through an API. The
 revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the commands, and
 `AGENTS.md` has the rules, conventions and gotchas. This file covers only where things stand and
 what to do next. Git history has the details of past work. The longer-term plans sit beside it
-in `docs/`: `SAAS_PLAN.md` (turning it into a SaaS) and `AI_IDEAS.md` (AI features).
+in `docs/`: `INFRASTRUCTURE_PLAN.md` (the current direction: a trial-only showcase on one
+server, maybe Postgres only), `SAAS_PLAN.md` (turning it into a SaaS) and `AI_IDEAS.md` (AI
+features).
 
 ## Start here
 
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
-2. The next job is **step 5**. Check backend changes with the backend build (see
-   `verify-backend`), and frontend changes with the frontend build and lint.
+2. **Direction is being re-planned** (2026-11-17, see `docs/INFRASTRUCTURE_PLAN.md`):
+   learning plus a showcase, a Stripe trial instead of a free tier, one always-on server, and
+   maybe dropping Mongo. Settle the open questions there before starting step 5, which may
+   change. The `CsvProcessor` concurrency fix (in the same file) can go ahead either way. Check
+   backend changes with the backend build (see `verify-backend`), and frontend changes with
+   the frontend build and lint.
 3. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
 4. Work on a branch. The user merges to `main` and pushes once they approve.
@@ -103,10 +109,13 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
 - **4: dropped** (2026-11-15). A dev compose file for Postgres and Mongo isn't needed: local
   dev uses Postgres.app and brew Mongo, and Docker isn't installed on the Mac. The production
   compose file belongs to step 5.
-- **5 (first deployment, on `invokedb.com`): Hetzner Cloud, Ashburn (VA), two servers.** Decided
-  2026-11-15 after comparing Azure, DigitalOcean and others: self-managed (no managed DBs; too
-  expensive for now), US region (most users are in the US), and the DBs on their own server.
-  Not AKS/Helm. This is meant to become the first production setup, not a throwaway.
+- **5 (first deployment, on `invokedb.com`): Hetzner Cloud, Ashburn (VA), two servers.**
+  **Under review (2026-11-17):** `docs/INFRASTRUCTURE_PLAN.md` proposes one always-on server
+  (API and CSV processor in separate containers) if Mongo is dropped. Keep this plan until
+  that's decided.
+  Decided 2026-11-15 after comparing Azure, DigitalOcean and others: self-managed (no managed
+  DBs; too expensive for now), US region (most users are in the US), and the DBs on their own
+  server. Not AKS/Helm. This is meant to become the first production setup, not a throwaway.
   - **Servers** (~$37/month with backups; prices from memory, check the console; the cheap CX
     and ARM lines aren't offered in the US, so use the CPX line or its current equivalent):
     - **app:** CPX21 (3 vCPU, 4 GB, 80 GB NVMe). `docker compose` with Caddy and the backend

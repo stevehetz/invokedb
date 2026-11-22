@@ -15,8 +15,9 @@ features).
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
 2. **Direction** (see `docs/INFRASTRUCTURE_PLAN.md`): learning plus a showcase, a Stripe
    trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
-   (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. The next
-   job is turning on the off-site backups (step 5, "Still to do"). Check backend changes with
+   (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
+   backups are live. The next job is the account-enumeration fix (step 5, "Still to do", item
+   1). Check backend changes with
    the backend build (see `verify-backend`), and frontend changes with the frontend build and
    lint.
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
@@ -35,7 +36,9 @@ features).
   `horizon-auth-fe` merged into `horizon-fe`, Vue CLI → Vite 6, account scoping fix (0.05),
   frontend on Vue 3 + Element Plus + ag-grid 32 (2.3–2.5), the websocket server token in an env
   var (3), `HANDOFF.md`, `AI_IDEAS.md` and `SAAS_PLAN.md` moved from the repo root into
-  `docs/`, the `CsvProcessor` concurrency fix, and the production deploy (5, `deploy/`).
+  `docs/`, the `CsvProcessor` concurrency fix, the production deploy (5, `deploy/`), off-site
+  backups, Telegram for the contact form, and Slack removed entirely (code, packages, config,
+  docs; the Telegram bot is the only support channel).
 - **Production:** `https://invokedb.com` on one DigitalOcean droplet (see step 5 and
   `deploy/README.md`). The old Azure infrastructure was torn down.
 - **Logins (local only):** `shetzel84@gmail.com` and `demo@invokedb.com` …
@@ -149,21 +152,25 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `mail.`. **Not yet checked by a person:** signup, table creation, CSV upload and API calls in
   production. Hetzner was dropped because its US prices roughly tripled in June 2026.
   - **Still to do, in order:**
-    1. **Off-site backups: written, not yet live** (2026-11-22, branch `offsite-backups`).
-       `deploy/backup.sh` (`deploy.sh backup run|list|verify|restore|install`) takes a nightly
-       encrypted `pg_dump` + `mongodump` to DigitalOcean Spaces (30 days kept) and pings
-       Healthchecks.io;
-       `deploy/README.md` "Backups" has the setup. `BACKUP_PASSPHRASE` is in `prod.env` and
-       synced. Left: create the Spaces bucket and key and the Healthchecks check, fill in
-       `prod.env`, `up`, `backup install`, `backup run`, `backup verify`. Nothing has run
-       against a real server or bucket yet.
-    2. **Login and password reset reveal which emails have accounts** (`/auth/login` says
+    1. **Login and password reset reveal which emails have accounts** (`/auth/login` says
        "Invalid password"; reset says "An account with that email does not exist", in
        `application/auth/auth.service.ts`). Return generic messages.
-    3. **Monitoring:** UptimeRobot on `https://invokedb.com` and `https://api.invokedb.com`,
+    2. **Monitoring:** UptimeRobot on `https://invokedb.com` and `https://api.invokedb.com`,
        Sentry optional.
-    4. **Check Mailgun's authorized-recipients limit:** the free plan without a card on file only
+    3. **Check Mailgun's authorized-recipients limit:** the free plan without a card on file only
        delivers to authorized addresses. Confirm a stranger's signup email arrives.
+  - **Off-site backups: live** (2026-11-22). `deploy/backup.sh`, driven by
+    `deploy.sh backup run|list|verify|restore|install`, runs nightly from cron at 07:15 UTC on
+    the server: an encrypted (`BACKUP_PASSPHRASE`, openssl AES-256) `pg_dump` + `mongodump`
+    goes to the DigitalOcean Spaces bucket `invokedb-backups` (NYC3, limited-access key), with
+    backups over 30 days deleted after each successful run. It pings Healthchecks.io (check
+    "invokedb backups", 1 day + 2 h grace), which emails on a failed or missed run. The first
+    backup and `backup verify` (restore into throwaway containers, counts compared with live)
+    passed on launch. The settings are in `prod.env`; `deploy/README.md` "Backups" has the
+    details and the new-server restore. The weekly DigitalOcean droplet backup stays on as a
+    second copy; both live in the DigitalOcean account, so a second provider (B2, same
+    script) is an option later. Logs: `/var/log/invokedb-backup.log` on the server. rclone
+    prints a harmless "Config file not found" notice (it's configured by env vars).
   - **Later:** a bigger droplet (a resize keeps the data; raise `MONGO_CACHE_GB` and `PRC_CPUS`),
     managed DBs, or more servers, if it ever needs them. It's all standard Docker, Postgres and
     Mongo, so moving is a migration, not a rewrite.

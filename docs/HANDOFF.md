@@ -16,9 +16,9 @@ features).
 2. **Direction** (see `docs/INFRASTRUCTURE_PLAN.md`): learning plus a showcase, a Stripe
    trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
-   backups and uptime monitoring are live, and the launch to-do list (step 5) is finished. Next:
-   a person checks signup, table creation, CSV upload and API calls in production, then 5b
-   (Google/GitHub sign-in). Check backend changes with
+   backups and uptime monitoring are live. Next: finish the support email and alert routing
+   (step 5, "Still to do", item 4), then a person checks signup, table creation, CSV upload and
+   API calls in production, then 5b (Google/GitHub sign-in). Check backend changes with
    the backend build (see `verify-backend`), and frontend changes with the frontend build and
    lint.
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
@@ -162,15 +162,52 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
        on `https://invokedb.com` and `https://api.invokedb.com/auth/authorize` (the bare API
        root is a 404, which UptimeRobot counts as down; `authorize` with no token answers 200
        without touching the DBs, so it doesn't catch a DB outage). Sentry: optional, not set up.
-       Telegram alerts are a paid UptimeRobot feature, so instead: **inbound email → Telegram**
-       (`deploy/email-worker/`, Cloudflare Email Routing + an Email Worker; written and tested
-       locally 2026-11-22, **dashboard setup pending**). Once live, point UptimeRobot at
-       `alerts@invokedb.com`.
+       Telegram alerts are a paid UptimeRobot feature; item 4 routes them through email instead.
     3. **Mailgun's authorized-recipients limit: not an issue** (checked 2026-11-22). It applies
        only to the sandbox domain (whose list holds just the Mailgun login address).
        `mail.invokedb.com` on the current Free plan (3,000 emails/month, no card) delivered the
        reset to `shetzel84@gmail.com`, which isn't on that list. If the reset form is ever
        abused to burn the quota, rate-limit `/auth/reset-password`.
+    4. **Support email and alert routing: in progress.** The goal, decided 2026-11-22: nothing
+       goes to the user's personal Gmail.
+
+       | Source                         | Goes to                                                   |
+       | ------------------------------ | --------------------------------------------------------- |
+       | `support@invokedb.com`         | the dedicated Gmail `invokedbsupport@gmail.com`           |
+       | Contact form                   | an email to `support@invokedb.com` (so, that Gmail)       |
+       | UptimeRobot                    | `uptime@invokedb.com` → **Telegram only**, never an inbox |
+       | Healthchecks (backups)         | Telegram, as now (webhook)                                |
+       | Any other `@invokedb.com` mail | the support Gmail (this also receives `demo*@` resets)    |
+
+       **Live now:** Cloudflare Email Routing on `invokedb.com` (MX + SPF added), catch-all →
+       the Email Worker `invokedb-email` (`deploy/email-worker/`, pasted into the dashboard, 5
+       settings set). Tested: mail to `support@` posted a Telegram notice (subject, sender,
+       recipient; no body, by design). `FORWARD_TO` is still the user's personal Gmail and
+       `NOTIFY_RECIPIENTS` is `alerts,support`; both change below.
+
+       **To do:**
+       1. _User:_ create `invokedbsupport@gmail.com` (strong password, 2-step verification).
+       2. _User:_ Cloudflare → Email Routing → Destination addresses: add and verify it; set the
+          Worker's `FORWARD_TO` to it; remove the personal address.
+       3. _Code, Worker:_ add a `TELEGRAM_ONLY_RECIPIENTS` setting (`uptime`): mail to those
+          addresses posts to Telegram and is never forwarded, and is dropped unless it's from
+          `ALERT_SENDER_DOMAINS` (so spam to `uptime@` can't reach Telegram). Set
+          `NOTIFY_RECIPIENTS` to whatever should get a Telegram notice _and_ be forwarded
+          (`support`, or empty if the inbox is enough). Update the README, re-paste.
+       4. _User:_ UptimeRobot → add `uptime@invokedb.com` as an email alert contact, switch both
+          monitors to it, untick the personal address. Check a test alert reaches Telegram.
+       5. _Code, backend:_ the contact form (`web/http/support/support.controller.ts`) sends an
+          email through Mailgun to a new `SUPPORT_EMAIL` env var (`support@invokedb.com` in
+          `prod.env`), with `Reply-To` set to the person's address so a reply in Gmail goes
+          to them. Drop its direct Telegram post (the Worker's notice for `support@` covers it,
+          if wanted) or keep it as a fallback when Mailgun fails. Deploy.
+       6. _User:_ in the support Gmail, Settings → Accounts → "Send mail as"
+          `support@invokedb.com` through Mailgun SMTP (`smtp.mailgun.org`, port 587, an SMTP
+          login created under `mail.invokedb.com` → SMTP Credentials; keep it in the secrets).
+          Gmail's confirmation code arrives via Email Routing. DMARC passes (relaxed alignment:
+          `mail.invokedb.com` signs for `invokedb.com`).
+       7. Update `deploy/README.md` and this item, and drop the "Telegram for the contact form"
+          wording above.
   - **Off-site backups: live** (2026-11-22). `deploy/backup.sh`, driven by
     `deploy.sh backup run|list|verify|restore|install`, runs nightly from cron at 07:15 UTC on
     the server: an encrypted (`BACKUP_PASSPHRASE`, openssl AES-256) `pg_dump` + `mongodump`

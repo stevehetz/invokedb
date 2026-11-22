@@ -5,10 +5,8 @@ set -euo pipefail
 bash "$(dirname "${BASH_SOURCE[0]}")/secrets.sh" pull || echo "(no secret folder; using .env.example defaults)"
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 cd "$HORIZON_ROOT"
+# Root install; its postinstall installs both packages (scripts/install-packages.sh)
 npm install --no-audit --no-fund
-# --omit=optional skips the native Postgres log transport (needs a C toolchain; only used in prod)
-npm --prefix packages/horizon-be install --no-audit --no-fund --omit=optional
-npm --prefix packages/horizon-fe install --no-audit --no-fund
 bash scripts/db-setup.sh
 echo
 echo "Setup complete. Run: npm run dev"

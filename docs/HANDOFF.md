@@ -15,8 +15,9 @@ features).
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
 2. **Direction is being re-planned** (2026-11-17, see `docs/INFRASTRUCTURE_PLAN.md`):
    learning plus a showcase, a Stripe trial instead of a free tier, one always-on server, and
-   keeping Mongo (decided 2026-11-22). Settle the open questions there before starting step 5. The `CsvProcessor` concurrency fix (in the same file) can go ahead either way. Check
-   backend changes with the backend build (see `verify-backend`), and frontend changes with
+   keeping Mongo (decided 2026-11-22). Settle the open questions there before starting step 5.
+   The `CsvProcessor` concurrency fix is done (2026-11-22, see Next steps). Check backend
+   changes with the backend build (see `verify-backend`), and frontend changes with
    the frontend build and lint.
 3. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
@@ -98,6 +99,14 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   rxjs `BehaviorSubject` map). Known differences: entering Edit Columns now refetches rows
   (ag-grid 32 reacts to filtering being switched off), so the row count resets to the unfiltered
   total.
+- **CSV processor concurrency: done** (2026-11-22). One processor could run two job loops at
+  once (`wake_file_processor` checked `job_state` before an await, and `file_delete_request`
+  skipped the check), and `CsvProcessor` kept job state on the singleton, so they clobbered
+  each other. Now `check_for_jobs` claims the loop before its first await and survives a
+  throwing job, `CsvProcessor` keeps per-job state (rows, counter, deadline, cancel flag) and
+  reads the CSV with backpressure so every batch insert is awaited in order, and timeouts are
+  per job (an old job's 30-minute timer could fail a later one). The column type change in
+  `WebFileManager` got a per-call deadline too. Checked with the backend build only.
 - **2.6 (optional):** ag-grid 32 → current (Theming API, module registration), and move the
   SCSS off the Sass deprecations that `vite.config.js` silences (`@import`, global `lighten()`).
 - **3: done** (2026-11-15). `WS_SERVER_TOKEN` moved from `constants.ts` to the

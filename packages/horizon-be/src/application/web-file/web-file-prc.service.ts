@@ -82,11 +82,17 @@ export class WebFilePrcService {
                 logger.error(ex.message);
             }
         });
-        this.check_for_jobs();
+        this.wake_file_processor();
     }
 
+    // Runs one job at a time. Only start it through wake_file_processor (or its own
+    // setTimeout below), which checks job_state, so two loops never run at once.
     async check_for_jobs() {
         // logger.debug(`${env.SERVER_NAME} finding latest job`);
+
+        // Set before the first await: otherwise a second wake during get_latest_pending
+        // would start another loop.
+        this.job_manager.job_state = 'RUNNING';
 
         const job_events = ['FILE_UPLOAD', 'COLUMN_UPDATE'];
 
@@ -96,13 +102,16 @@ export class WebFilePrcService {
         } catch (ex) {}
 
         if (job) {
-            this.job_manager.job_state = 'RUNNING';
             logger.debug(`processing ${job.event} wth id ${job.id}`);
 
-            if (job.event === 'FILE_UPLOAD') {
-                await this.file_process(job);
-            } else if (job.event === 'COLUMN_UPDATE') {
-                await this.column_update(job);
+            try {
+                if (job.event === 'FILE_UPLOAD') {
+                    await this.file_process(job);
+                } else if (job.event === 'COLUMN_UPDATE') {
+                    await this.column_update(job);
+                }
+            } catch (ex) {
+                logger.error(`job ${job.id} failed: ${ex && ex.message}`);
             }
 
             logger.debug(`done proccessing job, checking for another in 5s`);

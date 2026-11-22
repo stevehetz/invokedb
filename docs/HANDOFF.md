@@ -40,7 +40,8 @@ features).
 - **Logins (local only):** `shetzel84@gmail.com` and `demo@invokedb.com` …
   `demo7@invokedb.com`, password `password`. In production these accounts exist but have
   random passwords and API keys (`init-db`); get into one with a password reset. Reset emails
-  go out through Mailgun, but `demo*@invokedb.com` can't receive mail yet (see step 5).
+  go out through Mailgun, but `invokedb.com` receives no mail (no MX, by choice), so
+  `demo*@invokedb.com` resets bounce.
   `shetzel84@gmail.com` was reset this way and works.
 
 ## Things to know
@@ -156,9 +157,7 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
        `application/auth/auth.service.ts`). Return generic messages.
     3. **Monitoring:** UptimeRobot on `https://invokedb.com` and `https://api.invokedb.com`,
        Sentry optional.
-    4. **Cloudflare Email Routing** (optional): `invokedb.com` has no MX records, so mail to
-       `demo*@invokedb.com` or `support@` bounces. A catch-all rule to the user's Gmail fixes it.
-    5. **Check Mailgun's authorized-recipients limit:** the free plan without a card on file only
+    4. **Check Mailgun's authorized-recipients limit:** the free plan without a card on file only
        delivers to authorized addresses. Confirm a stranger's signup email arrives.
   - **Later:** a bigger droplet (a resize keeps the data; raise `MONGO_CACHE_GB` and `PRC_CPUS`),
     managed DBs, or more servers, if it ever needs them. It's all standard Docker, Postgres and

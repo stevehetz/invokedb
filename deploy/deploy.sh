@@ -7,6 +7,8 @@
 #   deploy/deploy.sh up            ship the committed HEAD, build, migrate, (re)start
 #   deploy/deploy.sh init-db       disable the seeded demo accounts (once, after the first up)
 #   deploy/deploy.sh migrate       run pending migrations only
+#   deploy/deploy.sh backup run | list | verify [stamp] | restore <stamp> | install
+#                                  off-site backups (deploy/backup.sh, on the server)
 #   deploy/deploy.sh ps | logs [service] | ssh
 #   deploy/deploy.sh compose <args>   any docker compose command on the server
 set -euo pipefail
@@ -19,11 +21,13 @@ cmd="${1:-}"; shift || true
 if [ "$cmd" = init-env ]; then
   [ -e "$ENV_FILE" ] && { echo "$ENV_FILE already exists"; exit 1; }
   awk -v pg="$(openssl rand -hex 24)" -v mr="$(openssl rand -hex 24)" \
-      -v ma="$(openssl rand -hex 24)" -v ws="$(openssl rand -hex 24)" '
+      -v ma="$(openssl rand -hex 24)" -v ws="$(openssl rand -hex 24)" \
+      -v bk="$(openssl rand -hex 32)" '
     /^POSTGRES_PASSWORD=$/       { print $0 pg; next }
     /^MONGO_ROOT_PASSWORD=$/     { print $0 mr; next }
     /^MONGO_APP_PASSWORD=$/      { print $0 ma; next }
     /^HORIZON_WS_SERVER_TOKEN=$/ { print $0 ws; next }
+    /^BACKUP_PASSPHRASE=$/       { print $0 bk; next }
     { print }' "$DIR/prod.env.example" > "$ENV_FILE"
   chmod 600 "$ENV_FILE"
   echo "Wrote $ENV_FILE. Set DEPLOY_HOST and ACME_EMAIL, then run: npm run secrets:push"
@@ -33,7 +37,8 @@ fi
 [ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE (run: deploy/deploy.sh init-env)"; exit 1; }
 set -a; source "$ENV_FILE"; set +a
 [ -n "${DEPLOY_HOST:-}" ] || { echo "Set DEPLOY_HOST in $ENV_FILE"; exit 1; }
-SSH=(ssh -i "${DEPLOY_SSH_KEY:-$HOME/.ssh/id_rsa}" -o StrictHostKeyChecking=accept-new "root@$DEPLOY_HOST")
+SSH_OPTS=(-i "${DEPLOY_SSH_KEY:-$HOME/.ssh/id_rsa}" -o StrictHostKeyChecking=accept-new)
+SSH=(ssh "${SSH_OPTS[@]}" "root@$DEPLOY_HOST")
 compose="cd $REMOTE/deploy && docker compose --env-file prod.env"
 
 ship() {
@@ -60,9 +65,11 @@ case "$cmd" in
     "${SSH[@]}" "$compose exec -T postgres psql -v ON_ERROR_STOP=1 -U horizon -d horizon" \
       < "$DIR/disable-seed-accounts.sql"
     ;;
+  # -t: `restore` asks for confirmation
+  backup) ssh -t "${SSH_OPTS[@]}" "root@$DEPLOY_HOST" "$REMOTE/deploy/backup.sh $*" ;;
   ps) "${SSH[@]}" "$compose ps" ;;
   logs) "${SSH[@]}" "$compose logs --tail=200 -f $*" ;;
   compose) "${SSH[@]}" "$compose $*" ;;
   ssh) "${SSH[@]}" ;;
-  *) sed -n '2,13p' "$0"; exit 1 ;;
+  *) sed -n '2,15p' "$0"; exit 1 ;;
 esac

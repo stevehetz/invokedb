@@ -1,0 +1,5 @@
+node_modules
+dist
+uploads
+tmp_prc
+tmp_fs

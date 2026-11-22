@@ -1,6 +1,6 @@
 # InvokeDB revamp: handoff
 
-_Last updated 2026-11-17_
+_Last updated 2026-11-22_
 
 InvokeDB ("horizon") is a web app for building data tables you can query through an API. The
 revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the commands, and
@@ -13,15 +13,17 @@ features).
 ## Start here
 
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
-2. **Direction is being re-planned** (2026-11-17, see `docs/INFRASTRUCTURE_PLAN.md`):
-   learning plus a showcase, a Stripe trial instead of a free tier, one always-on server, and
-   keeping Mongo (decided 2026-11-22). Settle the open questions there before starting step 5.
-   The `CsvProcessor` concurrency fix is done (2026-11-22, see Next steps). Check backend
-   changes with the backend build (see `verify-backend`), and frontend changes with
-   the frontend build and lint.
-3. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
+2. **Direction** (see `docs/INFRASTRUCTURE_PLAN.md`): learning plus a showcase, a Stripe
+   trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
+   (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. The next
+   job is off-site backups (step 5, "Still to do"). Check backend changes with the backend build
+   (see `verify-backend`), and frontend changes with the frontend build and lint.
+3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
+   `compose`, `bootstrap`) only when the user asks. `up` ships the committed `HEAD` of whatever
+   branch is checked out, so deploy from `main`.
+4. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
-4. Work on a branch. The user merges to `main` and pushes once they approve.
+5. Work on a branch. The user merges to `main` and pushes once they approve.
 
 ## Current state
 
@@ -31,11 +33,14 @@ features).
   backend upgrade (NestJS 11, TypeORM 0.3, mongodb 6), agent tooling + prettier, UI smoke test,
   `horizon-auth-fe` merged into `horizon-fe`, Vue CLI → Vite 6, account scoping fix (0.05),
   frontend on Vue 3 + Element Plus + ag-grid 32 (2.3–2.5), the websocket server token in an env
-  var (3), and `HANDOFF.md`, `AI_IDEAS.md` and `SAAS_PLAN.md` moved from the repo root into
-  `docs/`.
-- **Production:** none. The Azure infrastructure was torn down; the scripts are kept for a rebuild.
-- **Logins:** `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, password
-  `password`.
+  var (3), `HANDOFF.md`, `AI_IDEAS.md` and `SAAS_PLAN.md` moved from the repo root into
+  `docs/`, the `CsvProcessor` concurrency fix, and the production deploy (5, `deploy/`).
+- **Production:** `https://invokedb.com` on one DigitalOcean droplet (see step 5 and
+  `deploy/README.md`). The old Azure infrastructure was torn down.
+- **Logins (local only):** `shetzel84@gmail.com` and `demo@invokedb.com` …
+  `demo7@invokedb.com`, password `password`. In production these accounts exist but have
+  random passwords and API keys (`init-db`); get into one with a password reset, whose link is
+  printed in `deploy/deploy.sh logs api` (no Mailgun yet).
 
 ## Things to know
 
@@ -51,7 +56,13 @@ features).
   cross-area links use the router. Optional.
 - The entry JS is a single 2.3 MB chunk (577 kB gzip). Vite warns; splitting it is optional.
 - `/api/v1/get` leaves out empty cells. That looks intended.
-- `docs/ops-standalone.md` is an old to-do list, mostly done or obsolete.
+- `docs/ops/` holds the old Azure/AKS ops notes, for reference only.
+- **Production secrets** are in `deploy/prod.env` (gitignored; DB passwords, websocket token,
+  droplet IP, SSH key path `~/.ssh/invokedb`). It's synced to Dropbox with the other secrets by
+  `npm run secrets:push`; check `npm run secrets:status` shows it as `same`.
+- **SSH to production is allowed only from the user's home IP** (DigitalOcean Cloud Firewall
+  `invokedb-prod`). If SSH times out, the home IP probably changed: update the firewall's SSH
+  rule, or use the droplet's Web Console.
 - **MCP servers checked 2026-11-14.** `playwright` drives the real Google Chrome (login as
   `demo@invokedb.com` reaches `/app` with its menu and table tree, websocket connects).
   `mongodb` lists `horizon:acct_2` and `horizon:tracking` through the `preconfigured`
@@ -117,47 +128,39 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
 - **4: dropped** (2026-11-15). A dev compose file for Postgres and Mongo isn't needed: local
   dev uses Postgres.app and brew Mongo, and Docker isn't installed on the Mac. The production
   compose file belongs to step 5.
-- **5 (first deployment, on `invokedb.com`): Hetzner Cloud, Ashburn (VA), two servers.**
-  **Mongo stays** (decided 2026-11-22), so this plan holds. Still open
-  (`docs/INFRASTRUCTURE_PLAN.md`): two servers as below, or one bigger server, and running the
-  CSV processor in its own container next to the API.
-  Decided 2026-11-15 after comparing Azure, DigitalOcean and others: self-managed (no managed
-  DBs; too expensive for now), US region (most users are in the US), and the DBs on their own
-  server. Not AKS/Helm. This is meant to become the first production setup, not a throwaway.
-  - **Servers** (~$37/month with backups; prices from memory, check the console; the cheap CX
-    and ARM lines aren't offered in the US, so use the CPX line or its current equivalent):
-    - **app:** CPX21 (3 vCPU, 4 GB, 80 GB NVMe). `docker compose` with Caddy and the backend
-      (all four roles in one process, as locally). Caddy gets TLS from Let's Encrypt, serves the
-      built frontend with an SPA fallback for `/app/*` and the site paths, and proxies `/api`
-      and the websocket (so `:9000` needs no public port).
-    - **db:** CPX31 (4 vCPU, 8 GB, 160 GB NVMe). `docker compose` with Postgres and Mongo on
-      the local NVMe disk (named volumes), listening only on the private network. Mongo runs as
-      a single-node replica set (turns on the oplog) with auth on.
-    - A Hetzner private network between them. A **Hetzner Cloud Firewall** (outside the VM;
-      Docker bypasses `ufw`) allows 80/443 to the app server, SSH only from your IP, and
-      nothing public to the db server. The db server keeps a public IPv4 for outbound
-      (packages, images, backups) unless NAT through the app server is set up.
-  - **Backups:** Hetzner server backups (+20%), plus off-site to Backblaze B2 (Hetzner's
-    Storage Box and Object Storage are EU-only): Postgres continuously with WAL-G or
-    pgBackRest, Mongo nightly with `mongodump --oplog`. Alert on missed runs (Healthchecks.io)
-    and script and test a restore before calling it done.
-  - **Needs:** `deploy/` with a compose file per server, new Dockerfiles (the current ones use
-    `node:10` and `npm run build`; build the images on the server, so the Mac needs no Docker),
-    the backend installed with `--omit=optional`, the `HORIZON_POSTGRES_*` and
-    `HORIZON_MONGO_*` vars pointed at the db server's private IP, `HORIZON_FE_PUB_HTTP_URL`
-    set to the public URL, and `HORIZON_WS_SERVER_TOKEN`, the DB passwords and the B2 keys
-    kept out of git (extend `scripts/secrets.sh`). Free monitoring: UptimeRobot, Sentry.
-  - **Later:** more app servers behind a Hetzner load balancer, then k3s if autoscaling or
-    zero-downtime deploys are needed; the db server stays as is. If the db needs HA, a 3-node
-    Mongo replica set and a Postgres standby (~$35 more). Managed DBs would mean leaving
-    Hetzner (DigitalOcean was the runner-up, ~$90–105/month for the same two servers);
-    everything is standard Docker, Postgres and Mongo, so that's a migration, not a rewrite.
+- **5 (first deployment, on `invokedb.com`): live** (2026-11-22). One DigitalOcean droplet,
+  `invokedb-prod` (Basic Regular 2 vCPU / 4 GB / 80 GB, NYC2, `107.170.54.96`, weekly backups,
+  ~$29/month), running everything in `docker compose`: Caddy (TLS + the built frontend at
+  `invokedb.com`, proxying `api.` and `ws.`), the API, the CSV processor in its own container,
+  Postgres 17 and Mongo 8 (standalone, auth on, cache capped). `deploy/README.md` has the
+  details; `deploy/deploy.sh` drives it over SSH and builds the images on the server. The
+  backend gained `dist/database/migrate.js` for migrations without ts-node. Cloud Firewall: SSH
+  from the user's IP only, 80/443 TCP and 443 UDP from anywhere. Cloudflare DNS (DNS-only) has
+  `@`, `www`, `api` and `ws` A records to the droplet. Checked on launch: site and `/app` load,
+  `www` redirects, certificates issued, the websocket upgrades, seeded logins and API keys are
+  rejected. **Not yet checked by a person:** signup, table creation, CSV upload and API calls in
+  production. Hetzner was dropped because its US prices roughly tripled in June 2026.
+  - **Still to do, in order:**
+    1. **Off-site backups.** Today the only backup is DigitalOcean's weekly droplet backup. Add
+       a nightly `pg_dump` + `mongodump` (run in the containers via `deploy.sh compose exec`)
+       uploaded to object storage (DigitalOcean Spaces or Backblaze B2), a Healthchecks.io ping
+       for missed runs, and a scripted, tested restore.
+    2. **Monitoring:** UptimeRobot on `https://invokedb.com` and `https://api.invokedb.com`,
+       Sentry optional.
+    3. **Login and password reset reveal which emails have accounts** (`/auth/login` says
+       "Invalid password"; reset says "An account with that email does not exist", in
+       `application/auth/auth.service.ts`). Return generic messages.
+    4. Mailgun (or another sender) so signup and reset emails actually go out; its DNS records
+       go in Cloudflare.
+  - **Later:** a bigger droplet (a resize keeps the data; raise `MONGO_CACHE_GB` and `PRC_CPUS`),
+    managed DBs, or more servers, if it ever needs them. It's all standard Docker, Postgres and
+    Mongo, so moving is a migration, not a rewrite.
   - `ops/` (the old AKS/Helm setup) still builds a separate `horizon-auth-fe`; leave it for
     reference or delete it.
 - **5a (domain): done.** `invokedb.com` was bought on Cloudflare Registrar on 2026-11-14, so its
-  DNS is on Cloudflare. For step 5, start with DNS-only (grey cloud) A records to the app
-  server so Caddy's Let's Encrypt certificates issue simply; turning on the proxy later needs
-  SSL set to Full (strict). Cloudflare Email Routing can forward `@invokedb.com` mail for free; Mailgun
+  DNS is on Cloudflare. The A records (`@`, `www`, `api`, `ws`) are DNS-only (grey cloud),
+  so Caddy's Let's Encrypt certificates issue simply; turning on the proxy later needs SSL set
+  to Full (strict). Cloudflare Email Routing can forward `@invokedb.com` mail for free; Mailgun
   needs its DNS records added there if outbound email comes back.
 - **5b (single sign-on: Google and GitHub):** after 5 and 5a, since the OAuth apps need real
   callback URLs (also register `http://127.0.0.1:8001` callbacks for local dev). Today login is

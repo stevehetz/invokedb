@@ -23,11 +23,13 @@ Where InvokeDB is heading and why. `HANDOFF.md` has the current state and the nu
   timeouts, the column type change) need a process that stays up, and a cold start would be
   the first impression. Free managed DB tiers also sleep or pause (Neon suspends after a few
   idle minutes, and Supabase pauses idle free projects), so they're out too.
-- **One small VPS** (Hetzner US, from about $5–10/month; check current prices) running
-  `docker compose` with Caddy, the API, the processor and the database.
-- Mongo stays (see below), so the choice is HANDOFF step 5's two servers (app + db, about
-  $37/month) or one bigger server running everything. Mongo's WiredTiger cache takes about half
-  the RAM by default, so a single server needs 8 GB, or a capped `--wiredTigerCacheSizeGB`.
+- **One DigitalOcean droplet** (decided 2026-11-22): Basic 2 vCPU / 4 GB, about $29/month with
+  backups, running `docker compose` with Caddy, the API, the processor, Postgres and Mongo
+  (`deploy/`). Mongo's WiredTiger cache is capped (`MONGO_CACHE_GB`) so everything fits; resize
+  to 8 GB ($48 + backups) if it's tight. Prices checked 2026-11-22: Hetzner's US servers roughly
+  tripled in June 2026 (8 GB ~$74), and Azure's B2ms is ~$61 before disk and backups, so
+  DigitalOcean is the cheapest of the three. It's above the $5–15 goal; that goal assumed the
+  old Hetzner prices.
 
 ## Data: keep MongoDB (decided 2026-11-22)
 
@@ -104,13 +106,12 @@ and tracking become ordinary tables.
 1. ~~Fix the `CsvProcessor` concurrency bug.~~ Done 2026-11-22.
 2. ~~Decide on Postgres only.~~ Decided 2026-11-22: keep Mongo.
 3. Deploy (HANDOFF step 5) with Postgres and Mongo, the API and processor in separate
-   containers.
+   containers. Live since 2026-11-22 (`deploy/`); off-site backups still to do.
 4. Stripe webhook signatures, then the trial and caps.
 5. SSO (HANDOFF 5b) and polish for showing it off.
 
 ## Open questions
 
-- One server or two (app + db)?
 - Trial length and caps (for example 14 days, 5 tables, 10k rows, 10k API calls)?
 - What happens after the trial: read-only, then deleted after N days?
 - One price, or a couple of plans?

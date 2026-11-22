@@ -41,6 +41,9 @@ ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa.pub
 
 # local dev
 .env
+
+# production config (deploy/prod.env.example is the template)
+deploy/prod.env
 .data
 
 # Claude Code personal settings, if anyone creates them

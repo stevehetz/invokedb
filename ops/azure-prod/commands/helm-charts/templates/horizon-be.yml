@@ -44,14 +44,8 @@ spec:
           value: "{{ .Values.ENV }}"
         - name: IS_HORIZON_BE
           value: "true"
-        - name: SLACK_LOG_LEVEL
-          value: "{{ .Values.SLACK_LOG_LEVEL }}"
         - name: POSTGRES_LOG_LEVEL
           value: "{{ .Values.POSTGRES_LOG_LEVEL }}"
-        - name: SLACK_WEBHOOK_URL
-          value: "{{ .Values.SLACK_WEBHOOK_URL }}"
-        - name: SLACK_SUPPORT_WEBHOOK_URL
-          value: "{{ .Values.SLACK_SUPPORT_WEBHOOK_URL }}"
         - name: HORIZON_ENV_LOADED
           value: "{{ .Values.HORIZON_ENV_LOADED }}"
         - name: HORIZON_SB_PRIV_WS_URL

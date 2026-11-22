@@ -1,5 +1,4 @@
 const { createLogger, format, transports } = require('winston');
-const SlackHook = require('winston-slack-webhook-transport');
 import moment from 'moment';
 import env from '@app/env';
 
@@ -58,22 +57,6 @@ if (env.IS_LOCAL) {
             )
         })
     );
-    if (env.SLACK_WEBHOOK_URL) {
-        logger_transports.push(
-            new SlackHook({
-                level: env.SLACK_LOG_LEVEL,
-                webhookUrl: env.SLACK_WEBHOOK_URL,
-                formatter: data => {
-                    const message =
-                        data.message && data.message.trim ? data.message.trim() : data.message;
-                    return {
-                        text: message || ' '
-                    };
-                }
-            })
-        );
-    }
-
     // Postgres log transport needs the native libpq bindings (optional dependency).
     try {
         // tslint:disable-next-line:no-var-requires
@@ -86,7 +69,7 @@ if (env.IS_LOCAL) {
             })
         );
     } catch (e) {
-        // not installed; console + slack only
+        // not installed; console only
     }
 }
 

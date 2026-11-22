@@ -153,7 +153,8 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
 - Run long-lived servers (`npm run dev`) in the background, never as a blocking foreground
   command.
 - Stripe keys are read once, by the Initial migration, into the `stripe_env` table.
-- Mailgun and Slack are optional. Without keys, emails go to the backend log.
+- Mailgun and Telegram are optional. Without keys, emails and support requests go to the
+  backend log.
 
 ## Skills
 

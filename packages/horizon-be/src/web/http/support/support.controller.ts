@@ -1,5 +1,4 @@
 import { Controller, Post, Request, HttpStatus, Response, HttpException } from '@nestjs/common';
-import { IncomingWebhook } from '@slack/webhook';
 import env from '@app/env';
 import logger from '@app/logger';
 
@@ -19,32 +18,16 @@ export class SupportController {
         const message = field(req.body?.message, MAX_FIELD_LENGTH);
         const text = `New support request\n\nEmail: ${email}\nSubject: ${subject}\n\n${message}`;
 
-        const has_telegram = !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID);
-        const has_slack = !!env.SLACK_SUPPORT_WEBHOOK_URL;
-        if (!has_telegram && !has_slack) {
-            // No notification channel configured (e.g. local dev): log the request instead.
-            logger.info(`[support request, no Telegram or Slack configured]\n${text}`);
+        if (!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID)) {
+            // Telegram isn't configured (e.g. local dev): log the request instead.
+            logger.info(`[support request, Telegram not configured]\n${text}`);
             return res.status(HttpStatus.OK).send('success');
         }
 
-        let delivered = false;
-        if (has_telegram) {
-            try {
-                await this.send_telegram(text);
-                delivered = true;
-            } catch (err) {
-                logger.error(`support request: Telegram failed: ${err.message}\n${text}`);
-            }
-        }
-        if (has_slack) {
-            try {
-                await this.send_slack(text);
-                delivered = true;
-            } catch (err) {
-                logger.error(`support request: Slack failed: ${err.message}\n${text}`);
-            }
-        }
-        if (!delivered) {
+        try {
+            await this.send_telegram(text);
+        } catch (err) {
+            logger.error(`support request: Telegram failed: ${err.message}\n${text}`);
             throw new HttpException('Support request could not be sent', HttpStatus.BAD_GATEWAY);
         }
         return res.status(HttpStatus.OK).send('success');
@@ -62,10 +45,5 @@ export class SupportController {
         if (!res.ok) {
             throw new Error(`Telegram responded ${res.status}: ${await res.text()}`);
         }
-    }
-
-    private async send_slack(text: string) {
-        const webhook = new IncomingWebhook(env.SLACK_SUPPORT_WEBHOOK_URL);
-        await webhook.send({ text: `<!channel> ${text}` });
     }
 }

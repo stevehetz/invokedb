@@ -54,7 +54,7 @@ password: password
 
 ## Config and secrets
 
-All config lives in `.env` at the repo root, created from `.env.example`. Mailgun, Slack and
+All config lives in `.env` at the repo root, created from `.env.example`. Mailgun, Telegram and
 Stripe are optional. Without keys, emails and support requests are printed to the backend log.
 
 Secret files (`.env`, `deploy/prod.env`, the Azure `*.values.sh` files, SSH keys) are

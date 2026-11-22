@@ -30,6 +30,7 @@ Logins (local and demo data): `demo@invokedb.com` … `demo7@invokedb.com`, pass
 Run from the repo root. Every script loads `.env` through `scripts/env.sh`.
 
 ```sh
+npm install                  # root tools, then both packages (postinstall: scripts/install-packages.sh)
 npm run dev                  # backend + frontend (concurrently); Ctrl-C stops both
 npm run db:setup             # create missing DBs + run pending migrations (safe)
 npm run migration:create -- Name

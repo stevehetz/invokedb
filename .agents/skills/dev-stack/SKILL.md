@@ -13,8 +13,8 @@ mongosh mongodb://127.0.0.1:27017 --quiet --eval 'db.runCommand({ping:1}).ok'   
 test -f .env || echo "no .env: run npm run setup (or the backend uses .env.example defaults)"
 ```
 
-If a package has no `node_modules`, run `npm run setup` (or install that package;
-`horizon-be` needs `--omit=optional`).
+If a package has no or stale `node_modules`, run `npm install` at the root: its `postinstall`
+installs both packages (`horizon-be` with `--omit=optional`).
 
 ## Start
 

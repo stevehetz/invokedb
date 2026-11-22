@@ -17,7 +17,6 @@ const MAX_COLUMN_VALUE_LENGTH = 100;
 
 @Injectable()
 export class WebFileManager {
-    throw_timeout_error = false;
     constructor(
         private _collections: MongoDbCollections,
         private _tracking_manager: TrackingManager,
@@ -569,20 +568,15 @@ export class WebFileManager {
         );
 
         if (original.col_type !== data.col_type) {
-            this.throw_timeout_error = false;
-            setTimeout(
-                () => {
-                    this.throw_timeout_error = true;
-                },
-                _c.JOB_PROCESSOR_TIMEOUT_MIN * 1000 * 60
-            );
+            // Per call, not on the singleton, so concurrent type changes don't share a timeout.
+            const deadline = Date.now() + _c.JOB_PROCESSOR_TIMEOUT_MIN * 60 * 1000;
 
             const { field } = data;
             const row_coll = await this._collections.get_dg_row(acct_id, file_id);
             const BATCH_SIZE = 1000;
             let ops = [];
             for await (const doc of row_coll.find({})) {
-                this.check_timeout_error();
+                this.check_timeout_error(deadline);
                 const value = this.format_row_value(doc[field], data.col_type);
                 ops.push({
                     updateOne: { filter: { _id: doc._id }, update: { $set: { [field]: value } } }
@@ -600,8 +594,8 @@ export class WebFileManager {
         return res && res.value && res.value.count ? res.value.count : res;
     }
 
-    check_timeout_error() {
-        if (this.throw_timeout_error) {
+    check_timeout_error(deadline: number) {
+        if (Date.now() > deadline) {
             throw new Error(`Job timed out after ${_c.JOB_PROCESSOR_TIMEOUT_MIN} minutes`);
         }
     }

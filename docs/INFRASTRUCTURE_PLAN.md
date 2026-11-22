@@ -84,11 +84,9 @@ and tracking become ordinary tables.
 - **Not a separate server yet.** That would need shared file storage (or object storage), and
   the database, which takes most of an upload's cost, would still be shared. Revisit only if
   uploads visibly compete for CPU.
-- **Bug to fix first:** `CsvProcessor` (`core/web-file/csv-processor.ts`) is a singleton that
-  keeps job state on the instance (`grid_rows`, `row_index`, `row_total`,
-  `throw_timeout_error`, `file_delete_request_id`). Two uploads at once clobber each other. Fix
-  it with per-job state, or a queue that runs one job at a time. `WebFileManager` has a
-  similar `throw_timeout_error` flag for column type changes.
+- **Concurrency bug: fixed** (2026-11-22). `CsvProcessor` kept job state on the singleton,
+  and one processor could run two job loops at once. It now keeps per-job state, and the job
+  loop runs one job at a time (see HANDOFF).
 - Trial caps on rows (`TrackingManager.validate_row_count`) keep uploads bounded.
 
 ## Trial and Stripe
@@ -103,7 +101,7 @@ and tracking become ordinary tables.
 
 ## Suggested order
 
-1. Fix the `CsvProcessor` concurrency bug (useful whichever way the rest goes).
+1. ~~Fix the `CsvProcessor` concurrency bug.~~ Done 2026-11-22.
 2. ~~Decide on Postgres only.~~ Decided 2026-11-22: keep Mongo.
 3. Deploy (HANDOFF step 5) with Postgres and Mongo, the API and processor in separate
    containers.

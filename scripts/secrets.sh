@@ -11,6 +11,7 @@ SECRET_DIR="${INVOKEDB_SECRET_DIR:-$HOME/Library/CloudStorage/Dropbox/dropbox/se
 # Paths relative to both the repo root and SECRET_DIR. All must be gitignored.
 FILES=(
   .env
+  deploy/prod.env
   ops/azure-base/azure-base.values.sh
   ops/azure-prod/azure-prod-build.values.sh
   ops/azure-prod/azure-prod-env.values.sh

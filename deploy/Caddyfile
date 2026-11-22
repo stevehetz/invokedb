@@ -1,0 +1,37 @@
+{
+	email {$ACME_EMAIL}
+}
+
+# The site and the app (an SPA: unknown paths fall back to index.html)
+{$SITE_DOMAIN} {
+	encode zstd gzip
+	root * /srv
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	@runtime path /env.txt /index.html
+	header @runtime Cache-Control no-store
+	try_files {path} /index.html
+	file_server
+}
+
+www.{$SITE_DOMAIN} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}
+
+# The backend's internal routes and /api/v1. They sit at the root, so they get their own host.
+{$API_DOMAIN} {
+	encode zstd gzip
+	header -Server
+	reverse_proxy api:8001
+}
+
+# The websocket broker (reverse_proxy upgrades websocket connections by itself)
+{$WS_DOMAIN} {
+	reverse_proxy api:9000
+}

@@ -1,0 +1,143 @@
+# Production stack for one server. Run through deploy.sh, which passes `--env-file prod.env`
+# (the ${...} values below come from it). Only Caddy (web) publishes ports.
+name: invokedb
+
+x-backend: &backend
+  image: invokedb-backend
+  restart: unless-stopped
+  volumes:
+    - files:/data/files
+  logging: &logging
+    driver: json-file
+    options: { max-size: 20m, max-file: '5' }
+
+x-backend-env: &backend-env
+  ENV: production
+  HORIZON_FILE_SHARE: /data/files
+  HORIZON_POSTGRES_HOST: postgres
+  HORIZON_POSTGRES_PORT: '5432'
+  HORIZON_POSTGRES_DB: horizon
+  HORIZON_POSTGRES_USERNAME: horizon
+  HORIZON_POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+  HORIZON_MONGO_URI: mongodb://horizon:${MONGO_APP_PASSWORD:?}@mongo:27017/?authSource=admin
+  HORIZON_MONGO_DB: horizon
+  HORIZON_MONGO_TRACKING_URI: mongodb://horizon:${MONGO_APP_PASSWORD:?}@mongo:27017/?authSource=admin
+  HORIZON_MONGO_TRACKING_DB: horizon:tracking
+  HORIZON_BE_PRIV_HTTP_PORT: '8001'
+  HORIZON_SB_PRIV_WS_PORT: '9000'
+  HORIZON_SB_PRIV_WS_URL: ws://api:9000
+  HORIZON_FS_PRIV_HTTP_URL: http://api:8001
+  HORIZON_WS_SERVER_TOKEN: ${HORIZON_WS_SERVER_TOKEN:?}
+  HORIZON_FE_PUB_HTTP_URL: https://${SITE_DOMAIN:?}
+  SLACK_LOG_LEVEL: ${SLACK_LOG_LEVEL:-info}
+  SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+  SLACK_SUPPORT_WEBHOOK_URL: ${SLACK_SUPPORT_WEBHOOK_URL:-}
+  MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+  MAILGUN_DN: ${MAILGUN_DN:-}
+  MAILGUN_API_URL: ${MAILGUN_API_URL:-}
+  STRIPE_TEST_PUBLIC_KEY: ${STRIPE_TEST_PUBLIC_KEY:-}
+  STRIPE_TEST_SECRET_KEY: ${STRIPE_TEST_SECRET_KEY:-}
+  STRIPE_LIVE_PUBLIC_KEY: ${STRIPE_LIVE_PUBLIC_KEY:-}
+  STRIPE_LIVE_SECRET_KEY: ${STRIPE_LIVE_SECRET_KEY:-}
+
+services:
+  web:
+    build:
+      context: ../packages/horizon-fe
+      dockerfile: ../../deploy/web.Dockerfile
+    image: invokedb-web
+    restart: unless-stopped
+    entrypoint: ['/bin/sh', '/etc/caddy/entrypoint.sh']
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?}
+      API_DOMAIN: ${API_DOMAIN:?}
+      WS_DOMAIN: ${WS_DOMAIN:?}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./web-entrypoint.sh:/etc/caddy/entrypoint.sh:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api]
+    logging: *logging
+
+  # HTTP API, websocket broker and file uploads. IS_HORIZON_PRC must be left out here, not set
+  # to 'false': the processor checks it for truthiness.
+  api:
+    <<: *backend
+    build:
+      context: ../packages/horizon-be
+      dockerfile: ../../deploy/backend.Dockerfile
+    environment:
+      <<: *backend-env
+      IS_HORIZON_BE: 'true'
+      IS_HORIZON_SB: 'true'
+      IS_HORIZON_FS: 'true'
+    depends_on:
+      postgres: { condition: service_healthy }
+      mongo: { condition: service_healthy }
+
+  # CSV processor: its own container so a big upload can't starve the API of CPU
+  prc:
+    <<: *backend
+    environment:
+      <<: *backend-env
+      IS_HORIZON_PRC: 'true'
+    cpus: ${PRC_CPUS:-1}
+    depends_on: [api]
+
+  # One-off: `deploy.sh migrate`
+  migrate:
+    <<: *backend
+    restart: 'no'
+    profiles: [tools]
+    command: ['node', 'dist/database/migrate.js']
+    environment: *backend-env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: horizon
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: horizon
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U horizon -d horizon']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    # WiredTiger takes half the RAM by default; cap it so Postgres and Node fit beside it
+    command: ['--wiredTigerCacheSizeGB', '${MONGO_CACHE_GB:-0.75}']
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD:?}
+    volumes:
+      - mongo_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/10-app-user.js:ro
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.adminCommand("ping").ok']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+volumes:
+  pg_data:
+  mongo_data:
+  files:
+  caddy_data:
+  caddy_config:

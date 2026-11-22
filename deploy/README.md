@@ -65,8 +65,10 @@ site's paths.
 `deploy/backup.sh` runs on the server. Every night at 07:15 UTC, cron dumps Postgres
 (`pg_dump -Fc`) and Mongo (`mongodump --archive --gzip`), encrypts both with
 `BACKUP_PASSPHRASE`, and uploads them to a DigitalOcean Spaces bucket as `<stamp>/` with a
-`manifest.txt` of checksums. Each run pings Healthchecks.io, which emails you if a night is
-missed or fails. Backups older than `BACKUP_KEEP_DAYS` (30) are deleted after each
+`manifest.txt` of checksums. Each run pings Healthchecks.io, which alerts you if a night is
+missed or fails: by email, and by a webhook integration that posts to the contact-form
+Telegram bot (`https://api.telegram.org/bot<token>/sendMessage`, JSON body with `chat_id`
+and `text`). Replacing the bot token means updating that webhook too. Backups older than `BACKUP_KEEP_DAYS` (30) are deleted after each
 successful run. The uploaded files in the `files` volume aren't backed up: they're temporary,
 kept only until the CSV processor has loaded them into Mongo. DigitalOcean's weekly droplet
 backup is still on as a second copy. Both copies are with DigitalOcean, so losing the account

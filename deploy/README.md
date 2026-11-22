@@ -40,6 +40,10 @@ site's paths.
 - Email goes out through Mailgun (`MAILGUN_API_KEY`, `MAILGUN_DN=mail.invokedb.com`, US region,
   free plan). The sending domain's SPF and DKIM records are in Cloudflare, plus a
   `_dmarc.invokedb.com` record (`p=none`). Without a key, emails are printed in `logs api`.
+- Contact-form requests go to Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`). To set it
+  up: message `@BotFather`, send `/newbot` and copy the token; send your new bot any message,
+  then open `https://api.telegram.org/bot<token>/getUpdates` and copy `message.chat.id`.
+  Without them (or the Slack support webhook), requests are only written to `logs api`.
 - To get into a seeded account after `init-db`, request a password reset. `invokedb.com` has no
   MX records (by choice), so resets for the `demo*@invokedb.com` accounts bounce.
 - The SSH key (`~/.ssh/invokedb`) is synced to Dropbox by `npm run secrets:push`/`pull`, so any

@@ -164,7 +164,9 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
     the server: an encrypted (`BACKUP_PASSPHRASE`, openssl AES-256) `pg_dump` + `mongodump`
     goes to the DigitalOcean Spaces bucket `invokedb-backups` (NYC3, limited-access key), with
     backups over 30 days deleted after each successful run. It pings Healthchecks.io (check
-    "invokedb backups", 1 day + 2 h grace), which emails on a failed or missed run. The first
+    "invokedb backups", 1 day + 2 h grace), which alerts on a failed or missed run by email and
+    by Telegram (a Healthchecks webhook to the contact-form bot's `sendMessage`; if the bot
+    token is ever revoked, update it there too). The first
     backup and `backup verify` (restore into throwaway containers, counts compared with live)
     passed on launch. The settings are in `prod.env`; `deploy/README.md` "Backups" has the
     details and the new-server restore. The weekly DigitalOcean droplet backup stays on as a

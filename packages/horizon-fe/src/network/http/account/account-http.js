@@ -17,7 +17,7 @@ export default class AccountHttp extends HttpBase {
     async reset_password(email) {
         const url =
             store.get('env').HORIZON_BE_PUB_HTTP_URL + '/auth/reset-password';
-        return await this.http_get(`${url}?email=${email}`);
+        return await this.http_get(`${url}?email=${encodeURIComponent(email)}`);
     }
 
     async create_account(data) {

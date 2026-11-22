@@ -25,7 +25,7 @@ export default {
             try {
                 await account_http.reset_password(this.email);
                 this.message =
-                    'A link to reset your password has been sent to your inbox.';
+                    'If an account exists for that email, a link to reset your password has been sent to it.';
             } catch (ex) {
                 this.error.message = ex.message || 'Server error';
             }

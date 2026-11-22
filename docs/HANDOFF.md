@@ -16,8 +16,8 @@ features).
 2. **Direction** (see `docs/INFRASTRUCTURE_PLAN.md`): learning plus a showcase, a Stripe
    trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
-   backups are live. The next job is the account-enumeration fix (step 5, "Still to do", item
-   1). Check backend changes with
+   backups are live. The account-enumeration fix is done; the next job is monitoring (step 5,
+   "Still to do", item 2). Check backend changes with
    the backend build (see `verify-backend`), and frontend changes with the frontend build and
    lint.
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
@@ -152,9 +152,11 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `mail.`. **Not yet checked by a person:** signup, table creation, CSV upload and API calls in
   production. Hetzner was dropped because its US prices roughly tripled in June 2026.
   - **Still to do, in order:**
-    1. **Login and password reset reveal which emails have accounts** (`/auth/login` says
-       "Invalid password"; reset says "An account with that email does not exist", in
-       `application/auth/auth.service.ts`). Return generic messages.
+    1. **Account enumeration: done** (2026-11-22, branch `auth-generic-messages`). Login says
+       "Invalid email or password" either way and runs a bcrypt compare against a dummy hash
+       when there's no account (same timing). Reset always answers `success` (the page says
+       "If an account exists…"). Signup still says "An account with that email already
+       exists"; closing that needs email verification on signup. Checked with builds only.
     2. **Monitoring:** UptimeRobot on `https://invokedb.com` and `https://api.invokedb.com`,
        Sentry optional.
     3. **Check Mailgun's authorized-recipients limit:** the free plan without a card on file only

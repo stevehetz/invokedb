@@ -52,7 +52,7 @@ export class AccountService {
         } catch (ex) {
             if (ex.status === HttpStatus.BAD_REQUEST) {
                 const property = 'current_password';
-                const constraints = { badPassword: ex.message };
+                const constraints = { badPassword: 'Current password is incorrect' };
                 validation_errors.push({ property, constraints });
             } else {
                 throw ex;

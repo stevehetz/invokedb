@@ -106,7 +106,7 @@ and tracking become ordinary tables.
 1. ~~Fix the `CsvProcessor` concurrency bug.~~ Done 2026-11-22.
 2. ~~Decide on Postgres only.~~ Decided 2026-11-22: keep Mongo.
 3. Deploy (HANDOFF step 5) with Postgres and Mongo, the API and processor in separate
-   containers. In progress (`deploy/`).
+   containers. Live since 2026-11-22 (`deploy/`); off-site backups still to do.
 4. Stripe webhook signatures, then the trial and caps.
 5. SSO (HANDOFF 5b) and polish for showing it off.
 

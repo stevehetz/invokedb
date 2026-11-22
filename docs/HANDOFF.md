@@ -16,8 +16,9 @@ features).
 2. **Direction** (see `docs/INFRASTRUCTURE_PLAN.md`): learning plus a showcase, a Stripe
    trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
-   backups are live. The account-enumeration fix is done; the next job is monitoring (step 5,
-   "Still to do", item 2). Check backend changes with
+   backups and uptime monitoring are live, and the launch to-do list (step 5) is finished. Next:
+   a person checks signup, table creation, CSV upload and API calls in production, then 5b
+   (Google/GitHub sign-in). Check backend changes with
    the backend build (see `verify-backend`), and frontend changes with the frontend build and
    lint.
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
@@ -157,8 +158,10 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
        when there's no account (same timing). Reset always answers `success` (the page says
        "If an account exists…"). Signup still says "An account with that email already
        exists"; closing that needs email verification on signup. Checked with builds only.
-    2. **Monitoring:** UptimeRobot on `https://invokedb.com` and `https://api.invokedb.com`,
-       Sentry optional.
+    2. **Monitoring: done** (2026-11-22). UptimeRobot (free plan, 5-minute checks, email alerts)
+       on `https://invokedb.com` and `https://api.invokedb.com/auth/authorize` (the bare API
+       root is a 404, which UptimeRobot counts as down; `authorize` with no token answers 200
+       without touching the DBs, so it doesn't catch a DB outage). Sentry: optional, not set up.
     3. **Mailgun's authorized-recipients limit: not an issue** (checked 2026-11-22). It applies
        only to the sandbox domain (whose list holds just the Mailgun login address).
        `mail.invokedb.com` on the current Free plan (3,000 emails/month, no card) delivered the

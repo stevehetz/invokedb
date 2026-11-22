@@ -192,15 +192,17 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
        3. _Code, Worker:_ add a `TELEGRAM_ONLY_RECIPIENTS` setting (`uptime`): mail to those
           addresses posts to Telegram and is never forwarded, and is dropped unless it's from
           `ALERT_SENDER_DOMAINS` (so spam to `uptime@` can't reach Telegram). Set
-          `NOTIFY_RECIPIENTS` to whatever should get a Telegram notice _and_ be forwarded
-          (`support`, or empty if the inbox is enough). Update the README, re-paste.
+          `NOTIFY_RECIPIENTS` to empty (decided: no Telegram notice for `support@`, the inbox
+          is enough). Update the README, re-paste.
        4. _User:_ UptimeRobot → add `uptime@invokedb.com` as an email alert contact, switch both
           monitors to it, untick the personal address. Check a test alert reaches Telegram.
        5. _Code, backend:_ the contact form (`web/http/support/support.controller.ts`) sends an
           email through Mailgun to a new `SUPPORT_EMAIL` env var (`support@invokedb.com` in
           `prod.env`), with `Reply-To` set to the person's address so a reply in Gmail goes
-          to them. Drop its direct Telegram post (the Worker's notice for `support@` covers it,
-          if wanted) or keep it as a fallback when Mailgun fails. Deploy.
+          to them. Await the Mailgun call (unlike the fire-and-forget `send_html`). Decided:
+          Telegram is only a fallback, posted when Mailgun refuses the call (down, bad key,
+          quota used up), never as well as the email; if both fail, answer "could not be sent".
+          It can't see failures after Mailgun accepts (routing, Worker, spam). Deploy.
        6. _User:_ in the support Gmail, Settings → Accounts → "Send mail as"
           `support@invokedb.com` through Mailgun SMTP (`smtp.mailgun.org`, port 587, an SMTP
           login created under `mail.invokedb.com` → SMTP Credentials; keep it in the secrets).

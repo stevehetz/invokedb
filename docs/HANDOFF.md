@@ -45,8 +45,8 @@ features).
 - **Logins (local only):** `shetzel84@gmail.com` and `demo@invokedb.com` …
   `demo7@invokedb.com`, password `password`. In production these accounts exist but have
   random passwords and API keys (`init-db`); get into one with a password reset. Reset emails
-  go out through Mailgun, but `invokedb.com` receives no mail (no MX, by choice), so
-  `demo*@invokedb.com` resets bounce.
+  go out through Mailgun; mail to `demo*@invokedb.com` now arrives through Cloudflare Email
+  Routing and is forwarded to the Worker's `FORWARD_TO` (see step 5, item 4).
   `shetzel84@gmail.com` was reset this way and works.
 
 ## Things to know
@@ -153,7 +153,9 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `mail.`. **Not yet checked by a person:** signup, table creation, CSV upload and API calls in
   production. Hetzner was dropped because its US prices roughly tripled in June 2026.
   - **Still to do, in order:**
-    1. **Account enumeration: done** (2026-11-22, branch `auth-generic-messages`). Login says
+    1. **Account enumeration: done, on `main`, not deployed yet** (2026-11-22). Ship it with
+       `deploy.sh up` when the user asks (no migration), e.g. together with item 4's contact-form
+       change. Login says
        "Invalid email or password" either way and runs a bcrypt compare against a dummy hash
        when there's no account (same timing). Reset always answers `success` (the page says
        "If an account exists…"). Signup still says "An account with that email already

@@ -25,13 +25,18 @@ Where InvokeDB is heading and why. `HANDOFF.md` has the current state and the nu
   idle minutes, and Supabase pauses idle free projects), so they're out too.
 - **One small VPS** (Hetzner US, from about $5–10/month; check current prices) running
   `docker compose` with Caddy, the API, the processor and the database.
-- This replaces the two-server layout in HANDOFF step 5 if Mongo goes (see below). If Mongo
-  stays, use the step 5 plan or one bigger server.
+- Mongo stays (see below), so the choice is HANDOFF step 5's two servers (app + db, about
+  $37/month) or one bigger server running everything. Mongo's WiredTiger cache takes about half
+  the RAM by default, so a single server needs 8 GB, or a capped `--wiredTigerCacheSizeGB`.
 
-## Data: Postgres only (proposed)
+## Data: keep MongoDB (decided 2026-11-22)
 
-Drop MongoDB and keep the grid data in Postgres. One database means one thing to deploy, back
-up and restore, and a smaller server.
+**Decision:** keep Mongo for the grid data and Postgres for everything else, as today. The user
+prefers this architecture: schemaless rows fit user-defined columns, and each account already
+has its own Mongo database, which isolates tenants without an `account_id` filter on every
+query. The cost is a second database to deploy, back up and restore.
+
+The Postgres-only analysis below is kept for reference.
 
 **How Mongo is used today:** all of it is in six files, mostly
 `core/web-file/web-file.manager.ts`, plus `csv-processor.ts`, `web-file-prc.service.ts`,
@@ -99,15 +104,15 @@ and tracking become ordinary tables.
 ## Suggested order
 
 1. Fix the `CsvProcessor` concurrency bug (useful whichever way the rest goes).
-2. Decide on Postgres only. If yes, move the grid data, then drop Mongo.
-3. Deploy: one server, with the API and processor in separate containers (rework HANDOFF step
-   5).
+2. ~~Decide on Postgres only.~~ Decided 2026-11-22: keep Mongo.
+3. Deploy (HANDOFF step 5) with Postgres and Mongo, the API and processor in separate
+   containers.
 4. Stripe webhook signatures, then the trial and caps.
 5. SSO (HANDOFF 5b) and polish for showing it off.
 
 ## Open questions
 
-- Postgres only: yes or no?
+- One server or two (app + db)?
 - Trial length and caps (for example 14 days, 5 tables, 10k rows, 10k API calls)?
 - What happens after the trial: read-only, then deleted after N days?
 - One price, or a couple of plans?

@@ -7,7 +7,7 @@ revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the comm
 `AGENTS.md` has the rules, conventions and gotchas. This file covers only where things stand and
 what to do next. Git history has the details of past work. The longer-term plans sit beside it
 in `docs/`: `INFRASTRUCTURE_PLAN.md` (the current direction: a trial-only showcase on one
-server, maybe Postgres only), `SAAS_PLAN.md` (turning it into a SaaS) and `AI_IDEAS.md` (AI
+server, keeping Mongo), `SAAS_PLAN.md` (turning it into a SaaS) and `AI_IDEAS.md` (AI
 features).
 
 ## Start here
@@ -15,8 +15,7 @@ features).
 1. Read `AGENTS.md` and the matching playbook in `.agents/skills/`.
 2. **Direction is being re-planned** (2026-11-17, see `docs/INFRASTRUCTURE_PLAN.md`):
    learning plus a showcase, a Stripe trial instead of a free tier, one always-on server, and
-   maybe dropping Mongo. Settle the open questions there before starting step 5, which may
-   change. The `CsvProcessor` concurrency fix (in the same file) can go ahead either way. Check
+   keeping Mongo (decided 2026-11-22). Settle the open questions there before starting step 5. The `CsvProcessor` concurrency fix (in the same file) can go ahead either way. Check
    backend changes with the backend build (see `verify-backend`), and frontend changes with
    the frontend build and lint.
 3. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
@@ -110,9 +109,9 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   dev uses Postgres.app and brew Mongo, and Docker isn't installed on the Mac. The production
   compose file belongs to step 5.
 - **5 (first deployment, on `invokedb.com`): Hetzner Cloud, Ashburn (VA), two servers.**
-  **Under review (2026-11-17):** `docs/INFRASTRUCTURE_PLAN.md` proposes one always-on server
-  (API and CSV processor in separate containers) if Mongo is dropped. Keep this plan until
-  that's decided.
+  **Mongo stays** (decided 2026-11-22), so this plan holds. Still open
+  (`docs/INFRASTRUCTURE_PLAN.md`): two servers as below, or one bigger server, and running the
+  CSV processor in its own container next to the API.
   Decided 2026-11-15 after comparing Azure, DigitalOcean and others: self-managed (no managed
   DBs; too expensive for now), US region (most users are in the US), and the DBs on their own
   server. Not AKS/Helm. This is meant to become the first production setup, not a throwaway.

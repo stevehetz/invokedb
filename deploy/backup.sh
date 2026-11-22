@@ -12,8 +12,8 @@
 # Each backup is a folder <stamp>/ in the bucket holding postgres.dump.enc (pg_dump -Fc),
 # mongo.archive.gz.enc (mongodump --archive --gzip) and manifest.txt (sha256 sums, uploaded
 # last, so a folder without one is incomplete). The dumps are encrypted with BACKUP_PASSPHRASE
-# (openssl AES-256, PBKDF2) before they leave the server. Retention is a lifecycle rule on the
-# bucket (see deploy/README.md); this script never deletes anything remote.
+# (openssl AES-256, PBKDF2) before they leave the server. After each successful upload, files
+# older than BACKUP_KEEP_DAYS (default 30) are deleted, so the newest backup always survives.
 set -euo pipefail
 shopt -s inherit_errexit
 export LC_ALL=C
@@ -108,6 +108,8 @@ do_run() {
   rclone copy --exclude manifest.txt "$dest" "$(remote "$stamp")"
   rclone copy --include manifest.txt "$dest" "$(remote "$stamp")"
   rm -rf "$dest"
+  echo "$(date -u +%FT%TZ) backup $stamp: uploaded; deleting backups over ${BACKUP_KEEP_DAYS:-30} days old"
+  rclone delete --min-age "${BACKUP_KEEP_DAYS:-30}d" "$(remote)"
   echo "$(date -u +%FT%TZ) backup $stamp: done"
 }
 

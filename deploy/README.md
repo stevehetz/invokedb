@@ -37,8 +37,13 @@ site's paths.
   Migrations run before the containers restart.
 - `deploy/deploy.sh logs [api|prc|web|postgres|mongo]`, `ps`, `ssh`, or
   `compose <any docker compose args>`.
-- Without Mailgun, emails (welcome, password reset links) are printed in `logs api`. That's
-  also how to get back into a seeded account after `init-db`: request a reset and copy the link.
+- Email goes out through Mailgun (`MAILGUN_API_KEY`, `MAILGUN_DN=mail.invokedb.com`, US region,
+  free plan). The sending domain's SPF and DKIM records are in Cloudflare, plus a
+  `_dmarc.invokedb.com` record (`p=none`). Without a key, emails are printed in `logs api`.
+- To get into a seeded account after `init-db`, request a password reset. `invokedb.com` has no
+  MX records, so mail to `demo*@invokedb.com` bounces until Cloudflare Email Routing forwards it.
+- The SSH key (`~/.ssh/invokedb`) is synced to Dropbox by `npm run secrets:push`/`pull`, so any
+  Mac with the secrets can deploy.
 
 ## Notes
 

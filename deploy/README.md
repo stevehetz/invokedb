@@ -58,6 +58,47 @@ site's paths.
   change made in Mongo too. Same for `POSTGRES_PASSWORD`.
 - Changing the domains needs only `prod.env` and an `up`: the browser's runtime env
   (`/env.txt`) is written from them when the web container starts.
-- **Not done yet:** off-site backups (Postgres and Mongo dumps to object storage, with an alert
-  on missed runs and a tested restore) and uptime monitoring. Until then the only backups are
-  the droplet's.
+- **Not done yet:** uptime monitoring.
+
+## Backups
+
+`deploy/backup.sh` runs on the server. Every night at 07:15 UTC, cron dumps Postgres
+(`pg_dump -Fc`) and Mongo (`mongodump --archive --gzip`), encrypts both with
+`BACKUP_PASSPHRASE`, and uploads them to a Backblaze B2 bucket as `<stamp>/` with a
+`manifest.txt` of checksums. Each run pings Healthchecks.io, which emails you if a night is
+missed or fails. The uploaded files in the `files` volume aren't backed up: they're temporary,
+kept only until the CSV processor has loaded them into Mongo. DigitalOcean's weekly droplet
+backup is still on as a second copy.
+
+Setup, once:
+
+1. **Backblaze B2:** create a private bucket (e.g. `invokedb-backups`) with default encryption
+   on, and a lifecycle rule that keeps files for 30 days (Lifecycle Settings → custom:
+   `daysFromUploadingToHiding: 30`, `daysFromHidingToDeleting: 1`). Then create an
+   application key restricted to that bucket, with read and write access.
+2. **Healthchecks.io:** add a check with a 1-day period and a 2-hour grace, and copy its ping
+   URL.
+3. In `deploy/prod.env` set `BACKUP_S3_ENDPOINT` (the bucket's endpoint, e.g.
+   `https://s3.us-east-005.backblazeb2.com`), `BACKUP_S3_BUCKET`, `BACKUP_S3_KEY_ID` (the
+   keyID), `BACKUP_S3_SECRET` (the applicationKey) and `HEALTHCHECK_URL`, then run
+   `npm run secrets:push`. `BACKUP_PASSPHRASE` is already filled in. **Without the passphrase
+   the backups can't be decrypted**, so keep the Dropbox copy of `prod.env` safe.
+4. `deploy/deploy.sh up` (ships the script and the new `prod.env`), then
+   `deploy/deploy.sh backup install`, `deploy/deploy.sh backup run` and
+   `deploy/deploy.sh backup verify`.
+
+Commands (`deploy/deploy.sh backup …`):
+
+- `run`: take a backup now. The cron job's log is `/var/log/invokedb-backup.log`.
+- `list`: the complete backups in the bucket.
+- `verify [stamp]`: download a backup (the latest by default), check its checksums, restore
+  it into throwaway Postgres and Mongo containers, and print its row and document counts
+  beside the live ones. Live data isn't touched. Run it now and then (monthly) to prove
+  restores still work.
+- `restore <stamp>`: put a backup back into the **live** databases. It asks you to type the
+  stamp, stops `api` and `prc`, replaces the Postgres database (`pg_restore --clean`) and
+  every Mongo collection in the backup (`mongorestore --drop`), then restarts them. Mongo users
+  aren't restored: `mongo-init.js` creates the app user when a volume is new.
+
+On a new server: `bootstrap`, `up`, then `backup restore <stamp>` (skip `init-db`, since the
+backup already has the real accounts) and `backup install`.

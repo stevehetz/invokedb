@@ -16,8 +16,9 @@ features).
 2. **Direction** (see `docs/INFRASTRUCTURE_PLAN.md`): learning plus a showcase, a Stripe
    trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. The next
-   job is off-site backups (step 5, "Still to do"). Check backend changes with the backend build
-   (see `verify-backend`), and frontend changes with the frontend build and lint.
+   job is turning on the off-site backups (step 5, "Still to do"). Check backend changes with
+   the backend build (see `verify-backend`), and frontend changes with the frontend build and
+   lint.
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
    `compose`, `bootstrap`) only when the user asks. `up` ships the committed `HEAD` of whatever
    branch is checked out, so deploy from `main`.
@@ -148,10 +149,13 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `mail.`. **Not yet checked by a person:** signup, table creation, CSV upload and API calls in
   production. Hetzner was dropped because its US prices roughly tripled in June 2026.
   - **Still to do, in order:**
-    1. **Off-site backups.** Today the only backup is DigitalOcean's weekly droplet backup. Add
-       a nightly `pg_dump` + `mongodump` (run in the containers via `deploy.sh compose exec`)
-       uploaded to object storage (DigitalOcean Spaces or Backblaze B2), a Healthchecks.io ping
-       for missed runs, and a scripted, tested restore.
+    1. **Off-site backups: written, not yet live** (2026-11-22, branch `offsite-backups`).
+       `deploy/backup.sh` (`deploy.sh backup run|list|verify|restore|install`) takes a nightly
+       encrypted `pg_dump` + `mongodump` to Backblaze B2 and pings Healthchecks.io;
+       `deploy/README.md` "Backups" has the setup. `BACKUP_PASSPHRASE` is in `prod.env` and
+       synced. Left: create the B2 bucket and key and the Healthchecks check, fill in
+       `prod.env`, `up`, `backup install`, `backup run`, `backup verify`. Nothing has run
+       against a real server or bucket yet.
     2. **Login and password reset reveal which emails have accounts** (`/auth/login` says
        "Invalid password"; reset says "An account with that email does not exist", in
        `application/auth/auth.service.ts`). Return generic messages.

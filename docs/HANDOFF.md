@@ -33,7 +33,8 @@ features).
   frontend on Vue 3 + Element Plus + ag-grid 32 (2.3–2.5), the websocket server token in an env
   var (3), and `HANDOFF.md`, `AI_IDEAS.md` and `SAAS_PLAN.md` moved from the repo root into
   `docs/`.
-- **Production:** none yet (step 5 is in progress). The old Azure infrastructure was torn down.
+- **Production:** `https://invokedb.com` on one DigitalOcean droplet (see step 5 and
+  `deploy/README.md`). The old Azure infrastructure was torn down.
 - **Logins:** `shetzel84@gmail.com` and `demo@invokedb.com` … `demo7@invokedb.com`, password
   `password`.
 
@@ -123,8 +124,10 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   Hetzner two-server plan is dropped: Hetzner's US prices roughly tripled in June 2026 (CPX31
   ~$74/month), and DigitalOcean's 8 GB droplet is $48. `deploy/` has the compose file, both
   Dockerfiles, the Caddyfile and `deploy.sh`; `deploy/README.md` has the steps. The backend
-  gained `dist/database/migrate.js` for migrations without ts-node. Not yet run against a real
-  server. Still to do: off-site backups (Postgres and Mongo dumps to object storage, an alert on
+  gained `dist/database/migrate.js` for migrations without ts-node. **Live since 2026-11-22**
+  on droplet `invokedb-prod` (`107.170.54.96`, NYC2) behind a DigitalOcean Cloud Firewall (SSH
+  only from the user's home IP); `init-db` has run, so the seeded accounts have random
+  passwords and API keys. Still to do: off-site backups (Postgres and Mongo dumps to object storage, an alert on
   missed runs, a tested restore) and monitoring (UptimeRobot, Sentry). Mongo runs standalone
   with auth (no replica set; add one if `mongodump --oplog` is wanted).
   - **Later:** more app servers behind a load balancer, managed DBs, or k3s, if it ever needs

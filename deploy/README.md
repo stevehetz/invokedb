@@ -46,8 +46,8 @@ site's paths.
   Without them, requests are only written to `logs api`.
 - Inbound mail to `@invokedb.com` (`support@`, `alerts@`, …) goes through Cloudflare Email
   Routing to an Email Worker that forwards it and posts alerts to the same Telegram bot; see
-  `email-worker/README.md`. Until that's set up the domain has no MX records, and resets for
-  the seeded `demo*@invokedb.com` accounts bounce; once it is, they're forwarded.
+  `email-worker/README.md`. Resets for the seeded `demo*@invokedb.com` accounts are forwarded
+  to the Worker's `FORWARD_TO` inbox.
 - To get into a seeded account after `init-db`, request a password reset.
 - The SSH key (`~/.ssh/invokedb`) is synced to Dropbox by `npm run secrets:push`/`pull`, so any
   Mac with the secrets can deploy.

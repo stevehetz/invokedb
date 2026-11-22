@@ -64,23 +64,25 @@ site's paths.
 
 `deploy/backup.sh` runs on the server. Every night at 07:15 UTC, cron dumps Postgres
 (`pg_dump -Fc`) and Mongo (`mongodump --archive --gzip`), encrypts both with
-`BACKUP_PASSPHRASE`, and uploads them to a Backblaze B2 bucket as `<stamp>/` with a
+`BACKUP_PASSPHRASE`, and uploads them to a DigitalOcean Spaces bucket as `<stamp>/` with a
 `manifest.txt` of checksums. Each run pings Healthchecks.io, which emails you if a night is
-missed or fails. The uploaded files in the `files` volume aren't backed up: they're temporary,
+missed or fails. Backups older than `BACKUP_KEEP_DAYS` (30) are deleted after each
+successful run. The uploaded files in the `files` volume aren't backed up: they're temporary,
 kept only until the CSV processor has loaded them into Mongo. DigitalOcean's weekly droplet
-backup is still on as a second copy.
+backup is still on as a second copy. Both copies are with DigitalOcean, so losing the account
+loses both; a second provider (e.g. Backblaze B2, same script) is a later option.
 
 Setup, once:
 
-1. **Backblaze B2:** create a private bucket (e.g. `invokedb-backups`) with default encryption
-   on, and a lifecycle rule that keeps files for 30 days (Lifecycle Settings → custom:
-   `daysFromUploadingToHiding: 30`, `daysFromHidingToDeleting: 1`). Then create an
-   application key restricted to that bucket, with read and write access.
+1. **DigitalOcean Spaces** (Spaces Object Storage, $5/month): create a bucket in NYC3 (e.g.
+   `invokedb-backups`), with file listing restricted and the CDN off. Then under Access Keys
+   create a key with **limited access** to that bucket, permission Read/Write/Delete (delete is
+   for the 30-day clean-up). The secret is shown once.
 2. **Healthchecks.io:** add a check with a 1-day period and a 2-hour grace, and copy its ping
    URL.
 3. In `deploy/prod.env` set `BACKUP_S3_ENDPOINT` (the bucket's endpoint, e.g.
-   `https://s3.us-east-005.backblazeb2.com`), `BACKUP_S3_BUCKET`, `BACKUP_S3_KEY_ID` (the
-   keyID), `BACKUP_S3_SECRET` (the applicationKey) and `HEALTHCHECK_URL`, then run
+   `https://nyc3.digitaloceanspaces.com`), `BACKUP_S3_BUCKET`, `BACKUP_S3_KEY_ID` (the access
+   key), `BACKUP_S3_SECRET` (its secret) and `HEALTHCHECK_URL`, then run
    `npm run secrets:push`. `BACKUP_PASSPHRASE` is already filled in. **Without the passphrase
    the backups can't be decrypted**, so keep the Dropbox copy of `prod.env` safe.
 4. `deploy/deploy.sh up` (ships the script and the new `prod.env`), then

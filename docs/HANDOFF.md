@@ -151,9 +151,10 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   - **Still to do, in order:**
     1. **Off-site backups: written, not yet live** (2026-11-22, branch `offsite-backups`).
        `deploy/backup.sh` (`deploy.sh backup run|list|verify|restore|install`) takes a nightly
-       encrypted `pg_dump` + `mongodump` to Backblaze B2 and pings Healthchecks.io;
+       encrypted `pg_dump` + `mongodump` to DigitalOcean Spaces (30 days kept) and pings
+       Healthchecks.io;
        `deploy/README.md` "Backups" has the setup. `BACKUP_PASSPHRASE` is in `prod.env` and
-       synced. Left: create the B2 bucket and key and the Healthchecks check, fill in
+       synced. Left: create the Spaces bucket and key and the Healthchecks check, fill in
        `prod.env`, `up`, `backup install`, `backup run`, `backup verify`. Nothing has run
        against a real server or bucket yet.
     2. **Login and password reset reveal which emails have accounts** (`/auth/login` says

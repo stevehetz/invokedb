@@ -159,8 +159,11 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
        exists"; closing that needs email verification on signup. Checked with builds only.
     2. **Monitoring:** UptimeRobot on `https://invokedb.com` and `https://api.invokedb.com`,
        Sentry optional.
-    3. **Check Mailgun's authorized-recipients limit:** the free plan without a card on file only
-       delivers to authorized addresses. Confirm a stranger's signup email arrives.
+    3. **Mailgun's authorized-recipients limit: not an issue** (checked 2026-11-22). It applies
+       only to the sandbox domain (whose list holds just the Mailgun login address).
+       `mail.invokedb.com` on the current Free plan (3,000 emails/month, no card) delivered the
+       reset to `shetzel84@gmail.com`, which isn't on that list. If the reset form is ever
+       abused to burn the quota, rate-limit `/auth/reset-password`.
   - **Off-site backups: live** (2026-11-22). `deploy/backup.sh`, driven by
     `deploy.sh backup run|list|verify|restore|install`, runs nightly from cron at 07:15 UTC on
     the server: an encrypted (`BACKUP_PASSPHRASE`, openssl AES-256) `pg_dump` + `mongodump`

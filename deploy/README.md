@@ -44,8 +44,11 @@ site's paths.
   up: message `@BotFather`, send `/newbot` and copy the token; send your new bot any message,
   then open `https://api.telegram.org/bot<token>/getUpdates` and copy `message.chat.id`.
   Without them, requests are only written to `logs api`.
-- To get into a seeded account after `init-db`, request a password reset. `invokedb.com` has no
-  MX records (by choice), so resets for the `demo*@invokedb.com` accounts bounce.
+- Inbound mail to `@invokedb.com` (`support@`, `alerts@`, …) goes through Cloudflare Email
+  Routing to an Email Worker that forwards it and posts alerts to the same Telegram bot; see
+  `email-worker/README.md`. Until that's set up the domain has no MX records, and resets for
+  the seeded `demo*@invokedb.com` accounts bounce; once it is, they're forwarded.
+- To get into a seeded account after `init-db`, request a password reset.
 - The SSH key (`~/.ssh/invokedb`) is synced to Dropbox by `npm run secrets:push`/`pull`, so any
   Mac with the secrets can deploy.
 

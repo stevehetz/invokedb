@@ -162,6 +162,10 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
        on `https://invokedb.com` and `https://api.invokedb.com/auth/authorize` (the bare API
        root is a 404, which UptimeRobot counts as down; `authorize` with no token answers 200
        without touching the DBs, so it doesn't catch a DB outage). Sentry: optional, not set up.
+       Telegram alerts are a paid UptimeRobot feature, so instead: **inbound email → Telegram**
+       (`deploy/email-worker/`, Cloudflare Email Routing + an Email Worker; written and tested
+       locally 2026-11-22, **dashboard setup pending**). Once live, point UptimeRobot at
+       `alerts@invokedb.com`.
     3. **Mailgun's authorized-recipients limit: not an issue** (checked 2026-11-22). It applies
        only to the sandbox domain (whose list holds just the Mailgun login address).
        `mail.invokedb.com` on the current Free plan (3,000 emails/month, no card) delivered the

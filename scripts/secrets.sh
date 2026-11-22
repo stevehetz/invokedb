@@ -4,11 +4,13 @@
 #   scripts/secrets.sh push [--force]   repo -> secret folder
 #   scripts/secrets.sh status           show which copies differ
 # Without --force, a copy is skipped when the destination is newer than the source.
+# Paths starting with ~/ are files in $HOME (e.g. the production SSH key); their copy in the
+# secret folder lives under home/.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRET_DIR="${INVOKEDB_SECRET_DIR:-$HOME/Library/CloudStorage/Dropbox/dropbox/secret/invokedb}"
 
-# Paths relative to both the repo root and SECRET_DIR. All must be gitignored.
+# Paths relative to both the repo root and SECRET_DIR (repo files must be gitignored), or ~/ paths.
 FILES=(
   .env
   deploy/prod.env
@@ -17,7 +19,12 @@ FILES=(
   ops/azure-prod/azure-prod-env.values.sh
   ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa
   ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa.pub
+  "~/.ssh/invokedb"
+  "~/.ssh/invokedb.pub"
 )
+
+local_path() { case "$1" in "~/"*) echo "$HOME/${1#\~/}" ;; *) echo "$ROOT/$1" ;; esac; }
+secret_path() { case "$1" in "~/"*) echo "$SECRET_DIR/home/${1#\~/}" ;; *) echo "$SECRET_DIR/$1" ;; esac; }
 
 cmd="${1:-status}"; force="${2:-}"
 [ -d "$SECRET_DIR" ] || { echo "Secret folder not found: $SECRET_DIR (set INVOKEDB_SECRET_DIR)"; exit 1; }
@@ -32,19 +39,21 @@ copy() { # src dst label
   mkdir -p "$(dirname "$dst")"
   [ -L "$dst" ] && rm "$dst"   # replace old-style symlinks with real files
   cp -p "$src" "$dst"
+  case "$dst" in "$HOME/.ssh/"*.pub) ;; "$HOME/.ssh/"*) chmod 600 "$dst" ;; esac
   echo "  copied    $label"
 }
 
 for f in "${FILES[@]}"; do
+  case "$f" in "~/"*) continue ;; esac
   if ! git -C "$ROOT" check-ignore -q "$f"; then echo "Refusing: $f is not gitignored"; exit 1; fi
 done
 
 case "$cmd" in
-  pull) echo "secret -> repo"; for f in "${FILES[@]}"; do copy "$SECRET_DIR/$f" "$ROOT/$f" "$f"; done ;;
-  push) echo "repo -> secret"; for f in "${FILES[@]}"; do copy "$ROOT/$f" "$SECRET_DIR/$f" "$f"; done ;;
+  pull) echo "secret -> repo"; for f in "${FILES[@]}"; do copy "$(secret_path "$f")" "$(local_path "$f")" "$f"; done ;;
+  push) echo "repo -> secret"; for f in "${FILES[@]}"; do copy "$(local_path "$f")" "$(secret_path "$f")" "$f"; done ;;
   status)
     for f in "${FILES[@]}"; do
-      a="$ROOT/$f"; b="$SECRET_DIR/$f"
+      a="$(local_path "$f")"; b="$(secret_path "$f")"
       if [ ! -e "$a" ] && [ ! -e "$b" ]; then s="missing both"
       elif [ ! -e "$a" ]; then s="only in secret"
       elif [ ! -e "$b" ]; then s="only in repo"

@@ -39,8 +39,10 @@ features).
   `deploy/README.md`). The old Azure infrastructure was torn down.
 - **Logins (local only):** `shetzel84@gmail.com` and `demo@invokedb.com` …
   `demo7@invokedb.com`, password `password`. In production these accounts exist but have
-  random passwords and API keys (`init-db`); get into one with a password reset, whose link is
-  printed in `deploy/deploy.sh logs api` (no Mailgun yet).
+  random passwords and API keys (`init-db`); get into one with a password reset. Reset emails
+  go out through Mailgun, but `invokedb.com` receives no mail (no MX, by choice), so
+  `demo*@invokedb.com` resets bounce.
+  `shetzel84@gmail.com` was reset this way and works.
 
 ## Things to know
 
@@ -58,8 +60,10 @@ features).
 - `/api/v1/get` leaves out empty cells. That looks intended.
 - `docs/ops/` holds the old Azure/AKS ops notes, for reference only.
 - **Production secrets** are in `deploy/prod.env` (gitignored; DB passwords, websocket token,
-  droplet IP, SSH key path `~/.ssh/invokedb`). It's synced to Dropbox with the other secrets by
-  `npm run secrets:push`; check `npm run secrets:status` shows it as `same`.
+  Mailgun key, droplet IP, SSH key path `~/.ssh/invokedb`). It and the SSH key pair are synced
+  to Dropbox with the other secrets by `npm run secrets:push`/`pull` (the key under `home/` in
+  the secret folder); check `npm run secrets:status` shows them as `same`. On a new Mac, run
+  `secrets:pull` before deploying.
 - **SSH to production is allowed only from the user's home IP** (DigitalOcean Cloud Firewall
   `invokedb-prod`). If SSH times out, the home IP probably changed: update the firewall's SSH
   rule, or use the droplet's Web Console.
@@ -138,20 +142,23 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   from the user's IP only, 80/443 TCP and 443 UDP from anywhere. Cloudflare DNS (DNS-only) has
   `@`, `www`, `api` and `ws` A records to the droplet. Checked on launch: site and `/app` load,
   `www` redirects, certificates issued, the websocket upgrades, seeded logins and API keys are
-  rejected. **Not yet checked by a person:** signup, table creation, CSV upload and API calls in
+  rejected. **Email: live** (2026-11-22) through Mailgun on `mail.invokedb.com` (free plan,
+  US region; SPF, DKIM and a `p=none` DMARC record in Cloudflare); a password reset reached
+  Gmail. The old Mailgun account still holds `mg.invokedb.com` and wouldn't delete it, hence
+  `mail.`. **Not yet checked by a person:** signup, table creation, CSV upload and API calls in
   production. Hetzner was dropped because its US prices roughly tripled in June 2026.
   - **Still to do, in order:**
     1. **Off-site backups.** Today the only backup is DigitalOcean's weekly droplet backup. Add
        a nightly `pg_dump` + `mongodump` (run in the containers via `deploy.sh compose exec`)
        uploaded to object storage (DigitalOcean Spaces or Backblaze B2), a Healthchecks.io ping
        for missed runs, and a scripted, tested restore.
-    2. **Monitoring:** UptimeRobot on `https://invokedb.com` and `https://api.invokedb.com`,
-       Sentry optional.
-    3. **Login and password reset reveal which emails have accounts** (`/auth/login` says
+    2. **Login and password reset reveal which emails have accounts** (`/auth/login` says
        "Invalid password"; reset says "An account with that email does not exist", in
        `application/auth/auth.service.ts`). Return generic messages.
-    4. Mailgun (or another sender) so signup and reset emails actually go out; its DNS records
-       go in Cloudflare.
+    3. **Monitoring:** UptimeRobot on `https://invokedb.com` and `https://api.invokedb.com`,
+       Sentry optional.
+    4. **Check Mailgun's authorized-recipients limit:** the free plan without a card on file only
+       delivers to authorized addresses. Confirm a stranger's signup email arrives.
   - **Later:** a bigger droplet (a resize keeps the data; raise `MONGO_CACHE_GB` and `PRC_CPUS`),
     managed DBs, or more servers, if it ever needs them. It's all standard Docker, Postgres and
     Mongo, so moving is a migration, not a rewrite.

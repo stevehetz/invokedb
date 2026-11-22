@@ -57,7 +57,8 @@ password: password
 All config lives in `.env` at the repo root, created from `.env.example`. Mailgun, Slack and
 Stripe are optional. Without keys, emails and support requests are printed to the backend log.
 
-Secret files (`.env`, the Azure `*.values.sh` files, SSH keys) are gitignored. The originals
+Secret files (`.env`, `deploy/prod.env`, the Azure `*.values.sh` files, SSH keys) are
+gitignored, and the production SSH key lives in `~/.ssh/invokedb`. The originals
 live in the Dropbox folder `secret/invokedb`, and you copy them back and forth:
 
 ```

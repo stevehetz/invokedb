@@ -139,23 +139,28 @@ export class AuthService {
         return unique_key;
     }
 
+    // Always answers 'success', whether or not the email has an account, so the reply doesn't
+    // reveal which emails do. The email is sent in the background, so timing doesn't either.
     async reset_password(email) {
-        if (!email) throw new Error('An account with that email does not exist');
-        const account = await this.account_repository.findOneBy({ email });
-        if (!account) throw new Error('An account with that email does not exist');
+        if (!email || typeof email !== 'string') return 'success';
+        const account = await this.account_repository.findOneBy({ email, deleted: false });
+        if (!account) {
+            logger.info(`Password reset requested for an email with no account.`);
+            return 'success';
+        }
 
         // Sessions are revoked when the reset completes (change_password), not here: anyone can
         // request a reset for any email, so doing it here would let them log the owner out.
         const token = await this.account_manager.get_reset_password_token();
 
-        this.reset_password_repository.save({
+        await this.reset_password_repository.save({
             token,
             account_id: account.id
         });
 
         const { subject, body } = reset_pass_tmpl(env.HORIZON_FE_PUB_HTTP_URL, token);
 
-        this.email_manager.send_html(email, subject, body);
+        this.email_manager.send_html(account.email, subject, body);
 
         return 'success';
     }

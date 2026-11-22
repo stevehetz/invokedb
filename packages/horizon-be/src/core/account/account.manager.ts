@@ -9,6 +9,9 @@ import { validate_email, validate_password } from '@app/core/helpers/validators'
 
 const bcrypt = require('bcryptjs');
 
+// A hash of a random value at the same cost as real ones (generate_hash), for timing-safe logins.
+const DUMMY_HASH = bcrypt.hashSync(uuidv4(), 12);
+
 @Injectable()
 export class AccountManager {
     constructor(
@@ -18,14 +21,21 @@ export class AccountManager {
         private reset_password_repository: Repository<ResetPassword>
     ) {}
 
+    // One message for a missing account and a wrong password, and a bcrypt compare either way
+    // (against DUMMY_HASH when there's no account), so neither the reply nor its timing reveals
+    // which emails have accounts.
     async authenticate_account(email, password) {
-        if (!email) throw new HttpException('Account not found', HttpStatus.BAD_REQUEST);
-        const account = await this.account_repository.findOneBy({ email, deleted: false });
-        if (!account) throw new HttpException('Account not found', HttpStatus.BAD_REQUEST);
+        const account =
+            email && typeof email === 'string'
+                ? await this.account_repository.findOneBy({ email, deleted: false })
+                : null;
 
-        const valid_password = await bcrypt.compare(password, account.password_hash);
-        if (!valid_password) {
-            throw new HttpException('Invalid password', HttpStatus.BAD_REQUEST);
+        const valid_password = await bcrypt.compare(
+            typeof password === 'string' ? password : '',
+            account?.password_hash || DUMMY_HASH
+        );
+        if (!account || !valid_password) {
+            throw new HttpException('Invalid email or password', HttpStatus.BAD_REQUEST);
         }
 
         return account;

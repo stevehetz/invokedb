@@ -1,3 +1,5 @@
+@use 'sass:color';
+
 $gray600: #1c1c1c;
 $gray500: #2b2b2b;
 $gray400: #464646;
@@ -898,7 +900,7 @@ $nav_active_color: #ffffff;
     color: #777777;
 }
 .h-data-grid .top .api-button:hover .el-button.is-disabled {
-    clor: #777777;
+    color: #777777;
 }
 .h-data-grid .top .info {
     color: white;
@@ -1289,7 +1291,7 @@ $nav_active_color: #ffffff;
     width: 0;
     height: 100%;
     max-height: 100%;
-    background-color: lighten(#404040, 20%);
+    background-color: color.adjust(#404040, $lightness: 20%);
     font-size: 1.2rem;
 }
 .h-data-grid .ag-row {
@@ -1595,43 +1597,43 @@ $nav_active_color: #ffffff;
     color: #1f1f1f;
 }
 .el-button.el-button.is-link:not([disabled]):hover {
-    color: lighten(#1f1f1f, 5%);
+    color: color.adjust(#1f1f1f, $lightness: 5%);
 }
 .el-button.el-button.is-link.green:not([disabled]) {
     color: #4ad257;
 }
 .el-button.el-button.is-link.green:not([disabled]):hover {
-    color: lighten(#4ad257, 10%);
+    color: color.adjust(#4ad257, $lightness: 10%);
 }
 .el-button.el-button.is-link.red:not([disabled]) {
     color: #ff6c54;
 }
 .el-button.el-button.is-link.red:not([disabled]):hover {
-    color: lighten(#ff6c54, 5%);
+    color: color.adjust(#ff6c54, $lightness: 5%);
 }
 .el-button.el-button.is-link.orange:not([disabled]) {
     color: #ef7840;
 }
 .el-button.el-button.is-link.orange:not([disabled]):hover {
-    color: lighten(#ef7840, 5%);
+    color: color.adjust(#ef7840, $lightness: 5%);
 }
 .el-button.el-button.is-link.blue:not([disabled]) {
     color: #409eff;
 }
 .el-button.el-button.is-link.blue:not([disabled]):hover {
-    color: lighten(#409eff, 5%);
+    color: color.adjust(#409eff, $lightness: 5%);
 }
 .el-button.el-button.is-link.purple:not([disabled]) {
     color: #8e7eff;
 }
 .el-button.el-button.is-link.purple:not([disabled]):hover {
-    color: lighten(#8e7eff, 5%);
+    color: color.adjust(#8e7eff, $lightness: 5%);
 }
 .el-button.el-button.is-link.white:not([disabled]) {
     color: #e8e8e8;
 }
 .el-button.el-button.is-link.white:not([disabled]):hover {
-    color: lighten(#d2d2d2, 20%);
+    color: color.adjust(#d2d2d2, $lightness: 20%);
 }
 .el-button.el-button--default.icon-btn {
     color: $gray400;
@@ -2598,11 +2600,11 @@ body.default .h-data-grid .top {
     background-color: #404040;
 }
 body.default .h-data-grid .ag-header {
-    background-color: lighten(#404040, 5%);
+    background-color: color.adjust(#404040, $lightness: 5%);
 }
 body.default .h-data-grid .ag-row .ag-cell[aria-colindex='1'] {
-    background-color: lighten(#404040, 5%);
+    background-color: color.adjust(#404040, $lightness: 5%);
 }
 body.default .h-data-grid .ag-floating-filter-input {
-    background-color: lighten(#404040, 20%);
+    background-color: color.adjust(#404040, $lightness: 20%);
 }

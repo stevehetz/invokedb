@@ -66,7 +66,7 @@ SocketManagerClient.prototype.messageMgr = function (message) {
 
     try {
         msg = JSON.parse(message.data);
-        if (!msg || !msg.action) throw 'Invalid message object from server';
+        if (!msg || !msg.action) throw new Error('Invalid message object from server');
     } catch (ex) {
         this.emit('error', 'Invalid message object from server');
     }
@@ -100,7 +100,7 @@ SocketManagerClient.prototype.onMessage = function (handler) {
 };
 
 SocketManagerClient.prototype.removeOnMessage = function (handler) {
-    let index = this.messageHandlers.indexOf(handler);
+    const index = this.messageHandlers.indexOf(handler);
     if (index > -1) this.messageHandlers.splice(index, 1);
 };
 

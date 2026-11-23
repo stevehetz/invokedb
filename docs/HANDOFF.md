@@ -16,10 +16,10 @@ features).
 2. **Direction** (see `docs/INFRASTRUCTURE_PLAN.md`): learning plus a showcase, a Stripe
    trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
-   backups and uptime monitoring are live. **The current task and its steps are in
-   `docs/WORKSTREAM.md`.** Next: finish the support email and alert routing
-   (step 5, "Still to do", item 4; steps 1–10 of its checklist are done, the support-Gmail "Send mail as" setup is left), then a person checks signup, table creation, CSV upload and
-   API calls in production, then 5b (Google/GitHub sign-in). Check backend changes with
+   backups, uptime monitoring and support email routing are live. **The current task and its
+   steps are in `docs/WORKSTREAM.md`.** Next: GitHub Actions CI/CD, then a person checks
+   signup, table creation, CSV upload and API calls in production, then 5b (Google/GitHub
+   sign-in). Check backend changes with
    the backend build (see `verify-backend`), and frontend changes with the frontend build and
    lint.
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
@@ -39,7 +39,7 @@ features).
   frontend on Vue 3 + Element Plus + ag-grid 32 (2.3–2.5), the websocket server token in an env
   var (3), `HANDOFF.md`, `AI_IDEAS.md` and `SAAS_PLAN.md` moved from the repo root into
   `docs/`, the `CsvProcessor` concurrency fix, the production deploy (5, `deploy/`), off-site
-  backups, Telegram for the contact form, and Slack removed entirely (code, packages, config,
+  backups, support email routing (step 5, item 4), and Slack removed entirely (code, packages, config,
   docs; the Telegram bot is the only support channel).
 - **Production:** `https://invokedb.com` on one DigitalOcean droplet (see step 5 and
   `deploy/README.md`). The old Azure infrastructure was torn down.
@@ -177,8 +177,8 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
        `mail.invokedb.com` on the current Free plan (3,000 emails/month, no card) delivered the
        reset to `shetzel84@gmail.com`, which isn't on that list. If the reset form is ever
        abused to burn the quota, rate-limit `/auth/reset-password`.
-    4. **Support email and alert routing: in progress.** The goal, decided 2026-11-22: nothing
-       goes to the user's personal Gmail.
+    4. **Support email and alert routing: done** (2026-11-23). The goal, decided 2026-11-22:
+       nothing goes to the user's personal Gmail.
 
        | Source                         | Goes to                                                |
        | ------------------------------ | ------------------------------------------------------ |
@@ -196,10 +196,14 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
        login address (which also gets sign-in and reset mail), and the user didn't want double
        notices, so UptimeRobot emails the support Gmail directly and `uptime@` is unused.
 
-       **Steps:** the full ordered checklist, with the current step, is in
-       `docs/WORKSTREAM.md`. The code (Worker `TELEGRAM_ONLY_RECIPIENTS`; contact form emails
-       `SUPPORT_EMAIL` through Mailgun with `Reply-To` set to the sender, Telegram only as the
-       fallback when Mailgun refuses the call) is on branch `support-email-routing`.
+       The contact form emails `SUPPORT_EMAIL` (`support@invokedb.com`, in `prod.env`) through
+       Mailgun with `Reply-To` set to the sender; Telegram is only the fallback when Mailgun
+       refuses the call. Tested in production: a contact-form message reached the support
+       Gmail and Reply went to the sender. `uptime@` / `TELEGRAM_ONLY_RECIPIENTS` is unused but
+       still set on the Worker. The support Gmail can reply **as** `support@invokedb.com`
+       ("Send mail as", verified) through `smtp.mailgun.org:587` with the Mailgun SMTP login
+       `support@mail.invokedb.com`; its password is `MAILGUN_SMTP_PASSWORD` in `prod.env`
+       (the backend doesn't read it).
   - **Off-site backups: live** (2026-11-22). `deploy/backup.sh`, driven by
     `deploy.sh backup run|list|verify|restore|install`, runs nightly from cron at 07:15 UTC on
     the server: an encrypted (`BACKUP_PASSPHRASE`, openssl AES-256) `pg_dump` + `mongodump`

@@ -28,8 +28,10 @@ yet. Support email and alert routing (the previous workstream) is done: HANDOFF 
       `prettier --check .`). Node from `.nvmrc`, no secrets. The backend lint had 5 errors
       (string throws, `let` → `const` in `src/websocket/`), now fixed. Checked by running the
       same commands on a clean copy of the repo (no `.env`): all pass.
-- [ ] 4. **Now.** You: push the branch and check the run passes on GitHub; merge.
-- [ ] 5. Claude: plan the CD job: an SSH deploy key, the `prod.env` values as GitHub secrets
+- [x] 4. (2026-11-23) Pushed; CI passed on GitHub (run 45189419612, after bumping
+      `actions/checkout` and `actions/setup-node` to v7 to clear the Node 20 warnings).
+      Merged to `main`.
+- [ ] 5. **Now.** Claude: plan the CD job: an SSH deploy key, the `prod.env` values as GitHub secrets
       (the repo is public, so nothing secret in the workflow or logs), and how the runner gets
       past the home-IP-only SSH firewall. With automatic deploys, the GitHub copy of
       `prod.env` becomes what ships, so plan how it stays in step with the Dropbox copy.

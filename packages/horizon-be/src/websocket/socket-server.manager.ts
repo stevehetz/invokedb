@@ -36,7 +36,7 @@ SocketManagerServer.prototype.startHost = function (port, opts) {
     this.port = port;
     this.require_auth = opts.require_auth || this.require_auth;
     this.auth_middleware = opts.auth_middleware || null;
-    if (!this.port) throw 'SocketManagerServer: No port provided to host';
+    if (!this.port) throw new Error('SocketManagerServer: No port provided to host');
     this.socketHost = new WebSocketServer({ port: this.port });
     this.socketHost.on('connection', this.onConnection.bind(this));
     this.emit('info', 'Websocket server is running');
@@ -114,7 +114,7 @@ SocketManagerServer.prototype.clientMessageMgr = function (client, message) {
 
     try {
         msg = JSON.parse(message);
-        if (!msg || !msg.action) throw 'Invalid message object';
+        if (!msg || !msg.action) throw new Error('Invalid message object');
     } catch (ex) {
         this.sendError(client, 'Invalid message object');
     }
@@ -369,7 +369,7 @@ SocketManagerServer.prototype.broadcast = function (senderId, action, payload) {
  * Send message to a client
  */
 SocketManagerServer.prototype.sendToClient = function (senderId, client, action, payload) {
-    let obj: any = {};
+    const obj: any = {};
     obj.senderId = senderId;
     obj.action = action;
     if (payload) obj.payload = payload;

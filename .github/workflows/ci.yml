@@ -1,0 +1,67 @@
+# Checks every push and pull request: backend build + lint, frontend build + lint (and no Sass
+# deprecation warnings), and prettier. Needs no secrets.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/horizon-be
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: packages/horizon-be/package-lock.json
+      # --omit=optional skips the native Postgres log transport, as on the Mac
+      - run: npm ci --omit=optional --no-audit --no-fund
+      - run: npm run build
+      - run: npm run lint
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/horizon-fe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: packages/horizon-fe/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Build (fails on Sass deprecation warnings)
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee build.log
+          if grep -qi 'deprecation warning' build.log; then
+              echo '::error::The frontend build printed Sass deprecation warnings (see above)'
+              exit 1
+          fi
+      - run: npm run lint
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # --ignore-scripts: the root postinstall would install both packages too
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx prettier --check .

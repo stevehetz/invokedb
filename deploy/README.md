@@ -40,14 +40,19 @@ site's paths.
 - Email goes out through Mailgun (`MAILGUN_API_KEY`, `MAILGUN_DN=mail.invokedb.com`, US region,
   free plan). The sending domain's SPF and DKIM records are in Cloudflare, plus a
   `_dmarc.invokedb.com` record (`p=none`). Without a key, emails are printed in `logs api`.
-- Contact-form requests go to Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`). To set it
-  up: message `@BotFather`, send `/newbot` and copy the token; send your new bot any message,
-  then open `https://api.telegram.org/bot<token>/getUpdates` and copy `message.chat.id`.
-  Without them, requests are only written to `logs api`.
-- Inbound mail to `@invokedb.com` (`support@`, `alerts@`, …) goes through Cloudflare Email
-  Routing to an Email Worker that forwards it and posts alerts to the same Telegram bot; see
-  `email-worker/README.md`. Resets for the seeded `demo*@invokedb.com` accounts are forwarded
-  to the Worker's `FORWARD_TO` inbox.
+- Contact-form requests are emailed through Mailgun to `SUPPORT_EMAIL` (`support@invokedb.com`,
+  which Email Routing forwards to the support Gmail), with `Reply-To` set to the sender, so
+  replying in Gmail answers them. If Mailgun refuses the call (down, bad key, quota used up),
+  the request goes to Telegram instead (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`); if both
+  fail, the form says it could not be sent. Failures after Mailgun accepts the email (routing,
+  the Worker, spam filtering) aren't visible to the backend. To set up the bot: message
+  `@BotFather`, send `/newbot` and copy the token; send your new bot any message, then open
+  `https://api.telegram.org/bot<token>/getUpdates` and copy `message.chat.id`. With neither
+  configured, requests are only written to `logs api`.
+- Inbound mail to `@invokedb.com` goes through Cloudflare Email Routing to an Email Worker
+  (see `email-worker/README.md`): everything is forwarded to the support Gmail. Resets for the
+  seeded `demo*@invokedb.com` accounts land there too. UptimeRobot doesn't go through it: its
+  alerts go straight to the support Gmail (the account's login email).
 - To get into a seeded account after `init-db`, request a password reset.
 - The SSH key (`~/.ssh/invokedb`) is synced to Dropbox by `npm run secrets:push`/`pull`, so any
   Mac with the secrets can deploy.

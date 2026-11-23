@@ -72,6 +72,7 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
   anything with `node-gyp` fails to install. Install the backend with `--omit=optional`.
 - **Don't run `npm run push`** (it bumps versions, tags and pushes) unless asked.
 - Don't commit or push unless asked. Branch first if on `main`.
+- Give the user one step at a time: only the next thing they have to do, then wait.
 
 ## Formatting
 

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ApplicationModule } from '@app/application/application.module';
+import { EmailModule } from '@app/email/email.module';
 import { AuthController } from '@app/web/http/auth/auth.controller';
 import { AccountController } from '@app/web/http/account/account.controller';
 import { FileDirectoryController } from '@app/web/http/file-directory/file-directory.controller';
@@ -14,7 +15,7 @@ import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
 
 @Module({
-    imports: [ApplicationModule],
+    imports: [ApplicationModule, EmailModule],
     controllers: [
         AuthController,
         FileDirectoryController,

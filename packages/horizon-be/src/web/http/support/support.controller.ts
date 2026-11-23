@@ -1,36 +1,67 @@
 import { Controller, Post, Request, HttpStatus, Response, HttpException } from '@nestjs/common';
 import env from '@app/env';
 import logger from '@app/logger';
+import { EmailManager } from '@app/email/email.manager';
 
 // Telegram rejects messages over 4096 characters.
 const MAX_FIELD_LENGTH = 3000;
 
 const field = (value, max = 200) => String(value ?? '').slice(0, max);
 
+// One line, no control characters (keeps the email subject a single header line).
+const one_line = (value: string) => value.replace(/[\x00-\x1f\x7f]+/g, ' ').trim();
+
+// Loose check, only to decide whether the address is safe to use as Reply-To.
+const is_email = (value: string) => /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/.test(value);
+
+// The contact form. It emails SUPPORT_EMAIL through Mailgun, with Reply-To set to the person, so
+// a reply from the support inbox goes to them. Telegram is only a fallback, used when Mailgun
+// refuses the call (or isn't set up). Failures after Mailgun accepts the email can't be seen here.
 @Controller('support')
 export class SupportController {
-    constructor() {}
+    constructor(private email_manager: EmailManager) {}
 
     @Post('/request')
     async request(@Request() req, @Response() res) {
-        const email = field(req.body?.email);
-        const subject = field(req.body?.subject);
+        const email = one_line(field(req.body?.email));
+        const subject = one_line(field(req.body?.subject));
         const message = field(req.body?.message, MAX_FIELD_LENGTH);
         const text = `New support request\n\nEmail: ${email}\nSubject: ${subject}\n\n${message}`;
 
-        if (!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID)) {
-            // Telegram isn't configured (e.g. local dev): log the request instead.
-            logger.info(`[support request, Telegram not configured]\n${text}`);
+        const can_email = Boolean(env.SUPPORT_EMAIL && this.email_manager.is_configured);
+        const can_telegram = Boolean(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID);
+
+        if (!can_email && !can_telegram) {
+            // Neither is configured (e.g. local dev): log the request instead.
+            logger.info(`[support request, no email or Telegram configured]\n${text}`);
             return res.status(HttpStatus.OK).send('success');
         }
 
-        try {
-            await this.send_telegram(text);
-        } catch (err) {
-            logger.error(`support request: Telegram failed: ${err.message}\n${text}`);
-            throw new HttpException('Support request could not be sent', HttpStatus.BAD_GATEWAY);
+        if (can_email) {
+            try {
+                await this.email_manager.send_text(
+                    env.SUPPORT_EMAIL,
+                    `Support: ${subject || '(no subject)'}`,
+                    text,
+                    is_email(email) ? email : undefined
+                );
+                return res.status(HttpStatus.OK).send('success');
+            } catch (err) {
+                logger.error(`support request: email failed: ${err.message}`);
+            }
         }
-        return res.status(HttpStatus.OK).send('success');
+
+        if (can_telegram) {
+            try {
+                await this.send_telegram(text);
+                return res.status(HttpStatus.OK).send('success');
+            } catch (err) {
+                logger.error(`support request: Telegram failed: ${err.message}`);
+            }
+        }
+
+        logger.error(`support request could not be sent\n${text}`);
+        throw new HttpException('Support request could not be sent', HttpStatus.BAD_GATEWAY);
     }
 
     // Telegram Bot API: https://core.telegram.org/bots/api#sendmessage
@@ -40,7 +71,8 @@ export class SupportController {
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text })
+            body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text }),
+            signal: AbortSignal.timeout(15000)
         });
         if (!res.ok) {
             throw new Error(`Telegram responded ${res.status}: ${await res.text()}`);

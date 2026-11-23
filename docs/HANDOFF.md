@@ -18,7 +18,7 @@ features).
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
    backups and uptime monitoring are live. **The current task and its steps are in
    `docs/WORKSTREAM.md`.** Next: finish the support email and alert routing
-   (step 5, "Still to do", item 4), then a person checks signup, table creation, CSV upload and
+   (step 5, "Still to do", item 4; steps 1–10 of its checklist are done, the support-Gmail "Send mail as" setup is left), then a person checks signup, table creation, CSV upload and
    API calls in production, then 5b (Google/GitHub sign-in). Check backend changes with
    the backend build (see `verify-backend`), and frontend changes with the frontend build and
    lint.
@@ -159,9 +159,8 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `mail.`. **Not yet checked by a person:** signup, table creation, CSV upload and API calls in
   production. Hetzner was dropped because its US prices roughly tripled in June 2026.
   - **Still to do, in order:**
-    1. **Account enumeration: done, on `main`, not deployed yet** (2026-11-22). Ship it with
-       `deploy.sh up` when the user asks (no migration), e.g. together with item 4's contact-form
-       change. Login says
+    1. **Account enumeration: done and deployed** (2026-11-22, deployed 2026-11-23 with item
+       4's contact-form change). Login says
        "Invalid email or password" either way and runs a bcrypt compare against a dummy hash
        when there's no account (same timing). Reset always answers `success` (the page says
        "If an account exists…"). Signup still says "An account with that email already

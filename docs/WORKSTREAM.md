@@ -35,15 +35,14 @@ and UptimeRobot alerts go to `uptime@invokedb.com`, then Telegram only. Details:
       Claude changed the account's primary email to `invokedbsupport@gmail.com` (you
       confirmed it), sent a test notification from the `api.invokedb.com` monitor, and deleted
       the duplicate `invokedb.com` monitor (two monitors left). The test DOWN/UP alerts reached the support Gmail.
-- [ ] 7. **Now.** Claude committed the branch `support-email-routing` (2026-11-23). You: review
-      it and merge it to `main`.
-- [ ] 8. Claude, with your OK: `npm run secrets:pull` (the repo's `deploy/prod.env` is stale),
+- [x] 7. Branch committed, merged to `main` and pushed (2026-11-23).
+- [x] 8. (done 2026-11-23) `npm run secrets:pull` (the repo's `deploy/prod.env` is stale),
       add `SUPPORT_EMAIL=support@invokedb.com`, `npm run secrets:push`.
-- [ ] 9. Claude, when you say so: `deploy/deploy.sh up` from `main`. This also ships the
+- [x] 9. You (2026-11-23; the auto-mode check blocked Claude): `deploy/deploy.sh up` from `main`. This also ships the
       login/reset fix that's waiting.
-- [ ] 10. You: send a message through the contact form on `https://invokedb.com`; it should
+- [x] 10. (passed 2026-11-23: from `noreply@`, to support, Reply → the sender) You: send a message through the contact form on `https://invokedb.com`; it should
       reach the support Gmail, and Reply should go to the address you entered.
-- [ ] 11. You: in Mailgun, `mail.invokedb.com` → SMTP Credentials → create a login (Claude adds
+- [ ] 11. **Now.** You: in Mailgun, `mail.invokedb.com` → SMTP Credentials → create a login (Claude adds
       it to the secrets).
 - [ ] 12. You: in the support Gmail, Settings → Accounts → "Send mail as"
       `support@invokedb.com` through `smtp.mailgun.org`, port 587, with that login. The
@@ -52,7 +51,22 @@ and UptimeRobot alerts go to `uptime@invokedb.com`, then Telegram only. Details:
       `uptime@` / `TELEGRAM_ONLY_RECIPIENTS` is unused but still set on the Worker), drop the "Telegram for the contact form"
       wording, and start the next workstream below.
 
+## Fixes found along the way
+
+- [ ] Sass `color-functions` deprecation: 11 `lighten()`/`darken()` calls in
+      `packages/horizon-fe/src/stylesheet.scss` print warnings in every frontend build (local
+      and the deploy's Docker build; spotted 2026-11-23). Only warnings, so nothing fails, but
+      Dart Sass 3 will remove them. Fix: `color.adjust($c, $lightness: 10%)` (same result) with
+      `@use 'sass:color'`. Related: `vite.config.js` still silences `import` and
+      `global-builtin` (HANDOFF step 2.6).
+
 ## Up next
 
-1. A person checks signup, table creation, CSV upload and API calls in production.
-2. 5b: Google and GitHub sign-in (HANDOFF, Next steps).
+1. GitHub Actions CI/CD with validation (requested 2026-11-23). CI on every push and PR:
+   backend `build` + `lint`, frontend `build` + `lint`, `prettier --check`, and fail the
+   frontend build on Sass deprecation warnings (see Fixes above). Then CD: deploy `main` to the
+   droplet (needs an SSH deploy key and the `prod.env` values as GitHub secrets, plus a firewall
+   rule, since SSH is home-IP only today). Decide whether deploys are automatic or manual
+   (`workflow_dispatch`).
+2. A person checks signup, table creation, CSV upload and API calls in production.
+3. 5b: Google and GitHub sign-in (HANDOFF, Next steps).

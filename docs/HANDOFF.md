@@ -18,10 +18,10 @@ features).
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
    backups, uptime monitoring and support email routing are live. **The current task and its
    steps are in `docs/WORKSTREAM.md`.** CI/CD is live (every push to `main` deploys after
-   CI). Next: automated Claude review and CI/CD repair, then a person checks signup, table
-   creation, CSV upload and API calls in production, then 5b (Google/GitHub sign-in). Check
-   backend changes with the backend build (see `verify-backend`), and frontend changes with
-   the frontend build and lint.
+   CI). Claude review, repair and auto-merge are being finished (PR #3, then one test). Then
+   a person checks signup, table creation, CSV upload and API calls in production, then 5b
+   (Google/GitHub sign-in). Check backend changes with the backend build (see
+   `verify-backend`), and frontend changes with the frontend build and lint.
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
    `compose`, `bootstrap`) only when the user asks. `up` ships the committed `HEAD` of whatever
    branch is checked out, so deploy from `main`.
@@ -52,6 +52,17 @@ features).
   `shetzel84@gmail.com` was reset this way and works.
 
 ## Things to know
+
+- **GitHub automation (2026-11-24).** `main` has a ruleset (PR required, CI checks `backend`,
+  `frontend`, `format` must pass), so every change goes through a PR. Workflows: `ci.yml`
+  (every push), `cd.yml` (deploys `main` after CI; see `deploy/README.md`), `review.yml`
+  (Claude reviews same-repo PRs, labels them `review-ok`/`review-changes`), `repair.yml`
+  (on a CI/CD failure, Claude opens a fix PR or an issue), `automerge.yml` (merges repair's
+  fix PRs into feature branches only). Claude runs on the user's subscription through the
+  Claude GitHub App (`CLAUDE_CODE_OAUTH_TOKEN` repo secret). The action only runs a workflow
+  file identical to `main`'s, so a PR that changes `review.yml` isn't reviewed by it. Deploy
+  secrets live in the GitHub `production` environment; the server's settings are
+  `/opt/invokedb/prod.env`, changed only with `deploy.sh env` or `up` from the Mac.
 
 - **Check `deploy/prod.env` before any `deploy.sh up`.** `up` copies the local file over the
   server's. On 2026-11-23 the repo copy was stale (no Telegram, backup or Healthchecks

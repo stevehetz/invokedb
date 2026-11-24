@@ -28,7 +28,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      actions: read
+      actions: write # read the failed logs; start CI on the fix branch
       id-token: write
     env:
       FAILED_WORKFLOW: ${{ github.event.workflow_run.name }}
@@ -84,8 +84,25 @@ jobs:
 
             Never push to main or to `${{ env.FAILED_BRANCH }}` directly, never touch secrets
             or deploy/prod.env, and never weaken a check (skip a lint rule, delete a test,
-            loosen CI) to make it pass.
+            loosen CI) to make it pass. Add no AI attribution anywhere: no Co-Authored-By
+            trailer in commits and no "Generated with" line in the PR or issue.
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(gh pr create:*),Bash(gh issue create:*),Bash(gh run view:*)"
+
+      # Pushes made with the workflow token don't start workflows, so start CI on the fix branch
+      # here (workflow_dispatch is the exception). Its checks attach to the commit and show on
+      # the PR, which the merge rule needs.
+      - name: Run CI on the fix branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: claude/fix-${{ github.event.workflow_run.id }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            gh workflow run ci.yml -R "$GITHUB_REPOSITORY" --ref "$BRANCH"
+            echo "Started CI on $BRANCH"
+          else
+            echo "No fix branch (Claude opened an issue or made no change)"
+          fi

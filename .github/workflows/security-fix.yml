@@ -9,18 +9,16 @@
 # - Secret scanning alerts are never automated: the fix is rotating the credential at its
 #   provider, which only the owner can do. GitHub notifies the owner.
 #
-# Runs when an alert is created or reopened, daily as a backlog sweep, and by hand. At most 3
-# alerts per run (most severe first); an alert an open PR or issue already names is skipped.
+# Runs every 3 hours and by hand (Actions has no trigger for new alerts: code_scanning_alert and
+# dependabot_alert are webhook-only events). With nothing new, the pick step ends the run in
+# seconds. At most 3 alerts per run (most severe first); an alert an open PR or issue already
+# names is skipped. Dependabot alerts are read from the API, open ones with no patched version.
 # Alert text (advisories, messages) is third-party data. Auth as in review.yml.
 name: Security fix
 
 on:
-  code_scanning_alert:
-    types: [created, reopened]
-  dependabot_alert:
-    types: [created, reopened]
   schedule:
-    - cron: '0 10 * * *'
+    - cron: '17 */3 * * *'
   workflow_dispatch:
 
 permissions: {}
@@ -55,9 +53,6 @@ jobs:
       # Kept inside .git so it can never be committed
       - name: Pick the alerts
         id: pick
-        env:
-          EVENT: ${{ github.event_name }}
-          DEP_ALERT: ${{ toJSON(github.event.alert) }}
         run: |
           set -euo pipefail
           R="$GITHUB_REPOSITORY"
@@ -81,18 +76,18 @@ jobs:
               "Message: \(.most_recent_instance.message.text)\n\n### Rule help\n\(.rule.help // "")\n"' >> .git/alerts.md
             count=$((count + 1))
           done
-          # A new Dependabot alert with no patched version (one with a fix gets a Dependabot PR)
-          if [ "$EVENT" = dependabot_alert ] && [ "$count" -lt 3 ]; then
-            n=$(jq -r .number <<<"$DEP_ALERT")
-            patched=$(jq -r '.security_vulnerability.first_patched_version.identifier // empty' <<<"$DEP_ALERT")
-            if [ -z "$patched" ] && ! grep -qx "Dependabot alert #$n" <<<"$handled"; then
-              jq -r '"## Dependabot alert #\(.number): \(.dependency.package.name) (\(.security_advisory.severity)), no patched version\n" +
-                "Manifest: \(.dependency.manifest_path)\nVulnerable range: \(.security_vulnerability.vulnerable_version_range)\n" +
-                "Advisory: \(.security_advisory.ghsa_id) \(.security_advisory.summary)\n\n\(.security_advisory.description)\n"' \
-                <<<"$DEP_ALERT" >> .git/alerts.md
-              count=$((count + 1))
-            fi
-          fi
+          # Open Dependabot alerts with no patched version (one with a fix gets a Dependabot PR)
+          deps=$(gh api "repos/$R/dependabot/alerts?state=open&per_page=100" \
+            --jq '.[] | select(.security_vulnerability.first_patched_version == null) | .number' || true)
+          for n in $deps; do
+            [ "$count" -lt 3 ] || break
+            grep -qx "Dependabot alert #$n" <<<"$handled" && continue
+            gh api "repos/$R/dependabot/alerts/$n" --jq '
+              "## Dependabot alert #\(.number): \(.dependency.package.name) (\(.security_advisory.severity)), no patched version\n" +
+              "Manifest: \(.dependency.manifest_path)\nVulnerable range: \(.security_vulnerability.vulnerable_version_range)\n" +
+              "Advisory: \(.security_advisory.ghsa_id) \(.security_advisory.summary)\n\n\(.security_advisory.description)\n"' >> .git/alerts.md
+            count=$((count + 1))
+          done
           echo "count=$count" >> "$GITHUB_OUTPUT"
           echo "$count alert(s) to handle"
           wc -c .git/alerts.md

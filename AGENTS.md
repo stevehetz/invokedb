@@ -204,7 +204,10 @@ rounds per PR, then `agent-stuck`. On the user's own PRs it runs only when the u
   area's shell (`src/view/site.vue`, `src/components/app.vue`) imports its own CSS and is
   lazy-loaded, and **moving between the areas is a full page load** (`window.location` or a
   plain `<a href>`), never `router.push` or `<router-link>`. Within an area, use the router as
-  normal. Don't import global CSS anywhere else. The UI smoke test checks this.
+  normal. Don't import global CSS anywhere else (the one exception: `main.js` imports Font
+  Awesome and the highlight.js theme, which only style their own classes). Route pages are
+  lazy-loaded in `router.js`; `vite.config.js` gives ag-grid, Element Plus and Vue their own
+  chunks. The UI smoke test checks this.
 - Built with **Vite 6** (`vite.config.js`, `index.html` at the package root). Use the npm
   scripts (`start`, `build`, `preview`, `lint`), which `env.sh` feeds the env. Static assets in
   templates are plain `src="@/assets/x.png"`. `lodash` is imported explicitly (no globals).

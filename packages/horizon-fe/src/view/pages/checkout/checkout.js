@@ -1,9 +1,6 @@
-import SubscriptionHttp from '@/network/http/subscription/subscription-http';
-import StripeHttp from '@/network/http/stripe/stripe-http';
+import { subscription_http } from '@/core/context/subscription/subscription-http';
 import { store } from '@/store';
 
-const subscription_http = new SubscriptionHttp();
-const stripe_http = new StripeHttp();
 const { Stripe } = window;
 
 export default {
@@ -68,7 +65,7 @@ export default {
                 } else {
                     this.loading = false;
                     await this.get_plan_tiers();
-                    const stripe_pk = await stripe_http.get_stripe_pk();
+                    const stripe_pk = await subscription_http.get_stripe_pk();
                     this.stripe = Stripe(stripe_pk);
                     this.init_stripe();
                 }

@@ -1,7 +1,5 @@
-import AccountHttp from '@/network/http/account/account-http';
+import { auth_http } from '@/core/context/account/auth-http';
 import { store } from '@/store';
-
-const account_http = new AccountHttp();
 
 export default {
     name: 'ResetPassword',
@@ -26,7 +24,7 @@ export default {
         if (!this.token) window.location.href = '/';
 
         try {
-            let account = await account_http.confirm_reset_token(this.token);
+            let account = await auth_http.confirm_reset_token(this.token);
             if (!account) window.location.href = '/';
             this.email = account.email;
             if (this.$refs.password) this.$refs.password.focus();
@@ -43,7 +41,7 @@ export default {
 
                 if (!valid) throw new Error(message);
 
-                await account_http.change_password({
+                await auth_http.change_password({
                     token: this.token,
                     password: this.password
                 });

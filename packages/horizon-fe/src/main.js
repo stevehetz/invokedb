@@ -1,5 +1,11 @@
 import { createApp } from 'vue';
 
+// The only global CSS outside the two shells (see router.js): both areas use these, and they
+// only style their own classes (`fa*`, `hljs*`), so they can't clash with either area's CSS.
+// Font Awesome is also the loading spinner in index.html. They were CDN links in index.html.
+import '@fortawesome/fontawesome-free/css/all.css';
+import 'highlight.js/styles/atelier-plateau-dark.css';
+
 // Element Plus (each area loads its own theme CSS; see router.js)
 import ElementPlus from 'element-plus';
 

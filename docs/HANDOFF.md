@@ -21,44 +21,45 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
    **Work is tracked in GitHub Issues on the Project board "InvokeDB"**
    (https://github.com/users/stevehetz/projects/1; AGENTS.md, "How work is tracked"). There is
    no WORKSTREAM file any more (retired 2026-11-24, #5): "what's next" is the board.
-   **Where things stand (end of 2026-11-24, ~17:15 UTC):**
-   - The **cloud agent queue is running** (AGENTS.md, "The cloud agent"), in issue-number order
-     (no `PROJECTS_TOKEN` yet). Merged: #6 (PR #37), #7 (#38), #9 (#39), #15 (#49). Open, held for the
-     user: PR #45 (#11, frontend HTTP client/CDN/bundle) and PR #48 (#14, frontend type
-     checking/moment), both conflicting with `main` after #37–#39 merged (see `resolve.yml`
-     below). Still queued: #17,
-     #18, #19, #26. #17 will park (a migration) and also needs the user to create the
-     Google/GitHub OAuth apps and add the client IDs/secrets to `prod.env` and `.env`.
-   - **`agent-stuck`:** #12 (its run failed at once with no model usage, during a Claude usage
-     limit; remove the label to retry) and #10 (the agent finished without a PR, 13 tool
-     denials, details hidden in the log; it changes `.github/` and CI, so probably better done
-     in a local session). The review on PR #45 failed the same way as #12 and was re-run.
-   - **Fixed today so the queue can run unattended** (#40, #42, #46; PRs #41, #43, #47):
-     - Agent PRs could never merge: CI started with `gh workflow run` passes but doesn't count
-       toward a PR's required checks. CI now runs on `pull_request` (every push to a PR) and on
-       pushes to `main` only, so every PR gets one counted run per push. A branch with no PR
-       gets no CI.
-     - Claude's pushes inside `claude-code-action` went out as the workflow token (the action
-       logs "No existing authentication headers to remove": it fails to strip
-       `actions/checkout@v7`'s saved token), so they started no CI. Every workflow where
-       Claude pushes now checks out with `persist-credentials: false`. Not yet seen working on
-       a real push: watch the first revise or resolve push start CI.
-     - New `resolve.yml`: merges `main` into conflicting agent/repair PRs and resolves (after
-       CI on `main`, every 30 minutes, or by hand with a PR number). Its first runs (17:10
-       UTC, one from the merge's CI run and one started by hand on #45) were still queued at
-       handoff: check they resolved #45 and #48.
+   **Where things stand (end of 2026-11-24, ~18:05 UTC):**
+   - **Merged today** (all deployed): Stripe/Azure removal (#6), dead files (#7), backend ESLint
+     (#9), one frontend HTTP client + bundled CDN assets + bundle split + per-component Element
+     Plus (#11: PRs #45, #65), frontend `typecheck` script + moment dropped (#14), ops docs
+     `docs/OPERATIONS.md` (#15), Google and GitHub sign-in (#17, live, see 5b), ag-grid 36 with
+     the Theming API (#18), Nest 12 / TypeORM 1.x / mongodb 7 (#19), and the workflow fixes
+     below.
+   - **First thing next: #67.** PRs that `automerge.yml` merges don't close their issues (GitHub
+     ignores `Closes #N` on a merge made with the workflow token; the user's own merges close
+     them fine). The open `agent` issue then goes back into the queue: #11 got a second PR
+     (#65), and #14 and #19 were re-run, found nothing to do and went `agent-stuck`. #11, #14
+     and #19 were closed by hand. Until #67 is fixed, close the issue of every auto-merged PR
+     by hand (`gh issue close <n> --reason completed`).
+   - **Cloud agent queue:** running, in issue-number order (no `PROJECTS_TOKEN`). At handoff
+     `implement.yml` was working **#26** (missing column name returns 500). `agent-stuck`:
+     #10 (CI/Dependabot/PR template; changes `.github/`, better in a local session) and #12
+     (its run failed at once during a usage limit; remove the label to retry).
+   - **Not labelled `agent` yet:** #56 (add `npm run typecheck` to CI's `frontend` job; touches
+     `.github/`), #60 (chunk sizes; #65 did most of it, see its comment), #64 (Row column
+     filter styled white since ag-grid 36), #66 (login card too short for the SSO buttons;
+     fixed `height: 370px`). #64 and #66 need the user to look in a browser after.
+   - **Workflow changes today** (details in AGENTS.md):
+     - Docs-only (Markdown) changes go straight to `main` with no PR (#51): the ruleset's admin
+       bypass is "Always", a Markdown-only push runs no CI, and `ci-deploy.sh` deploys the tip
+       when only Markdown changed after the checked commit (#53, reinstalled on the server
+       with `install-ci`).
+     - `hold` is only for PRs that need a `prod.env` change or a manual server step, never for
+       large or visual changes (#57).
+     - CI's `deploy` job also starts `resolve.yml`, since an auto-merge sends no `workflow_run`
+       (#62). `persist-credentials: false` works: resolve's push on #54 started CI and review.
    - **To check on it:** `gh pr list --label agent-pr`, `gh issue list --label agent-stuck`,
-     `gh run list -w implement.yml`, `gh run list -w resolve.yml`. Merge the `needs-owner` /
-     `hold` PRs when the user says so.
-   - Owner-only issues (`you`): #13 (pick a licence), #16 (check signup, tables, CSV upload
-     and the API in production by hand).
-   - **Offered, not yet an issue:** run the Playwright UI smoke test (`ui-smoke.mjs`) in CI,
-     so frontend PRs (#11, #12, #18) get a browser check before merging.
-   - Optional: a `PROJECTS_TOKEN` repo secret (a token that can read the user's Projects) makes
-     the queue follow board order instead of issue numbers.
+     `gh run list -w implement.yml`. Merge `needs-owner` PRs when the user says so.
+   - Owner-only issues (`you`): #13 (pick a licence), #16 (check signup, tables, CSV upload and
+     the API in production by hand; now also Google/GitHub sign-in end to end).
+   - **Offered, not yet an issue:** run the Playwright UI smoke test (`ui-smoke.mjs`) in CI.
+   - Optional: a `PROJECTS_TOKEN` repo secret makes the queue follow board order.
 
    Check backend changes with the backend build and `npm test` (see `verify-backend`), and
-   frontend changes with the frontend build and lint; CI runs the API smoke test on every PR.
+   frontend changes with the frontend build, lint and `typecheck`; CI runs the API smoke test on every PR.
 
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
    `compose`, `bootstrap`) only when the user asks. `up` ships the committed `HEAD` of whatever
@@ -76,7 +77,7 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
 - **Runs locally:** `npm run dev` starts the backend (:8001, ws :9000) and the frontend (:8000,
   public site at `/`, app at `/app`). Login, the API and Mongo writes work.
 - **Done and on `main`:** local dev revamp, legacy-ops clean-up, secrets sync, demo data,
-  backend upgrade (NestJS 11, TypeORM 0.3, mongodb 6), agent tooling + prettier, UI smoke test,
+  backend upgrade (NestJS 11, TypeORM 0.3, mongodb 6; then Nest 12, TypeORM 1.x, mongodb 7 in #19), agent tooling + prettier, UI smoke test,
   `horizon-auth-fe` merged into `horizon-fe`, Vue CLI → Vite 6, account scoping fix (0.05),
   frontend on Vue 3 + Element Plus + ag-grid 32 (2.3–2.5), the websocket server token in an env
   var (3), `HANDOFF.md`, `AI_IDEAS.md` and `SAAS_PLAN.md` moved from the repo root into
@@ -132,6 +133,8 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
   - The review's verdict label is set by a shell step from a `Verdict:` line in Claude's
     summary (#30); Claude itself can't run `gh pr edit` there.
   - `gh --jq` has no `--arg`; use `env.NAME` inside the filter.
+  - A PR merged with the workflow token doesn't close the issues its `Closes #N` names
+    (#67); only a merge by a person does.
 
 - **Check `deploy/prod.env` before any `deploy.sh up`.** `up` copies the local file over the
   server's. On 2026-11-23 the repo copy was stale (no Telegram, backup or Healthchecks

@@ -3,7 +3,6 @@
 // No 'element-plus/dist/index.css' here: element-theme.scss compiles the whole Element theme
 // (with the app's colours) itself. Importing both put the default theme in a shared chunk that
 // Vite's production build loaded after the app's styles, overriding the app's nav styles.
-import 'ag-grid-community/styles/ag-grid.css';
 import '@/element-theme.scss';
 import '@/stylesheet.scss';
 

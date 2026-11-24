@@ -1,0 +1,92 @@
+# End-to-end test against production (#90): scripts/ui-smoke.mjs drives https://invokedb.com in
+# Playwright's Chromium as the test account (E2E_EMAIL / E2E_PASSWORD): the public pages, login,
+# a CSV upload (websocket progress), sort, filter, a cell edit, column changes, the API key and
+# /api/v1, deleting the table and logout. It cleans up its own table, even when a step fails.
+# It doesn't sign up (that would add an account and send an email each run) or try Google/GitHub
+# sign-in (the providers block automated browsers).
+#
+# Runs nightly (06:00 UTC, before the 07:15 backup), by hand, and after every successful deploy:
+# cd.yml starts it with the deployed commit (a workflow_run trigger wouldn't fire, since deploys
+# are started with the workflow token). On failure it keeps the screenshot and a Playwright trace
+# as the `e2e` artifact and sends a Telegram message (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID, the
+# bot production uses).
+name: E2E
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: The deployed commit, when started by cd.yml
+        required: false
+
+permissions: {}
+
+concurrency:
+  group: e2e-production
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      HORIZON_FE_PUB_HTTP_URL: https://invokedb.com
+      HORIZON_BE_PUB_HTTP_URL: https://api.invokedb.com
+      HORIZON_API_PUB_HTTP_URL: https://api.invokedb.com/api
+      HORIZON_SB_PUB_WS_URL: wss://ws.invokedb.com
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # Root tools only (playwright); --ignore-scripts skips installing both packages
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+
+      # After a deploy the containers may still be starting
+      - name: Wait for production
+        run: |
+          for i in $(seq 60); do
+            curl -fsS -o /dev/null "$HORIZON_BE_PUB_HTTP_URL/health" &&
+              curl -fsS -o /dev/null "$HORIZON_FE_PUB_HTTP_URL/" && exit 0
+            sleep 5
+          done
+          echo '::error::Production did not answer within 5 minutes'
+          exit 1
+
+      - name: Run the UI test
+        env:
+          SMOKE_EMAIL: ${{ secrets.E2E_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+        run: node scripts/ui-smoke.mjs --bundled --artifacts e2e-artifacts --out e2e-artifacts/observed.json
+
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e
+          path: e2e-artifacts/
+          retention-days: 14
+
+      - name: Alert on Telegram
+        if: failure()
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SHA: ${{ inputs.sha }}
+          TRIGGER: ${{ github.event_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          case "$TRIGGER" in
+            schedule) why='nightly run' ;;
+            *) why=${SHA:+"after deploying ${SHA:0:7}"}; why=${why:-'run by hand'} ;;
+          esac
+          text="InvokeDB E2E failed against production ($why). $RUN_URL"
+          curl -fsS -o /dev/null "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
+            --data-urlencode "chat_id=$CHAT_ID" --data-urlencode "text=$text"

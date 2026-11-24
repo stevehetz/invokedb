@@ -1,4 +1,5 @@
-// UI smoke test for horizon-fe: node scripts/ui-smoke.mjs [--out out.json] [--headed] [--keep]
+// UI smoke test for horizon-fe:
+//   node scripts/ui-smoke.mjs [--out out.json] [--headed] [--keep] [--bundled] [--artifacts dir]
 //
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
 // render the public site's pages, log in, upload a CSV, sort / filter / edit cells in the grid, add and remove
@@ -9,6 +10,12 @@
 // URLs come from the same env vars the apps use, so load an env file first. Best run against
 // the throwaway stack described in .agents/skills/verify-frontend/SKILL.md, not your own data:
 //   HORIZON_ENV_FILE=<smoke.env> bash -c 'source scripts/env.sh && node scripts/ui-smoke.mjs'
+//
+// Production (e2e.yml, #90): the HORIZON_*_PUB_* URLs point at invokedb.com, SMOKE_EMAIL and
+// SMOKE_PASSWORD name the test account (default demo@invokedb.com / password), --bundled uses
+// Playwright's own Chromium instead of the installed Chrome, and --artifacts keeps the failure
+// screenshot and a Playwright trace in that folder. Every run starts by deleting any table left
+// from an earlier run and, on failure, deletes the one it made.
 //
 // --out writes the observations (grid contents, headers, websocket events) as JSON, with no
 // IDs or tokens, so a run before and after a frontend change can be diffed directly.
@@ -28,11 +35,13 @@ const APP_URL = `${FE_URL}/app`;
 const BE_URL = env.HORIZON_BE_PUB_HTTP_URL || 'http://127.0.0.1:8001';
 const API_URL = env.HORIZON_API_PUB_HTTP_URL || `${BE_URL}/api`;
 const WS_URL = env.HORIZON_SB_PUB_WS_URL || 'ws://127.0.0.1:9000';
-const EMAIL = 'demo@invokedb.com';
-const PASSWORD = 'password';
+const EMAIL = env.SMOKE_EMAIL || 'demo@invokedb.com';
+const PASSWORD = env.SMOKE_PASSWORD || 'password';
 const TABLE = 'ui_smoke_people';
 const OUT = opt('--out');
-const SHOT_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'ui-smoke-'));
+const ARTIFACTS = opt('--artifacts');
+if (ARTIFACTS) fs.mkdirSync(ARTIFACTS, { recursive: true });
+const SHOT_DIR = ARTIFACTS || fs.mkdtempSync(path.join(os.tmpdir(), 'ui-smoke-'));
 
 const CSV = 'name,age,joined\nalice,30,2020-01-02\nbob,41,2021-05-06\ncarol,25,2019-12-31\n';
 
@@ -230,8 +239,12 @@ function ws_events_since(i) {
 
 await delete_leftover_tables();
 
-const browser = await chromium.launch({ channel: 'chrome', headless: !flag('--headed') });
+const browser = await chromium.launch({
+    channel: flag('--bundled') ? undefined : 'chrome',
+    headless: !flag('--headed')
+});
 const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+if (ARTIFACTS) await context.tracing.start({ screenshots: true, snapshots: true });
 page = await context.newPage();
 page.setDefaultTimeout(15000);
 page.on('pageerror', e => results.page_errors.push(e.message.split('\n')[0]));
@@ -489,6 +502,11 @@ try {
 } catch {
     failed = true;
 } finally {
+    if (ARTIFACTS) {
+        const trace = failed ? path.join(ARTIFACTS, 'trace.zip') : undefined;
+        await context.tracing.stop(trace ? { path: trace } : undefined).catch(() => {});
+        if (trace) console.log(`      trace: ${trace}`);
+    }
     await browser.close();
     if (be_s) await be('GET', `/auth/logout?token=${be_s.token}`).catch(() => {});
     if (failed && !flag('--keep')) await delete_leftover_tables().catch(() => {});
@@ -502,5 +520,5 @@ if (results.observed.page_errors.length) {
     for (const e of [...new Set(results.observed.page_errors)]) console.log(`      ${e}`);
 }
 if (OUT) fs.writeFileSync(OUT, JSON.stringify(results, null, 2) + '\n');
-if (!failed) fs.rmSync(SHOT_DIR, { recursive: true, force: true });
+if (!failed && !ARTIFACTS) fs.rmSync(SHOT_DIR, { recursive: true, force: true });
 process.exit(failed ? 1 : 0);

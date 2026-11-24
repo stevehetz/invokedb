@@ -29,6 +29,7 @@ repo: it's public.
 | Contact form                                           | `support@invokedb.com`, so the support Gmail     |
 | Contact form when Mailgun refuses the email            | Telegram                                         |
 | Any mail to `@invokedb.com`                            | the support Gmail (through the Email Worker)     |
+| End-to-end test against production failed (`e2e.yml`)  | Telegram                                         |
 | CI or CD failed                                        | `repair.yml` opens a fix PR or an issue (GitHub) |
 | PR held (`needs-owner`) or agent stuck (`agent-stuck`) | the owner, by a GitHub mention or label          |
 
@@ -187,6 +188,23 @@ repo: it's public.
   server (`deploy/deploy.sh ssh`) holds the deployed commit. If the close step ever fails,
   delete the leftover `/32` SSH rule on the firewall by hand.
 - **Details:** `deploy/README.md` "Automatic deploys".
+
+### End-to-end test (`.github/workflows/e2e.yml`)
+
+- **Does:** drives `https://invokedb.com` in Playwright's Chromium as a dedicated test account
+  with `scripts/ui-smoke.mjs`: the public pages, login, a CSV upload (progress over the
+  websocket), sort, filter, a cell edit, column changes, the API key and `/api/v1`, deleting the
+  table, logout. It deletes any table it left behind, even when a step fails. It doesn't sign up
+  or use Google/GitHub sign-in.
+- **Runs:** nightly at 06:00 UTC, by hand ("Run workflow"), and after every successful deploy
+  (`cd.yml` starts it with the deployed commit).
+- **Secrets:** repo secrets `E2E_EMAIL`, `E2E_PASSWORD` (the test account, `e2e@invokedb.com`;
+  its mail lands in the support Gmail), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (the
+  contact-form bot).
+- **Alerts:** a failure sends a Telegram message naming the trigger (and the commit, after a
+  deploy) and keeps the screenshot and a Playwright trace as the run's `e2e` artifact (14 days).
+  Open the trace with `npx playwright show-trace trace.zip`.
+- **Check:** the Actions tab shows a green run each night; `gh run list -w e2e.yml`.
 
 ### Claude review, repair, auto-merge and the cloud agent
 

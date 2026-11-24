@@ -88,8 +88,8 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
   when the user says so. `main` has a rule requiring a PR with CI passing; never bypass it.
 - **Auto-merge** (`.github/workflows/automerge.yml`): a PR into `main` merges, and so deploys,
   by itself once CI passes and the review labels it `review-ok`, unless it has the `hold` label
-  or touches a held path (`deploy/`, `.github/`, migrations, `*.env.example`, and for now all of
-  `packages/horizon-be/` until the API smoke test is in CI, #8). Those get `needs-owner` and
+  or touches a held path (`deploy/`, `.github/`, migrations, `*.env.example`). Those get
+  `needs-owner` and
   wait for the user. Add `hold` when opening a PR the user should look at first (a risky change,
   or one that needs a `prod.env` change or a manual step on deploy).
 - `.github/workflows/repair.yml` opens fix PRs (`claude/fix-*` branches) or issues when CI or CD
@@ -127,6 +127,24 @@ e.g. `gh project item-list 1 --owner stevehetz`). There is no other task list;
 
 Issues opened by `repair.yml` (failed CI/CD) are bugs: label and add them to the board like any
 other.
+
+### The cloud agent
+
+An issue can be handed to a cloud agent instead of a local session: the user labels it
+`agent`. `.github/workflows/agent-queue.yml` starts `implement.yml` on one issue at a time
+(board order if the `PROJECTS_TOKEN` secret is set, otherwise issue number). Claude then works
+it in GitHub Actions by the steps above and opens a PR labelled `agent-pr`; CI, the review and
+auto-merge take it from there. The next issue starts when that PR merges or is parked
+(`needs-owner`, `hold`). If the agent stops without a PR, or its PR is stuck (review changes,
+failed CI, 2 hours idle), the item gets `agent-stuck`, the user is mentioned, and the queue
+waits (for a stuck PR) or skips the issue (until the label is removed).
+
+- Only issues the user opened and labelled are worked, and the agent sees the issue body and
+  the user's comments only. It has no databases (CI's `smoke` job tests the PR), no secrets
+  and no production access.
+- Good for well-scoped issues with a clear "Done when". Keep for a local session: anything
+  needing a decision (`you`), visual checks, or production.
+- When writing an issue for the agent, put everything it needs in the body: it can't ask.
 
 ## Formatting
 

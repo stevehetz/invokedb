@@ -40,13 +40,11 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       BRANCH: ${{ github.event.workflow_run.head_branch }}
-      # Paths (prefixes, or globs for *) that a person must merge into main. The backend stays
-      # here until the API smoke test runs in CI (issue #8).
+      # Paths (prefixes, or globs for *) that a person must merge into main
       HELD_PATHS: >-
         deploy/
         .github/
         packages/horizon-be/src/database/migration/
-        packages/horizon-be/
         *.env.example
     steps:
       - name: Merge if every condition holds
@@ -62,6 +60,10 @@ jobs:
           sha=$(jq -r .headRefOid <<<"$pr")
           author=$(jq -r .author.login <<<"$pr")
           has_label() { jq -e --arg l "$1" '.labels | map(.name) | index($l)' <<<"$pr" >/dev/null; }
+          # An agent PR merged or parked frees the cloud agent's queue (our actions fire no events)
+          next_in_queue() {
+            if has_label agent-pr; then gh workflow run agent-queue.yml -R "$R" --ref main; fi
+          }
 
           if [ "$(jq -r .isDraft <<<"$pr")" = true ]; then echo "PR #$number is a draft"; exit 0; fi
           if [ "$base" != main ] && { [[ "$BRANCH" != claude/fix-* ]] || [ "$author" != app/claude ]; }; then
@@ -91,6 +93,7 @@ jobs:
             if [ -n "$held" ]; then
               echo "PR #$number touches paths a person must merge:"; echo "$held"
               gh pr edit "$number" -R "$R" --add-label needs-owner
+              next_in_queue
               exit 0
             fi
           fi
@@ -99,3 +102,4 @@ jobs:
           # The repo deletes merged branches itself (delete_branch_on_merge)
           echo "Merged PR #$number into $base"
           gh workflow run ci.yml -R "$R" --ref "$base"
+          if [ "$base" = main ]; then next_in_queue; fi

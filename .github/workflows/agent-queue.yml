@@ -4,7 +4,8 @@
 #
 # It starts the next issue only when nothing is in flight: no implement run going, and no open
 # `agent-pr` PR except parked ones (`needs-owner` or `hold`, which the owner merges later). An
-# agent PR that's stuck (the review asked for changes, CI failed, or no activity for 2 hours)
+# agent PR that's stuck (CI failed, or no activity for 2 hours; review changes are revise.yml's
+# job, which marks the PR agent-stuck itself when its rounds run out)
 # holds the queue; it gets `agent-stuck` and one comment that mentions the owner. The owner
 # unblocks it by merging or closing the PR, or adding `hold`. Closing an agent PR without merging
 # also marks its issue `agent-stuck`, so the agent doesn't simply redo it.
@@ -90,7 +91,6 @@ jobs:
               n=$(jq -r .number <<<"$pr")
               has "$pr" agent-stuck && continue
               reason=""
-              if has "$pr" review-changes; then reason="the review asked for changes"; fi
               ci=$(gh run list -R "$R" -w CI --commit "$(jq -r .headRefOid <<<"$pr")" \
                 --json conclusion --jq '.[0].conclusion // ""')
               if [ -z "$reason" ] && [ "$ci" = failure ]; then reason="CI failed on its latest commit"; fi

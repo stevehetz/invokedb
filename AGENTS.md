@@ -135,8 +135,9 @@ An issue can be handed to a cloud agent instead of a local session: the user lab
 (board order if the `PROJECTS_TOKEN` secret is set, otherwise issue number). Claude then works
 it in GitHub Actions by the steps above and opens a PR labelled `agent-pr`; CI, the review and
 auto-merge take it from there. The next issue starts when that PR merges or is parked
-(`needs-owner`, `hold`). If the agent stops without a PR, or its PR is stuck (review changes,
-failed CI, 2 hours idle), the item gets `agent-stuck`, the user is mentioned, and the queue
+(`needs-owner`, `hold`). Review changes are handled by `revise.yml` (below). If the agent
+stops without a PR, or its PR is stuck (failed CI, 2 hours idle, review changes after the last
+revision round), the item gets `agent-stuck`, the user is mentioned, and the queue
 waits (for a stuck PR) or skips the issue (until the label is removed). Closing an agent PR
 without merging also marks its issue `agent-stuck`; removing the label asks for a retry.
 
@@ -146,6 +147,13 @@ without merging also marks its issue `agent-stuck`; removing the label asks for 
 - Good for well-scoped issues with a clear "Done when". Keep for a local session: anything
   needing a decision (`you`), visual checks, or production.
 - When writing an issue for the agent, put everything it needs in the body: it can't ask.
+
+**Review changes** (`.github/workflows/revise.yml`): when the review labels an agent PR or a
+repair fix PR `review-changes`, Claude fixes each finding or replies in its thread saying why
+not, and pushes (an empty commit if it only replied), which starts CI and a fresh review. The
+review reads earlier threads and replies, so an answered point isn't raised again. At most two
+rounds per PR, then `agent-stuck`. On the user's own PRs it runs only when the user adds
+`agent-fix` or runs it by hand.
 
 ## Formatting
 

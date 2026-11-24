@@ -62,7 +62,8 @@ features).
   (Claude reviews same-repo PRs, labels them `review-ok`/`review-changes`), `repair.yml`
   (on a CI/CD failure, Claude opens a fix PR or an issue), `implement.yml` + `agent-queue.yml`
   (the cloud agent works `agent`-labelled issues one at a time; AGENTS.md "The cloud agent",
-  #24), `automerge.yml` (merges PRs into `main`
+  #24), `revise.yml` (Claude addresses review comments on agent and repair PRs, two rounds at
+  most; #33), `automerge.yml` (merges PRs into `main`
   that pass CI and review and touch no held path, and repair's fix PRs into feature branches;
   added 2026-11-24, #21; a held PR gets `needs-owner`, and `hold` opts a PR out). Claude runs on the user's subscription through the
   Claude GitHub App (`CLAUDE_CODE_OAUTH_TOKEN` repo secret). The action only runs a workflow

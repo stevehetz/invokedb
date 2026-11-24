@@ -97,7 +97,7 @@ Elsewhere:
 - **Open loose ends are issues:** the infrastructure diagram (#128), unifying the stylesheets
   (#130), splitting the entry chunk (#131), email verification (#132), rate limits on
   email-sending routes (#133), the "Approve workflows" click
-  (#135), archiving the old example repos (#136). The old `subscription` / `stripe_env` tables
+  (#135). The old `subscription` / `stripe_env` tables
   and `stripe_*` columns are reused or dropped by #129. `/api/v1/get` leaving out empty cells
   looks intended.
 - **Background:** Mailgun sends from `mail.invokedb.com` because the old account still holds

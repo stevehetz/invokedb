@@ -9,12 +9,12 @@ Where InvokeDB is heading and why. `HANDOFF.md` has the current state and the nu
 ## Goals
 
 - **Learning, and something to show off.** It isn't a business yet.
-- **No open free tier.** A free public service means abuse (spam signups, free storage, API
-  hammering), holding strangers' data, and ops time for no return. The hosting bill is the
-  small part.
-- **A trial, then a paid plan through Stripe.** New accounts get a time-limited trial with hard
-  caps on tables, rows and API calls. After it ends, the account turns read-only unless it
-  upgrades. Stripe stays in the code for this.
+- **A very limited free tier, then paid plans through Stripe** (decided 2026-11-24, replacing
+  "no free tier, a trial instead"). Free accounts let people try it out, with hard caps small
+  enough that a free account costs almost nothing and abuse stays bounded (spam signups, free
+  storage, API hammering): rate limits (#133) and email verification (#132) matter more with a
+  free tier. Whether a trial of a paid tier comes on top, the caps and the prices come out of the
+  pricing review (#137); Stripe itself is #129.
 - **Low, predictable cost:** about $5–15/month to start.
 
 ## Hosting: one always-on server
@@ -91,7 +91,7 @@ and tracking become ordinary tables.
   loop runs one job at a time (see HANDOFF).
 - Trial caps on rows (`TrackingManager.validate_row_count`) keep uploads bounded.
 
-## Trial and Stripe
+## Free tier, paid plans and Stripe (#129, #137)
 
 - **Before Stripe comes back:** verify signatures on `/webhook/stripe` (it doesn't today), and
   create new keys (the old ones are deliberately not rolled).

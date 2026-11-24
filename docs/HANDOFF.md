@@ -18,7 +18,8 @@ Elsewhere:
 
 ## Where things stand (2026-11-24)
 
-- **Board empty**, no open PRs, issues or security alerts; `main` is deployed.
+- **Board:** ideas filed 2026-11-24 (#128–#137): the pricing review (#137) and Stripe (#129)
+  lead; `main` is deployed, no open PRs or security alerts.
 - **Production:** one DigitalOcean droplet running `docker compose` (Caddy, API, CSV processor,
   Postgres 17, Mongo 8). Nightly encrypted off-site backups, UptimeRobot, Healthchecks, Mailgun
   email, Cloudflare DNS and Email Routing, Google and GitHub sign-in (checked by hand).
@@ -32,6 +33,10 @@ Elsewhere:
   Telegram and keeps a masked screenshot). The frontend has no tests of its own.
 
 ## Decisions to respect
+
+- **Pricing direction** (2026-11-24): a **very limited free tier** so people can try it out,
+  then paid tiers through **Stripe, which comes back** (#129). Caps and prices come from the
+  pricing review (#137). This replaced "a trial instead of a free tier".
 
 - **No UI test on PRs for now** (2026-11-24): it would add ~1 minute before a PR can merge;
   the owner prefers faster merges. Revisit if UI breakage keeps reaching production (as
@@ -89,17 +94,15 @@ Elsewhere:
   - `gh --jq` has no `--arg`; use `env.NAME` in the filter.
   - When automerge pushes a repair fix into a PR branch, GitHub treats `github-actions[bot]` as
     a first-time contributor and waits for "Approve workflows to run" (#107). Not fixed.
-- **Leftovers, optional clean-up:** the `subscription` / `stripe_env` tables and the account's
-  `stripe_*` columns (Stripe was removed in #6; a migration can drop them); the two areas'
-  clashing global stylesheets; the single 2.3 MB entry chunk; signup still reveals whether an
-  email has an account (needs email verification); `/auth/reset-password` has no rate limit
-  (Mailgun free plan: 3,000 emails/month); the grid's look after ag-grid 36 hasn't been checked
-  by eye. `/api/v1/get` leaving out empty cells looks intended.
+- **Open loose ends are issues:** the infrastructure diagram (#128), unifying the stylesheets
+  (#130), splitting the entry chunk (#131), email verification (#132), rate limits on
+  email-sending routes (#133), checking the grid's look (#134), the "Approve workflows" click
+  (#135), archiving the old example repos (#136). The old `subscription` / `stripe_env` tables
+  and `stripe_*` columns are reused or dropped by #129. `/api/v1/get` leaving out empty cells
+  looks intended.
 - **Background:** Mailgun sends from `mail.invokedb.com` because the old account still holds
   `mg.`; Hetzner was dropped (US prices tripled, June 2026); a bigger droplet is a resize (raise
   `MONGO_CACHE_GB` and `PRC_CPUS`). An SSO login never links to an account that has a password
-  (`password_account`), since password signup doesn't verify the email. Left for the user:
-  archive the old `invokedb-node` and `invokedb-examples-angular` repos with a README pointing
-  here.
+  (`password_account`), since password signup doesn't verify the email.
 - **MCP servers:** `playwright` (real Chrome; never to check changes unless asked) and
   `mongodb` (read-only, `connectionId: "preconfigured"`); see AGENTS.md.

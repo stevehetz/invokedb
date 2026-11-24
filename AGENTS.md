@@ -193,8 +193,8 @@ resolve and auto-merge like agent PRs, but don't hold the issue queue. Dependabo
 **security** PRs for npm (and updates the GitHub Actions); never use `@dependabot ignore`
 comments.
 
-**Security fixes** (`.github/workflows/security-fix.yml`, #104): when CodeQL raises an alert (and
-daily), Claude fixes it on a `security/codeql-<n>` branch, in a PR labelled `security` that says
+**Security fixes** (`.github/workflows/security-fix.yml`, #104): every 3 hours (Actions has no
+trigger for new alerts), Claude fixes open CodeQL alerts on a `security/codeql-<n>` branch, in a PR labelled `security` that says
 "Fixes code scanning alert #N", handled like an agent PR without holding the queue; a false
 positive or a decision becomes an `agent-found` + `security` issue (dismissing an alert is the
 user's). A Dependabot alert with no fixed version becomes a triage issue. Leaked secrets are

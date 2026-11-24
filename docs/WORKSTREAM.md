@@ -23,11 +23,10 @@ CI.
       (`workflow_run` on CI/CD failure, skips `claude/` branches and forks), CI on `push`
       only (no double runs on PRs), the site link on CD deployments, AGENTS.md and HANDOFF
       updated for the PR flow.
-- [ ] 2. **Now.** You: install the Claude GitHub App on `stevehetz/invokedb` only
-      (https://github.com/apps/claude → Configure).
-- [ ] 3. You: `! claude setup-token`, then
+- [x] 2. (2026-11-24) Claude GitHub App installed on `stevehetz/invokedb` only.
+- [x] 3. (2026-11-24) You: `! claude setup-token`, then
       `! gh secret set CLAUDE_CODE_OAUTH_TOKEN -R stevehetz/invokedb` and paste the token.
-- [ ] 4. Claude: push the branch and open the PR; the review runs on it (its own first test).
+- [ ] 4. **Now.** Claude: push the branch and open the PR; the review runs on it (its own first test).
 - [ ] 5. Claude (with your OK): add the `main` ruleset: PRs required, status checks
       `backend`, `frontend`, `format` must pass; admins can bypass only through a PR.
 - [ ] 6. You: merge the PR (it deploys).

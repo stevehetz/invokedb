@@ -8,7 +8,8 @@ revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the comm
 what to do next. Git history has the details of past work. The longer-term plans sit beside it
 in `docs/`: `INFRASTRUCTURE_PLAN.md` (the current direction: a trial-only showcase on one
 server, keeping Mongo), `SAAS_PLAN.md` (turning it into a SaaS) and `AI_IDEAS.md` (AI
-features).
+features). **`OPERATIONS.md`** is the one place for how production is run and watched: each
+outside service and GitHub workflow, its secrets by name, who it alerts and how to check it.
 
 ## Start here
 
@@ -16,18 +17,54 @@ features).
 2. **Direction** (see `docs/INFRASTRUCTURE_PLAN.md`): learning plus a showcase, a Stripe
    trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
-   backups, uptime monitoring and support email routing are live. **Work is tracked in GitHub
-   Issues, ordered on the Project board "InvokeDB"** (AGENTS.md, "How work is tracked");
-   the open items from "Next steps" below are issues #5–#19. CI/CD is live (every push to `main` deploys after
-   CI), and so are Claude review, repair and auto-merge (tested end to end 2026-11-24). The code
-   review is done (`docs/CODE_REVIEW.md`); its fixes, the operations docs, the production
-   check and 5b are the issues, in the board's order. Check backend changes with the backend build (see
-   `verify-backend`), and frontend changes with the frontend build and lint.
+   backups, uptime monitoring and support email routing are live.
+   **Work is tracked in GitHub Issues on the Project board "InvokeDB"**
+   (https://github.com/users/stevehetz/projects/1; AGENTS.md, "How work is tracked"). There is
+   no WORKSTREAM file any more (retired 2026-11-24, #5): "what's next" is the board.
+   **Where things stand (end of 2026-11-24, ~17:15 UTC):**
+   - The **cloud agent queue is running** (AGENTS.md, "The cloud agent"), in issue-number order
+     (no `PROJECTS_TOKEN` yet). Merged: #6 (PR #37), #7 (#38), #9 (#39), #15 (#49). Open, held for the
+     user: PR #45 (#11, frontend HTTP client/CDN/bundle) and PR #48 (#14, frontend type
+     checking/moment), both conflicting with `main` after #37–#39 merged (see `resolve.yml`
+     below). Still queued: #17,
+     #18, #19, #26. #17 will park (a migration) and also needs the user to create the
+     Google/GitHub OAuth apps and add the client IDs/secrets to `prod.env` and `.env`.
+   - **`agent-stuck`:** #12 (its run failed at once with no model usage, during a Claude usage
+     limit; remove the label to retry) and #10 (the agent finished without a PR, 13 tool
+     denials, details hidden in the log; it changes `.github/` and CI, so probably better done
+     in a local session). The review on PR #45 failed the same way as #12 and was re-run.
+   - **Fixed today so the queue can run unattended** (#40, #42, #46; PRs #41, #43, #47):
+     - Agent PRs could never merge: CI started with `gh workflow run` passes but doesn't count
+       toward a PR's required checks. CI now runs on `pull_request` (every push to a PR) and on
+       pushes to `main` only, so every PR gets one counted run per push. A branch with no PR
+       gets no CI.
+     - Claude's pushes inside `claude-code-action` went out as the workflow token (the action
+       logs "No existing authentication headers to remove": it fails to strip
+       `actions/checkout@v7`'s saved token), so they started no CI. Every workflow where
+       Claude pushes now checks out with `persist-credentials: false`. Not yet seen working on
+       a real push: watch the first revise or resolve push start CI.
+     - New `resolve.yml`: merges `main` into conflicting agent/repair PRs and resolves (after
+       CI on `main`, every 30 minutes, or by hand with a PR number). Its first runs (17:10
+       UTC, one from the merge's CI run and one started by hand on #45) were still queued at
+       handoff: check they resolved #45 and #48.
+   - **To check on it:** `gh pr list --label agent-pr`, `gh issue list --label agent-stuck`,
+     `gh run list -w implement.yml`, `gh run list -w resolve.yml`. Merge the `needs-owner` /
+     `hold` PRs when the user says so.
+   - Owner-only issues (`you`): #13 (pick a licence), #16 (check signup, tables, CSV upload
+     and the API in production by hand).
+   - **Offered, not yet an issue:** run the Playwright UI smoke test (`ui-smoke.mjs`) in CI,
+     so frontend PRs (#11, #12, #18) get a browser check before merging.
+   - Optional: a `PROJECTS_TOKEN` repo secret (a token that can read the user's Projects) makes
+     the queue follow board order instead of issue numbers.
+
+   Check backend changes with the backend build and `npm test` (see `verify-backend`), and
+   frontend changes with the frontend build and lint; CI runs the API smoke test on every PR.
+
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
    `compose`, `bootstrap`) only when the user asks. `up` ships the committed `HEAD` of whatever
    branch is checked out, so deploy from `main`.
 4. **Don't run the smoke tests locally** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user
-   asks. CI's `smoke` job runs `api-smoke.mjs` on every push (since 2026-11-24, #8), with the
+   asks. CI's `smoke` job runs `api-smoke.mjs` on every PR push and on `main` (since 2026-11-24, #8), with the
    backend unit tests (`npm test`) in the `backend` job.
 5. Work on a branch and open a pull request (CI and the Claude review run on it). Merging to
    `main` deploys. Safe PRs merge themselves (AGENTS.md, "Auto-merge"); the rest wait for the
@@ -57,21 +94,43 @@ features).
 ## Things to know
 
 - **GitHub automation (2026-11-24).** `main` has a ruleset (PR required, CI checks `backend`,
-  `frontend`, `format` must pass), so every change goes through a PR. Workflows: `ci.yml`
-  (every push), `cd.yml` (deploys `main` after CI; see `deploy/README.md`), `review.yml`
-  (Claude reviews same-repo PRs, labels them `review-ok`/`review-changes`), `repair.yml`
-  (on a CI/CD failure, Claude opens a fix PR or an issue), `implement.yml` + `agent-queue.yml`
-  (the cloud agent works `agent`-labelled issues one at a time; AGENTS.md "The cloud agent",
-  #24), `revise.yml` (Claude addresses review comments on agent and repair PRs, two rounds at
-  most; #33), `automerge.yml` (merges PRs into `main`
-  that pass CI and review and touch no held path, and repair's fix PRs into feature branches;
-  added 2026-11-24, #21; a held PR gets `needs-owner`, and `hold` opts a PR out). Claude runs on the user's subscription through the
-  Claude GitHub App (`CLAUDE_CODE_OAUTH_TOKEN` repo secret). The action only runs a workflow
-  file identical to `main`'s, so a PR that changes `review.yml` isn't reviewed by it. Repair starts CI on its fix branch
-  with `workflow_dispatch`, so a feature branch cut before 2026-11-24 (`c82f901`) needs
-  `main` merged in for repair to work on it. Tested end to end on 2026-11-24 (PR #4). Deploy
-  secrets live in the GitHub `production` environment; the server's settings are
-  `/opt/invokedb/prod.env`, changed only with `deploy.sh env` or `up` from the Mac.
+  `frontend`, `format`, `smoke` must pass), so every change goes through a PR. Workflows: `ci.yml`
+  (every push to a PR and to `main`; #42), `cd.yml` (deploys `main` after CI; see
+  `deploy/README.md`), `review.yml` (Claude reviews same-repo PRs, labels them
+  `review-ok`/`review-changes`), `repair.yml` (on a CI/CD failure, Claude opens a fix PR or an
+  issue), `implement.yml` + `agent-queue.yml` (the cloud agent works `agent`-labelled issues one at
+  a time; AGENTS.md "The cloud agent", #24), `revise.yml` (Claude addresses review comments on agent
+  and repair PRs, two rounds at most; #33), `resolve.yml` (merges `main` into conflicting agent and
+  repair PRs; #46), `automerge.yml` (merges PRs into `main` that pass CI and review and touch no
+  held path, and repair's fix PRs into feature branches; added 2026-11-24, #21; a held PR gets
+  `needs-owner`, and `hold` opts a PR out). Claude runs on the user's subscription through the
+  Claude GitHub App (`CLAUDE_CODE_OAUTH_TOKEN` repo secret). The action only runs a workflow file
+  identical to `main`'s, so a PR that changes `review.yml` isn't reviewed by it. Tested end to end
+  on 2026-11-24 (PR #4). Deploy secrets live in the GitHub `production` environment; the server's
+  settings are `/opt/invokedb/prod.env`, changed only with `deploy.sh env` or `up` from the Mac.
+
+- **GitHub Actions gotchas learned building the automation (2026-11-24):**
+  - Anything done with the **workflow token** (`github.token`: merges, pushes, labels,
+    comments) starts no other workflows, and `workflow_run` doesn't fire for runs it started.
+    Only `workflow_dispatch` is exempt. So `automerge.yml` starts CI on `main` after merging,
+    CI's `deploy` job starts `cd.yml` (#27), and the agent workflows poke `agent-queue.yml`
+    directly; the queue also runs every 30 minutes as a safety net.
+  - Inside `claude-code-action`, `gh` uses the **Claude app's token**, which does start
+    workflows (a PR Claude opens gets CI and the review). `git push` only does if checkout ran
+    with `persist-credentials: false`: the action is meant to strip checkout's saved workflow
+    token but doesn't with `actions/checkout@v7` (#46).
+  - A CI run started with `workflow_dispatch` passes on the PR's head commit but **doesn't
+    count toward the PR's required checks** (the PR shows them "Expected — waiting"). Only a
+    `pull_request` or `push` run does (#40).
+  - `claude-code-action` refuses runs started by a bot unless it's in `allowed_bots`
+    (`implement.yml`, `revise.yml` and `resolve.yml` allow `github-actions,claude`; #35).
+  - It also only runs a workflow file identical to `main`'s, so a PR that changes `review.yml`
+    gets no real review. The verdict step then says "The review left no verdict line" and
+    labels it `review-changes` (as on #31, #34); that's expected, and such PRs are held for
+    the user anyway (`.github/`).
+  - The review's verdict label is set by a shell step from a `Verdict:` line in Claude's
+    summary (#30); Claude itself can't run `gh pr edit` there.
+  - `gh --jq` has no `--arg`; use `env.NAME` inside the filter.
 
 - **Check `deploy/prod.env` before any `deploy.sh up`.** `up` copies the local file over the
   server's. On 2026-11-23 the repo copy was stale (no Telegram, backup or Healthchecks
@@ -263,7 +322,7 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `password_hash` nullable. Link an SSO login to an existing account only by a **verified**
   email (for GitHub, fetch `/user/emails` and take the primary verified one). Add the buttons to
   the login and signup pages, and the client IDs/secrets to `src/env.ts` and `.env`.
-- **6 (backend, optional):** Nest 12 / TypeORM 1.x, `tslint` → ESLint, and `npm audit` (15 issues, mostly dev tooling).
+- **6 (backend, optional):** Nest 12 / TypeORM 1.x (#19) and `npm audit`. `tslint` → ESLint is done (#9).
 - **7 (code review, requested 2026-11-24): findings written** (2026-11-24) in
   `docs/CODE_REVIEW.md`; all of them became issues #6–#14. Review the whole codebase (`horizon-be`,
   `horizon-fe`, `deploy/`, `scripts/`, `examples/`, `.github/`) for clean-up: dead code,
@@ -273,7 +332,7 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   type-checking the frontend, a root `typecheck`, editor config, a PR template). The output
   is a written list of findings, ranked, each with a suggested fix; the user picks which ones
   become work.
-- **8 (operations docs, requested 2026-11-24): issue #15.** Write docs in `docs/` that explain
+- **8 (operations docs, requested 2026-11-24): done** (#15), in `docs/OPERATIONS.md`. Asked for: docs in `docs/` that explain
   everything set up recently, in one place: the monitoring and integrations (Mailgun,
   Telegram bot, UptimeRobot, Healthchecks.io, Cloudflare DNS and Email Routing with the
   `invokedb-email` Worker, the support Gmail) and the delivery side (CI/CD, the GitHub

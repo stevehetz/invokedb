@@ -127,7 +127,7 @@ e.g. `gh project item-list 1 --owner stevehetz`). There is no other task list;
    imperative; body with context, scope and a "**Done when**" checklist. Labels: one type
    (`bug`, `enhancement`, `documentation`, `chore`, `security`), one or more `area:*`
    (`backend`, `frontend`, `deploy`, `ci`), and `you` when a person has to do it. New issues go on
-   the board (`gh project item-add`).
+   the board by themselves (the project's Auto-add workflow, filter `is:issue`).
 2. **The board says what's next.** Status is `Todo` (top = next), `In Progress` or `Done`.
    When the user asks "what's next", give the top `Todo` item, and if it's labelled `you`,
    only its next step (exact clicks or command).

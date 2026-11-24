@@ -73,7 +73,9 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
 - **No native (C/C++) npm packages.** The Xcode command-line tools on this Mac are broken, so
   anything with `node-gyp` fails to install. Install the backend with `--omit=optional`.
 - **Don't run `npm run push`** (it bumps versions, tags and pushes) unless asked.
-- Don't commit or push unless asked. Branch first if on `main`.
+- Don't commit or push unless asked. Branch first if on `main`. Exception: when the user asks
+  you to work an issue, committing, pushing its branch and opening its PR are part of the job
+  (see "How work is tracked"); merging still waits for the user.
 - **Changes reach `main` through pull requests.** Push the branch, `gh pr create`; CI and the
   Claude review (`.github/workflows/review.yml`) run on it. Merge (`gh pr merge --merge`) only
   when the user says so. `main` has a rule requiring a PR with CI passing; never bypass it.
@@ -81,6 +83,36 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
   fails. `automerge.yml` merges a fix PR by itself only into a feature branch, after CI passes
   and the review labels it `review-ok`; fix PRs into `main` wait for the user like any other.
 - Give the user one step at a time: only the next thing they have to do, then wait.
+
+## How work is tracked
+
+All work is tracked in **GitHub Issues** on `stevehetz/invokedb`, in priority order on the
+GitHub Project board **InvokeDB** (project 1, https://github.com/users/stevehetz/projects/1,
+e.g. `gh project item-list 1 --owner stevehetz`). There is no other task list;
+`docs/HANDOFF.md` has project state and history, not tasks. `gh project` commands need the
+`project` token scope (`gh auth refresh -s project`, which the user runs).
+
+1. **Every change has an issue.** Title in the imperative; body with context, scope and a
+   "**Done when**" checklist. Labels: one type (`bug`, `enhancement`, `documentation`,
+   `chore`, `security`), one or more `area:*` (`backend`, `frontend`, `deploy`, `ci`), and
+   `you` when a person has to do it. New issues go on the board (`gh project item-add`).
+2. **The board says what's next.** Status is `Todo` (top = next), `In Progress` or `Done`.
+   When the user asks "what's next", give the top `Todo` item, and if it's labelled `you`,
+   only its next step (exact clicks or command).
+3. **Start:** set the item to `In Progress`, branch from an up-to-date `main` as
+   `<issue>-<short-slug>` (e.g. `6-remove-stripe`).
+4. **Stay in scope.** A bug or follow-up found on the way becomes a new issue, not part of
+   this branch. Mention it in the PR.
+5. **Finish:** run the checks for what changed (`verify-backend`; frontend build + lint),
+   prettier, commit, push, and `gh pr create` with `Closes #<issue>` in the body and how it
+   was checked. CI and the Claude review run on it. Tick the "Done when" boxes that are done;
+   say plainly which aren't.
+6. **Merge:** only the user merges. The merge closes the issue and the board moves it to
+   `Done`. Decisions and findings made along the way go in issue or PR comments; anything a
+   future session needs goes in HANDOFF or this file.
+
+Issues opened by `repair.yml` (failed CI/CD) are bugs: label and add them to the board like any
+other.
 
 ## Formatting
 

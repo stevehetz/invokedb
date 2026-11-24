@@ -16,11 +16,12 @@ features).
 2. **Direction** (see `docs/INFRASTRUCTURE_PLAN.md`): learning plus a showcase, a Stripe
    trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
-   backups, uptime monitoring and support email routing are live. **The current task and its
-   steps are in `docs/WORKSTREAM.md`.** CI/CD is live (every push to `main` deploys after
-   CI). Claude review, repair and auto-merge are being finished (PR #3, then one test). Then
-   a person checks signup, table creation, CSV upload and API calls in production, then 5b
-   (Google/GitHub sign-in). Check backend changes with the backend build (see
+   backups, uptime monitoring and support email routing are live. **Work is tracked in GitHub
+   Issues, ordered on the Project board "InvokeDB"** (AGENTS.md, "How work is tracked");
+   the open items from "Next steps" below are issues #5–#19. CI/CD is live (every push to `main` deploys after
+   CI), and so are Claude review, repair and auto-merge (tested end to end 2026-11-24). The code
+   review is done (`docs/CODE_REVIEW.md`); its fixes, the operations docs, the production
+   check and 5b are the issues, in the board's order. Check backend changes with the backend build (see
    `verify-backend`), and frontend changes with the frontend build and lint.
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
    `compose`, `bootstrap`) only when the user asks. `up` ships the committed `HEAD` of whatever
@@ -60,7 +61,9 @@ features).
   (on a CI/CD failure, Claude opens a fix PR or an issue), `automerge.yml` (merges repair's
   fix PRs into feature branches only). Claude runs on the user's subscription through the
   Claude GitHub App (`CLAUDE_CODE_OAUTH_TOKEN` repo secret). The action only runs a workflow
-  file identical to `main`'s, so a PR that changes `review.yml` isn't reviewed by it. Deploy
+  file identical to `main`'s, so a PR that changes `review.yml` isn't reviewed by it. Repair starts CI on its fix branch
+  with `workflow_dispatch`, so a feature branch cut before 2026-11-24 (`c82f901`) needs
+  `main` merged in for repair to work on it. Tested end to end on 2026-11-24 (PR #4). Deploy
   secrets live in the GitHub `production` environment; the server's settings are
   `/opt/invokedb/prod.env`, changed only with `deploy.sh env` or `up` from the Mac.
 
@@ -252,3 +255,22 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   the login and signup pages, and the client IDs/secrets to `src/env.ts` and `.env`.
 - **6 (backend, optional):** Nest 12 / TypeORM 1.x, `stripe` 8 → current (only if Stripe comes
   back), `tslint` → ESLint, and `npm audit` (15 issues, mostly dev tooling).
+- **7 (code review, requested 2026-11-24): findings written** (2026-11-24) in
+  `docs/CODE_REVIEW.md`; all of them became issues #6–#14. Review the whole codebase (`horizon-be`,
+  `horizon-fe`, `deploy/`, `scripts/`, `examples/`, `.github/`) for clean-up: dead code,
+  unused files and packages, leftovers from the old setup (`ops/`, `docs/ops/`, Stripe),
+  inconsistent structure and naming. Also list what's missing that would help the developer
+  workflow and a clean, well-structured codebase (for example tests, a backend ESLint,
+  type-checking the frontend, a root `typecheck`, editor config, a PR template). The output
+  is a written list of findings, ranked, each with a suggested fix; the user picks which ones
+  become work.
+- **8 (operations docs, requested 2026-11-24): issue #15.** Write docs in `docs/` that explain
+  everything set up recently, in one place: the monitoring and integrations (Mailgun,
+  Telegram bot, UptimeRobot, Healthchecks.io, Cloudflare DNS and Email Routing with the
+  `invokedb-email` Worker, the support Gmail) and the delivery side (CI/CD, the GitHub
+  Actions workflows and Claude review/repair/auto-merge, the `main` ruleset, the
+  DigitalOcean droplet, firewall, Spaces backups and droplet backups). For each: what it does,
+  where it's configured, which secrets it uses (by name only), who gets alerted, and how to
+  check it's working. Today this is spread across this file, `deploy/README.md`,
+  `deploy/email-worker/README.md` and the workflow comments; link to those rather than
+  copying the details.

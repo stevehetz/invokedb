@@ -1,7 +1,5 @@
-import AccountHttp from '@/network/http/account/account-http';
+import { auth_http } from '@/core/context/account/auth-http';
 import cookies from 'js-cookie';
-
-const account_http = new AccountHttp();
 
 export default {
     name: 'Login',
@@ -28,7 +26,7 @@ export default {
             e.preventDefault();
             this.processing = true;
             try {
-                let session = await account_http.login({
+                let session = await auth_http.login({
                     email: this.email,
                     password: this.password
                 });

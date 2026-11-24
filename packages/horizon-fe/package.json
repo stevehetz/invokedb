@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "@element-plus/icons-vue": "^2.3.2",
+        "@fortawesome/fontawesome-free": "^5.13.0",
         "ag-grid-community": "~36.3.0",
         "ag-grid-vue3": "~36.3.0",
         "copy-to-clipboard": "^3.3.1",

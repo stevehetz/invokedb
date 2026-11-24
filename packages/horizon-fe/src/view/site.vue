@@ -11,9 +11,7 @@ import './stylesheet.scss';
 
 import cookies from 'js-cookie';
 import { store } from '@/store';
-import AccountHttp from '@/network/http/account/account-http';
-
-let account_http = new AccountHttp();
+import { auth_http } from '@/core/context/account/auth-http';
 
 export default {
     data: () => {
@@ -26,7 +24,7 @@ export default {
         const token = cookies.get('token');
         if (token) {
             try {
-                const account = await account_http.authorize(token);
+                const account = await auth_http.authorize(token);
                 store.set('account', account);
             } catch (ex) {
                 cookies.remove('token');

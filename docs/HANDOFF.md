@@ -26,8 +26,9 @@ features).
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
    `compose`, `bootstrap`) only when the user asks. `up` ships the committed `HEAD` of whatever
    branch is checked out, so deploy from `main`.
-4. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
-   add too much overhead for routine checks.
+4. **Don't run the smoke tests locally** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user
+   asks. CI's `smoke` job runs `api-smoke.mjs` on every push (since 2026-11-24, #8), with the
+   backend unit tests (`npm test`) in the `backend` job.
 5. Work on a branch and open a pull request (CI and the Claude review run on it). Merging to
    `main` deploys. Safe PRs merge themselves (AGENTS.md, "Auto-merge"); the rest wait for the
    user.

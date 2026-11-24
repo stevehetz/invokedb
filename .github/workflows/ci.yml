@@ -1,4 +1,5 @@
-# Checks every push to any branch: backend build + lint, frontend build + lint (and no Sass
+# Checks every push to any branch: backend build + lint + unit tests, the API smoke test against
+# a real backend (Postgres and Mongo as service containers), frontend build + lint (and no Sass
 # deprecation warnings), and prettier. Needs no secrets. Push only, not pull_request: a PR shows
 # the push run for its head commit (and the merge rule on main counts it), so listening to both
 # would run everything twice. Merging to main pushes a new commit, so CI runs again before CD.
@@ -34,6 +35,60 @@ jobs:
       - run: npm ci --omit=optional --no-audit --no-fund
       - run: npm run build
       - run: npm run lint
+      - run: npm test
+
+  # scripts/api-smoke.mjs against the built backend, on throwaway databases (smoke-env.sh, as in
+  # the verify-backend playbook): logs in as the seeded demo accounts, uploads a CSV, exercises
+  # the grid and /api/v1 endpoints, and checks accounts can't reach each other's data.
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust # like Postgres.app locally; .env.example has no password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s
+          --health-retries 10
+      mongo:
+        image: mongo:8
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping: 1})'" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      HORIZON_ENV_FILE: ${{ github.workspace }}/smoke.env
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: packages/horizon-be/package-lock.json
+      - run: npm ci --omit=optional --no-audit --no-fund
+        working-directory: packages/horizon-be
+      - run: npm run build
+        working-directory: packages/horizon-be
+      # No .env in CI, so smoke-env.sh starts from .env.example
+      - run: bash scripts/smoke-env.sh "$HORIZON_ENV_FILE"
+      - name: Create the databases and run the migrations (they seed the demo accounts)
+        run: bash scripts/db-setup.sh
+      - name: Start the backend (built, as in production)
+        run: |
+          bash -c 'source scripts/env.sh && cd packages/horizon-be && exec node dist/main.js' \
+            > backend.log 2>&1 &
+          for i in $(seq 60); do
+            curl -fsS -o /dev/null http://127.0.0.1:8101/auth/authorize && exit 0
+            sleep 1
+          done
+          echo '::error::The backend did not answer on :8101 within 60 seconds'
+          exit 1
+      - run: node scripts/api-smoke.mjs http://127.0.0.1:8101 smoke.json
+      - name: Backend log
+        if: failure()
+        run: cat backend.log || true
 
   frontend:
     runs-on: ubuntu-latest

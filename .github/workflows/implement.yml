@@ -27,7 +27,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      actions: write # start CI on the branch
+      actions: write # poke the queue
       id-token: write
     env:
       GH_TOKEN: ${{ github.token }}
@@ -53,6 +53,9 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          # Keep the workflow token out of git so Claude's push uses the Claude app's token,
+          # which starts CI and the review (see resolve.yml)
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -94,8 +97,11 @@ jobs:
             5. `gh pr create --base main --label agent-pr` with a short title and a body that
                has `Closes #${{ inputs.issue }}`, what changed, how you checked it (and what you
                couldn't), which of the issue's "Done when" items are met, and anything the owner
-               must do on deploy (a prod.env change, a manual step). If it needs such a step, or
-               it's risky enough that a person should look first, also pass `--label hold`.
+               must do on deploy (a prod.env change, a manual step on the server). Pass
+               `--label hold` only if it needs such a step, so it can't deploy safely without
+               the owner. Never add `hold` because a change is large, risky-looking or visual,
+               or for a follow-up you can't do yourself (such as a `.github/` change): list
+               those under "Follow-ups" and let the PR merge.
 
             If the issue needs a decision from the owner, or you can't finish it safely, open no
             PR: explain what's needed with `gh issue comment ${{ inputs.issue }}` and stop.
@@ -108,11 +114,11 @@ jobs:
             --max-turns 200
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(ls:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*),Bash(gh pr create:*),Bash(gh issue comment:*)"
 
-      # The push used the workflow token, which starts no workflows, so start CI on the branch
-      # (the review starts by itself: the PR was opened by the Claude app). No PR means the agent
-      # stopped: park the issue so the queue moves on, and tell the owner. Either way, poke the
-      # queue (it waits for this run to finish).
-      - name: Start CI on the branch, or report
+      # CI and the review start by themselves: the Claude app opened the PR, and ci.yml runs on
+      # pull_request (a dispatched CI run wouldn't count toward its required checks; #40). No PR
+      # means the agent stopped: park the issue so the queue moves on, and tell the owner. Either
+      # way, poke the queue (it waits for this run to finish).
+      - name: Label the PR, or report
         if: always() && steps.check.outcome == 'success'
         run: |
           set -euo pipefail
@@ -125,8 +131,7 @@ jobs:
           branch=$(jq -r '.headRefName // empty' <<<"$found")
           if [ -n "$pr" ]; then
             gh pr edit "$pr" -R "$GITHUB_REPOSITORY" --add-label agent-pr # in case Claude left it off
-            gh workflow run ci.yml -R "$GITHUB_REPOSITORY" --ref "$branch"
-            echo "PR #$pr on $branch; started CI"
+            echo "PR #$pr on $branch"
             # A PR opened with `hold` is parked at once, so the queue can move on
           else
             gh issue edit "$ISSUE" -R "$GITHUB_REPOSITORY" --add-label agent-stuck

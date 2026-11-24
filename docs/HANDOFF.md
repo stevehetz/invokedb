@@ -8,7 +8,8 @@ revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the comm
 what to do next. Git history has the details of past work. The longer-term plans sit beside it
 in `docs/`: `INFRASTRUCTURE_PLAN.md` (the current direction: a trial-only showcase on one
 server, keeping Mongo), `SAAS_PLAN.md` (turning it into a SaaS) and `AI_IDEAS.md` (AI
-features).
+features). **`OPERATIONS.md`** is the one place for how production is run and watched: each
+outside service and GitHub workflow, its secrets by name, who it alerts and how to check it.
 
 ## Start here
 
@@ -16,29 +17,68 @@ features).
 2. **Direction** (see `docs/INFRASTRUCTURE_PLAN.md`): learning plus a showcase, a Stripe
    trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
-   backups, uptime monitoring and support email routing are live. **Work is tracked in GitHub
-   Issues, ordered on the Project board "InvokeDB"** (AGENTS.md, "How work is tracked");
-   the open items from "Next steps" below are issues #5–#19. CI/CD is live (every push to `main` deploys after
-   CI), and so are Claude review, repair and auto-merge (tested end to end 2026-11-24). The code
-   review is done (`docs/CODE_REVIEW.md`); its fixes, the operations docs, the production
-   check and 5b are the issues, in the board's order. Check backend changes with the backend build (see
-   `verify-backend`), and frontend changes with the frontend build and lint.
+   backups, uptime monitoring and support email routing are live.
+   **Work is tracked in GitHub Issues on the Project board "InvokeDB"**
+   (https://github.com/users/stevehetz/projects/1; AGENTS.md, "How work is tracked"). There is
+   no WORKSTREAM file any more (retired 2026-11-24, #5): "what's next" is the board.
+   **Where things stand (end of 2026-11-24, ~18:05 UTC):**
+   - **Merged today** (all deployed): Stripe/Azure removal (#6), dead files (#7), backend ESLint
+     (#9), one frontend HTTP client + bundled CDN assets + bundle split + per-component Element
+     Plus (#11: PRs #45, #65), frontend `typecheck` script + moment dropped (#14), ops docs
+     `docs/OPERATIONS.md` (#15), Google and GitHub sign-in (#17, live, see 5b), ag-grid 36 with
+     the Theming API (#18), Nest 12 / TypeORM 1.x / mongodb 7 (#19), and the workflow fixes
+     below.
+   - **First thing next: #67.** PRs that `automerge.yml` merges don't close their issues (GitHub
+     ignores `Closes #N` on a merge made with the workflow token; the user's own merges close
+     them fine). The open `agent` issue then goes back into the queue: #11 got a second PR
+     (#65), and #14 and #19 were re-run, found nothing to do and went `agent-stuck`. #11, #14
+     and #19 were closed by hand. Until #67 is fixed, close the issue of every auto-merged PR
+     by hand (`gh issue close <n> --reason completed`).
+   - **Cloud agent queue:** running, in board order (`PROJECTS_TOKEN` set). At handoff
+     `implement.yml` was working **#26** (missing column name returns 500). `agent-stuck`:
+     #10 (CI/Dependabot/PR template; changes `.github/`, better in a local session) and #12
+     (its run failed at once during a usage limit; remove the label to retry).
+   - **Not labelled `agent` yet:** #56 (add `npm run typecheck` to CI's `frontend` job; touches
+     `.github/`), #60 (chunk sizes; #65 did most of it, see its comment), #64 (Row column
+     filter styled white since ag-grid 36), #66 (login card too short for the SSO buttons;
+     fixed `height: 370px`). #64 and #66 need the user to look in a browser after.
+   - **Workflow changes today** (details in AGENTS.md):
+     - Docs-only (Markdown) changes go straight to `main` with no PR (#51): the ruleset's admin
+       bypass is "Always", a Markdown-only push runs no CI, and `ci-deploy.sh` deploys the tip
+       when only Markdown changed after the checked commit (#53, reinstalled on the server
+       with `install-ci`).
+     - `hold` is only for PRs that need a `prod.env` change or a manual server step, never for
+       large or visual changes (#57).
+     - CI's `deploy` job also starts `resolve.yml`, since an auto-merge sends no `workflow_run`
+       (#62). `persist-credentials: false` works: resolve's push on #54 started CI and review.
+   - **To check on it:** `gh pr list --label agent-pr`, `gh issue list --label agent-stuck`,
+     `gh run list -w implement.yml`. Merge `needs-owner` PRs when the user says so.
+   - Owner-only issues (`you`): #13 (pick a licence), #16 (check signup, tables, CSV upload and
+     the API in production by hand; now also Google/GitHub sign-in end to end).
+   - **Offered, not yet an issue:** run the Playwright UI smoke test (`ui-smoke.mjs`) in CI.
+   - `PROJECTS_TOKEN` is set (2026-11-24; classic token, `project` scope only): the queue follows
+     board order, and #69 will use it to add `agent-found` issues to the board.
+
+   Check backend changes with the backend build and `npm test` (see `verify-backend`), and
+   frontend changes with the frontend build, lint and `typecheck`; CI runs the API smoke test on every PR.
+
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
    `compose`, `bootstrap`) only when the user asks. `up` ships the committed `HEAD` of whatever
    branch is checked out, so deploy from `main`.
 4. **Don't run the smoke tests locally** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user
-   asks. CI's `smoke` job runs `api-smoke.mjs` on every push (since 2026-11-24, #8), with the
+   asks. CI's `smoke` job runs `api-smoke.mjs` on every PR push and on `main` (since 2026-11-24, #8), with the
    backend unit tests (`npm test`) in the `backend` job.
 5. Work on a branch and open a pull request (CI and the Claude review run on it). Merging to
    `main` deploys. Safe PRs merge themselves (AGENTS.md, "Auto-merge"); the rest wait for the
-   user.
+   user. Docs-only (Markdown) changes skip all that: commit on `main` and push (no CI, no
+   deploy; #51).
 
 ## Current state
 
 - **Runs locally:** `npm run dev` starts the backend (:8001, ws :9000) and the frontend (:8000,
   public site at `/`, app at `/app`). Login, the API and Mongo writes work.
 - **Done and on `main`:** local dev revamp, legacy-ops clean-up, secrets sync, demo data,
-  backend upgrade (NestJS 11, TypeORM 0.3, mongodb 6), agent tooling + prettier, UI smoke test,
+  backend upgrade (NestJS 11, TypeORM 0.3, mongodb 6; then Nest 12, TypeORM 1.x, mongodb 7 in #19), agent tooling + prettier, UI smoke test,
   `horizon-auth-fe` merged into `horizon-fe`, Vue CLI → Vite 6, account scoping fix (0.05),
   frontend on Vue 3 + Element Plus + ag-grid 32 (2.3–2.5), the websocket server token in an env
   var (3), `HANDOFF.md`, `AI_IDEAS.md` and `SAAS_PLAN.md` moved from the repo root into
@@ -57,21 +97,45 @@ features).
 ## Things to know
 
 - **GitHub automation (2026-11-24).** `main` has a ruleset (PR required, CI checks `backend`,
-  `frontend`, `format` must pass), so every change goes through a PR. Workflows: `ci.yml`
-  (every push), `cd.yml` (deploys `main` after CI; see `deploy/README.md`), `review.yml`
-  (Claude reviews same-repo PRs, labels them `review-ok`/`review-changes`), `repair.yml`
-  (on a CI/CD failure, Claude opens a fix PR or an issue), `implement.yml` + `agent-queue.yml`
-  (the cloud agent works `agent`-labelled issues one at a time; AGENTS.md "The cloud agent",
-  #24), `revise.yml` (Claude addresses review comments on agent and repair PRs, two rounds at
-  most; #33), `automerge.yml` (merges PRs into `main`
-  that pass CI and review and touch no held path, and repair's fix PRs into feature branches;
-  added 2026-11-24, #21; a held PR gets `needs-owner`, and `hold` opts a PR out). Claude runs on the user's subscription through the
-  Claude GitHub App (`CLAUDE_CODE_OAUTH_TOKEN` repo secret). The action only runs a workflow
-  file identical to `main`'s, so a PR that changes `review.yml` isn't reviewed by it. Repair starts CI on its fix branch
-  with `workflow_dispatch`, so a feature branch cut before 2026-11-24 (`c82f901`) needs
-  `main` merged in for repair to work on it. Tested end to end on 2026-11-24 (PR #4). Deploy
-  secrets live in the GitHub `production` environment; the server's settings are
-  `/opt/invokedb/prod.env`, changed only with `deploy.sh env` or `up` from the Mac.
+  `frontend`, `format`, `smoke` must pass), so every change goes through a PR. Workflows: `ci.yml`
+  (every push to a PR and to `main`; #42), `cd.yml` (deploys `main` after CI; see
+  `deploy/README.md`), `review.yml` (Claude reviews same-repo PRs, labels them
+  `review-ok`/`review-changes`), `repair.yml` (on a CI/CD failure, Claude opens a fix PR or an
+  issue), `implement.yml` + `agent-queue.yml` (the cloud agent works `agent`-labelled issues one at
+  a time; AGENTS.md "The cloud agent", #24), `revise.yml` (Claude addresses review comments on agent
+  and repair PRs, two rounds at most; #33), `resolve.yml` (merges `main` into conflicting agent and
+  repair PRs; #46), `automerge.yml` (merges PRs into `main` that pass CI and review and touch no
+  held path, and repair's fix PRs into feature branches; added 2026-11-24, #21; a held PR gets
+  `needs-owner`, and `hold` opts a PR out). Claude runs on the user's subscription through the
+  Claude GitHub App (`CLAUDE_CODE_OAUTH_TOKEN` repo secret). The action only runs a workflow file
+  identical to `main`'s, so a PR that changes `review.yml` isn't reviewed by it. Tested end to end
+  on 2026-11-24 (PR #4). Deploy secrets live in the GitHub `production` environment; the server's
+  settings are `/opt/invokedb/prod.env`, changed only with `deploy.sh env` or `up` from the Mac.
+
+- **GitHub Actions gotchas learned building the automation (2026-11-24):**
+  - Anything done with the **workflow token** (`github.token`: merges, pushes, labels,
+    comments) starts no other workflows, and `workflow_run` doesn't fire for runs it started.
+    Only `workflow_dispatch` is exempt. So `automerge.yml` starts CI on `main` after merging,
+    CI's `deploy` job starts `cd.yml` (#27), and the agent workflows poke `agent-queue.yml`
+    directly; the queue also runs every 30 minutes as a safety net.
+  - Inside `claude-code-action`, `gh` uses the **Claude app's token**, which does start
+    workflows (a PR Claude opens gets CI and the review). `git push` only does if checkout ran
+    with `persist-credentials: false`: the action is meant to strip checkout's saved workflow
+    token but doesn't with `actions/checkout@v7` (#46).
+  - A CI run started with `workflow_dispatch` passes on the PR's head commit but **doesn't
+    count toward the PR's required checks** (the PR shows them "Expected — waiting"). Only a
+    `pull_request` or `push` run does (#40).
+  - `claude-code-action` refuses runs started by a bot unless it's in `allowed_bots`
+    (`implement.yml`, `revise.yml` and `resolve.yml` allow `github-actions,claude`; #35).
+  - It also only runs a workflow file identical to `main`'s, so a PR that changes `review.yml`
+    gets no real review. The verdict step then says "The review left no verdict line" and
+    labels it `review-changes` (as on #31, #34); that's expected, and such PRs are held for
+    the user anyway (`.github/`).
+  - The review's verdict label is set by a shell step from a `Verdict:` line in Claude's
+    summary (#30); Claude itself can't run `gh pr edit` there.
+  - `gh --jq` has no `--arg`; use `env.NAME` inside the filter.
+  - A PR merged with the workflow token doesn't close the issues its `Closes #N` names
+    (#67); only a merge by a person does.
 
 - **Check `deploy/prod.env` before any `deploy.sh up`.** `up` copies the local file over the
   server's. On 2026-11-23 the repo copy was stale (no Telegram, backup or Healthchecks
@@ -84,13 +148,18 @@ features).
 - **`HORIZON_WS_SERVER_TOKEN`** is the shared secret that backend processes register with the
   websocket broker. It's optional locally (random per process) and required elsewhere (startup
   fails without it). Every process in a deployment needs the same value.
-- **Stripe isn't in use**, and the old keys are deliberately not rolled. If it comes back, create
-  new keys. `/checkout` throws `Please call Stripe() with your publishable key` without them.
+- **Stripe was removed** (2026-11-24, #6): the routes, the SDK, the `/checkout` page and the
+  Stripe script are gone; the `subscription` / `stripe_env` tables and the account's `stripe_*`
+  columns stay until a migration drops them. The old keys are deliberately not rolled. If paid
+  plans come back, write it fresh on the current SDK with new keys and webhook signature checks.
 - The two areas' global stylesheets still clash (see AGENTS.md); unifying them would let
   cross-area links use the router. Optional.
 - The entry JS is a single 2.3 MB chunk (577 kB gzip). Vite warns; splitting it is optional.
 - `/api/v1/get` leaves out empty cells. That looks intended.
-- `docs/ops/` holds the old Azure/AKS ops notes, for reference only.
+- The old Azure/AKS setup (`ops/`, `docs/ops/`, the `prod:*` scripts) and the demo database
+  dump were deleted (2026-11-24, #6); git history has them. `npm run db:demo` now loads the
+  example tables through the API (`examples/setup.mjs`). The unused `horizon_logs` database and
+  its Postgres log transport are gone too; an existing local `horizon_logs` DB can be dropped.
 - **Production secrets** are in `deploy/prod.env` (gitignored; DB passwords, websocket token,
   Mailgun key, droplet IP, SSH key path `~/.ssh/invokedb`). It and the SSH key pair are synced
   to Dropbox with the other secrets by `npm run secrets:push`/`pull` (the key under `home/` in
@@ -129,8 +198,8 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   and reset-token expiry are enforced (they never were), sessions are revoked when a password
   reset completes instead of when it's requested, and `batch_delete` now drops the Mongo data of
   every deleted table (it only did the last one). `api-smoke.mjs` has 19 new cross-account
-  checks as `demo2@invokedb.com`; the pre-fix code fails all of them. Left alone: the Stripe
-  `/webhook/stripe` route doesn't verify signatures (Stripe is off; fix before it comes back).
+  checks as `demo2@invokedb.com`; the pre-fix code fails all of them. Left alone then: the Stripe
+  `/webhook/stripe` route didn't verify signatures (removed with the rest of Stripe in #6).
 - **2.3–2.5: done** (2026-11-15). Element Plus and `ag-grid-vue3` need
   Vue 3, so 2.3 couldn't happen on Vue 2.7; all three steps were done together, straight to Vue
   3.5 (no compat build): vue-router 4, Element Plus 2.14 (app theme in `src/element-theme.scss`),
@@ -154,8 +223,10 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   reads the CSV with backpressure so every batch insert is awaited in order, and timeouts are
   per job (an old job's 30-minute timer could fail a later one). The column type change in
   `WebFileManager` got a per-call deadline too. Checked with the backend build only.
-- **2.6 (optional):** ag-grid 32 → current (Theming API, module registration), and move the
-  SCSS off the Sass deprecations that `vite.config.js` silences (`@import`, global `lighten()`).
+- **2.6 (optional):** ag-grid 32 → 36 (Theming API, module registration), and move the SCSS
+  off the Sass deprecations that `vite.config.js` silenced (`@import`, global `lighten()`), #18.
+  The app's own SCSS was already on `@use`/`color.adjust`, and the build shows no Sass
+  warnings without the silences, so they're gone. The grid's look still needs a check by eye.
 - **3: done** (2026-11-15). `WS_SERVER_TOKEN` moved from `constants.ts` to the
   `HORIZON_WS_SERVER_TOKEN` env var (see Things to know). The old hardcoded value is in the public
   history and no longer works. `FS_TOKEN` was unused and is gone. An empty token never counts as
@@ -241,14 +312,18 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   - **Later:** a bigger droplet (a resize keeps the data; raise `MONGO_CACHE_GB` and `PRC_CPUS`),
     managed DBs, or more servers, if it ever needs them. It's all standard Docker, Postgres and
     Mongo, so moving is a migration, not a rewrite.
-  - `ops/` (the old AKS/Helm setup) still builds a separate `horizon-auth-fe`; leave it for
-    reference or delete it.
+  - `ops/` (the old AKS/Helm setup) was deleted in #6.
 - **5a (domain): done.** `invokedb.com` was bought on Cloudflare Registrar on 2026-11-14, so its
   DNS is on Cloudflare. The A records (`@`, `www`, `api`, `ws`) are DNS-only (grey cloud),
   so Caddy's Let's Encrypt certificates issue simply; turning on the proxy later needs SSL set
   to Full (strict). Cloudflare Email Routing can forward `@invokedb.com` mail for free; Mailgun
   needs its DNS records added there if outbound email comes back.
-- **5b (single sign-on: Google and GitHub):** after 5 and 5a, since the OAuth apps need real
+- **5b (single sign-on: Google and GitHub): live** (2026-11-24, #17, PR #54). The GitHub OAuth
+  App "InvokeDB" is under `stevehetz`; the Google client "InvokeDB web" is in the Cloud project
+  `invokedb` owned by `stevehetzel2@gmail.com` (published, External; consent-screen support email
+  is that account, the only one allowed). Both register the production and `127.0.0.1:8001`
+  callbacks. The IDs and secrets are `GOOGLE_*` / `GITHUB_*` in `prod.env` and `.env`, pushed to
+  the server with `deploy.sh env`. Original plan, kept for reference: after 5 and 5a, since the OAuth apps need real
   callback URLs (also register `http://127.0.0.1:8001` callbacks for local dev). Today login is
   email + bcrypt password, which creates an `internal_…` `Session` token that
   `application/auth/http.strategy.ts` validates as a bearer token. Plan: add
@@ -259,8 +334,13 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `password_hash` nullable. Link an SSO login to an existing account only by a **verified**
   email (for GitHub, fetch `/user/emails` and take the primary verified one). Add the buttons to
   the login and signup pages, and the client IDs/secrets to `src/env.ts` and `.env`.
-- **6 (backend, optional):** Nest 12 / TypeORM 1.x, `stripe` 8 → current (only if Stripe comes
-  back), `tslint` → ESLint, and `npm audit` (15 issues, mostly dev tooling).
+  **Code written** (#17): `src/web/http/auth/sso.controller.ts`, `application/auth/sso/`, the
+  `AccountIdentity` migration, `horizon-fe/src/view/sso/`. The OAuth state lives in a
+  short-lived cookie on the API host (no server sessions), and the token comes back in the URL
+  fragment with a nonce the login page checks. An SSO login never links to an account that has
+  a password (`password_account` error), since password signup doesn't verify the email. Still to do by the owner: create the OAuth apps
+  and set the four `*_CLIENT_*` values (see `docs/OPERATIONS.md`).
+- **6 (backend, optional):** Nest 12 / TypeORM 1.x (#19) and `npm audit`. `tslint` → ESLint is done (#9).
 - **7 (code review, requested 2026-11-24): findings written** (2026-11-24) in
   `docs/CODE_REVIEW.md`; all of them became issues #6–#14. Review the whole codebase (`horizon-be`,
   `horizon-fe`, `deploy/`, `scripts/`, `examples/`, `.github/`) for clean-up: dead code,
@@ -270,7 +350,7 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   type-checking the frontend, a root `typecheck`, editor config, a PR template). The output
   is a written list of findings, ranked, each with a suggested fix; the user picks which ones
   become work.
-- **8 (operations docs, requested 2026-11-24): issue #15.** Write docs in `docs/` that explain
+- **8 (operations docs, requested 2026-11-24): done** (#15), in `docs/OPERATIONS.md`. Asked for: docs in `docs/` that explain
   everything set up recently, in one place: the monitoring and integrations (Mailgun,
   Telegram bot, UptimeRobot, Healthchecks.io, Cloudflare DNS and Email Routing with the
   `invokedb-email` Worker, the support Gmail) and the delivery side (CI/CD, the GitHub

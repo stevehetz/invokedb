@@ -1,11 +1,10 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import { Repository, createQueryBuilder } from 'typeorm';
+import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from '@app/core/account/account.entity';
 import { AccountManager } from '@app/core/account/account.manager';
 import { AccountUpdateDto } from './dto/account-update.dto';
 import { AccountPassChangeDto } from './dto/account-pass-change.dto';
-import { StripeEnvService } from '../stripe.service/stripe.service';
 
 @Injectable()
 export class AccountService {
@@ -13,21 +12,11 @@ export class AccountService {
     constructor(
         @InjectRepository(Account)
         private readonly account_repository: Repository<Account>,
-        private account_manager: AccountManager,
-        private stripe_env_service: StripeEnvService
+        private account_manager: AccountManager
     ) {}
-
-    async get_stripe_env(account) {
-        return await this.stripe_env_service.get(account.stripe_env_id);
-    }
 
     async get(id) {
         return await this.account_repository.findOneBy({ id });
-    }
-
-    async get_by_stripe_customer_id(stripe_customer_id) {
-        if (!stripe_customer_id) return null;
-        return await this.account_repository.findOneBy({ stripe_customer_id });
     }
 
     async account_from_key(api_key) {
@@ -84,12 +73,6 @@ export class AccountService {
     }
 
     async delete_account(account_id) {
-        const account = await this.get(account_id);
-        const stripe_env = await this.get_stripe_env(account);
-        const stripe = require('stripe')(stripe_env.stripe_account_secret_key);
-        if (account.stripe_subscription_id) {
-            await stripe.subscriptions.del(account.stripe_subscription_id);
-        }
         return await this.account_repository.update({ id: account_id }, { deleted: true });
     }
 }

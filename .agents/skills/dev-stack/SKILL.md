@@ -73,6 +73,9 @@ and `dg:column:file_<fileId>:acct_<accountId>`. Usage counters live in `horizon:
 ## Reset / demo data (ask the user first: it replaces their local data)
 
 ```sh
-npm run db:reset          # drops Postgres horizon/horizon_logs + Mongo horizon*, re-migrates
-npm run db:demo -- --yes  # loads ops/shared/dumps/demo (3 sample tables under demo@invokedb.com)
+npm run db:reset          # drops Postgres horizon + Mongo horizon*, re-migrates
+npm run db:demo -- --yes  # db:reset, then loads examples/data (3 tables under demo@invokedb.com)
 ```
+
+`db:demo` starts its own backend to load the tables through the API (`examples/setup.mjs`), so
+stop `npm run dev` first.

@@ -2,15 +2,12 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ObjectId } from 'mongodb';
-import moment from 'moment';
 import { MongoDbCollections } from '../mongodb/collections';
 import { TrackingManager } from '../tracking/tracking.manager';
 import { Account } from '../account/account.entity';
 import _c from '@app/constants';
 import logger from '@app/logger';
-
-const _m: any = moment;
-_m.suppressDeprecationWarnings = true;
+import { parse_utc_date, format_date } from '../date';
 
 const MAX_FIELD_VALUE_LENGTH = 2000;
 const MAX_COLUMN_VALUE_LENGTH = 100;
@@ -114,7 +111,8 @@ export class WebFileManager {
 
     format_date_field(value) {
         try {
-            value = moment.utc(value).format('YYYY-MM-DD hh:mm:SS A');
+            // `SS` is hundredths of a second, as it was with moment (see the PR for #14)
+            value = format_date(parse_utc_date(value), 'YYYY-MM-DD hh:mm:SS A', true);
         } catch (ex) {}
         return value;
     }
@@ -320,7 +318,7 @@ export class WebFileManager {
     build_find_obj(filter) {
         if (filter.col_type === 'date') {
             try {
-                filter.value = moment.utc(filter.value).toDate();
+                filter.value = parse_utc_date(filter.value);
             } catch (ex) {}
         }
         if (filter.type === 'contains') {
@@ -651,7 +649,7 @@ export class WebFileManager {
                 if (value.trim && value.trim() === '') {
                     value = null;
                 } else {
-                    value = moment.utc(value).toDate();
+                    value = parse_utc_date(value);
                 }
             }
         } catch (ex) {}
@@ -717,12 +715,13 @@ export class WebFileManager {
         const reserved = ['$or', '$and', 'row', 'row_num', 'row num', 'rownum'];
         const names = columns.map(c => c.headerName);
         const regex = new RegExp(/^[A-Za-z0-9-_\s\.\$!]+$/, 'g');
-        if (names.includes(name)) {
-            throw new HttpException(`Duplicate column name: ${name}`, HttpStatus.FORBIDDEN);
-        } else if (name && reserved.indexOf(name.toLowerCase()) > -1) {
-            throw new HttpException(`${name} is a reserved column name`, HttpStatus.FORBIDDEN);
-        } else if (name.trim() === '') {
+        // A missing or non-string name (no headerName in the body) is an empty column, not a 500
+        if (typeof name !== 'string' || name.trim() === '') {
             throw new HttpException('Columns cannot be empty', HttpStatus.FORBIDDEN);
+        } else if (names.includes(name)) {
+            throw new HttpException(`Duplicate column name: ${name}`, HttpStatus.FORBIDDEN);
+        } else if (reserved.indexOf(name.toLowerCase()) > -1) {
+            throw new HttpException(`${name} is a reserved column name`, HttpStatus.FORBIDDEN);
         } else if (name.length > MAX_COLUMN_VALUE_LENGTH) {
             throw new HttpException(
                 `Column value cannot be greater than ${MAX_COLUMN_VALUE_LENGTH} characters`,

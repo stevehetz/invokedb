@@ -72,12 +72,6 @@
                         v-if="!account"
                         >Get Started</router-link
                     >
-                    <router-link
-                        :to="checkout_link"
-                        class="change-plan-link pricing-button"
-                        v-if="account"
-                        >Change Plan</router-link
-                    >
                 </div>
                 <div class="pricing-block">
                     <p class="title">Basic</p>
@@ -111,12 +105,6 @@
                         class="pricing-button"
                         v-if="!account"
                         >Get Started</router-link
-                    >
-                    <router-link
-                        :to="checkout_link"
-                        class="change-plan-link pricing-button"
-                        v-if="account"
-                        >Change Plan</router-link
                     >
                 </div>
                 <div class="pricing-block">
@@ -152,12 +140,6 @@
                         v-if="!account"
                         >Get Started</router-link
                     >
-                    <router-link
-                        :to="checkout_link"
-                        class="change-plan-link pricing-button"
-                        v-if="account"
-                        >Change Plan</router-link
-                    >
                 </div>
                 <!-- <div class="pricing-block">
                     <p class="title">Premium</p>
@@ -178,11 +160,7 @@
                     <p class="item"><i class="fa fa-check"></i> Column sorting</p>
                     <router-link to="/create-account"
                                  class="pricing-button"
-                                 v-if="!account">Get Started</router-link>
-                    <router-link :to="checkout_link"
-                                 class="change-plan-link pricing-button"
-                                 v-if="account">Change Plan</router-link>
-                </div> -->
+                                 v-if="!account">Get Started</router-link>                </div> -->
             </div>
         </div>
         <div class="pricing-body desktop">
@@ -490,42 +468,20 @@
                         <router-link to="/create-account" v-if="!account"
                             >Get Started</router-link
                         >
-                        <router-link
-                            :to="checkout_link"
-                            class="change-plan-link"
-                            v-if="account"
-                            >Change Plan</router-link
-                        >
                     </div>
                     <div class="col col-20">
                         <router-link to="/create-account" v-if="!account"
                             >Get Started</router-link
                         >
-                        <router-link
-                            :to="checkout_link"
-                            class="change-plan-link"
-                            v-if="account"
-                            >Change Plan</router-link
-                        >
                     </div>
                     <div class="col col-20">
                         <router-link to="/create-account" v-if="!account"
                             >Get Started</router-link
-                        >
-                        <router-link
-                            :to="checkout_link"
-                            class="change-plan-link"
-                            v-if="account"
-                            >Change Plan</router-link
                         >
                     </div>
                     <!-- <div class="col col-20">
                         <router-link to="/create-account"
-                                     v-if="!account">Get Started</router-link>
-                        <router-link :to="checkout_link"
-                                     class="change-plan-link"
-                                     v-if="account">Change Plan</router-link>
-                    </div> -->
+                                     v-if="!account">Get Started</router-link>                    </div> -->
                 </div>
             </div>
         </div>

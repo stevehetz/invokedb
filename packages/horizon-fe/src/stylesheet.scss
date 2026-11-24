@@ -783,10 +783,6 @@ $nav_active_color: #ffffff;
 }
 
 .h-data-grid {
-    // ag-grid reads these from its theme CSS, which the app doesn't load (it styles the grid itself)
-    --ag-row-height: 30px;
-    --ag-header-height: 35px;
-    --ag-list-item-height: 24px;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -2167,30 +2163,8 @@ $page_nav_active_color: #dcb467;
     margin-left: 20px;
     display: inline-block;
 }
-.account-page .subscription-form .subscription-end-message {
-    display: flex;
-    align-items: center;
-    margin-bottom: 30px;
-    font-size: 14px;
-    font-weight: bold;
-    color: $gray300;
-}
-.account-page .subscription-form .subscription-end-message i {
-    margin-right: 5px;
-    font-size: 16px;
-}
-.account-page .subscription-form .subscription-end-message.end {
-    color: #da7a55;
-}
-.account-page .subscription-form .subscription-end-message.renew {
-    color: #5590da;
-}
 .account-page .subscription-form a {
     display: inline-block;
-}
-.account-page .subscription-form .change-plan-link {
-    margin-right: 20px;
-    color: $blue400;
 }
 .account-page .subscription-form .pricing-link {
     color: #449744;

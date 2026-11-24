@@ -1,0 +1,202 @@
+# When a PR's branch conflicts with main (usually because another PR that changed the same files,
+# often package.json and its lockfile, merged first), Claude merges main into the branch, resolves
+# the conflicts, checks the result and pushes. The push starts CI and a fresh review, and
+# automerge.yml takes it from there. Runs on agent PRs (`agent-pr`), repair's fix PRs
+# (`claude/fix-*`), and any other PR the owner labels `agent-fix`.
+#
+# Runs after CI on main finishes (every merge ends in one), every 30 minutes as a safety net, and
+# by hand with a PR number. CI on main after an auto-merge sends no workflow_run event (it was
+# started with the workflow token), so CI's `deploy` job starts this one directly (#62). One
+# attempt per PR per main commit: if Claude can't resolve it, or a PR still conflicts with a main
+# it already tried, the PR gets `agent-stuck` and the owner is mentioned. Auth as in review.yml.
+#
+# persist-credentials: false keeps checkout's workflow token out of git, so Claude's push uses
+# the Claude app's token (the action's credential helper), which starts CI and the review. A
+# push with the workflow token starts nothing, and a dispatched CI run doesn't count toward a
+# PR's required checks (#40, #46).
+name: Resolve conflicts
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '20,50 * * * *'
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: PR number (empty checks every open PR, as the schedule does)
+        required: false
+
+permissions: {}
+
+concurrency:
+  group: resolve
+  cancel-in-progress: false
+
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write # labels
+      issues: write # comments
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OWNER: ${{ github.repository_owner }}
+      INPUT_PR: ${{ inputs.pr }}
+      MARKER: '<!-- resolve-conflicts'
+    outputs:
+      prs: ${{ steps.find.outputs.prs }}
+    steps:
+      - name: Find conflicting PRs
+        id: find
+        run: |
+          set -euo pipefail
+          R="$GITHUB_REPOSITORY"
+          main_sha=$(gh api "repos/$R/commits/main" --jq .sha)
+          if [ -n "$INPUT_PR" ]; then
+            [[ "$INPUT_PR" =~ ^[0-9]+$ ]] || { echo "::error::Not a PR number"; exit 1; }
+            sel=".number == $INPUT_PR"
+          else
+            sel='true'
+          fi
+          candidates=$(gh pr list -R "$R" --state open --base main --limit 200 \
+            --json number,headRefName,labels,isCrossRepository,isDraft \
+            --jq "[.[] | select($sel) | select(.isCrossRepository | not) | select(.isDraft | not)
+                   | select(.labels | map(.name) | index(\"agent-stuck\") | not)] | .[]" | jq -c .)
+          todo='[]'
+          while read -r pr; do
+            [ -n "$pr" ] || continue
+            number=$(jq -r .number <<<"$pr")
+            branch=$(jq -r .headRefName <<<"$pr")
+            has() { jq -e --arg l "$1" '.labels | map(.name) | index($l)' <<<"$pr" >/dev/null; }
+            if [ -z "$INPUT_PR" ] && ! has agent-pr && [[ "$branch" != claude/fix-* ]]; then
+              # Someone else's PR: only if the owner asked with the agent-fix label
+              has agent-fix || continue
+              by=$(gh api "repos/$R/issues/$number/events" --paginate \
+                --jq '.[] | select(.event == "labeled" and .label.name == "agent-fix") | .actor.login' | tail -n 1)
+              [ "$by" = "$OWNER" ] || continue
+            fi
+            # GitHub computes mergeability lazily: ask until it has an answer
+            state=UNKNOWN
+            for _ in 1 2 3 4 5 6 7 8 9 10; do
+              state=$(gh pr view "$number" -R "$R" --json mergeable --jq .mergeable)
+              [ "$state" != UNKNOWN ] && break
+              sleep 6
+            done
+            echo "PR #$number ($branch): $state"
+            [ "$state" = CONFLICTING ] || continue
+            tried=$(gh api "repos/$R/issues/$number/comments" --paginate \
+              --jq "[.[] | select(.body | contains(env.MARKER + \" $main_sha\"))] | length" |
+              awk '{s+=$1} END {print s+0}')
+            if [ "$tried" -gt 0 ]; then
+              gh pr edit "$number" -R "$R" --add-label agent-stuck
+              gh pr comment "$number" -R "$R" --body "@$OWNER this PR still conflicts with main ($main_sha) after an automatic attempt to resolve it, so it needs you."
+              continue
+            fi
+            todo=$(jq -c --argjson n "$number" --arg b "$branch" --arg m "$main_sha" \
+              '. + [{pr: $n, branch: $b, main: $m}]' <<<"$todo")
+          done <<<"$candidates"
+          echo "To resolve: $todo"
+          echo "prs=$todo" >> "$GITHUB_OUTPUT"
+
+  resolve:
+    needs: find
+    if: needs.find.outputs.prs != '[]' && needs.find.outputs.prs != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.find.outputs.prs) }}
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OWNER: ${{ github.repository_owner }}
+      PR: ${{ matrix.pr }}
+      BRANCH: ${{ matrix.branch }}
+      MAIN_SHA: ${{ matrix.main }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Record the attempt
+        run: |
+          echo "OLD_SHA=$(gh pr view "$PR" -R "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)" >> "$GITHUB_ENV"
+          gh pr comment "$PR" -R "$GITHUB_REPOSITORY" --body "This PR conflicts with main; merging main in and resolving: $RUN_URL <!-- resolve-conflicts $MAIN_SHA -->"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Runs after CI runs started by the workflow token, and on a schedule
+          allowed_bots: github-actions,claude
+          prompt: |
+            PR #${{ matrix.pr }} (branch `${{ matrix.branch }}`, checked out) conflicts with
+            main. Merge main into it and resolve the conflicts. Nobody is watching.
+
+            Read AGENTS.md first and follow it. Run `gh pr view ${{ matrix.pr }}` to see what
+            the PR is for, and `git log --oneline HEAD..${{ matrix.main }}` to see what main
+            changed since.
+
+            1. `git merge --no-edit ${{ matrix.main }}` (it's fetched).
+            2. Resolve every conflict so that both sides' intent survives: keep what main
+               added or removed, and keep what this PR adds or removes. Read the commits on
+               both sides when the intent isn't clear from the hunk.
+               - A `package-lock.json`: resolve `package.json` first, then take main's lockfile
+                 (`git checkout --theirs <lockfile>`) and regenerate it with
+                 `npm install --package-lock-only --no-audit --no-fund` in that folder (add
+                 `--omit=optional` in packages/horizon-be).
+               - Never edit a migration that's already on main.
+            3. Check the result as AGENTS.md says (install with `npm ci --omit=optional
+               --no-audit --no-fund` in packages/horizon-be, `npm ci --no-audit --no-fund` in
+               packages/horizon-fe, `npm ci --ignore-scripts --no-audit --no-fund` at the
+               root): backend build, lint and `npm test`; frontend build and lint if anything
+               under packages/horizon-fe changed. There are no databases here. Fix what the
+               merge broke; don't change anything else.
+            4. `npx prettier --check` the files you resolved (from the root) and fix them.
+            5. `git add` them, `git commit --no-edit`, and `git push origin HEAD:${{ matrix.branch }}`.
+
+            If a conflict needs a decision (the two sides want incompatible things), or the
+            checks fail for a reason you can't fix within the merge, run `git merge --abort`,
+            write a short explanation for the owner to .git/blocked.md, and push nothing.
+
+            Never push to any other branch, never force-push, never rebase, never touch
+            deploy/prod.env or secrets. Add no AI attribution anywhere.
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 100
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(ls:*),Bash(gh pr view:*),Bash(gh pr diff:*)"
+
+      - name: Check the push
+        if: always()
+        run: |
+          set -euo pipefail
+          R="$GITHUB_REPOSITORY"
+          new_sha=$(git ls-remote "https://github.com/$R.git" "refs/heads/$BRANCH" | cut -f1)
+          if [ "$new_sha" = "$OLD_SHA" ]; then
+            why=$(cat .git/blocked.md 2>/dev/null || echo "The run pushed nothing; see $RUN_URL.")
+            gh pr edit "$PR" -R "$R" --add-label agent-stuck
+            gh pr comment "$PR" -R "$R" --body "$(printf '@%s the conflicts with main could not be resolved automatically, so this PR needs you.\n\n%s' "$OWNER" "$why")"
+            exit 0
+          fi
+          # The push used the Claude app's token, so it should have started CI and the review
+          sleep 60
+          ci=$(gh run list -R "$R" -w CI --commit "$new_sha" --json databaseId --jq length)
+          if [ "$ci" -eq 0 ]; then
+            gh pr comment "$PR" -R "$R" --body "@$OWNER main is merged in ($new_sha) but no CI run started for it, so the PR can't merge. Push to the branch (an empty commit will do) to start one."
+          fi

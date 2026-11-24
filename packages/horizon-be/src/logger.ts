@@ -1,9 +1,6 @@
 const { createLogger, format, transports } = require('winston');
-import moment from 'moment';
 import env from '@app/env';
-
-const _m: any = moment;
-_m.suppressDeprecationWarnings = true;
+import { format_date } from '@app/core/date';
 
 let logger;
 let logger_format;
@@ -51,25 +48,12 @@ if (env.IS_LOCAL) {
                 format.printf(data => {
                     const message =
                         data.message && data.message.trim ? data.message.trim() : data.message;
-                    const datetime = moment(data.timestamp).format('YYYY-MM-DD HH:mm:ss');
+                    const datetime = format_date(new Date(data.timestamp), 'YYYY-MM-DD HH:mm:ss');
                     return `${datetime}: ${data.level} - ${message}`;
                 })
             )
         })
     );
-    // Postgres log transport needs the native libpq bindings (optional dependency).
-    try {
-        const Postgres = require('@pauleliet/winston-pg-native');
-        logger_transports.push(
-            new Postgres({
-                connectionString: `postgres://${env.HORIZON_POSTGRES_USERNAME}:${env.HORIZON_POSTGRES_PASSWORD}@${env.HORIZON_POSTGRES_HOST}:${env.HORIZON_POSTGRES_PORT}/horizon_logs`,
-                level: env.POSTGRES_LOG_LEVEL,
-                tableName: 'log'
-            })
-        );
-    } catch (e) {
-        // not installed; console only
-    }
 }
 
 logger = createLogger({

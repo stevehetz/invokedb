@@ -9,8 +9,9 @@ export class Account {
     @Column()
     email: string;
 
-    @Column('int')
-    password_hash: string;
+    // Null for an account created through Google or GitHub sign-in
+    @Column({ type: 'varchar', nullable: true })
+    password_hash: string | null;
 
     @Column()
     first_name: string;

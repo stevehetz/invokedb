@@ -1,23 +1,27 @@
+// @ts-nocheck: not type-checked yet
 import { createRouter, createWebHistory } from 'vue-router';
 
-// Main app (signed in)
-import Home from '@/components/home';
-import Account from '@/components/account';
-import Docs from '@/components/docs';
-import Guide from '@/components/guide';
 import { toggle_page_overlay } from '@/components/_page/page-overlay';
 
-// Public site (marketing, login, signup, checkout)
-import SiteHome from '@/view/pages/home';
-import Login from '@/view/pages/login';
-import CreateAccount from '@/view/pages/create-account';
-import ForgotPassword from '@/view/pages/forgot-password';
-import ResetPassword from '@/view/pages/reset-password';
-import Checkout from '@/view/pages/checkout';
-import Pricing from '@/view/pages/pricing';
-import Contact from '@/view/pages/contact';
-import Tos from '@/view/pages/tos';
-import Privacy from '@/view/pages/privacy';
+// Pages are loaded lazily so each area's code (ag-grid, highlight.js, ...) stays out of the
+// entry chunk. All CSS is imported by the two shells below, so this doesn't change CSS order.
+
+// Main app (signed in)
+const Home = () => import('@/components/home');
+const Account = () => import('@/components/account');
+const Docs = () => import('@/components/docs');
+const Guide = () => import('@/components/guide');
+
+// Public site (marketing, login, signup)
+const SiteHome = () => import('@/view/pages/home');
+const Login = () => import('@/view/pages/login');
+const CreateAccount = () => import('@/view/pages/create-account');
+const ForgotPassword = () => import('@/view/pages/forgot-password');
+const ResetPassword = () => import('@/view/pages/reset-password');
+const Pricing = () => import('@/view/pages/pricing');
+const Contact = () => import('@/view/pages/contact');
+const Tos = () => import('@/view/pages/tos');
+const Privacy = () => import('@/view/pages/privacy');
 
 // The public site and the app were separate apps with separate global stylesheets that clash
 // (.page, .home-page, .flex-*, Element UI theme). Each area's shell imports its own CSS and is
@@ -91,7 +95,6 @@ const router = createRouter({
                     name: 'reset-password',
                     component: ResetPassword
                 },
-                { path: 'checkout', name: 'checkout', component: Checkout },
                 { path: 'pricing', name: 'pricing', component: Pricing },
                 { path: 'contact', name: 'contact', component: Contact },
                 { path: 'tos', name: 'tos', component: Tos },

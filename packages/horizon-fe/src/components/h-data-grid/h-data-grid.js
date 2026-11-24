@@ -1,12 +1,43 @@
+// @ts-nocheck: not type-checked yet
 import _ from 'lodash';
 import { markRaw } from 'vue';
+import {
+    ColumnApiModule,
+    InfiniteRowModelModule,
+    ModuleRegistry,
+    RenderApiModule,
+    RowSelectionModule,
+    RowStyleModule,
+    TextEditorModule,
+    TextFilterModule,
+    UndoRedoEditModule,
+    ValidationModule
+} from 'ag-grid-community';
 import { AgGridVue } from 'ag-grid-vue3';
 import { data_grid_manager as mgr } from './data-grid-manager';
+import { grid_theme } from './grid-theme';
 import { bus } from '@/core/bus';
 import GridHeader from './grid-header';
 import GridFilter from './grid-filter';
 import GridToast from './grid-toast';
 import ApiDialog from './api-dialog';
+
+// Since ag-grid 33 every feature is a module that has to be registered. Only the ones the grid
+// uses are, so the rest of ag-grid is left out of the bundle (AllCommunityModule was 1.3 MB).
+// Sorting, column moving and resizing and header components are in the core module. A new
+// grid option, column def property or `api.*` call may need a module added here: in dev,
+// ValidationModule logs which one is missing (ag-grid error #200).
+ModuleRegistry.registerModules([
+    InfiniteRowModelModule, // rowModelType: 'infinite', refreshInfiniteCache
+    TextFilterModule, // filter: true, the floating filter's parent filter
+    TextEditorModule, // editable: true
+    UndoRedoEditModule, // undoRedoCellEditing, stopEditing
+    RowSelectionModule, // rowSelection, getSelectedNodes, deselectAll
+    RowStyleModule, // rowClassRules
+    ColumnApiModule, // getAllGridColumns, setColumnsVisible
+    RenderApiModule, // refreshHeader
+    ...(import.meta.env.DEV ? [ValidationModule] : [])
+]);
 
 const PAGE_SIZE = 50;
 const ADD_ROW_MODE_ROW_COUNT = 4;
@@ -65,6 +96,7 @@ export default {
         this.add_data = [];
         this.new_rows = [];
         this.grid_options = markRaw({
+            theme: grid_theme,
             rowData: null,
             columnDefs: null,
             rowHeight: 30,

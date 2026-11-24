@@ -22,8 +22,20 @@ flock -w 1800 9 || { echo "Another deploy is still running" >&2; exit 1; }
 tip=$(curl -fsS -H 'Accept: application/vnd.github.sha' \
   "https://api.github.com/repos/$REPO/commits/main")
 if [ "$tip" != "$sha" ]; then
-  echo "$sha is no longer the tip of main ($tip), so it isn't deployed (the newer run will be)"
-  exit 0
+  # A push to main that only changes Markdown starts no CI (ci.yml), so no newer run would deploy
+  # it. If everything after $sha is Markdown, the tip has the same code: deploy it now (#53).
+  # Parsed with grep (no jq on the server): "status":"ahead" only appears at the top level, and
+  # a quote inside a string value is escaped, so commit messages can't match either pattern.
+  cmp=$(curl -fsS "https://api.github.com/repos/$REPO/compare/$sha...$tip")
+  files=$(grep -oE '"(previous_)?filename": *"[^"]*"' <<<"$cmp" | sed -E 's/.*"([^"]*)"$/\1/' || true)
+  if grep -qE '"status": *"ahead"' <<<"$cmp" && [ -n "$files" ] &&
+    ! grep -qv '\.md$' <<<"$files"; then
+    echo "Only Markdown changed after $sha, so deploying the tip of main ($tip)"
+    sha=$tip
+  else
+    echo "$sha is no longer the tip of main ($tip), so it isn't deployed (the newer run will be)"
+    exit 0
+  fi
 fi
 
 # Before 2026-11-24 the settings lived in the app folder; move them out once

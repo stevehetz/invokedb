@@ -1,7 +1,7 @@
 /* Vue app running in browser will access the generated file located at
    http://url/env.txt. */
 
-const jsonfile = require('jsonfile');
+const fs = require('fs');
 const args = process.argv.slice(2);
 
 process.env.NODE_ENV = process.env.ENV;
@@ -19,13 +19,21 @@ const env = {
 
 if (args[0]) {
     if (args[0] == 'dist')
-        jsonfile.writeFile('dist/env.txt', env, function (err) {
-            if (err) console.log(err);
-        });
+        fs.writeFile(
+            'dist/env.txt',
+            JSON.stringify(env) + '\n',
+            function (err) {
+                if (err) console.log(err);
+            }
+        );
     else if (args[0] == 'public')
-        jsonfile.writeFile('public/env.txt', env, function (err) {
-            if (err) console.log(err);
-        });
+        fs.writeFile(
+            'public/env.txt',
+            JSON.stringify(env) + '\n',
+            function (err) {
+                if (err) console.log(err);
+            }
+        );
 }
 
 module.exports = env;

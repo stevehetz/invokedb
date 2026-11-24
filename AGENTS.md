@@ -181,7 +181,10 @@ rounds per PR, then `agent-stuck`. On the user's own PRs it runs only when the u
 `agent-fix` or runs it by hand. **Dependabot PRs** get it automatically too, after
 `review-changes` or a failed CI run: Claude fixes what the update breaks (config, code, a lockfile
 CI's npm rejects) or declines it (a comment and `needs-owner`; the user closes it). It never sees
-a Dependabot PR's body, which quotes upstream release notes (#89).
+a Dependabot PR's body, which quotes upstream release notes (#89). Updates that shouldn't be
+taken are `ignore` rules in `.github/dependabot.yml`, each with why and a "Lift when:" line;
+`deps-revisit.yml` checks those monthly and opens a PR to lift one once it holds (#92). Don't
+use `@dependabot ignore` comments: they're invisible and never revisited.
 
 **Merge conflicts** (`.github/workflows/resolve.yml`): when an agent PR or a repair fix PR
 conflicts with `main` (another PR changed the same files first, often a `package-lock.json`),

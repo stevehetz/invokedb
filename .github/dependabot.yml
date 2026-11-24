@@ -6,6 +6,11 @@
 # dependabot`), and review.yml allows the dependabot bot. repair.yml skips dependabot/ branches;
 # instead revise.yml, after review-changes or failed CI, fixes what the update breaks or declines
 # it (a comment and needs-owner, for the owner to close) (#89).
+#
+# Ignores live here, never as `@dependabot ignore` comments, so they're visible and reviewed.
+# Each one has a "Lift when:" line: deps-revisit.yml checks it every month (and when .nvmrc or a
+# Dockerfile changes on main) and opens a PR to lift the ignore and upgrade once it holds (#92).
+# An ignore applies to every directory in its block, which is why examples/angular has its own.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -14,13 +19,44 @@ updates:
       - /packages/horizon-be
       - /packages/horizon-fe
       - /examples/invokedb-node
-      - /examples/angular
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # Types must match the Node major production runs (22: .nvmrc, deploy/*.Dockerfile), or tsc
+      # accepts APIs that throw at runtime (#83).
+      # Lift when: .nvmrc and deploy/*.Dockerfile move to a newer Node major; bump @types/node to
+      # that same major (not the latest) in the same PR.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      # Newer camelcase majors change the keys /api/v1 returns for format=camelCase (checked on 10:
+      # `_id` stays `_id`, `userIDs` becomes `userIds`, ...; #82). A bump is an API change.
+      # Lift when: never by itself; only if the owner decides to change camelCase keys, with
+      # tests pinning today's keys first.
+      - dependency-name: camelcase
+        update-types: ['version-update:semver-major']
+      # snake-case 4 is deprecated ("Use change-case"); 3.x is the last maintained line (#84).
+      # Lift when: never; replace it with change-case in its own change (same keys, with tests).
+      - dependency-name: snake-case
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: npm
+    directory: /examples/angular
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Angular's build tools need TypeScript 6.0 (@angular/build and @angular/compiler-cli peer
+      # range ">=6.0 <6.1"); TypeScript 7 has no JS compiler API for them to load (#76).
+      # Lift when: the latest @angular/build and @angular/compiler-cli on npm accept TypeScript 7
+      # in their peerDependencies; upgrade Angular to that version in the same PR.
+      - dependency-name: typescript
+        versions: ['>=7']
 
   - package-ecosystem: github-actions
     directory: /

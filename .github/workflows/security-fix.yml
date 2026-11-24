@@ -56,8 +56,11 @@ jobs:
         run: |
           set -euo pipefail
           R="$GITHUB_REPOSITORY"
-          # Alerts already named by an open PR or issue are being handled
+          # Alerts already named by an open PR or issue are being handled, and so are those named
+          # by a PR merged in the last day: the alert stays open until CodeQL rescans main
+          since=$(date -u -d '1 day ago' +%Y-%m-%d)
           handled=$( { gh pr list -R "$R" --state open --limit 200 --json body --jq '.[].body'
+                       gh pr list -R "$R" --state merged --search "merged:>=$since" --limit 200 --json body --jq '.[].body'
                        gh issue list -R "$R" --state open --limit 200 --json body --jq '.[].body'; } |
             grep -oE '(code scanning|Dependabot) alert #[0-9]+' | sort -u || true)
           : > .git/alerts.md

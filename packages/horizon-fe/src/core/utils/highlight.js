@@ -6,7 +6,7 @@ import javascript from 'highlight.js/lib/languages/javascript';
 hljs.registerLanguage('javascript', javascript);
 
 export function highlight_code_blocks() {
-    document
-        .querySelectorAll('pre code')
-        .forEach(block => hljs.highlightElement(block));
+    /** @type {NodeListOf<HTMLElement>} */ (
+        document.querySelectorAll('pre code')
+    ).forEach(block => hljs.highlightElement(block));
 }

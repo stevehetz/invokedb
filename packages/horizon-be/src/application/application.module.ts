@@ -10,7 +10,6 @@ import { WebFileService } from '@app/application/web-file/web-file.service';
 import { WebFilePrcService } from './web-file/web-file-prc.service';
 import { WebFilePrcNotifyService } from './web-file/web-file-prc-notify.service';
 import { SubscriptionService } from '@app/application/subscription/subscription.service';
-import { StripeEnvService } from './stripe.service/stripe.service';
 import { WebsocketClientStore } from '@app/websocket/client.store';
 import { JobService } from './job/job.service';
 
@@ -25,7 +24,6 @@ import { JobService } from './job/job.service';
         WebFilePrcNotifyService,
         AccountService,
         SubscriptionService,
-        StripeEnvService,
         WebsocketClientStore,
         JobService
     ],
@@ -38,7 +36,6 @@ import { JobService } from './job/job.service';
         WebFilePrcNotifyService,
         AccountService,
         SubscriptionService,
-        StripeEnvService,
         JobService
     ]
 })

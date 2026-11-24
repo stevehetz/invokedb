@@ -197,7 +197,7 @@ comments.
 trigger for new alerts), Claude fixes open CodeQL alerts on a `security/codeql-<n>` branch, in a PR labelled `security` that says
 "Fixes code scanning alert #N", handled like an agent PR without holding the queue; a false
 positive or a decision becomes an `agent-found` + `security` issue (dismissing an alert is the
-user's). A Dependabot alert with no fixed version becomes a triage issue. Leaked secrets are
+user's). Leaked secrets are
 never automated: only the user can rotate a credential.
 
 **Merge conflicts** (`.github/workflows/resolve.yml`): when an agent PR or a repair fix PR

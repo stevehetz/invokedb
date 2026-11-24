@@ -4,15 +4,15 @@
 #   resolve.yml and auto-merge take it from there, and the alert closes when the fix reaches main.
 #   A false positive or one needing a decision gets an `agent-found` + `security` issue instead;
 #   dismissing an alert stays with the owner.
-# - Dependabot alerts with no patched version: an `agent-found` + `security` issue with options.
-#   (Alerts with a fix need nothing here: Dependabot opens a security PR.)
+# - Dependabot alerts aren't handled here: the workflow token can't read them (403). One with a
+#   patched version gets a Dependabot security PR; for one without, GitHub emails the owner.
 # - Secret scanning alerts are never automated: the fix is rotating the credential at its
 #   provider, which only the owner can do. GitHub notifies the owner.
 #
 # Runs every 3 hours and by hand (Actions has no trigger for new alerts: code_scanning_alert and
 # dependabot_alert are webhook-only events). With nothing new, the pick step ends the run in
 # seconds. At most 3 alerts per run (most severe first); an alert an open PR or issue already
-# names is skipped. Dependabot alerts are read from the API, open ones with no patched version.
+# names is skipped.
 # Alert text (advisories, messages) is third-party data. Auth as in review.yml.
 name: Security fix
 
@@ -60,10 +60,11 @@ jobs:
           # Alerts already named by an open PR or issue are being handled, and so are those named
           # by a PR merged in the last day: the alert stays open until CodeQL rescans main
           since=$(date -u -d '1 day ago' +%Y-%m-%d)
-          handled=$( { gh pr list -R "$R" --state open --limit 200 --json body --jq '.[].body'
-                       gh pr list -R "$R" --state merged --search "merged:>=$since" --limit 200 --json body --jq '.[].body'
-                       gh issue list -R "$R" --state open --limit 200 --json body --jq '.[].body'; } |
-            grep -oE '(code scanning|Dependabot) alert #[0-9]+' | sort -u || true)
+          # (titles and bodies, any case: "Triage code scanning alert #5", "Fixes code scanning alert #5")
+          handled=$( { gh pr list -R "$R" --state open --limit 200 --json title,body --jq '.[] | .title, .body'
+                       gh pr list -R "$R" --state merged --search "merged:>=$since" --limit 200 --json title,body --jq '.[] | .title, .body'
+                       gh issue list -R "$R" --state open --limit 200 --json title,body --jq '.[] | .title, .body'; } |
+            grep -oiE 'code scanning alert #[0-9]+' | tr '[:upper:]' '[:lower:]' | sort -u || true)
           : > .git/alerts.md
           count=0
           # Code scanning: every open alert on main, most severe first
@@ -79,19 +80,6 @@ jobs:
               "Location: \(.most_recent_instance.location.path):\(.most_recent_instance.location.start_line)-\(.most_recent_instance.location.end_line)\n" +
               "Message: \(.most_recent_instance.message.text)\n\n### Rule help\n\(.rule.help // "")\n"' \
               >> .git/alerts.md || { echo "Couldn't read code scanning alert #$n" >&2; continue; }
-            count=$((count + 1))
-          done
-          # Open Dependabot alerts with no patched version (one with a fix gets a Dependabot PR)
-          deps=$(gh api "repos/$R/dependabot/alerts?state=open&per_page=100" \
-            --jq '.[] | select(.security_vulnerability.first_patched_version == null) | .number' || true)
-          for n in $deps; do
-            [ "$count" -lt 3 ] || break
-            grep -qx "Dependabot alert #$n" <<<"$handled" && continue
-            gh api "repos/$R/dependabot/alerts/$n" --jq '
-              "## Dependabot alert #\(.number): \(.dependency.package.name) (\(.security_advisory.severity)), no patched version\n" +
-              "Manifest: \(.dependency.manifest_path)\nVulnerable range: \(.security_vulnerability.vulnerable_version_range)\n" +
-              "Advisory: \(.security_advisory.ghsa_id) \(.security_advisory.summary)\n\n\(.security_advisory.description)\n"' \
-              >> .git/alerts.md || { echo "Couldn't read Dependabot alert #$n" >&2; continue; }
             count=$((count + 1))
           done
           echo "count=$count" >> "$GITHUB_OUTPUT"
@@ -136,12 +124,6 @@ jobs:
               change): don't change code. `gh issue create` with the title "Triage code
               scanning alert #<n>: <rule>", your reasoning and the options, a "**Done when**"
               list, and the labels `agent-found`, `security` and the `area:*` label.
-
-            For a **Dependabot alert with no patched version**: `gh issue create` titled
-            "Triage Dependabot alert #<n>: <package>", saying what in this repo uses the package
-            and how (`npm ls <package>` in that directory), whether the vulnerable code path is
-            reachable, and the options (mitigate, replace, accept), with a "**Done when**" list
-            and the labels `agent-found`, `security`, `area:*`.
 
             Never add `agent`, `you` or `hold`. Never push to main, never touch deploy/prod.env
             or secrets, never run deploy/deploy.sh. Add no AI attribution anywhere.

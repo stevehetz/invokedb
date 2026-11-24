@@ -10,7 +10,8 @@
 #    CI passed and the review labelled it review-ok. Its fix PRs into main follow rule 1.
 #
 # A merge made with the workflow token starts no workflows, so this starts CI on the branch it
-# merged into; on main, that CI run starts cd.yml when it passes (ci.yml, `deploy` job).
+# merged into; on main, that CI run starts cd.yml when it passes (ci.yml, `deploy` job). It
+# also doesn't apply the PR's Closes/Fixes, so this closes the linked issues itself.
 name: Auto-merge
 
 on:
@@ -35,7 +36,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      issues: write # labels
+      issues: write # labels, and closing the issues a merged PR links
       actions: write # start CI on the branch merged into
     env:
       GH_TOKEN: ${{ github.token }}
@@ -101,5 +102,19 @@ jobs:
           gh pr merge "$number" -R "$R" --merge --match-head-commit "$sha"
           # The repo deletes merged branches itself (delete_branch_on_merge)
           echo "Merged PR #$number into $base"
+          # A merge with the workflow token doesn't apply the PR's Closes/Fixes, so close its
+          # issues here, before the queue looks for the next one (#67). Only main closes issues.
+          if [ "$base" = main ]; then
+            issues=$(gh pr view "$number" -R "$R" --json closingIssuesReferences |
+              jq -r --arg p "https://github.com/$R/issues/" \
+                '.closingIssuesReferences[] | select(.url | startswith($p)) | .number' ||
+              echo "Couldn't read the issues PR #$number closes" >&2)
+            for n in $issues; do
+              if [ "$(gh issue view "$n" -R "$R" --json state --jq .state)" = OPEN ]; then
+                gh issue close "$n" -R "$R" --reason completed --comment "Closed by #$number." ||
+                  echo "Couldn't close #$n" >&2
+              fi
+            done
+          fi
           gh workflow run ci.yml -R "$R" --ref "$base"
           if [ "$base" = main ]; then next_in_queue; fi

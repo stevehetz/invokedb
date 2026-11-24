@@ -1,3 +1,4 @@
+// @ts-nocheck: not type-checked yet
 import { createRouter, createWebHistory } from 'vue-router';
 
 import { toggle_page_overlay } from '@/components/_page/page-overlay';

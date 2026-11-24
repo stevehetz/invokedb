@@ -1,3 +1,4 @@
+// @ts-nocheck: not type-checked yet
 import { store } from '@/store';
 import { http } from '@/core/http';
 import { web_file_http } from '@/core/context/web-file/web-file-http';

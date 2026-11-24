@@ -1,3 +1,4 @@
+// @ts-nocheck: not type-checked yet
 import Split from 'split.js';
 import h_tree from '@/components/h-tree';
 import doc_container from '@/components/doc-container';

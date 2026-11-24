@@ -11,15 +11,6 @@ export default defineConfig({
         // Components are imported as directories (`@/components/home` -> home/index.vue)
         extensions: ['.mjs', '.js', '.json', '.vue']
     },
-    css: {
-        preprocessorOptions: {
-            // Element Plus's theme SCSS is still written with `@import`-era globals
-            scss: {
-                quietDeps: true,
-                silenceDeprecations: ['import', 'global-builtin']
-            }
-        }
-    },
     build: {
         rollupOptions: {
             output: {

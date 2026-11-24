@@ -92,8 +92,8 @@ jobs:
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(gh pr create:*),Bash(gh issue create:*),Bash(gh run view:*)"
 
       # Pushes made with the workflow token don't start workflows, so start CI on the fix branch
-      # here (workflow_dispatch is the exception). Its checks attach to the commit and show on
-      # the PR, which the merge rule needs.
+      # here (workflow_dispatch is the exception). For a fix PR into main this run doesn't count
+      # toward the merge rule; the pull_request run ci.yml starts when the PR opens does (#40).
       - name: Run CI on the fix branch
         if: always()
         env:

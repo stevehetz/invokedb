@@ -132,6 +132,9 @@ jobs:
           } > .git/review.md
           wc -c .git/review.md
 
+      - name: Note the start time
+        id: start
+        run: echo "since=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - uses: anthropics/claude-code-action@v1
         if: steps.decide.outputs.pr
         with:
@@ -151,7 +154,13 @@ jobs:
             For each review finding that hasn't been answered yet:
             - If it's right, fix it, keeping to the PR's scope.
             - If it's wrong or out of scope, don't change code for it; write a short reply that
-              says why (a reasoned answer, or "out of scope, follow-up issue needed").
+              says why. For a real out-of-scope problem, file it (at most 3 per run): search
+              first (`gh issue list --search "<words>" --state open`) and reuse an open issue
+              that covers it; otherwise `gh issue create` with an imperative title, a body with
+              context, "Found while revising #${{ steps.decide.outputs.pr }}" and a
+              "**Done when**" checklist, and the labels `agent-found`, one type (`bug`,
+              `enhancement`, `chore`, `documentation`, `security`) and its `area:*` labels. Never
+              add `agent`, `you` or `hold`. Link the issue in your reply.
             Never weaken a check (skip a rule, delete a test, loosen CI) to satisfy a comment.
 
             Check what you changed as AGENTS.md says (install with `npm ci --omit=optional
@@ -173,7 +182,42 @@ jobs:
           claude_args: |
             --model claude-opus-5-5
             --max-turns 120
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(ls:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(ls:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh issue list:*),Bash(gh issue create:*)"
+
+      # The agent may file follow-ups as issues (#69). Enforced here, not trusted to the agent: only
+      # issues the Claude app opened during this run, at most 3 kept, never queued (agent, you and
+      # hold are stripped; the queue also only takes issues the owner opened), added to the board
+      # when PROJECTS_TOKEN is set. Inline rather than a script: the checkout is the agent's to edit.
+      - name: Tidy the issues the agent opened
+        if: always() && steps.start.outputs.since
+        env:
+          SINCE: ${{ steps.start.outputs.since }}
+          PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+        run: |
+          set -euo pipefail
+          R="$GITHUB_REPOSITORY"
+          found=$(gh issue list -R "$R" --label agent-found --state open --limit 50 \
+            --json number,author,createdAt,labels --jq '[.[] |
+              select(.author.login == "app/claude" and .createdAt >= env.SINCE)] |
+              sort_by(.number)')
+          kept=0
+          for n in $(jq -r '.[].number' <<<"$found"); do
+            labels=$(jq -r --argjson n "$n" '.[] | select(.number == $n) | .labels[].name' <<<"$found")
+            if [ "$kept" -ge 3 ]; then
+              gh issue close "$n" -R "$R" --reason "not planned" \
+                --comment "Closed: over the cloud agent's limit of 3 new issues per run ($RUN_URL)."
+              continue
+            fi
+            kept=$((kept + 1))
+            for l in agent you hold; do
+              if grep -qx "$l" <<<"$labels"; then gh issue edit "$n" -R "$R" --remove-label "$l"; fi
+            done
+            if [ -n "$PROJECTS_TOKEN" ]; then
+              GH_TOKEN="$PROJECTS_TOKEN" gh project item-add 1 --owner "$OWNER" \
+                --url "https://github.com/$R/issues/$n" >/dev/null || echo "Couldn't add #$n to the board"
+            fi
+            echo "Filed #$n"
+          done
 
       - name: Post the replies and check the follow-up
         if: always() && steps.decide.outputs.pr

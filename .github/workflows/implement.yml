@@ -108,11 +108,12 @@ jobs:
             --max-turns 200
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(ls:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*),Bash(gh pr create:*),Bash(gh issue comment:*)"
 
-      # The push used the workflow token, which starts no workflows, so start CI on the branch
-      # (the review starts by itself: the PR was opened by the Claude app). No PR means the agent
-      # stopped: park the issue so the queue moves on, and tell the owner. Either way, poke the
-      # queue (it waits for this run to finish).
-      - name: Start CI on the branch, or report
+      # CI and the review start by themselves: the Claude app opened the PR, and ci.yml runs on
+      # pull_request opened (the push used the workflow token, which starts nothing, and a
+      # dispatched CI run doesn't count toward the PR's required checks; #40). No PR means the
+      # agent stopped: park the issue so the queue moves on, and tell the owner. Either way, poke
+      # the queue (it waits for this run to finish).
+      - name: Label the PR, or report
         if: always() && steps.check.outcome == 'success'
         run: |
           set -euo pipefail
@@ -125,8 +126,7 @@ jobs:
           branch=$(jq -r '.headRefName // empty' <<<"$found")
           if [ -n "$pr" ]; then
             gh pr edit "$pr" -R "$GITHUB_REPOSITORY" --add-label agent-pr # in case Claude left it off
-            gh workflow run ci.yml -R "$GITHUB_REPOSITORY" --ref "$branch"
-            echo "PR #$pr on $branch; started CI"
+            echo "PR #$pr on $branch"
             # A PR opened with `hold` is parked at once, so the queue can move on
           else
             gh issue edit "$ISSUE" -R "$GITHUB_REPOSITORY" --add-label agent-stuck

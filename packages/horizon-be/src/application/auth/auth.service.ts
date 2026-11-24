@@ -133,6 +133,10 @@ export class AuthService {
      * 2. Otherwise it links to the account with the same email, but only when the provider says
      *    the email is verified (`identity.email` is null when it isn't). Anyone can put any
      *    address on a GitHub account, so an unverified one must never reach an existing account.
+     *    It never links to an account that has a password: password signup doesn't verify the
+     *    email, so whoever set that password may not own the mailbox, and linking would put the
+     *    owner in an account someone else can still enter (and whose API key they have seen).
+     *    Such an account signs in with its password (or resets it through the mailbox).
      * 3. Otherwise a new account is created, with no password (it can set one through "Forgot
      *    password"). This also needs a verified email: the welcome and reset emails go there.
      */
@@ -152,9 +156,9 @@ export class AuthService {
 
         if (!identity.email) throw new SsoError('no_verified_email');
 
-        const account =
-            (await this.find_account_by_email(identity.email)) ??
-            (await this.create_sso_account(identity));
+        const existing = await this.find_account_by_email(identity.email);
+        if (existing?.password_hash) throw new SsoError('password_account');
+        const account = existing ?? (await this.create_sso_account(identity));
 
         await this.identity_repository.save({ provider, provider_user_id, account_id: account.id });
         logger.info(`Linked a ${provider} login to account ${account.id}.`);

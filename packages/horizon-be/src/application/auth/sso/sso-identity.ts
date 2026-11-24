@@ -17,7 +17,8 @@ export interface SsoIdentity {
 
 // Error codes sent to the frontend (`/login?sso_error=<code>`), which shows a fixed message for
 // each, so a crafted link can't put arbitrary text on the login page.
-export type SsoErrorCode = 'no_verified_email' | 'account_deleted' | 'cancelled' | 'failed';
+export type SsoErrorCode =
+    'no_verified_email' | 'account_deleted' | 'password_account' | 'cancelled' | 'failed';
 
 export class SsoError extends Error {
     constructor(readonly code: SsoErrorCode) {

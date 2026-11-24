@@ -12,6 +12,8 @@ const ERRORS = {
     no_verified_email:
         'Your account with that provider has no verified email address. Verify one there, or sign up with a password.',
     account_deleted: 'The InvokeDB account for that email has been deleted.',
+    password_account:
+        'An InvokeDB account with that email already has a password. Sign in with your email and password.',
     cancelled: 'Sign-in was cancelled.',
     failed: 'Sign-in failed. Please try again.'
 };

@@ -69,7 +69,8 @@ repo: it's public.
 
 - **Does:** "Continue with Google / GitHub" on the login and signup pages (#17). A provider's
   button only shows when its client ID and secret are both set. A login links to an existing
-  account only by an email the provider says is verified.
+  account only by an email the provider says is verified, and never to an account that has a
+  password (signup doesn't verify emails, so the password's owner may not own the mailbox).
 - **Configured:** a Google OAuth client (Google Cloud console, APIs & Services → Credentials,
   "Web application") and a GitHub OAuth App (github.com/settings/developers). Each lists its
   callback URL: `https://api.invokedb.com/auth/<google|github>/callback` in production, and

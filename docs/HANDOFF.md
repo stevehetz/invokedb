@@ -37,8 +37,8 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
      workflow on `main` can be run from a branch (`gh workflow run e2e.yml --ref <branch>`) to
      test a script change against production before merging.
    - **Owner to-do:** none urgent. Google and GitHub sign-in checked by hand in production
-     (2026-11-24); the stale `security/codeql-*` branches are deleted. Dependabot alert #2 (`minimatch` in `horizon-be`, moderate,
-     patched in 11.0.1) is open; Dependabot should open a security PR. Rotating production API
+     (2026-11-24); the stale `security/codeql-*` branches are deleted. Dependabot alert #2 (`minimatch` 10 via jest/nodemon, dev-only) was
+     dismissed as tolerable risk; it clears when they move to minimatch 11. Rotating production API
      keys made by the old `Math.random()` generator: **not now**, the owner decided (2026-11-24).
    - **Merged today** (all deployed): Stripe/Azure removal (#6), dead files (#7), backend ESLint
      (#9), Dependabot + examples/shellcheck in CI (#10), websocket clean-up (#12), licence (#13:

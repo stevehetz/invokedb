@@ -78,7 +78,8 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
   Claude review (`.github/workflows/review.yml`) run on it. Merge (`gh pr merge --merge`) only
   when the user says so. `main` has a rule requiring a PR with CI passing; never bypass it.
 - `.github/workflows/repair.yml` opens fix PRs (`claude/fix-*` branches) or issues when CI or CD
-  fails. Treat its PRs like any other: review, and merge only when the user says so.
+  fails. `automerge.yml` merges a fix PR by itself only into a feature branch, after CI passes
+  and the review labels it `review-ok`; fix PRs into `main` wait for the user like any other.
 - Give the user one step at a time: only the next thing they have to do, then wait.
 
 ## Formatting

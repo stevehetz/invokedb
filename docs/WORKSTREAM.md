@@ -39,11 +39,14 @@ CI.
       run on the fix branch (its push used the workflow token, which starts no workflows), the
       review refused a bot-opened PR, and the commit and PR carried AI attribution. PR #2
       closed and its branch deleted.
-- [ ] 8. **Now.** Claude, PR `automation-fixes`: repair starts CI on its fix branch with
-      `gh workflow run` (CI gained `workflow_dispatch`); review allows the `claude` bot; the
-      repair prompt forbids attribution. You: merge it.
-- [ ] 9. Claude: rerun the test (push to `repair-test` again); check CI and the review run on
-      the fix PR. Then close it and delete `repair-test` and the fix branch.
+- [ ] 8. **Now.** Claude, PR #3 (`automation-fixes`): repair starts CI on its fix branch with
+      `gh workflow run` (CI gained `workflow_dispatch`); review allows the `claude` bot and ends
+      with a `review-ok` / `review-changes` label; repair forbids AI attribution; new
+      `automerge.yml` (decided 2026-11-24: only repair's fix PRs, only into feature branches,
+      after CI passes and `review-ok`; into `main` always waits for you). You: merge it.
+- [ ] 9. Claude: rerun the test (push to `repair-test` again): CI and the review run on the fix
+      PR, it gets `review-ok`, and it merges into `repair-test` by itself, after which CI on
+      `repair-test` passes. Then delete `repair-test`.
 
 ## Done: GitHub Actions CI/CD
 

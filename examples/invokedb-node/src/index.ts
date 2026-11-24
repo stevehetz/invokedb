@@ -26,6 +26,16 @@ export const DEFAULT_BASE_URL = 'http://127.0.0.1:8001/api/v1';
 const DEFAULT_LIMIT = 10;
 const DEFAULT_SORT_DIR = 'asc';
 
+// Drops trailing slashes in one linear pass. A /\/+$/ regex backtracks on
+// every run of slashes that isn't at the end: quadratic in the run's length.
+function trimTrailingSlashes(url: string) {
+  let end = url.length;
+  while (end > 0 && url.charCodeAt(end - 1) === 47 /* '/' */) {
+    end--;
+  }
+  return url.slice(0, end);
+}
+
 export class InvokeDBError extends Error {
   constructor(
     message: string,
@@ -213,7 +223,7 @@ export class InvokeDBClient {
     if (!apiKey || typeof apiKey !== 'string') {
       throw new TypeError('Must provide a valid api key');
     }
-    this._baseUrl = (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '');
+    this._baseUrl = trimTrailingSlashes(baseUrl || DEFAULT_BASE_URL);
     this._apiKey = apiKey;
   }
 

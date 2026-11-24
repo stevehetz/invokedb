@@ -44,7 +44,15 @@ jobs:
           info=$(gh issue view "$ISSUE" -R "$GITHUB_REPOSITORY" --json state,author,labels)
           fail() { echo "::error::#$ISSUE $1"; exit 1; }
           [ "$(jq -r .state <<<"$info")" = OPEN ] || fail "isn't open"
-          [ "$(jq -r .author.login <<<"$info")" = "$OWNER" ] || fail "wasn't opened by $OWNER"
+          # Opened by the owner, or filed by the agent (agent-found, #69) and labelled by the owner
+          author=$(jq -r .author.login <<<"$info")
+          if [ "$author" != "$OWNER" ]; then
+            [ "$author" = app/claude ] && jq -e '.labels | map(.name) | index("agent-found")' <<<"$info" >/dev/null ||
+              fail "wasn't opened by $OWNER"
+            by=$(gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE/events" --paginate \
+              --jq '.[] | select(.event == "labeled" and .label.name == "agent") | .actor.login' | tail -n 1)
+            [ "$by" = "$OWNER" ] || fail "agent label wasn't added by $OWNER"
+          fi
           jq -e '.labels | map(.name) | index("agent")' <<<"$info" >/dev/null ||
             fail "has no agent label"
           if jq -e '.labels | map(.name) | (index("agent-stuck") or index("you"))' <<<"$info" >/dev/null; then

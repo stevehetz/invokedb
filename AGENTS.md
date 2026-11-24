@@ -193,6 +193,13 @@ resolve and auto-merge like agent PRs, but don't hold the issue queue. Dependabo
 **security** PRs for npm (and updates the GitHub Actions); never use `@dependabot ignore`
 comments.
 
+**Security fixes** (`.github/workflows/security-fix.yml`, #104): when CodeQL raises an alert (and
+daily), Claude fixes it on a `security/codeql-<n>` branch, in a PR labelled `security` that says
+"Fixes code scanning alert #N", handled like an agent PR without holding the queue; a false
+positive or a decision becomes an `agent-found` + `security` issue (dismissing an alert is the
+user's). A Dependabot alert with no fixed version becomes a triage issue. Leaked secrets are
+never automated: only the user can rotate a credential.
+
 **Merge conflicts** (`.github/workflows/resolve.yml`): when an agent PR or a repair fix PR
 conflicts with `main` (another PR changed the same files first, often a `package-lock.json`),
 Claude merges `main` in, resolves the conflicts, runs the checks and pushes, which starts CI and

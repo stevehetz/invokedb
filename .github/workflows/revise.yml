@@ -91,10 +91,12 @@ jobs:
           if [ -z "$INPUT_PR" ] && [ "$(jq -r .headRefOid <<<"$pr")" != "$REVIEWED_SHA" ]; then
             echo "The review was of an older commit"; exit 0
           fi
-          # The monthly update agent's deps/* PRs count as agent PRs (#103)
+          # The monthly update agent's deps/* and the security agent's security/* PRs count as
+          # agent PRs (#103, #104)
           if [ -z "$INPUT_PR" ] && ! has agent-pr && ! $dependabot &&
             [[ "$(jq -r .headRefName <<<"$pr")" != claude/fix-* ]] &&
-            [[ "$(jq -r .headRefName <<<"$pr")" != deps/* ]]; then
+            [[ "$(jq -r .headRefName <<<"$pr")" != deps/* ]] &&
+            [[ "$(jq -r .headRefName <<<"$pr")" != security/* ]]; then
             # Someone else's PR: only if the owner asked with the agent-fix label
             by=$(gh api "repos/$R/issues/$number/events" --paginate \
               --jq '.[] | select(.event == "labeled" and .label.name == "agent-fix") | .actor.login' | tail -n 1)

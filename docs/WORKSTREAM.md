@@ -26,14 +26,17 @@ CI.
 - [x] 2. (2026-11-24) Claude GitHub App installed on `stevehetz/invokedb` only.
 - [x] 3. (2026-11-24) You: `! claude setup-token`, then
       `! gh secret set CLAUDE_CODE_OAUTH_TOKEN -R stevehetz/invokedb` and paste the token.
-- [ ] 4. **Now.** Claude: push the branch and open the PR; the review runs on it (its own first test).
-- [ ] 5. Claude (with your OK): add the `main` ruleset: PRs required, status checks
+- [x] 4. (2026-11-24) Pushed, PR #1 opened. CI passed. The review ran, got its app token
+      (so the app is installed), then skipped on purpose: the action only runs a workflow file
+      identical to the one on `main`, so review and repair start working once merged (and a
+      PR that changes them isn't reviewed by its own version).
+- [ ] 5. **Now.** You: merge PR #1 (it deploys; only docs and workflows change).
+- [ ] 6. Claude (with your OK): add the `main` ruleset: PRs required, status checks
       `backend`, `frontend`, `format` must pass; admins can bypass only through a PR.
-- [ ] 6. You: merge the PR (it deploys).
-- [ ] 7. Claude: test repair with a throwaway branch that breaks lint on purpose; check a fix
-      PR appears and that CI runs on it (pushes made with the default `GITHUB_TOKEN` don't
-      start workflows, so this checks the app token is used). Then close it and delete the
-      branches.
+- [ ] 7. Claude: test both on a throwaway branch that breaks lint on purpose: repair should
+      open a fix PR, and CI and the review should run on that PR (pushes made with the default
+      `GITHUB_TOKEN` don't start workflows, so this checks the app token is used). Then close
+      it and delete the branches.
 
 ## Done: GitHub Actions CI/CD
 

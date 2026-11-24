@@ -30,13 +30,20 @@ CI.
       (so the app is installed), then skipped on purpose: the action only runs a workflow file
       identical to the one on `main`, so review and repair start working once merged (and a
       PR that changes them isn't reviewed by its own version).
-- [ ] 5. **Now.** You: merge PR #1 (it deploys; only docs and workflows change).
-- [ ] 6. Claude (with your OK): add the `main` ruleset: PRs required, status checks
-      `backend`, `frontend`, `format` must pass; admins can bypass only through a PR.
-- [ ] 7. Claude: test both on a throwaway branch that breaks lint on purpose: repair should
-      open a fix PR, and CI and the review should run on that PR (pushes made with the default
-      `GITHUB_TOKEN` don't start workflows, so this checks the app token is used). Then close
-      it and delete the branches.
+- [x] 5. (2026-11-24) PR #1 merged and deployed (`8c9fde1`).
+- [x] 6. (2026-11-24) Ruleset "main: PR with CI passing" (id 27985352): PR required, checks
+      `backend`, `frontend`, `format` must pass, no deletion or force-push; admins bypass only
+      through a PR.
+- [x] 7. (2026-11-24) First test: a typo on branch `repair-test` failed CI; Repair opened PR #2
+      (correct one-line fix, good write-up, opened as `app/claude`). Three problems: CI didn't
+      run on the fix branch (its push used the workflow token, which starts no workflows), the
+      review refused a bot-opened PR, and the commit and PR carried AI attribution. PR #2
+      closed and its branch deleted.
+- [ ] 8. **Now.** Claude, PR `automation-fixes`: repair starts CI on its fix branch with
+      `gh workflow run` (CI gained `workflow_dispatch`); review allows the `claude` bot; the
+      repair prompt forbids attribution. You: merge it.
+- [ ] 9. Claude: rerun the test (push to `repair-test` again); check CI and the review run on
+      the fix PR. Then close it and delete `repair-test` and the fix branch.
 
 ## Done: GitHub Actions CI/CD
 

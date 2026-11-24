@@ -15,6 +15,7 @@ import { WebFilePrcNotifyService } from './web-file-prc-notify.service';
 import env from '@app/env';
 import _c from '@app/constants';
 import logger from '@app/logger';
+import { assert_array_body } from '@app/core/helpers/array-body';
 
 const fs = require('fs');
 
@@ -397,9 +398,10 @@ export class WebFileService {
     }
 
     private async batch_update(account, file_id, web_file_type, data, use_job = false) {
+        data = assert_array_body(data);
         await this.tracking_manager.check_account_lock(account);
         if (web_file_type === 'data_grid_column') {
-            const cols_to_be_added = data ? data.length : 0;
+            const cols_to_be_added = data.length;
             await this.tracking_manager.add_columns(account, { cols_to_be_added, file_id });
             try {
                 if (!use_job) {
@@ -448,9 +450,10 @@ export class WebFileService {
     }
 
     private async batch_create(account, file_id, web_file_type, data) {
+        data = assert_array_body(data);
         if (web_file_type === 'data_grid_row') {
             await this.tracking_manager.add_rows(account, {
-                rows_to_be_added: data ? data.length : 0,
+                rows_to_be_added: data.length,
                 file_id
             });
         }

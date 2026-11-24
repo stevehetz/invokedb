@@ -5,7 +5,7 @@ description: Create, write, run and revert TypeORM 1.x migrations for horizon-be
 
 # TypeORM migrations (horizon-be, Postgres)
 
-- Config: `packages/horizon-be/src/database/_ormconfig.ts` (shared by the app and the CLI).
+- Config: `packages/horizon-be/src/database/ormconfig.ts` (shared by the app and the CLI).
   CLI entry point: `src/database/data-source.ts`.
 - `synchronize: false` and `migrationsRun: false`: the schema only changes through migrations,
   and `npm run dev` does **not** run them. `db:setup` / `migration:run` do.

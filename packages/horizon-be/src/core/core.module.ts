@@ -50,6 +50,7 @@ import { JobManager } from './job/job.manager';
         CsvProcessor,
         TrackingManager,
         JobManager,
+        WebsocketClientStore,
         TypeOrmModule
     ]
 })

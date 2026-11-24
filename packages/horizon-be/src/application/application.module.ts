@@ -12,7 +12,6 @@ import { WebFileService } from '@app/application/web-file/web-file.service';
 import { WebFilePrcService } from './web-file/web-file-prc.service';
 import { WebFilePrcNotifyService } from './web-file/web-file-prc-notify.service';
 import { SubscriptionService } from '@app/application/subscription/subscription.service';
-import { WebsocketClientStore } from '@app/websocket/client.store';
 import { JobService } from './job/job.service';
 
 @Module({
@@ -28,7 +27,6 @@ import { JobService } from './job/job.service';
         WebFilePrcNotifyService,
         AccountService,
         SubscriptionService,
-        WebsocketClientStore,
         JobService
     ],
     exports: [

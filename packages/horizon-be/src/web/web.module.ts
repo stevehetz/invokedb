@@ -9,12 +9,12 @@ import { WebFileController } from '@app/web/http/web-file/web-file.controller';
 import { ExternalV1Controller } from './http/external/external-v1.controller';
 import { SubscriptionController } from './http/subscription/subscription.controller';
 import { SupportController } from './http/support/support.controller';
-import { WebsocketClientStore } from '@app/websocket/client.store';
+import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
 
 @Module({
-    imports: [ApplicationModule, EmailModule],
+    imports: [ApplicationModule, CoreModule, EmailModule],
     controllers: [
         AuthController,
         SsoController,
@@ -25,6 +25,6 @@ import { WebsocketClient } from './ws/websocket-client';
         SubscriptionController,
         SupportController
     ],
-    providers: [WebsocketServer, WebsocketClient, WebsocketClientStore]
+    providers: [WebsocketServer, WebsocketClient]
 })
 export class WebModule {}

@@ -1,4 +1,5 @@
-import { ElNotification } from 'element-plus';
+// From its own module, not 'element-plus', which would pull in the whole library (see main.js)
+import { ElNotification } from 'element-plus/es/components/notification/index.mjs';
 
 const INFO_DURATION = 2500;
 const WARN_DURATION = 2500;

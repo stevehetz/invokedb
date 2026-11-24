@@ -15,6 +15,7 @@
         "dev": "bash scripts/dev.sh",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
+        "check": "bash scripts/check.sh",
         "db:setup": "bash scripts/db-setup.sh",
         "db:reset": "bash scripts/db-setup.sh --reset",
         "db:demo": "bash scripts/db-demo.sh",

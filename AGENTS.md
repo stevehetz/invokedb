@@ -43,6 +43,7 @@ npm run migration:create -- Name
 npm run migration:run | migration:revert
 npm run format               # prettier --write . (root prettier 3)
 npm run format:check
+npm run check                # what CI runs, minus the smoke test (scripts/check.sh)
 npm --prefix packages/horizon-be run build   # tsc: the main backend correctness check
 npm --prefix packages/horizon-be run lint    # ESLint (eslint.config.mjs)
 npm --prefix packages/horizon-be test        # Jest unit tests (src/**/*.spec.ts)
@@ -55,8 +56,10 @@ bash scripts/smoke-env.sh <file>  # throwaway env (horizon_smoke DBs, ports 81xx
 CI (`.github/workflows/ci.yml`) runs on every push to a PR and every push to `main` (a branch with
 no PR gets no CI until one is opened; a dispatched CI run doesn't count toward a PR's required
 checks, #40, #42): backend build + lint + unit tests, the API smoke test (`smoke` job: the built
-backend on Postgres and Mongo service containers), frontend build + lint, and prettier. Unit tests
-are few so far (account scoping, validators, column-name rules); add a `*.spec.ts` next to the code
+backend on Postgres and Mongo service containers), frontend build + lint, the `examples/`
+builds, shellcheck (`deploy/*.sh`, `scripts/*.sh`; settings in `.shellcheckrc`) and prettier;
+`npm run check` runs all but the smoke test locally. Dependabot (`.github/dependabot.yml`) opens
+weekly update PRs. Unit tests are few so far (account scoping, validators, column-name rules); add a `*.spec.ts` next to the code
 for new pure logic. Verify backend changes with `build`, `test`, and `api-smoke.mjs` (see the
 `verify-backend` skill); if you can't run the smoke test locally, the `smoke` job runs it on the PR.
 `api-smoke.mjs` exits non-zero on any failed call or check. Verify UI changes with `npm --prefix

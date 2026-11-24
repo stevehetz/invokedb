@@ -21,27 +21,25 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
    **Work is tracked in GitHub Issues on the Project board "InvokeDB"**
    (https://github.com/users/stevehetz/projects/1; AGENTS.md, "How work is tracked"). There is
    no WORKSTREAM file any more (retired 2026-11-24, #5): "what's next" is the board.
-   **Where things stand (end of 2026-11-24, ~18:05 UTC):**
+   **Where things stand (end of 2026-11-24, ~18:25 UTC):**
    - **Merged today** (all deployed): Stripe/Azure removal (#6), dead files (#7), backend ESLint
      (#9), one frontend HTTP client + bundled CDN assets + bundle split + per-component Element
      Plus (#11: PRs #45, #65), frontend `typecheck` script + moment dropped (#14), ops docs
      `docs/OPERATIONS.md` (#15), Google and GitHub sign-in (#17, live, see 5b), ag-grid 36 with
-     the Theming API (#18), Nest 12 / TypeORM 1.x / mongodb 7 (#19), and the workflow fixes
+     the Theming API (#18), Nest 12 / TypeORM 1.x / mongodb 7 (#19), typed websocket managers (#12), and the workflow fixes
      below.
-   - **First thing next: #67.** PRs that `automerge.yml` merges don't close their issues (GitHub
-     ignores `Closes #N` on a merge made with the workflow token; the user's own merges close
-     them fine). The open `agent` issue then goes back into the queue: #11 got a second PR
-     (#65), and #14 and #19 were re-run, found nothing to do and went `agent-stuck`. #11, #14
-     and #19 were closed by hand. Until #67 is fixed, close the issue of every auto-merged PR
-     by hand (`gh issue close <n> --reason completed`).
-   - **Cloud agent queue:** running, in board order (`PROJECTS_TOKEN` set). At handoff
-     `implement.yml` was working **#26** (missing column name returns 500). `agent-stuck`:
-     #10 (CI/Dependabot/PR template; changes `.github/`, better in a local session) and #12
-     (its run failed at once during a usage limit; remove the label to retry).
-   - **Not labelled `agent` yet:** #56 (add `npm run typecheck` to CI's `frontend` job; touches
-     `.github/`), #60 (chunk sizes; #65 did most of it, see its comment), #64 (Row column
-     filter styled white since ag-grid 36), #66 (login card too short for the SSO buttons;
-     fixed `height: 370px`). #64 and #66 need the user to look in a browser after.
+   - **Fixed: #67** (PR #70). PRs that `automerge.yml` merged didn't close their issues (GitHub
+     ignores `Closes #N` on a merge made with the workflow token), so the queue re-ran them;
+     `automerge.yml` now closes the linked issues itself. #11, #14, #19, #26 and #35 were closed
+     by hand before that.
+   - **The cloud agent can't change `.github/workflows/`** (the Claude app has no `workflows`
+     permission; AGENTS.md). #10 was finished locally: PR #71 (Dependabot, examples and
+     shellcheck in CI, `npm run check`, PR template), waiting for the owner, who first saves
+     `CLAUDE_CODE_OAUTH_TOKEN` as a Dependabot secret. #56 and #69 are local-session work too.
+   - **Cloud agent queue:** running, in board order (`PROJECTS_TOKEN` set). #12 (websocket
+     clean-up) merged as PR #72 and closed itself (the #67 fix works). Queued (`agent`): #44,
+     #60, #64, #66.
+   - #64 and #66 need the user to look in a browser after they merge.
    - **Workflow changes today** (details in AGENTS.md):
      - Docs-only (Markdown) changes go straight to `main` with no PR (#51): the ruleset's admin
        bypass is "Always", a Markdown-only push runs no CI, and `ci-deploy.sh` deploys the tip

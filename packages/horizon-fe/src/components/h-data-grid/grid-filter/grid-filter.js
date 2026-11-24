@@ -1,6 +1,4 @@
-import moment from 'moment';
-
-moment.suppressDeprecationWarnings = true;
+import { parse_utc_date, format_date } from '@/core/date';
 
 const string_filter_types = {
     equals: '=',
@@ -60,7 +58,11 @@ export default {
             }
             if (value !== '' && value !== undefined && value !== null) {
                 if (this.col_type === 'date') {
-                    value = moment.utc(value).format('YYYY-MM-DD hh:mm:ss A');
+                    value = format_date(
+                        parse_utc_date(value),
+                        'YYYY-MM-DD hh:mm:ss A',
+                        true
+                    );
                     if (value === 'Invalid date') {
                         value = null;
                     }

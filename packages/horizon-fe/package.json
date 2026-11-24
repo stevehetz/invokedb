@@ -7,19 +7,20 @@
         "env": "node env.js",
         "build": "vite build",
         "preview": "npm run env dist && vite preview",
-        "lint": "eslint src"
+        "lint": "eslint src",
+        "typecheck": "tsc --noEmit -p jsconfig.json"
     },
     "dependencies": {
         "@element-plus/icons-vue": "^2.3.2",
-        "ag-grid-community": "~32.3.9",
-        "ag-grid-vue3": "~32.3.9",
+        "@fortawesome/fontawesome-free": "^5.13.0",
+        "ag-grid-community": "~36.3.0",
+        "ag-grid-vue3": "~36.3.0",
         "copy-to-clipboard": "^3.3.1",
         "element-plus": "^2.14.8",
         "event-emitter": "^0.3.5",
         "highlight.js": "^10.1.0",
         "js-cookie": "^3.0.8",
         "lodash": "^4.17.15",
-        "moment": "^2.24.0",
         "rxjs": "^6.5.4",
         "split.js": "^1.5.11",
         "vue": "^3.5.45",
@@ -32,6 +33,7 @@
         "eslint-plugin-vue": "^10.12.1",
         "globals": "^17.14.0",
         "sass": "^1.108.2",
+        "typescript": "~5.9",
         "vite": "^6.4.6",
         "vue-eslint-parser": "^10.4.2"
     },

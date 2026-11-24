@@ -17,10 +17,8 @@
 </template>
 
 <script>
-import AccountHttp from '@/network/http/account/account-http';
+import { auth_http } from '@/core/context/account/auth-http';
 import { sso_start } from './sso';
-
-const account_http = new AccountHttp();
 
 const PROVIDERS = [
     { id: 'google', name: 'Google', icon: 'fab fa-google' },
@@ -42,7 +40,7 @@ export default {
 
     async created() {
         try {
-            this.available = (await account_http.sso_providers()) || {};
+            this.available = (await auth_http.sso_providers()) || {};
         } catch {
             this.available = {};
         }

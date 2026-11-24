@@ -3,9 +3,8 @@
 // back to the backend, and the backend redirects to /login#sso_token=…&nonce=… (or
 // /login?sso_error=<code>). The login page calls sso_finish(), which only accepts the token when
 // the nonce matches, so a link carrying someone else's token can't sign this browser in.
-import AccountHttp from '@/network/http/account/account-http';
+import { auth_http } from '@/core/context/account/auth-http';
 
-const account_http = new AccountHttp();
 const NONCE_KEY = 'sso_nonce';
 
 const ERRORS = {
@@ -27,7 +26,7 @@ function random_nonce() {
 export function sso_start(provider) {
     const nonce = random_nonce();
     sessionStorage.setItem(NONCE_KEY, nonce);
-    window.location.href = account_http.sso_start_url(provider, nonce);
+    window.location.href = auth_http.sso_start_url(provider, nonce);
 }
 
 // Reads the result of a sign-in from the current URL and clears it from the address bar.

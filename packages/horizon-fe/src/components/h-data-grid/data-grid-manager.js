@@ -1,8 +1,6 @@
 import _ from 'lodash';
 import { web_file_http } from '@/core/context/web-file/web-file-http';
-import moment from 'moment';
-
-moment.suppressDeprecationWarnings = true;
+import { parse_utc_date } from '@/core/date';
 
 export const data_grid_manager = {
     /*** Start: Row data ***/
@@ -61,7 +59,7 @@ export const data_grid_manager = {
             if (col_type === 'number') {
                 value = parseFloat(filter.filter_value);
             } else if (col_type === 'date') {
-                value = moment.utc(filter.filter_value).toDate();
+                value = parse_utc_date(filter.filter_value);
             } else {
                 value = filter.filter_value;
             }

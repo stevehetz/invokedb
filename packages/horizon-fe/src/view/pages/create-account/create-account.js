@@ -1,8 +1,6 @@
-import AccountHttp from '@/network/http/account/account-http';
+import { auth_http } from '@/core/context/account/auth-http';
 import cookies from 'js-cookie';
 import SsoButtons from '@/view/sso/sso-buttons.vue';
-
-const account_http = new AccountHttp();
 
 export default {
     name: 'CreateAccount',
@@ -32,12 +30,12 @@ export default {
 
                 if (!valid) throw new Error(message);
 
-                await account_http.create_account({
+                await auth_http.create_account({
                     email: this.email,
                     password: this.password
                 });
 
-                let session = await account_http.login({
+                let session = await auth_http.login({
                     email: this.email,
                     password: this.password
                 });

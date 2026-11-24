@@ -1,3 +1,4 @@
+// @ts-nocheck: not type-checked yet
 import SubscriptionForm from './subscription-form';
 import ApiKeyForm from './api-key-form';
 import AccountInfoForm from './account-info-form';

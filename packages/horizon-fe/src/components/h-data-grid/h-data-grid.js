@@ -1,12 +1,20 @@
+// @ts-nocheck: not type-checked yet
 import _ from 'lodash';
 import { markRaw } from 'vue';
+import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import { AgGridVue } from 'ag-grid-vue3';
 import { data_grid_manager as mgr } from './data-grid-manager';
+import { grid_theme } from './grid-theme';
 import { bus } from '@/core/bus';
 import GridHeader from './grid-header';
 import GridFilter from './grid-filter';
 import GridToast from './grid-toast';
 import ApiDialog from './api-dialog';
+
+// Since ag-grid 33 every feature is a module that has to be registered. The grid uses many of
+// them (infinite row model, text filter, editing, undo, selection, row classes, column API),
+// so register them all rather than miss one.
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 const PAGE_SIZE = 50;
 const ADD_ROW_MODE_ROW_COUNT = 4;
@@ -65,6 +73,7 @@ export default {
         this.add_data = [];
         this.new_rows = [];
         this.grid_options = markRaw({
+            theme: grid_theme,
             rowData: null,
             columnDefs: null,
             rowHeight: 30,

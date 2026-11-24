@@ -33,7 +33,9 @@ site's paths.
 
 ## Automatic deploys
 
-Every push to `main` deploys itself once CI passes on it (`.github/workflows/cd.yml`). The
+Every push to `main` deploys itself once CI passes on it (`.github/workflows/cd.yml`),
+including merges made by `automerge.yml` (which starts that CI run itself, since a merge with
+the workflow token starts no workflows). The
 workflow opens SSH on the Cloud Firewall to the runner's IP, sends `deploy <sha>` over SSH,
 then removes the rule again (even if the deploy failed). Its SSH key is locked by
 `authorized_keys` to `ci-deploy.sh`, which deploys the commit only if it's still the tip of

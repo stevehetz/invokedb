@@ -28,8 +28,9 @@ features).
    branch is checked out, so deploy from `main`.
 4. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
-5. Work on a branch and open a pull request (CI and the Claude review run on it). The user
-   approves the merge; merging to `main` deploys.
+5. Work on a branch and open a pull request (CI and the Claude review run on it). Merging to
+   `main` deploys. Safe PRs merge themselves (AGENTS.md, "Auto-merge"); the rest wait for the
+   user.
 
 ## Current state
 
@@ -58,8 +59,9 @@ features).
   `frontend`, `format` must pass), so every change goes through a PR. Workflows: `ci.yml`
   (every push), `cd.yml` (deploys `main` after CI; see `deploy/README.md`), `review.yml`
   (Claude reviews same-repo PRs, labels them `review-ok`/`review-changes`), `repair.yml`
-  (on a CI/CD failure, Claude opens a fix PR or an issue), `automerge.yml` (merges repair's
-  fix PRs into feature branches only). Claude runs on the user's subscription through the
+  (on a CI/CD failure, Claude opens a fix PR or an issue), `automerge.yml` (merges PRs into `main`
+  that pass CI and review and touch no held path, and repair's fix PRs into feature branches;
+  added 2026-11-24, #21; a held PR gets `needs-owner`, and `hold` opts a PR out). Claude runs on the user's subscription through the
   Claude GitHub App (`CLAUDE_CODE_OAUTH_TOKEN` repo secret). The action only runs a workflow
   file identical to `main`'s, so a PR that changes `review.yml` isn't reviewed by it. Repair starts CI on its fix branch
   with `workflow_dispatch`, so a feature branch cut before 2026-11-24 (`c82f901`) needs

@@ -1,6 +1,6 @@
 # Claude reviews every pull request opened from this repo (never forks) and leaves inline comments
-# plus a short summary, then labels the PR review-ok or review-changes. The label doesn't block
-# merging into main (CI does); automerge.yml uses it for repair's fix PRs into feature branches.
+# plus a short summary, then labels the PR review-ok or review-changes. A person can still merge
+# either way; automerge.yml merges only review-ok PRs (see its rules).
 # Authenticates with the CLAUDE_CODE_OAUTH_TOKEN secret (`claude setup-token`) through the
 # Claude GitHub App.
 name: Review

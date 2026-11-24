@@ -8,7 +8,8 @@ revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the comm
 what to do next. Git history has the details of past work. The longer-term plans sit beside it
 in `docs/`: `INFRASTRUCTURE_PLAN.md` (the current direction: a trial-only showcase on one
 server, keeping Mongo), `SAAS_PLAN.md` (turning it into a SaaS) and `AI_IDEAS.md` (AI
-features).
+features). **`OPERATIONS.md`** is the one place for how production is run and watched: each
+outside service and GitHub workflow, its secrets by name, who it alerts and how to check it.
 
 ## Start here
 
@@ -273,7 +274,7 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   type-checking the frontend, a root `typecheck`, editor config, a PR template). The output
   is a written list of findings, ranked, each with a suggested fix; the user picks which ones
   become work.
-- **8 (operations docs, requested 2026-11-24): issue #15.** Write docs in `docs/` that explain
+- **8 (operations docs, requested 2026-11-24): done** (#15), in `docs/OPERATIONS.md`. Asked for: docs in `docs/` that explain
   everything set up recently, in one place: the monitoring and integrations (Mailgun,
   Telegram bot, UptimeRobot, Healthchecks.io, Cloudflare DNS and Email Routing with the
   `invokedb-email` Worker, the support Gmail) and the delivery side (CI/CD, the GitHub

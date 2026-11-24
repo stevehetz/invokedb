@@ -2,7 +2,8 @@
 # often package.json and its lockfile, merged first), Claude merges main into the branch, resolves
 # the conflicts, checks the result and pushes. The push starts CI and a fresh review, and
 # automerge.yml takes it from there. Runs on agent PRs (`agent-pr`), repair's fix PRs
-# (`claude/fix-*`), and any other PR the owner labels `agent-fix`.
+# (`claude/fix-*`), Dependabot PRs (`dependabot/*`), and any other PR the owner labels
+# `agent-fix`.
 #
 # Runs after CI on main finishes (every merge ends in one), every 30 minutes as a safety net, and
 # by hand with a PR number. CI on main after an auto-merge sends no workflow_run event (it was
@@ -73,7 +74,10 @@ jobs:
             number=$(jq -r .number <<<"$pr")
             branch=$(jq -r .headRefName <<<"$pr")
             has() { jq -e --arg l "$1" '.labels | map(.name) | index($l)' <<<"$pr" >/dev/null; }
-            if [ -z "$INPUT_PR" ] && ! has agent-pr && [[ "$branch" != claude/fix-* ]]; then
+            # Dependabot PRs too: once an agent has pushed to one, Dependabot stops rebasing it,
+            # and GitHub runs no PR workflows while it conflicts
+            if [ -z "$INPUT_PR" ] && ! has agent-pr && [[ "$branch" != claude/fix-* ]] &&
+              [[ "$branch" != dependabot/* ]]; then
               # Someone else's PR: only if the owner asked with the agent-fix label
               has agent-fix || continue
               by=$(gh api "repos/$R/issues/$number/events" --paginate \
@@ -148,7 +152,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Runs after CI runs started by the workflow token, and on a schedule
-          allowed_bots: github-actions,claude
+          allowed_bots: github-actions,claude,dependabot
           prompt: |
             PR #${{ matrix.pr }} (branch `${{ matrix.branch }}`, checked out) conflicts with
             main. Merge main into it and resolve the conflicts. Nobody is watching.

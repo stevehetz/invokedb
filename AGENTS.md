@@ -187,8 +187,9 @@ a Dependabot PR's body, which quotes upstream release notes (#89).
 conflicts with `main` (another PR changed the same files first, often a `package-lock.json`),
 Claude merges `main` in, resolves the conflicts, runs the checks and pushes, which starts CI and
 a fresh review. It runs after every merge to `main` and every 30 minutes. One attempt per PR per
-`main` commit; if it can't resolve them, the PR gets `agent-stuck`. On the user's own PRs it
-runs only with `agent-fix`. Workflows where Claude pushes check out with
+`main` commit; if it can't resolve them, the PR gets `agent-stuck`. Dependabot PRs are included
+(GitHub runs no PR workflows while a PR conflicts). On the user's own PRs it runs only with
+`agent-fix`. Workflows where Claude pushes check out with
 `persist-credentials: false`, so the push uses the Claude app's token: a push with the workflow
 token starts no CI, and a dispatched CI run doesn't count toward a PR's required checks.
 

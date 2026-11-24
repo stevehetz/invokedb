@@ -16,6 +16,7 @@ import env from '@app/env';
 import _c from '@app/constants';
 import logger from '@app/logger';
 import { assert_array_body } from '@app/core/helpers/array-body';
+import { assert_column_update } from '@app/core/helpers/column-update';
 
 const fs = require('fs');
 
@@ -387,6 +388,9 @@ export class WebFileService {
     async update(account, file_id, web_file_type, data) {
         await this.tracking_manager.check_account_lock(account);
         await this.tracking_manager.check_table_lock(file_id);
+        if (web_file_type === 'data_grid_column') {
+            data = assert_column_update(data);
+        }
         return await this.web_file_manager.update(account.id, file_id, web_file_type, data);
     }
 
@@ -401,6 +405,8 @@ export class WebFileService {
         data = assert_array_body(data);
         await this.tracking_manager.check_account_lock(account);
         if (web_file_type === 'data_grid_column') {
+            // Check every column before tracking or queueing anything, so a bad one is a 400.
+            data.forEach(col => assert_column_update(col));
             const cols_to_be_added = data.length;
             await this.tracking_manager.add_columns(account, { cols_to_be_added, file_id });
             try {

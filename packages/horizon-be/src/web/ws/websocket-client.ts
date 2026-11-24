@@ -2,6 +2,7 @@
 import { Injectable } from '@nestjs/common';
 import logger from '@app/logger';
 import { WebsocketClientStore } from '@app/websocket/client.store';
+import { SocketClientManager } from '@app/websocket/socket-client.manager';
 import env from '@app/env';
 import _c from '@app/constants';
 
@@ -36,7 +37,7 @@ export class WebsocketClient {
         }, 1000);
     }
 
-    setup_client(log_id, client) {
+    setup_client(log_id: string, client: SocketClientManager) {
         // client.on('close', () => logger.debug(`${id} - websocket connection closed`));
         /*client.on('registered', () =>
             logger.info(`${log_id} - websocket connection has been established`)
@@ -55,7 +56,7 @@ export class WebsocketClient {
         return `${id} - ${m}`;
     }
 
-    on_socket_open(client) {
+    on_socket_open(client: SocketClientManager) {
         client.register(env.HORIZON_WS_SERVER_TOKEN, { server_name: env.SERVER_NAME });
     }
 }

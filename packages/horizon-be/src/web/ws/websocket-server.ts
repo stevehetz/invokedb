@@ -4,11 +4,11 @@ import { AuthService } from '@app/application/auth/auth.service';
 import { JobService } from '@app/application/job/job.service';
 import env from '@app/env';
 import _c from '@app/constants';
-const SocketServerManager = require('../../websocket/socket-server.manager');
+import { SocketServerManager } from '@app/websocket/socket-server.manager';
 
 @Injectable()
 export class WebsocketServer {
-    socket_manager: any;
+    socket_manager: SocketServerManager;
 
     constructor(
         private _auth: AuthService,
@@ -32,9 +32,11 @@ export class WebsocketServer {
         this.socket_manager.on('close', msg => logger.debug(this.get_log('ws-br', msg)));
         this.socket_manager.on('debug', msg => logger.debug(this.get_log('ws-br', msg)));
 
-        this.socket_manager.onClientMessage(message => this.handle_client_message(message));
+        this.socket_manager.on_client_message((client, message) =>
+            this.handle_client_message(message)
+        );
 
-        this.socket_manager.startHost(env.HORIZON_SB_PRIV_WS_PORT, {
+        this.socket_manager.start_host(Number(env.HORIZON_SB_PRIV_WS_PORT), {
             require_auth: true,
             auth_middleware: {
                 validate_token: async token => await this.validate_token(token)
@@ -43,9 +45,9 @@ export class WebsocketServer {
     }
 
     async restart_stale_jobs() {
-        const client_prc_server_names = Object.keys(this.socket_manager.clientRegistry)
+        const client_prc_server_names = Object.keys(this.socket_manager.client_registry)
             .filter(c => c.indexOf('horizon-prc') > -1)
-            .map(c => this.socket_manager.clientRegistry[c].metadata.server_name);
+            .map(c => this.socket_manager.client_registry[c].metadata.server_name);
         const running_jobs = await this._job.get_running_jobs();
         const abandoned_jobs = running_jobs.filter(
             job => client_prc_server_names.indexOf(job.job_processor_id) === -1

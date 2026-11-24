@@ -1,136 +1,144 @@
-import { Console } from 'console';
+import { EventEmitter } from 'events';
+import WebSocket from 'ws';
+import { WsMessage } from './ws-message';
 
-const Client_WS = require('ws');
-const Client_EventEmitter = require('events').EventEmitter;
-const client_util = require('util');
+const RECONNECT_DELAY_MS = 10000;
 
-const SOCKET_RECONNECT_TIMER = 10000; // 10 seconds
+export type WsMessageHandler = (message: WebSocket.MessageEvent) => void;
 
-const SocketManagerClient = function (id) {
-    this.id = id || null;
-    this.open = false;
-    this.socket = undefined;
-    this.messageHandlers = [];
-};
+/**
+ * A websocket client of the broker (`SocketServerManager`). Reconnects by itself, answers the
+ * broker's pings, and passes every other message to the `on_message` handlers.
+ *
+ * Events: `connect`, `open`, `close`, `registered`, `error`.
+ */
+export class SocketClientManager extends EventEmitter {
+    id: string | null;
+    open = false;
+    socket: WebSocket | undefined;
+    endpoint: string | undefined;
+    private message_handlers: WsMessageHandler[] = [];
 
-client_util.inherits(SocketManagerClient, Client_EventEmitter);
+    constructor(id?: string) {
+        super();
+        this.id = id || null;
+    }
 
-SocketManagerClient.prototype.connect = function (endpoint) {
-    if (!endpoint) return 'SocketManagerClient: Must provide an endpoint to connect to';
-    this.endpoint = endpoint;
-
-    this.socket = new Client_WS(this.endpoint);
-    this.socket.onopen = this.onopen.bind(this);
-    this.socket.onerror = this.onerror.bind(this);
-    this.emit('connect');
-};
-
-SocketManagerClient.prototype.onopen = function () {
-    this.open = true;
-    this.socket.onmessage = this.messageMgr.bind(this);
-    this.socket.onclose = this.onclose.bind(this);
-    this.emit('open');
-};
-
-SocketManagerClient.prototype.register = function (token, metadata) {
-    if (!this.id) return;
-    const obj = {
-        action: 'register',
-        payload: {
-            id: this.id,
-            token,
-            metadata
+    connect(endpoint: string) {
+        if (!endpoint) {
+            this.emit('error', 'SocketClientManager: Must provide an endpoint to connect to');
+            return;
         }
-    };
-    this.send.call(this, JSON.stringify(obj));
-};
+        this.endpoint = endpoint;
 
-SocketManagerClient.prototype.onerror = function (error) {
-    // Log error
-    // this.emit('info', 'Connection to ' + this.endpoint + ' failed.');
-
-    // Try again
-    setTimeout(this.connect.bind(this, this.endpoint), 10000);
-};
-
-SocketManagerClient.prototype.onclose = function () {
-    // this.emit('info', 'Disconnected from ' + this.endpoint);
-    this.open = false;
-    this.socket.close();
-    this.connect.call(this, this.endpoint);
-    this.emit('close');
-};
-
-SocketManagerClient.prototype.messageMgr = function (message) {
-    let msg;
-
-    try {
-        msg = JSON.parse(message.data);
-        if (!msg || !msg.action) throw new Error('Invalid message object from server');
-    } catch (ex) {
-        this.emit('error', 'Invalid message object from server');
+        this.socket = new WebSocket(this.endpoint);
+        this.socket.onopen = () => this.on_open();
+        this.socket.onerror = () => this.on_error();
+        this.emit('connect');
     }
 
-    // Ping Pong
-    if (msg.action === 'ping') {
-        return this.socket.send(JSON.stringify({ action: 'pong' }));
+    /** Closes the connection for good (no reconnect). */
+    disconnect() {
+        this.open = false;
+        if (!this.socket) return;
+        this.socket.onopen = null;
+        this.socket.onerror = null;
+        this.socket.onclose = null;
+        this.socket.onmessage = null;
+        this.socket.terminate();
+        this.socket = undefined;
     }
 
-    if (msg.action === 'registered') return this.emit('registered');
-
-    if (msg.action === 'updateId' && msg.payload) {
-        this.id = msg.payload;
-        // this.emit('debug', 'Updated id to ' + msg.payload);
-        return;
-    }
-
-    if (msg.action === 'error')
-        return this.emit('error', {
-            id: msg.senderId,
-            message: msg.payload
+    register(token: string, metadata?: Record<string, unknown>) {
+        if (!this.id) return;
+        this.send({
+            action: 'register',
+            payload: { id: this.id, token, metadata }
         });
+    }
 
-    this.messageHandlers.forEach(handler => {
-        handler(message);
-    });
-};
+    on_message(handler: WsMessageHandler) {
+        this.message_handlers.push(handler);
+    }
 
-SocketManagerClient.prototype.onMessage = function (handler) {
-    this.messageHandlers.push(handler);
-};
+    remove_on_message(handler: WsMessageHandler) {
+        const index = this.message_handlers.indexOf(handler);
+        if (index > -1) this.message_handlers.splice(index, 1);
+    }
 
-SocketManagerClient.prototype.removeOnMessage = function (handler) {
-    const index = this.messageHandlers.indexOf(handler);
-    if (index > -1) this.messageHandlers.splice(index, 1);
-};
+    send_to_client(message: { recipientId: string; payload: unknown }) {
+        this.send({
+            action: 'directMessage',
+            senderId: this.id,
+            recipientId: message.recipientId,
+            payload: message.payload
+        });
+    }
 
-SocketManagerClient.prototype.sendToClient = function (message) {
-    if (this.open)
-        this.socket.send(
-            JSON.stringify({
-                action: 'directMessage',
-                senderId: this.id,
-                recipientId: message.recipientId,
-                payload: message.payload
-            })
-        );
-};
+    send_to_client_account(message: { recipientId: string; accountId: unknown; payload: unknown }) {
+        this.send({
+            action: 'directMessageAccount',
+            senderId: this.id,
+            recipientId: message.recipientId,
+            accountId: message.accountId,
+            payload: message.payload
+        });
+    }
 
-SocketManagerClient.prototype.sendToClientAccount = function (message) {
-    if (this.open)
-        this.socket.send(
-            JSON.stringify({
-                action: 'directMessageAccount',
-                senderId: this.id,
-                recipientId: message.recipientId,
-                accountId: message.accountId,
-                payload: message.payload
-            })
-        );
-};
+    send(message: WsMessage) {
+        if (this.open && this.socket) this.socket.send(JSON.stringify(message));
+    }
 
-SocketManagerClient.prototype.send = function (message) {
-    if (this.open) this.socket.send(message);
-};
+    private on_open() {
+        this.open = true;
+        this.socket.onmessage = message => this.handle_message(message);
+        this.socket.onclose = () => this.on_close();
+        this.emit('open');
+    }
 
-module.exports = SocketManagerClient;
+    private on_error() {
+        // Try again later
+        setTimeout(() => this.connect(this.endpoint), RECONNECT_DELAY_MS);
+    }
+
+    private on_close() {
+        this.open = false;
+        this.socket.close();
+        this.connect(this.endpoint);
+        this.emit('close');
+    }
+
+    private handle_message(message: WebSocket.MessageEvent) {
+        let msg: WsMessage;
+
+        try {
+            msg = JSON.parse(message.data.toString());
+            if (!msg || !msg.action) throw new Error('Invalid message object from server');
+        } catch {
+            this.emit('error', 'Invalid message object from server');
+            return;
+        }
+
+        if (msg.action === 'ping') {
+            this.send({ action: 'pong' });
+            return;
+        }
+
+        if (msg.action === 'registered') {
+            this.emit('registered');
+            return;
+        }
+
+        if (msg.action === 'updateId' && msg.payload) {
+            this.id = msg.payload as string;
+            return;
+        }
+
+        if (msg.action === 'error') {
+            this.emit('error', { id: msg.senderId, message: msg.payload });
+            return;
+        }
+
+        this.message_handlers.forEach(handler => handler(message));
+    }
+}

@@ -5,7 +5,7 @@ if (!process.env.IS_TS_NODE) {
 }
 
 import { DataSource } from 'typeorm';
-import config from './_ormconfig';
+import config from './ormconfig';
 
 async function run() {
     const data_source = await new DataSource(config).initialize();

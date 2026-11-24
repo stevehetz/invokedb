@@ -8,6 +8,7 @@ import { Account } from '../account/account.entity';
 import _c from '@app/constants';
 import logger from '@app/logger';
 import { parse_utc_date, format_date } from '../date';
+import { assert_array_body } from '../helpers/array-body';
 
 const MAX_FIELD_VALUE_LENGTH = 2000;
 const MAX_COLUMN_VALUE_LENGTH = 100;
@@ -438,6 +439,7 @@ export class WebFileManager {
     }
 
     async batch_create(acct_id, file_id, web_file_type, data) {
+        data = assert_array_body(data);
         data.forEach(row => this.validate_row(row));
         file_id = parseInt(file_id, 10);
         if (web_file_type === _c.MongoDbCollections.data_grid_row) {

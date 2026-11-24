@@ -2,7 +2,7 @@ import { HttpException } from '@nestjs/common';
 import { WebFileManager } from './web-file.manager';
 
 // validate_column_header uses no injected services, so call it without building the manager
-const validate = (existing: string[], name: string) =>
+const validate = (existing: string[], name: unknown) =>
     WebFileManager.prototype.validate_column_header.call(
         {},
         existing.map(headerName => ({ headerName })),
@@ -24,7 +24,19 @@ describe('WebFileManager.validate_column_header', () => {
     );
 
     it('rejects an empty or blank name', () => {
+        expect(() => validate([], '')).toThrow(/cannot be empty/);
         expect(() => validate([], '   ')).toThrow(/cannot be empty/);
+    });
+
+    it.each([undefined, null, 42, {}, ['a']])('rejects the missing or non-string name %p', name => {
+        try {
+            validate([], name);
+        } catch (e) {
+            expect(e).toBeInstanceOf(HttpException);
+            expect((e as HttpException).getStatus()).toBe(403);
+            expect((e as HttpException).message).toMatch(/cannot be empty/);
+        }
+        expect.assertions(3);
     });
 
     it('rejects a name over 100 characters', () => {

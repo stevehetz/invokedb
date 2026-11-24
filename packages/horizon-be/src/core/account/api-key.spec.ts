@@ -1,4 +1,4 @@
-import { generate_api_key } from './account.manager';
+import { generate_api_key } from './api-key';
 
 describe('generate_api_key', () => {
     it('makes 32 alphanumeric characters', () => {

@@ -1,6 +1,6 @@
 # InvokeDB revamp: handoff
 
-_Last updated 2026-11-24 (evening)_
+_Last updated 2026-11-24 (late evening)_
 
 InvokeDB ("horizon") is a web app for building data tables you can query through an API. The
 revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the commands, and
@@ -21,19 +21,26 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
    **Work is tracked in GitHub Issues on the Project board "InvokeDB"**
    (https://github.com/users/stevehetz/projects/1; AGENTS.md, "How work is tracked"). There is
    no WORKSTREAM file any more (retired 2026-11-24, #5): "what's next" is the board.
-   **Where things stand (end of 2026-11-24, ~21:30 UTC):** no open PRs; `main` is deployed.
-   - **Open issues** (all on the board): #44 (backend crash when an upload races websocket
-     startup; labelled `agent` but **the queue skips it**: repair.yml filed it as `app/claude`
-     without `agent-found`, and the queue only takes the owner's issues or `agent-found` ones.
-     Work it in a local session, or relabel it `agent-found` and re-add `agent`), #90 (nightly
-     Playwright E2E against production; the owner must first create a test account and the
-     `E2E_EMAIL`/`E2E_PASSWORD`/`TELEGRAM_*` secrets), #117 (CodeQL alert #5 is a false
-     positive: the owner dismisses it, "Used in tests", and closes #117).
-   - **Owner to-do:** dismiss CodeQL alert #6 as "False positive" ("Fixed in #115": CodeQL
-     doesn't recognise `assert_column_update` as a sanitizer; if it stays open, security-fix
-     will re-pick it a day after #115 merged and probably file a triage issue). Delete the stale
-     `security/codeql-2` and `security/codeql-6` branches. Rotating production API keys made
-     by the old `Math.random()` generator: **not now**, the owner decided (2026-11-24).
+   **Where things stand (end of 2026-11-24, ~23:40 UTC):** no open PRs or issues; `main` is
+   deployed.
+   - **Done this evening:** #44 (a websocket notify error no longer crashes the backend; new
+     `GET /health` answers 200 once the websocket clients are registered, and `api-smoke.mjs`
+     waits for it; #123), #124 (security-fix dismisses CodeQL false positives itself; #125), #90
+     (nightly E2E against production, below; #126, #127). CodeQL alerts #5 and #6 dismissed,
+     #117 closed.
+   - **E2E against production** (`e2e.yml`, #90): `ui-smoke.mjs --bundled` as the test account
+     `e2e@invokedb.com` (secrets `E2E_EMAIL`/`E2E_PASSWORD`), nightly at 06:00 UTC, by hand, and
+     after every deploy (`cd.yml` starts it). Failure: Telegram message + masked screenshot
+     artifact (never a trace: artifacts on this public repo are downloadable and a trace holds
+     the credentials). Passing since #127, which updated the test's grid selectors for ag-grid
+     36 (rows aren't all in `.ag-center-cols-container`; floating filters carry `col-id`). A
+     workflow on `main` can be run from a branch (`gh workflow run e2e.yml --ref <branch>`) to
+     test a script change against production before merging.
+   - **Owner to-do:** sign up once by hand with Google and with GitHub on production (OAuth
+     providers block automated browsers, so the E2E can't). Delete the stale `security/codeql-1`,
+     `-2`, `-6`, `-8` branches. Dependabot alert #2 (`minimatch` in `horizon-be`, moderate,
+     patched in 11.0.1) is open; Dependabot should open a security PR. Rotating production API
+     keys made by the old `Math.random()` generator: **not now**, the owner decided (2026-11-24).
    - **Merged today** (all deployed): Stripe/Azure removal (#6), dead files (#7), backend ESLint
      (#9), Dependabot + examples/shellcheck in CI (#10), websocket clean-up (#12), licence (#13:
      all rights reserved, MIT for `examples/`), frontend `typecheck` (#14, #93), ops docs (#15),
@@ -44,11 +51,12 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
      vulnerability reporting, secret push protection. `SECURITY.md` added. CodeQL's first scan
      found 8 alerts; fixed: #7 API keys now `crypto.randomInt` (#107), #2–#4 batch bodies must
      be arrays (#112), #6 column updates type-checked (#115), #1 client regex (#116), #8 iframe
-     handlers in a `Map` (#119). #5 and #6 wait on the owner (above).
+     handlers in a `Map` (#119). #5 and #6 were false positives, dismissed by the owner.
    - **`security-fix.yml`** (#104; fixed in #111, #114, #118, #122): every 3 hours and by hand,
      fixes up to 3 open CodeQL alerts in `security/codeql-<n>` PRs (label `security`, body
-     "Fixes code scanning alert #N", auto-merge) or files `agent-found` + `security` triage
-     issues. Skips alerts named (any case, title or body) in open PRs/issues or PRs merged in the
+     "Fixes code scanning alert #N", auto-merge), dismisses false positives itself (#124: Claude
+     lists them, a shell step dismisses only alerts that run picked, shown in the run summary) or
+     files `agent-found` + `security` triage issues for ones needing a decision. Skips alerts named (any case, title or body) in open PRs/issues or PRs merged in the
      last day. Actions can't trigger on alert events (webhook-only), and the workflow token can't
      read Dependabot alerts (403), so those are left to Dependabot's PRs and GitHub's emails.
    - **Dependencies:** `deps-update.yml` (#103) runs on the 1st of each month: two PRs on

@@ -27,7 +27,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      actions: write # start CI on the branch
+      actions: write # poke the queue
       id-token: write
     env:
       GH_TOKEN: ${{ github.token }}
@@ -53,6 +53,9 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          # Keep the workflow token out of git so Claude's push uses the Claude app's token,
+          # which starts CI and the review (see resolve.yml)
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -109,10 +112,9 @@ jobs:
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(ls:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*),Bash(gh pr create:*),Bash(gh issue comment:*)"
 
       # CI and the review start by themselves: the Claude app opened the PR, and ci.yml runs on
-      # pull_request opened (the push used the workflow token, which starts nothing, and a
-      # dispatched CI run doesn't count toward the PR's required checks; #40). No PR means the
-      # agent stopped: park the issue so the queue moves on, and tell the owner. Either way, poke
-      # the queue (it waits for this run to finish).
+      # pull_request (a dispatched CI run wouldn't count toward its required checks; #40). No PR
+      # means the agent stopped: park the issue so the queue moves on, and tell the owner. Either
+      # way, poke the queue (it waits for this run to finish).
       - name: Label the PR, or report
         if: always() && steps.check.outcome == 'success'
         run: |

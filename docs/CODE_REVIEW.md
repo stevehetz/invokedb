@@ -8,7 +8,7 @@ and `.github/`, aimed at clean-up and the developer workflow. It is ranked by va
 Each finding has an ID so you can pick by ID.
 
 **Status:** every finding is a GitHub issue (board: https://github.com/users/stevehetz/projects/1):
-A1–A3 #6; A4, B3, B4, B7 #7; A5 #8 (**done**, 2026-11-24); B1 #9; B8, C1, C3 #10; B2, B6, C5
+A1–A3 #6; A4, B3, B4, B7 #7 (**done**, 2026-11-24); A5 #8 (**done**, 2026-11-24); B1 #9; B8, C1, C3 #10; B2, B6, C5
 #11; B5 #12; C4 #13; C2, C6 #14.
 
 What's already in good shape: `deploy/` (small, commented scripts and a locked-down CI deploy

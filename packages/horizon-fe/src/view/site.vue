@@ -4,7 +4,7 @@
     </div>
 </template>
 <script>
-// The public site's shell (marketing, login, signup, checkout). It owns the site's global CSS;
+// The public site's shell (marketing, login, signup). It owns the site's global CSS;
 // see router.js for why.
 import 'element-plus/dist/index.css';
 import './stylesheet.scss';

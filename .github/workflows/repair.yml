@@ -28,7 +28,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      actions: write # read the failed logs; start CI on the fix branch
+      actions: read # read the failed logs
       id-token: write
     env:
       FAILED_WORKFLOW: ${{ github.event.workflow_run.name }}
@@ -40,6 +40,9 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
+          # Keep the workflow token out of git so Claude's push uses the Claude app's token,
+          # which starts CI and the review (see resolve.yml)
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -90,19 +93,3 @@ jobs:
             --model claude-opus-5-5
             --max-turns 60
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(gh pr create:*),Bash(gh issue create:*),Bash(gh run view:*)"
-
-      # Pushes made with the workflow token don't start workflows, so start CI on the fix branch
-      # here (workflow_dispatch is the exception). For a fix PR into main this run doesn't count
-      # toward the merge rule; the pull_request run ci.yml starts when the PR opens does (#40).
-      - name: Run CI on the fix branch
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          BRANCH: claude/fix-${{ github.event.workflow_run.id }}
-        run: |
-          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
-            gh workflow run ci.yml -R "$GITHUB_REPOSITORY" --ref "$BRANCH"
-            echo "Started CI on $BRANCH"
-          else
-            echo "No fix branch (Claude opened an issue or made no change)"
-          fi

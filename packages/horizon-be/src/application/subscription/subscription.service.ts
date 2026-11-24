@@ -17,10 +17,6 @@ export class SubscriptionService {
         return await this.subscription_repository.findOneBy({ id });
     }
 
-    async get_by_plan_id(stripe_plan_id) {
-        return await this.subscription_repository.findOneBy({ stripe_plan_id });
-    }
-
     async get_all(stripe_env_id) {
         return await this.subscription_repository.findBy({
             stripe_env_id,

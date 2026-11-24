@@ -11,13 +11,12 @@ const Account = () => import('@/components/account');
 const Docs = () => import('@/components/docs');
 const Guide = () => import('@/components/guide');
 
-// Public site (marketing, login, signup, checkout)
+// Public site (marketing, login, signup)
 const SiteHome = () => import('@/view/pages/home');
 const Login = () => import('@/view/pages/login');
 const CreateAccount = () => import('@/view/pages/create-account');
 const ForgotPassword = () => import('@/view/pages/forgot-password');
 const ResetPassword = () => import('@/view/pages/reset-password');
-const Checkout = () => import('@/view/pages/checkout');
 const Pricing = () => import('@/view/pages/pricing');
 const Contact = () => import('@/view/pages/contact');
 const Tos = () => import('@/view/pages/tos');
@@ -95,7 +94,6 @@ const router = createRouter({
                     name: 'reset-password',
                     component: ResetPassword
                 },
-                { path: 'checkout', name: 'checkout', component: Checkout },
                 { path: 'pricing', name: 'pricing', component: Pricing },
                 { path: 'contact', name: 'contact', component: Contact },
                 { path: 'tos', name: 'tos', component: Tos },

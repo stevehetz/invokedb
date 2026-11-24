@@ -14,11 +14,6 @@ SECRET_DIR="${INVOKEDB_SECRET_DIR:-$HOME/Library/CloudStorage/Dropbox/dropbox/se
 FILES=(
   .env
   deploy/prod.env
-  ops/azure-base/azure-base.values.sh
-  ops/azure-prod/azure-prod-build.values.sh
-  ops/azure-prod/azure-prod-env.values.sh
-  ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa
-  ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa.pub
   "~/.ssh/invokedb"
   "~/.ssh/invokedb.pub"
 )

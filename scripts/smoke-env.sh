@@ -2,7 +2,7 @@
 # Write a throwaway env file for smoke tests: bash scripts/smoke-env.sh <out-file>
 # Copies .env (or .env.example), then points every database, file share, port and URL at
 # separate "smoke" values, so a smoke stack can't touch your data or collide with `npm run dev`.
-#   DBs: Postgres horizon_smoke (+ _logs), Mongo horizon_smoke*
+#   DBs: Postgres horizon_smoke, Mongo horizon_smoke*
 #   Ports: be 8101, ws 9100, fe 8100
 # Use it with HORIZON_ENV_FILE=<out-file>. Never with db:reset or db:demo: their Mongo drop
 # matches every horizon* database, not just the smoke ones.

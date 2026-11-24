@@ -24,7 +24,6 @@ const env = {
     IS_HORIZON_PRC: process.env.IS_HORIZON_PRC,
     IS_HORIZON_SB: process.env.IS_HORIZON_SB,
     IS_HORIZON_FS: process.env.IS_HORIZON_FS,
-    POSTGRES_LOG_LEVEL: process.env.POSTGRES_LOG_LEVEL,
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
     TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID,
     SUPPORT_EMAIL: process.env.SUPPORT_EMAIL,

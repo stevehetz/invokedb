@@ -70,9 +70,8 @@ description: Create, write, run and revert TypeORM 0.3 migrations for horizon-be
    in where clauses, so a new nullable column used in `findOneBy` needs an explicit
    `IsNull()` or an early return.
 
-## Demo dump
+## Demo data
 
-`ops/shared/dumps/demo/postgres/horizon.bak` was built at the current migration head. After
-`npm run db:demo`, pending migrations run automatically, so you don't need to rebuild the dump
-for a new migration. If you ever do regenerate it, scrub keys, customer IDs and session tokens
-first: the repo is public, and history has already been rewritten once for this.
+There is no database dump. `npm run db:demo` resets the databases, runs every migration (they
+seed the demo accounts), then loads the example tables through the API with
+`examples/setup.mjs`, so a new migration needs no demo-data change.

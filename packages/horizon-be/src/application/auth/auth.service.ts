@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { Session } from '@app/core/session/session.entity';
 import { Account } from '@app/core/account/account.entity';
 import { ResetPassword } from '@app/core/reset-password/reset-password.entity';
+import { AccountIdentity } from '@app/core/account-identity/account-identity.entity';
 import { AccountManager } from '@app/core/account/account.manager';
 import { SessionManager } from '@app/core/session/session.manager';
 import { EmailManager } from '@app/email/email.manager';
@@ -13,6 +14,8 @@ import { reset_pass_tmpl } from '@app/email/reset-pass.template';
 import { SubscriptionService } from '../subscription/subscription.service';
 import logger from '@app/logger';
 import env from '@app/env';
+import { validate_email } from '@app/core/helpers/validators';
+import { SsoError, SsoIdentity } from './sso/sso-identity';
 
 @Injectable()
 export class AuthService {
@@ -24,6 +27,8 @@ export class AuthService {
     private readonly account_repository: Repository<Account>,
     @InjectRepository(ResetPassword)
     private readonly reset_password_repository: Repository<ResetPassword>,
+    @InjectRepository(AccountIdentity)
+    private readonly identity_repository: Repository<AccountIdentity>,
     private account_manager: AccountManager,
     private session_manager: SessionManager,
     private email_manager: EmailManager,
@@ -104,6 +109,12 @@ export class AuthService {
 
         logger.info(`Account created. ID: ${account.id}, Email: ${account.email}.`);
 
+        this.send_welcome(account);
+
+        return 'success';
+    }
+
+    private send_welcome(account: { email: string }) {
         // One frontend: the public site at /, the signed-in app under /app
         const { subject, body } = welcome_tmpl(
             env.HORIZON_FE_PUB_HTTP_URL,
@@ -112,8 +123,82 @@ export class AuthService {
         );
 
         this.email_manager.send_html(account.email, subject, body);
+    }
 
-        return 'success';
+    /**
+     * Google / GitHub sign-in: find or create the account for a provider login and start a
+     * session, as the password login does.
+     *
+     * 1. A login linked before signs in to its account.
+     * 2. Otherwise it links to the account with the same email, but only when the provider says
+     *    the email is verified (`identity.email` is null when it isn't). Anyone can put any
+     *    address on a GitHub account, so an unverified one must never reach an existing account.
+     * 3. Otherwise a new account is created, with no password (it can set one through "Forgot
+     *    password"). This also needs a verified email: the welcome and reset emails go there.
+     */
+    async sso_login(identity: SsoIdentity): Promise<Session> {
+        const { provider, provider_user_id } = identity;
+        if (!provider_user_id) throw new SsoError('failed');
+
+        const linked = await this.identity_repository.findOneBy({ provider, provider_user_id });
+        if (linked) {
+            const account = await this.account_repository.findOneBy({
+                id: linked.account_id,
+                deleted: false
+            });
+            if (!account) throw new SsoError('account_deleted');
+            return await this.session_manager.create_session(account.id);
+        }
+
+        if (!identity.email) throw new SsoError('no_verified_email');
+
+        const account =
+            (await this.find_account_by_email(identity.email)) ??
+            (await this.create_sso_account(identity));
+
+        await this.identity_repository.save({ provider, provider_user_id, account_id: account.id });
+        logger.info(`Linked a ${provider} login to account ${account.id}.`);
+
+        return await this.session_manager.create_session(account.id);
+    }
+
+    // Emails are compared without case (Foo@x.com and foo@x.com are one mailbox). An exact match
+    // wins if there are several. A deleted account's email isn't reused.
+    private async find_account_by_email(email: string): Promise<Account | null> {
+        const matches = await this.account_repository
+            .createQueryBuilder('account')
+            .where('LOWER(account.email) = LOWER(:email)', { email })
+            .getMany();
+        if (!matches.length) return null;
+
+        const live = matches.filter(a => !a.deleted);
+        if (!live.length) throw new SsoError('account_deleted');
+        return live.find(a => a.email === email) ?? live[0];
+    }
+
+    private async create_sso_account(identity: SsoIdentity): Promise<Account> {
+        // account.email is VARCHAR(50)
+        if (identity.email.length > 50 || !validate_email(identity.email)) {
+            throw new SsoError('failed');
+        }
+
+        const api_key = await this.get_unique_api_key();
+        if (!api_key) throw new Error('Could not find a unique API key');
+
+        const account = await this.account_repository.save({
+            email: identity.email,
+            password_hash: null,
+            first_name: identity.first_name,
+            last_name: identity.last_name,
+            api_key
+        });
+
+        logger.info(
+            `Account created through ${identity.provider} sign-in. ID: ${account.id}, Email: ${account.email}.`
+        );
+        this.send_welcome(account);
+
+        return account;
     }
 
     async get_unique_api_key() {

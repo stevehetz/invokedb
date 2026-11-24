@@ -1,10 +1,13 @@
 import AccountHttp from '@/network/http/account/account-http';
 import cookies from 'js-cookie';
+import SsoButtons from '@/view/sso/sso-buttons.vue';
 
 const account_http = new AccountHttp();
 
 export default {
     name: 'CreateAccount',
+
+    components: { SsoButtons },
 
     data() {
         return {

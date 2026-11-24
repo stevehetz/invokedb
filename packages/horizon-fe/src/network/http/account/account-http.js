@@ -32,6 +32,21 @@ export default class AccountHttp extends HttpBase {
         return await this.http_post(`${url}`, data);
     }
 
+    // { google: bool, github: bool }: which sign-in providers the backend has configured
+    async sso_providers() {
+        const url =
+            store.get('env').HORIZON_BE_PUB_HTTP_URL + '/auth/sso-providers';
+        return await this.http_get(`${url}`);
+    }
+
+    // Where the browser goes to start Google / GitHub sign-in (a full page load)
+    sso_start_url(provider, nonce) {
+        return (
+            store.get('env').HORIZON_BE_PUB_HTTP_URL +
+            `/auth/${provider}?nonce=${encodeURIComponent(nonce)}`
+        );
+    }
+
     async confirm_reset_token(token) {
         const url =
             store.get('env').HORIZON_BE_PUB_HTTP_URL +

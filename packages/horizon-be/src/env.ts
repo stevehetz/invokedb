@@ -31,6 +31,13 @@ const env = {
     HORIZON_SB_PRIV_WS_URL: process.env.HORIZON_SB_PRIV_WS_URL,
     HORIZON_WS_SERVER_TOKEN: ws_server_token,
     HORIZON_FE_PUB_HTTP_URL: process.env.HORIZON_FE_PUB_HTTP_URL,
+    // The backend's public URL; the Google and GitHub sign-in callbacks are under it
+    HORIZON_BE_PUB_HTTP_URL: process.env.HORIZON_BE_PUB_HTTP_URL,
+    // Optional. Google / GitHub sign-in is turned on when its client ID and secret are both set.
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
+    GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
     HORIZON_FILE_SHARE: process.env.HORIZON_FILE_SHARE,
     HORIZON_BE_PRIV_HTTP_PORT: process.env.HORIZON_BE_PRIV_HTTP_PORT,
     HORIZON_POSTGRES_HOST: process.env.HORIZON_POSTGRES_HOST,

@@ -70,7 +70,8 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
        `github-actions[bot]`, which GitHub treats as a first-time contributor: the PR's CI and
        review wait for "Approve workflows to run" (seen on #107). The review now allows
        `github-actions` (#111), but the approval click remains. Not fixed.
-     - Merged `security/*` branches aren't always deleted.
+     - Merged branches weren't always deleted: fixed by turning on the repo setting
+       "Automatically delete head branches" (2026-11-24).
    - **To check on things:** `gh pr list`, `gh issue list --label agent-stuck`,
      `gh run list -w security-fix.yml`, `gh run list -w implement.yml`.
    - **Decided 2026-11-24: no UI test on PRs for now.** `ui-smoke.mjs` runs only against

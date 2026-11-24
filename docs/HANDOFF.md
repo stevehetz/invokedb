@@ -33,9 +33,10 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
      `automerge.yml` now closes the linked issues itself. #11, #14, #19, #26 and #35 were closed
      by hand before that.
    - **The cloud agent can't change `.github/workflows/`** (the Claude app has no `workflows`
-     permission; AGENTS.md). #10 was finished locally: PR #71 (Dependabot, examples and
-     shellcheck in CI, `npm run check`, PR template), waiting for the owner, who first saves
-     `CLAUDE_CODE_OAUTH_TOKEN` as a Dependabot secret. #56 and #69 are local-session work too.
+     permission; AGENTS.md). #10 was finished locally and merged (PR #71): Dependabot
+     (weekly; its PRs get CI and the review and auto-merge; `CLAUDE_CODE_OAUTH_TOKEN` is also a
+     Dependabot secret; `repair.yml` skips `dependabot/` branches), examples and shellcheck in
+     CI, `npm run check`, a PR template. #56 and #69 are local-session work too.
    - **Cloud agent queue:** running, in board order (`PROJECTS_TOKEN` set). #12 (websocket
      clean-up) merged as PR #72 and closed itself (the #67 fix works). Queued (`agent`): #44,
      #60, #64, #66.

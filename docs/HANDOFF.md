@@ -325,6 +325,12 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `password_hash` nullable. Link an SSO login to an existing account only by a **verified**
   email (for GitHub, fetch `/user/emails` and take the primary verified one). Add the buttons to
   the login and signup pages, and the client IDs/secrets to `src/env.ts` and `.env`.
+  **Code written** (#17): `src/web/http/auth/sso.controller.ts`, `application/auth/sso/`, the
+  `AccountIdentity` migration, `horizon-fe/src/view/sso/`. The OAuth state lives in a
+  short-lived cookie on the API host (no server sessions), and the token comes back in the URL
+  fragment with a nonce the login page checks. An SSO login never links to an account that has
+  a password (`password_account` error), since password signup doesn't verify the email. Still to do by the owner: create the OAuth apps
+  and set the four `*_CLIENT_*` values (see `docs/OPERATIONS.md`).
 - **6 (backend, optional):** Nest 12 / TypeORM 1.x (#19) and `npm audit`. `tslint` → ESLint is done (#9).
 - **7 (code review, requested 2026-11-24): findings written** (2026-11-24) in
   `docs/CODE_REVIEW.md`; all of them became issues #6–#14. Review the whole codebase (`horizon-be`,

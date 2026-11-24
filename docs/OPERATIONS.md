@@ -65,6 +65,24 @@ repo: it's public.
 - **Check:** Healthchecks.io → the check → Integrations → test the webhook; a message should
   arrive in the chat.
 
+### Google and GitHub sign-in (OAuth apps)
+
+- **Does:** "Continue with Google / GitHub" on the login and signup pages (#17). A provider's
+  button only shows when its client ID and secret are both set. A login links to an existing
+  account only by an email the provider says is verified, and never to an account that has a
+  password (signup doesn't verify emails, so the password's owner may not own the mailbox).
+- **Configured:** a Google OAuth client (Google Cloud console, APIs & Services → Credentials,
+  "Web application") and a GitHub OAuth App (github.com/settings/developers). Each lists its
+  callback URL: `https://api.invokedb.com/auth/<google|github>/callback` in production, and
+  `http://127.0.0.1:8001/auth/<google|github>/callback` for local dev (GitHub allows one
+  callback per app, so use a second app for local). The backend reads them in
+  `packages/horizon-be/src/env.ts`; the flow is in `src/web/http/auth/sso.controller.ts`.
+- **Secrets:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`,
+  `GITHUB_CLIENT_SECRET` (`prod.env`, and `.env` locally).
+- **Alerts:** none. Failed sign-ins are logged by the api container (`SSO sign-in …`).
+- **Check:** `https://api.invokedb.com/auth/sso-providers` shows which are on; then sign in
+  with each on `https://invokedb.com/login`.
+
 ### UptimeRobot (uptime)
 
 - **Does:** checks `https://invokedb.com` and `https://api.invokedb.com/auth/authorize` every 5

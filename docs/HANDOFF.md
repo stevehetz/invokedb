@@ -73,7 +73,11 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
      - Merged `security/*` branches aren't always deleted.
    - **To check on things:** `gh pr list`, `gh issue list --label agent-stuck`,
      `gh run list -w security-fix.yml`, `gh run list -w implement.yml`.
-   - **Offered, not yet an issue:** run the Playwright UI smoke test (`ui-smoke.mjs`) in CI.
+   - **Decided 2026-11-24: no UI test on PRs for now.** `ui-smoke.mjs` runs only against
+     production (`e2e.yml`, nightly and after each deploy). Running it on every PR against CI's
+     throwaway stack would add ~1 minute before a PR can merge (CI ~48s and the review ~60–80s
+     today, in parallel; the UI job would be ~2 min). The owner prefers faster merges; revisit
+     if UI breakage keeps reaching production (as ag-grid 36 did, #127).
    - **Session rule from the owner (2026-11-24):** for fixes to the automation, the agent may
      merge its own PR once CI passes, including `.github/` changes; say what was merged.
 
@@ -266,8 +270,8 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   rejected. **Email: live** (2026-11-22) through Mailgun on `mail.invokedb.com` (free plan,
   US region; SPF, DKIM and a `p=none` DMARC record in Cloudflare); a password reset reached
   Gmail. The old Mailgun account still holds `mg.invokedb.com` and wouldn't delete it, hence
-  `mail.`. **Not yet checked by a person:** signup, table creation, CSV upload and API calls in
-  production. Hetzner was dropped because its US prices roughly tripled in June 2026.
+  `mail.`. Table creation, CSV upload and API calls in production are covered by the
+  nightly E2E (`e2e.yml`); Google and GitHub signup were checked by hand (2026-11-24). Hetzner was dropped because its US prices roughly tripled in June 2026.
   - **Still to do, in order:**
     1. **Account enumeration: done and deployed** (2026-11-22, deployed 2026-11-23 with item
        4's contact-form change). Login says
@@ -356,8 +360,8 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `AccountIdentity` migration, `horizon-fe/src/view/sso/`. The OAuth state lives in a
   short-lived cookie on the API host (no server sessions), and the token comes back in the URL
   fragment with a nonce the login page checks. An SSO login never links to an account that has
-  a password (`password_account` error), since password signup doesn't verify the email. Still to do by the owner: create the OAuth apps
-  and set the four `*_CLIENT_*` values (see `docs/OPERATIONS.md`).
+  a password (`password_account` error), since password signup doesn't verify the email. The OAuth apps and the four `*_CLIENT_*` values are set
+  (see `docs/OPERATIONS.md`).
 - **6 (backend, optional):** Nest 12 / TypeORM 1.x (#19) and `npm audit`. `tslint` → ESLint is done (#9).
 - **7 (code review, requested 2026-11-24): findings written** (2026-11-24) in
   `docs/CODE_REVIEW.md`; all of them became issues #6–#14. Review the whole codebase (`horizon-be`,

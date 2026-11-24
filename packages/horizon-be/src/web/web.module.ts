@@ -9,6 +9,7 @@ import { WebFileController } from '@app/web/http/web-file/web-file.controller';
 import { ExternalV1Controller } from './http/external/external-v1.controller';
 import { SubscriptionController } from './http/subscription/subscription.controller';
 import { SupportController } from './http/support/support.controller';
+import { HealthController } from './http/health/health.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
@@ -23,7 +24,8 @@ import { WebsocketClient } from './ws/websocket-client';
         ExternalV1Controller,
         AccountController,
         SubscriptionController,
-        SupportController
+        SupportController,
+        HealthController
     ],
     providers: [WebsocketServer, WebsocketClient]
 })

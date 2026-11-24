@@ -45,6 +45,18 @@ function check(name, pass, detail) {
     if (!pass && detail !== undefined) console.log('     ', JSON.stringify(detail).slice(0, 300));
 }
 
+// Wait until the backend's websocket clients are registered (GET /health answers 200): they
+// connect about a second after HTTP is up, and an upload before then used to crash it (#44).
+for (let i = 0; ; i++) {
+    const res = await fetch(BASE + '/health').catch(() => null);
+    if (res?.ok) break;
+    if (i >= 60) {
+        console.log(`FAIL --- /health not ready after 30s (last status ${res?.status})`);
+        process.exit(1);
+    }
+    await sleep(500);
+}
+
 const session = await call('login', 'POST', '/auth/login', {
     body: { email: 'demo@invokedb.com', password: 'password' }
 });

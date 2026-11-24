@@ -114,13 +114,15 @@ jobs:
         if: always() && steps.check.outcome == 'success'
         run: |
           set -euo pipefail
-          branch=$(git ls-remote --heads origin | sed -n "s|.*refs/heads/\(${ISSUE}-.*\)|\1|p" | head -n 1)
-          pr=""
-          if [ -n "$branch" ]; then
-            pr=$(gh pr list -R "$GITHUB_REPOSITORY" --head "$branch" --state open \
-              --json number --jq '.[0].number // empty')
-          fi
+          # The newest open PR for this issue (an older, closed attempt may have left a branch)
+          found=$(gh pr list -R "$GITHUB_REPOSITORY" --state open --limit 200 \
+            --json number,headRefName --jq '[.[] |
+              select(.headRefName | startswith(env.ISSUE + "-"))] | sort_by(.number) | last // empty')
+          [ -n "$found" ] || found='{}'
+          pr=$(jq -r '.number // empty' <<<"$found")
+          branch=$(jq -r '.headRefName // empty' <<<"$found")
           if [ -n "$pr" ]; then
+            gh pr edit "$pr" -R "$GITHUB_REPOSITORY" --add-label agent-pr # in case Claude left it off
             gh workflow run ci.yml -R "$GITHUB_REPOSITORY" --ref "$branch"
             echo "PR #$pr on $branch; started CI"
             # A PR opened with `hold` is parked at once, so the queue can move on

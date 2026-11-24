@@ -137,7 +137,8 @@ it in GitHub Actions by the steps above and opens a PR labelled `agent-pr`; CI, 
 auto-merge take it from there. The next issue starts when that PR merges or is parked
 (`needs-owner`, `hold`). If the agent stops without a PR, or its PR is stuck (review changes,
 failed CI, 2 hours idle), the item gets `agent-stuck`, the user is mentioned, and the queue
-waits (for a stuck PR) or skips the issue (until the label is removed).
+waits (for a stuck PR) or skips the issue (until the label is removed). Closing an agent PR
+without merging also marks its issue `agent-stuck`; removing the label asks for a retry.
 
 - Only issues the user opened and labelled are worked, and the agent sees the issue body and
   the user's comments only. It has no databases (CI's `smoke` job tests the PR), no secrets

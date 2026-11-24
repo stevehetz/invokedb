@@ -32,12 +32,10 @@ packages/horizon-be/tmp_fs
 packages/horizon-fe/dist
 packages/horizon-fe/.local
 packages/horizon-fe/.env.*.local
-# secrets (real files live in Dropbox/secret/invokedb, symlinked here)
-ops/azure-prod/azure-prod-build.values.sh
-ops/azure-prod/azure-prod-env.values.sh
-ops/azure-base/azure-base.values.sh
-ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa
-ops/azure-prod/commands/ssh/keys/prod_horizon_id_rsa.pub
+
+# The old Azure setup was removed from the repo, but checkouts may still have its gitignored
+# secret files (values.sh, SSH keys) on disk. Keep them out of git.
+ops/
 
 # local dev
 .env

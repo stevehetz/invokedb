@@ -84,13 +84,18 @@ features).
 - **`HORIZON_WS_SERVER_TOKEN`** is the shared secret that backend processes register with the
   websocket broker. It's optional locally (random per process) and required elsewhere (startup
   fails without it). Every process in a deployment needs the same value.
-- **Stripe isn't in use**, and the old keys are deliberately not rolled. If it comes back, create
-  new keys. `/checkout` throws `Please call Stripe() with your publishable key` without them.
+- **Stripe was removed** (2026-11-24, #6): the routes, the SDK, the `/checkout` page and the
+  Stripe script are gone; the `subscription` / `stripe_env` tables and the account's `stripe_*`
+  columns stay until a migration drops them. The old keys are deliberately not rolled. If paid
+  plans come back, write it fresh on the current SDK with new keys and webhook signature checks.
 - The two areas' global stylesheets still clash (see AGENTS.md); unifying them would let
   cross-area links use the router. Optional.
 - The entry JS is a single 2.3 MB chunk (577 kB gzip). Vite warns; splitting it is optional.
 - `/api/v1/get` leaves out empty cells. That looks intended.
-- `docs/ops/` holds the old Azure/AKS ops notes, for reference only.
+- The old Azure/AKS setup (`ops/`, `docs/ops/`, the `prod:*` scripts) and the demo database
+  dump were deleted (2026-11-24, #6); git history has them. `npm run db:demo` now loads the
+  example tables through the API (`examples/setup.mjs`). The unused `horizon_logs` database and
+  its Postgres log transport are gone too; an existing local `horizon_logs` DB can be dropped.
 - **Production secrets** are in `deploy/prod.env` (gitignored; DB passwords, websocket token,
   Mailgun key, droplet IP, SSH key path `~/.ssh/invokedb`). It and the SSH key pair are synced
   to Dropbox with the other secrets by `npm run secrets:push`/`pull` (the key under `home/` in
@@ -129,8 +134,8 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   and reset-token expiry are enforced (they never were), sessions are revoked when a password
   reset completes instead of when it's requested, and `batch_delete` now drops the Mongo data of
   every deleted table (it only did the last one). `api-smoke.mjs` has 19 new cross-account
-  checks as `demo2@invokedb.com`; the pre-fix code fails all of them. Left alone: the Stripe
-  `/webhook/stripe` route doesn't verify signatures (Stripe is off; fix before it comes back).
+  checks as `demo2@invokedb.com`; the pre-fix code fails all of them. Left alone then: the Stripe
+  `/webhook/stripe` route didn't verify signatures (removed with the rest of Stripe in #6).
 - **2.3–2.5: done** (2026-11-15). Element Plus and `ag-grid-vue3` need
   Vue 3, so 2.3 couldn't happen on Vue 2.7; all three steps were done together, straight to Vue
   3.5 (no compat build): vue-router 4, Element Plus 2.14 (app theme in `src/element-theme.scss`),
@@ -241,8 +246,7 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   - **Later:** a bigger droplet (a resize keeps the data; raise `MONGO_CACHE_GB` and `PRC_CPUS`),
     managed DBs, or more servers, if it ever needs them. It's all standard Docker, Postgres and
     Mongo, so moving is a migration, not a rewrite.
-  - `ops/` (the old AKS/Helm setup) still builds a separate `horizon-auth-fe`; leave it for
-    reference or delete it.
+  - `ops/` (the old AKS/Helm setup) was deleted in #6.
 - **5a (domain): done.** `invokedb.com` was bought on Cloudflare Registrar on 2026-11-14, so its
   DNS is on Cloudflare. The A records (`@`, `www`, `api`, `ws`) are DNS-only (grey cloud),
   so Caddy's Let's Encrypt certificates issue simply; turning on the proxy later needs SSL set
@@ -259,8 +263,7 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `password_hash` nullable. Link an SSO login to an existing account only by a **verified**
   email (for GitHub, fetch `/user/emails` and take the primary verified one). Add the buttons to
   the login and signup pages, and the client IDs/secrets to `src/env.ts` and `.env`.
-- **6 (backend, optional):** Nest 12 / TypeORM 1.x, `stripe` 8 → current (only if Stripe comes
-  back), `tslint` → ESLint, and `npm audit` (15 issues, mostly dev tooling).
+- **6 (backend, optional):** Nest 12 / TypeORM 1.x, `tslint` → ESLint, and `npm audit` (15 issues, mostly dev tooling).
 - **7 (code review, requested 2026-11-24): findings written** (2026-11-24) in
   `docs/CODE_REVIEW.md`; all of them became issues #6–#14. Review the whole codebase (`horizon-be`,
   `horizon-fe`, `deploy/`, `scripts/`, `examples/`, `.github/`) for clean-up: dead code,

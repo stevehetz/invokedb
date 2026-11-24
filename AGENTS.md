@@ -63,11 +63,9 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
 ## Hard rules
 
 - **The GitHub repo is public.** Never commit secrets, keys, tokens, customer data or real
-  connection strings. Secret files (`.env`, `ops/**/*.values.sh`, SSH keys) are gitignored, and
+  connection strings. Secret files (`.env`, `deploy/prod.env`, SSH keys) are gitignored, and
   their originals live in a Dropbox folder that `scripts/secrets.sh` syncs. Never add a secret
   file to git, never weaken `.gitignore`, and never push `~/dev/invokedb-pre-scrub-*.bundle`.
-- **Don't run `npm run prod:*`, `base:construct` or anything under `ops/azure-*`.** That
-  infrastructure is torn down, and the scripts target real Azure resources.
 - **Pushing to `main` deploys to production** (after CI passes; `.github/workflows/cd.yml`).
   Never push or merge to `main` yourself unless the user asks; `automerge.yml` merges PRs
   that qualify (below).
@@ -166,7 +164,7 @@ rounds per PR, then `agent-stuck`. On the user's own PRs it runs only when the u
   `node_modules/.bin/prettier --write <files you changed>` (from the repo root) so the diff the
   user reviews is already formatted. If prettier reports a syntax error, the file doesn't parse.
 - Always use the **root** prettier (the packages don't install their own).
-- `ops/` and the backend email `.html` templates are intentionally not formatted.
+- The backend email `.html` templates are intentionally not formatted.
 
 ## Backend conventions (`packages/horizon-be`)
 
@@ -197,7 +195,7 @@ rounds per PR, then `agent-stuck`. On the user's own PRs it runs only when the u
 
 - Vue 3, Options API. Components are often split into `index.vue` + `<name>.html` (template, via
   `<template src>`) + `<name>.js` + `.scss`. Keep that split when editing an existing component.
-- **Two areas, one app.** The public site (marketing, login, signup, checkout: `src/view/`,
+- **Two areas, one app.** The public site (marketing, login, signup, pricing: `src/view/`,
   `src/network/`) is served at `/`, and the signed-in app (`src/components/`, `src/core/`) at
   `/app`. They were separate apps until 2026-11, and their global stylesheets clash. So each
   area's shell (`src/view/site.vue`, `src/components/app.vue`) imports its own CSS and is
@@ -234,7 +232,11 @@ rounds per PR, then `agent-stuck`. On the user's own PRs it runs only when the u
   terminal if that happens.
 - Run long-lived servers (`npm run dev`) in the background, never as a blocking foreground
   command.
-- Stripe keys are read once, by the Initial migration, into the `stripe_env` table.
+- Stripe was removed (no routes, no SDK, no checkout page). The `subscription` and `stripe_env`
+  tables and the account's `stripe_*` columns are still in the schema; a later migration can
+  drop them.
+- `npm run db:demo` starts its own backend to load the example tables (`examples/setup.mjs`),
+  so `npm run dev` must be stopped first.
 - Mailgun and Telegram are optional. Without keys, emails and support requests go to the
   backend log.
 

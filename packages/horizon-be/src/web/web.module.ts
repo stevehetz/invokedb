@@ -7,8 +7,6 @@ import { FileDirectoryController } from '@app/web/http/file-directory/file-direc
 import { WebFileController } from '@app/web/http/web-file/web-file.controller';
 import { ExternalV1Controller } from './http/external/external-v1.controller';
 import { SubscriptionController } from './http/subscription/subscription.controller';
-import { WebhookController } from './http/webhook/webhook.controller';
-import { StripeController } from './http/stripe/stripe.controller';
 import { SupportController } from './http/support/support.controller';
 import { WebsocketClientStore } from '@app/websocket/client.store';
 import { WebsocketServer } from './ws/websocket-server';
@@ -23,8 +21,6 @@ import { WebsocketClient } from './ws/websocket-client';
         ExternalV1Controller,
         AccountController,
         SubscriptionController,
-        WebhookController,
-        StripeController,
         SupportController
     ],
     providers: [WebsocketServer, WebsocketClient, WebsocketClientStore]

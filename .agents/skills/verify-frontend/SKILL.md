@@ -120,7 +120,7 @@ auto-rotates, so expect small differences there.
 Stop the background stack, then:
 
 ```sh
-PGHOST=127.0.0.1 PGUSER=postgres psql -d postgres -c 'DROP DATABASE IF EXISTS horizon_smoke WITH (FORCE)' -c 'DROP DATABASE IF EXISTS horizon_smoke_logs WITH (FORCE)'
+PGHOST=127.0.0.1 PGUSER=postgres psql -d postgres -c 'DROP DATABASE IF EXISTS horizon_smoke WITH (FORCE)'
 mongosh mongodb://127.0.0.1:27017 --quiet --eval 'db.adminCommand({listDatabases:1}).databases.filter(d=>d.name.startsWith("horizon_smoke")).forEach(d=>db.getSiblingDB(d.name).dropDatabase())'
 rm -rf .data/smoke
 ```

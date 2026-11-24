@@ -32,7 +32,7 @@ Client code lives under `examples/` (each with its own `node_modules`, outside t
 - PostgreSQL on `127.0.0.1:5432` (Postgres.app or `brew install postgresql`)
 - MongoDB on `127.0.0.1:27017` (`brew install mongodb-community`) plus `mongosh`
 
-You don't need Docker, Kubernetes, tmux, or the Stripe CLI for local dev.
+You don't need Docker for local dev.
 
 ## First run
 
@@ -54,11 +54,10 @@ password: password
 
 ## Config and secrets
 
-All config lives in `.env` at the repo root, created from `.env.example`. Mailgun, Telegram and
-Stripe are optional. Without keys, emails and support requests are printed to the backend log.
+All config lives in `.env` at the repo root, created from `.env.example`. Mailgun and Telegram
+are optional. Without keys, emails and support requests are printed to the backend log.
 
-Secret files (`.env`, `deploy/prod.env`, the Azure `*.values.sh` files, SSH keys) are
-gitignored, and the production SSH key lives in `~/.ssh/invokedb`. The originals
+Secret files (`.env`, `deploy/prod.env`, SSH keys) are gitignored, and the production SSH key lives in `~/.ssh/invokedb`. The originals
 live in the Dropbox folder `secret/invokedb`, and you copy them back and forth:
 
 ```
@@ -79,7 +78,9 @@ npm run db:demo                     # replace local data with the demo dataset (
 npm run migration:create -- Name    # new TypeORM migration
 ```
 
-The demo dataset (`ops/shared/dumps/demo`) has three sample tables under `demo@invokedb.com`.
+The demo dataset is the example tables in `examples/data` (todo, contacts, wine_reviews), under
+`demo@invokedb.com`. `db:demo` resets the databases, then starts a backend of its own to load
+them through the API (`examples/setup.mjs`), so stop `npm run dev` first.
 
 ## Formatting
 
@@ -114,8 +115,7 @@ Agent playbooks ("skills") are in `.agents/skills`, and `AGENTS.md` says when to
 npm run push "your commit message"  # bumps the patch version everywhere, commits, tags, pushes
 ```
 
-## Production (Azure, currently torn down)
+## Production
 
-`ops/azure-*` and `npm run prod:*` build and deploy to Azure AKS. They aren't used for local
-dev and haven't been run since the infrastructure was deleted, so expect to update them
-before deploying again.
+Production is one server running `docker compose`, set up and driven by the scripts in
+`deploy/`. See `deploy/README.md`.

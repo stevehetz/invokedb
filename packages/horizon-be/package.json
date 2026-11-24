@@ -1,9 +1,15 @@
 {
     "name": "horizon-be",
     "version": "2.0.371",
-    "description": "description",
+    "description": "InvokeDB backend (NestJS API, CSV processor, websocket broker)",
+    "private": true,
+    "license": "UNLICENSED",
     "author": "Steve Hetzel",
-    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/stevehetz/invokedb.git",
+        "directory": "packages/horizon-be"
+    },
     "scripts": {
         "build": "tsc -p tsconfig.build.json",
         "start": "IS_TS_NODE=true npm run start:dev",

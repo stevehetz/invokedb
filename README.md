@@ -117,3 +117,9 @@ Agent playbooks ("skills") are in `.agents/skills`, and `AGENTS.md` says when to
 
 Production is one server running `docker compose`, set up and driven by the scripts in
 `deploy/`. See `deploy/README.md`.
+
+## Licence
+
+Copyright (c) 2026 Steve Hetzel. All rights reserved: the code is public to read, not to reuse
+(see `LICENSE`). The `invokedb` npm client (`examples/invokedb-node`) and the Angular example
+(`examples/angular`) are MIT-licensed.

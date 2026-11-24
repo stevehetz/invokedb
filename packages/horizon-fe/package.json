@@ -1,7 +1,15 @@
 {
     "name": "horizon-fe",
     "version": "2.0.371",
+    "description": "InvokeDB frontend (public site and the app)",
     "private": true,
+    "license": "UNLICENSED",
+    "author": "Steve Hetzel",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/stevehetz/invokedb.git",
+        "directory": "packages/horizon-fe"
+    },
     "scripts": {
         "start": "npm run env public && vite",
         "env": "node env.js",

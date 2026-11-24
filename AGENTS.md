@@ -56,10 +56,10 @@ bash scripts/smoke-env.sh <file>  # throwaway env (horizon_smoke DBs, ports 81xx
 CI (`.github/workflows/ci.yml`) runs on every push to a PR and every push to `main` (a branch with
 no PR gets no CI until one is opened; a dispatched CI run doesn't count toward a PR's required
 checks, #40, #42): backend build + lint + unit tests, the API smoke test (`smoke` job: the built
-backend on Postgres and Mongo service containers), frontend build + lint, the `examples/`
-builds, shellcheck (`deploy/*.sh`, `scripts/*.sh`; settings in `.shellcheckrc`) and prettier;
-`npm run check` runs all but the smoke test locally. Dependabot (`.github/dependabot.yml`) opens
-weekly update PRs. Unit tests are few so far (account scoping, validators, column-name rules); add a `*.spec.ts` next to the code
+backend on Postgres and Mongo service containers), frontend build + lint + typecheck, the
+`examples/` builds, shellcheck (`deploy/*.sh`, `scripts/*.sh`; settings in `.shellcheckrc`) and
+prettier; `npm run check` runs all but the smoke test locally. Dependabot
+(`.github/dependabot.yml`) opens weekly update PRs. Unit tests are few so far (account scoping, validators, column-name rules); add a `*.spec.ts` next to the code
 for new pure logic. Verify backend changes with `build`, `test`, and `api-smoke.mjs` (see the
 `verify-backend` skill); if you can't run the smoke test locally, the `smoke` job runs it on the PR.
 `api-smoke.mjs` exits non-zero on any failed call or check. Verify UI changes with `npm --prefix
@@ -135,8 +135,8 @@ e.g. `gh project item-list 1 --owner stevehetz`). There is no other task list;
    `<issue>-<short-slug>` (e.g. `6-remove-stripe`).
 4. **Stay in scope.** A bug or follow-up found on the way becomes a new issue, not part of
    this branch. Mention it in the PR.
-5. **Finish:** run the checks for what changed (`verify-backend`; frontend build + lint),
-   prettier, commit, push, and `gh pr create` with `Closes #<issue>` in the body and how it
+5. **Finish:** run the checks for what changed (`verify-backend`; frontend build + lint +
+   typecheck), prettier, commit, push, and `gh pr create` with `Closes #<issue>` in the body and how it
    was checked. CI and the Claude review run on it. Tick the "Done when" boxes that are done;
    say plainly which aren't.
 6. **Merge:** `automerge.yml` merges a PR that qualifies (see Hard rules, "Auto-merge");

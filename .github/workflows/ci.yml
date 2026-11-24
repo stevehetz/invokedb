@@ -1,8 +1,8 @@
 # Checks every pull request and every push to main: backend build + lint + unit tests, the API
 # smoke test against a real backend (Postgres and Mongo as service containers), frontend build +
-# lint (and no Sass deprecation warnings), the examples (npm client + Angular app), shellcheck,
-# and prettier. `npm run check` runs the same checks locally, minus the smoke test. Needs no
-# secrets.
+# lint + typecheck (and no Sass deprecation warnings), the examples (npm client + Angular app),
+# shellcheck, and prettier. `npm run check` runs the same checks locally, minus the smoke test.
+# Needs no secrets.
 #
 # pull_request (opened, each push to the PR's branch, reopened): one run per push, a person's PR
 # or the cloud agent's, and it's the run the merge rule on main counts. It tests the PR's head
@@ -125,6 +125,7 @@ jobs:
               exit 1
           fi
       - run: npm run lint
+      - run: npm run typecheck
 
   # The npm client (tsc) and the Angular example (ng build, which compiles the client's source
   # through a tsconfig path), so they stay in step with the API. Each has its own lockfile.

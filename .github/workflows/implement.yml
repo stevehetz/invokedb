@@ -3,7 +3,8 @@
 # agent-queue.yml, one issue at a time; it can also be run by hand ("Run workflow", issue number).
 # Only issues the owner opened and labelled `agent` are worked. Claude sees the issue body and
 # the owner's comments only (anyone can comment on a public repo). CI and the review then run on
-# the PR, and automerge.yml merges it or parks it with needs-owner. Auth as in review.yml.
+# the PR, and automerge.yml merges it or parks it with needs-owner. Follow-ups it finds become
+# `agent-found` issues for the owner to triage (never queued; #69). Auth as in review.yml.
 name: Implement
 
 on:
@@ -43,7 +44,15 @@ jobs:
           info=$(gh issue view "$ISSUE" -R "$GITHUB_REPOSITORY" --json state,author,labels)
           fail() { echo "::error::#$ISSUE $1"; exit 1; }
           [ "$(jq -r .state <<<"$info")" = OPEN ] || fail "isn't open"
-          [ "$(jq -r .author.login <<<"$info")" = "$OWNER" ] || fail "wasn't opened by $OWNER"
+          # Opened by the owner, or filed by the agent (agent-found, #69) and labelled by the owner
+          author=$(jq -r .author.login <<<"$info")
+          if [ "$author" != "$OWNER" ]; then
+            [ "$author" = app/claude ] && jq -e '.labels | map(.name) | index("agent-found")' <<<"$info" >/dev/null ||
+              fail "wasn't opened by $OWNER"
+            by=$(gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE/events" --paginate \
+              --jq '.[] | select(.event == "labeled" and .label.name == "agent") | .actor.login' | tail -n 1)
+            [ "$by" = "$OWNER" ] || fail "agent label wasn't added by $OWNER"
+          fi
           jq -e '.labels | map(.name) | index("agent")' <<<"$info" >/dev/null ||
             fail "has no agent label"
           if jq -e '.labels | map(.name) | (index("agent-stuck") or index("you"))' <<<"$info" >/dev/null; then
@@ -69,6 +78,9 @@ jobs:
               "\n---\nComment by the owner:\n\n\(.body)\n"] | join(""))' > .git/task.md
           wc -c .git/task.md
           gh issue comment "$ISSUE" -R "$GITHUB_REPOSITORY" --body "The cloud agent started on this issue: $RUN_URL"
+      - name: Note the start time
+        id: start
+        run: echo "since=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -85,7 +97,14 @@ jobs:
 
             1. `git switch -c ${{ inputs.issue }}-<short-slug>`.
             2. Make the change the issue asks for, and only that. A bug or follow-up you notice
-               goes under "Follow-ups" in the PR description, not into this branch.
+               doesn't go into this branch. If it's real and worth doing, file it (at most 3 per
+               run): search first (`gh issue list --search "<words>" --state open`) and skip it
+               if an open issue covers it; otherwise `gh issue create` with a title in the
+               imperative, a body with context, scope, "Found while working #${{ inputs.issue }}"
+               and a "**Done when**" checklist, and the labels `agent-found`, one type (`bug`,
+               `enhancement`, `chore`, `documentation`, `security`) and its `area:*` labels. Never
+               add `agent`, `you` or `hold`: the owner decides what gets worked. List each issue
+               (or the open one that covers it) under "Follow-ups" in the PR description.
             3. Check what you changed. Install what you need: `npm ci --omit=optional --no-audit
                --no-fund` in packages/horizon-be, `npm ci --no-audit --no-fund` in
                packages/horizon-fe, `npm ci --ignore-scripts --no-audit --no-fund` at the root.
@@ -100,8 +119,8 @@ jobs:
                must do on deploy (a prod.env change, a manual step on the server). Pass
                `--label hold` only if it needs such a step, so it can't deploy safely without
                the owner. Never add `hold` because a change is large, risky-looking or visual,
-               or for a follow-up you can't do yourself (such as a `.github/` change): list
-               those under "Follow-ups" and let the PR merge.
+               or for a follow-up you can't do yourself (such as a `.github/` change): file
+               it as above and let the PR merge.
 
             If the issue needs a decision from the owner, or you can't finish it safely, open no
             PR: explain what's needed with `gh issue comment ${{ inputs.issue }}` and stop.
@@ -112,7 +131,42 @@ jobs:
           claude_args: |
             --model claude-opus-5-5
             --max-turns 200
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(ls:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*),Bash(gh pr create:*),Bash(gh issue comment:*)"
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(ls:*),Bash(mkdir:*),Bash(mv:*),Bash(rm:*),Bash(gh pr create:*),Bash(gh issue comment:*),Bash(gh issue list:*),Bash(gh issue create:*)"
+
+      # The agent may file follow-ups as issues (#69). Enforced here, not trusted to the agent: only
+      # issues the Claude app opened during this run, at most 3 kept, never queued (agent, you and
+      # hold are stripped; the queue also only takes issues the owner opened), added to the board
+      # when PROJECTS_TOKEN is set. Inline rather than a script: the checkout is the agent's to edit.
+      - name: Tidy the issues the agent opened
+        if: always() && steps.start.outputs.since
+        env:
+          SINCE: ${{ steps.start.outputs.since }}
+          PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
+        run: |
+          set -euo pipefail
+          R="$GITHUB_REPOSITORY"
+          found=$(gh issue list -R "$R" --label agent-found --state open --limit 50 \
+            --json number,author,createdAt,labels --jq '[.[] |
+              select(.author.login == "app/claude" and .createdAt >= env.SINCE)] |
+              sort_by(.number)')
+          kept=0
+          for n in $(jq -r '.[].number' <<<"$found"); do
+            labels=$(jq -r --argjson n "$n" '.[] | select(.number == $n) | .labels[].name' <<<"$found")
+            if [ "$kept" -ge 3 ]; then
+              gh issue close "$n" -R "$R" --reason "not planned" \
+                --comment "Closed: over the cloud agent's limit of 3 new issues per run ($RUN_URL)."
+              continue
+            fi
+            kept=$((kept + 1))
+            for l in agent you hold; do
+              if grep -qx "$l" <<<"$labels"; then gh issue edit "$n" -R "$R" --remove-label "$l"; fi
+            done
+            if [ -n "$PROJECTS_TOKEN" ]; then
+              GH_TOKEN="$PROJECTS_TOKEN" gh project item-add 1 --owner "$OWNER" \
+                --url "https://github.com/$R/issues/$n" >/dev/null || echo "Couldn't add #$n to the board"
+            fi
+            echo "Filed #$n"
+          done
 
       # CI and the review start by themselves: the Claude app opened the PR, and ci.yml runs on
       # pull_request (a dispatched CI run wouldn't count toward its required checks; #40). No PR

@@ -35,6 +35,6 @@ export const grid_theme = createTheme().withParams({
     rangeSelectionBorderColor: '#1fe0ff',
     cellEditingBorder: false,
     cellEditingShadow: false,
-    focusShadow: false,
-    inputFocusShadow: false
+    focusShadow: false
+    // No inputFocusShadow: it belongs to the input-style part, which this theme doesn't include
 });

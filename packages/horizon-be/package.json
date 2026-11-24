@@ -28,7 +28,7 @@
         "camelcase": "^6.3.0",
         "class-transformer": "^0.5.1",
         "class-validator": "^0.14.4",
-        "csv-parse": "^5.6.0",
+        "csv-parse": "^7.0.3",
         "module-alias": "^2.2.3",
         "mongodb": "^7.9.1",
         "passport": "^0.7.0",

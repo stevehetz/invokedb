@@ -18,19 +18,7 @@
                 account.subscription.price : 'Free'}}
             </span>
         </div>
-        <div
-            class="subscription-end-message"
-            :class="{
-                 renew: !this.cancel_at_period_end,
-                 end: this.cancel_at_period_end
-             }"
-            v-if="subscription_end_message"
-        >
-            <i class="fa fa-info-circle"></i>
-            <span>{{ subscription_end_message }}</span>
-        </div>
         <div class="links">
-            <a :href="checkout_link" class="change-plan-link">Change Plan</a>
             <a :href="pricing_link" class="pricing-link">
                 Go to Pricing Page
             </a>

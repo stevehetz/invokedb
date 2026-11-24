@@ -54,19 +54,6 @@ if (env.IS_LOCAL) {
             )
         })
     );
-    // Postgres log transport needs the native libpq bindings (optional dependency).
-    try {
-        const Postgres = require('@pauleliet/winston-pg-native');
-        logger_transports.push(
-            new Postgres({
-                connectionString: `postgres://${env.HORIZON_POSTGRES_USERNAME}:${env.HORIZON_POSTGRES_PASSWORD}@${env.HORIZON_POSTGRES_HOST}:${env.HORIZON_POSTGRES_PORT}/horizon_logs`,
-                level: env.POSTGRES_LOG_LEVEL,
-                tableName: 'log'
-            })
-        );
-    } catch (e) {
-        // not installed; console only
-    }
 }
 
 logger = createLogger({

@@ -40,6 +40,9 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
+          # Keep the workflow token out of git so Claude's push uses the Claude app's token,
+          # which starts CI and the review (see resolve.yml)
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc

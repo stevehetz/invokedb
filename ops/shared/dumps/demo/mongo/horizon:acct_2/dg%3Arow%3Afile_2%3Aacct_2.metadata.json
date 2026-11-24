@@ -1,1 +1,0 @@
-{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},{"v":{"$numberInt":"2"},"key":{"l":{"$numberInt":"1"}},"name":"l_1"},{"v":{"$numberInt":"2"},"key":{"e":{"$numberInt":"1"}},"name":"e_1"},{"v":{"$numberInt":"2"},"key":{"f":{"$numberInt":"1"}},"name":"f_1"}],"uuid":"c024f03757094a4e9c523de5a069db87","collectionName":"dg:row:file_2:acct_2"}

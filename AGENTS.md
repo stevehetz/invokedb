@@ -178,7 +178,10 @@ repair fix PR `review-changes`, Claude fixes each finding or replies in its thre
 not, and pushes (an empty commit if it only replied), which starts CI and a fresh review. The
 review reads earlier threads and replies, so an answered point isn't raised again. At most two
 rounds per PR, then `agent-stuck`. On the user's own PRs it runs only when the user adds
-`agent-fix` or runs it by hand.
+`agent-fix` or runs it by hand. **Dependabot PRs** get it automatically too, after
+`review-changes` or a failed CI run: Claude fixes what the update breaks (config, code, a lockfile
+CI's npm rejects) or declines it (a comment and `needs-owner`; the user closes it). It never sees
+a Dependabot PR's body, which quotes upstream release notes (#89).
 
 **Merge conflicts** (`.github/workflows/resolve.yml`): when an agent PR or a repair fix PR
 conflicts with `main` (another PR changed the same files first, often a `package-lock.json`),

@@ -109,12 +109,6 @@ deploy) by themselves. `AGENTS.md`, "How work is tracked", has the details.
 Agent playbooks ("skills") are in `.agents/skills`, and `AGENTS.md` says when to read each one.
 `.mcp.json` adds Playwright (browser) and a read-only MongoDB MCP server.
 
-## Versioning
-
-```
-npm run push "your commit message"  # bumps the patch version everywhere, commits, tags, pushes
-```
-
 ## Production
 
 Production is one server running `docker compose`, set up and driven by the scripts in

@@ -1,6 +1,6 @@
 # InvokeDB revamp: handoff
 
-_Last updated 2026-11-23_
+_Last updated 2026-11-24_
 
 InvokeDB ("horizon") is a web app for building data tables you can query through an API. The
 revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the commands, and
@@ -17,17 +17,18 @@ features).
    trial instead of a free tier, one always-on server, and keeping Mongo. **Production is live**
    (2026-11-22) at `https://invokedb.com`; `deploy/README.md` explains how it's run. Off-site
    backups, uptime monitoring and support email routing are live. **The current task and its
-   steps are in `docs/WORKSTREAM.md`.** Next: GitHub Actions CI/CD, then a person checks
-   signup, table creation, CSV upload and API calls in production, then 5b (Google/GitHub
-   sign-in). Check backend changes with
-   the backend build (see `verify-backend`), and frontend changes with the frontend build and
-   lint.
+   steps are in `docs/WORKSTREAM.md`.** CI/CD is live (every push to `main` deploys after
+   CI). Next: automated Claude review and CI/CD repair, then a person checks signup, table
+   creation, CSV upload and API calls in production, then 5b (Google/GitHub sign-in). Check
+   backend changes with the backend build (see `verify-backend`), and frontend changes with
+   the frontend build and lint.
 3. **Production is real.** Run `deploy/deploy.sh` server commands (`up`, `migrate`, `init-db`,
    `compose`, `bootstrap`) only when the user asks. `up` ships the committed `HEAD` of whatever
    branch is checked out, so deploy from `main`.
 4. **Don't run the smoke tests** (`ui-smoke.mjs`, `api-smoke.mjs`) unless the user asks. They
    add too much overhead for routine checks.
-5. Work on a branch. The user merges to `main` and pushes once they approve.
+5. Work on a branch and open a pull request (CI and the Claude review run on it). The user
+   approves the merge; merging to `main` deploys.
 
 ## Current state
 

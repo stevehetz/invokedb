@@ -10,7 +10,35 @@ history; this file has only the steps.
 
 Who: **You** = the user; **Claude** = a coding agent (it says when it needs your OK).
 
-## GitHub Actions CI/CD
+## Automated review, repair and a merge rule
+
+Requested 2026-11-24. Decided: changes go to `main` through pull requests; Claude reviews each
+PR; when CI or CD fails, Claude opens a fix PR (or an issue when the cause isn't in the code);
+`main` requires a PR with CI passing. Auth: the user's Claude subscription
+(`CLAUDE_CODE_OAUTH_TOKEN`) through the Claude GitHub App. Later, not now: the API smoke test in
+CI.
+
+- [x] 1. (2026-11-24) Claude, branch `claude-automation`: `.github/workflows/review.yml`
+      (same-repo PRs, read-only tools plus PR comments), `.github/workflows/repair.yml`
+      (`workflow_run` on CI/CD failure, skips `claude/` branches and forks), CI on `push`
+      only (no double runs on PRs), the site link on CD deployments, AGENTS.md and HANDOFF
+      updated for the PR flow.
+- [x] 2. (2026-11-24) Claude GitHub App installed on `stevehetz/invokedb` only.
+- [x] 3. (2026-11-24) You: `! claude setup-token`, then
+      `! gh secret set CLAUDE_CODE_OAUTH_TOKEN -R stevehetz/invokedb` and paste the token.
+- [x] 4. (2026-11-24) Pushed, PR #1 opened. CI passed. The review ran, got its app token
+      (so the app is installed), then skipped on purpose: the action only runs a workflow file
+      identical to the one on `main`, so review and repair start working once merged (and a
+      PR that changes them isn't reviewed by its own version).
+- [ ] 5. **Now.** You: merge PR #1 (it deploys; only docs and workflows change).
+- [ ] 6. Claude (with your OK): add the `main` ruleset: PRs required, status checks
+      `backend`, `frontend`, `format` must pass; admins can bypass only through a PR.
+- [ ] 7. Claude: test both on a throwaway branch that breaks lint on purpose: repair should
+      open a fix PR, and CI and the review should run on that PR (pushes made with the default
+      `GITHUB_TOKEN` don't start workflows, so this checks the app token is used). Then close
+      it and delete the branches.
+
+## Done: GitHub Actions CI/CD
 
 Requested 2026-11-23. CI on every push and PR; then CD to the droplet. There's no `.github/`
 yet. Support email and alert routing (the previous workstream) is done: HANDOFF step 5,
@@ -59,8 +87,8 @@ yet. Support email and alert routing (the previous workstream) is done: HANDOFF 
       containers up, site, `/app` and the API answer 200, the firewall rule was removed. The
       server's settings match the Mac's except the two `MAILGUN_SMTP_*` lines, which the
       backend doesn't read.
-- [ ] 11. **Now.** Workflow renamed Deploy → CD (`.github/workflows/cd.yml`), branch
-      `cd-rename`. You: merge and push; that push deploys through the renamed workflow.
+- [x] 11. (2026-11-24) Workflow renamed Deploy → CD (`.github/workflows/cd.yml`), branch
+      `cd-rename`; merged, and the push deployed through it (`4fa7575`).
 
 ## Up next
 

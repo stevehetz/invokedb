@@ -196,17 +196,17 @@ only runs a workflow file identical to `main`'s, so a PR that changes a workflow
 by its own new version. Each file's top comment explains it; AGENTS.md "Hard rules" and
 "The cloud agent" give the rules.
 
-| Workflow           | Does                                                                                                               | Alerts / output                                     |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
-| `review.yml`       | Reviews every same-repo PR, inline comments, labels it `review-ok` or `review-changes`                             | Labels and comments on the PR                       |
-| `repair.yml`       | On a failed CI or CD run, opens a `claude/fix-*` PR or an issue with its diagnosis                                 | A PR or issue                                       |
-| `automerge.yml`    | Merges PRs into `main` that passed CI and got `review-ok`, unless `hold` or a held path; starts CI on `main` after | `needs-owner` on held PRs                           |
-| `revise.yml`       | Fixes or answers `review-changes` comments on agent and repair PRs (2 rounds max)                                  | `agent-stuck` and a mention of the owner after that |
-| `resolve.yml`      | Merges `main` into conflicting agent and repair PRs and resolves the conflicts                                     | `agent-stuck` and a mention if it can't             |
-| `agent-queue.yml`  | Starts `implement.yml` on the next `agent`-labelled issue, one at a time                                           | `agent-stuck` and a mention on a stuck PR           |
-| `implement.yml`    | The cloud agent: works one issue and opens an `agent-pr` PR                                                        | The PR                                              |
-| `security-fix.yml` | Every 3 hours and by hand: fixes up to 3 alerts in `security/*` PRs, or files triage issues                        | The PRs and issues                                  |
-| `deps-update.yml`  | Monthly (1st, 09:00 UTC) and by hand: updates every npm package, opens a minor/patch PR and a majors PR (`deps/*`) | The PRs; skipped majors listed with reasons         |
+| Workflow           | Does                                                                                                                   | Alerts / output                                     |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `review.yml`       | Reviews every same-repo PR, inline comments, labels it `review-ok` or `review-changes`                                 | Labels and comments on the PR                       |
+| `repair.yml`       | On a failed CI or CD run, opens a `claude/fix-*` PR or an issue with its diagnosis                                     | A PR or issue                                       |
+| `automerge.yml`    | Merges PRs into `main` that passed CI and got `review-ok`, unless `hold` or a held path; starts CI on `main` after     | `needs-owner` on held PRs                           |
+| `revise.yml`       | Fixes or answers `review-changes` comments on agent and repair PRs (2 rounds max)                                      | `agent-stuck` and a mention of the owner after that |
+| `resolve.yml`      | Merges `main` into conflicting agent and repair PRs and resolves the conflicts                                         | `agent-stuck` and a mention if it can't             |
+| `agent-queue.yml`  | Starts `implement.yml` on the next `agent`-labelled issue, one at a time                                               | `agent-stuck` and a mention on a stuck PR           |
+| `implement.yml`    | The cloud agent: works one issue and opens an `agent-pr` PR                                                            | The PR                                              |
+| `security-fix.yml` | Every 3 hours and by hand: fixes up to 3 alerts in `security/*` PRs, dismisses false positives, or files triage issues | The PRs and issues                                  |
+| `deps-update.yml`  | Monthly (1st, 09:00 UTC) and by hand: updates every npm package, opens a minor/patch PR and a majors PR (`deps/*`)     | The PRs; skipped majors listed with reasons         |
 
 - **Secrets:** `CLAUDE_CODE_OAUTH_TOKEN` (also saved as a Dependabot secret, so the review runs on
   Dependabot PRs); `PROJECTS_TOKEN` (lets the queue read the Project board's order).

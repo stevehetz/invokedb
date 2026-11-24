@@ -196,8 +196,8 @@ comments.
 **Security fixes** (`.github/workflows/security-fix.yml`, #104): every 3 hours (Actions has no
 trigger for new alerts), Claude fixes open CodeQL alerts on a `security/codeql-<n>` branch, in a PR labelled `security` that says
 "Fixes code scanning alert #N", handled like an agent PR without holding the queue; a false
-positive or a decision becomes an `agent-found` + `security` issue (dismissing an alert is the
-user's). Leaked secrets are
+positive is dismissed by the workflow with a reason and comment (listed in the run summary, #124),
+and one needing a decision becomes an `agent-found` + `security` issue. Leaked secrets are
 never automated: only the user can rotate a credential.
 
 **Merge conflicts** (`.github/workflows/resolve.yml`): when an agent PR or a repair fix PR

@@ -165,24 +165,25 @@ async function grid_rows() {
     const names = await headers();
     const ids = [];
     for (const n of names) ids.push(await col_id(n));
+    // Body rows by row-index, wherever ag-grid puts them (since v33 they aren't all inside
+    // .ag-center-cols-container); a row split across containers is merged
     return grid()
-        .locator('.ag-center-cols-container .ag-row')
+        .locator('.ag-row[row-index]')
         .evaluateAll(
-            (rows, { names, ids }) =>
-                rows
-                    .sort(
-                        (a, b) =>
-                            Number(a.getAttribute('row-index')) -
-                            Number(b.getAttribute('row-index'))
-                    )
-                    .map(r =>
-                        Object.fromEntries(
-                            names.map((n, i) => {
-                                const cell = r.querySelector(`.ag-cell[col-id="${ids[i]}"]`);
-                                return [n, cell ? cell.innerText.trim() : null];
-                            })
-                        )
-                    ),
+            (rows, { names, ids }) => {
+                const by_index = new Map();
+                for (const r of rows) {
+                    const i = Number(r.getAttribute('row-index'));
+                    const row = by_index.get(i) || {};
+                    names.forEach((n, k) => {
+                        const cell = r.querySelector(`.ag-cell[col-id="${ids[k]}"]`);
+                        if (cell) row[n] = cell.innerText.trim();
+                        else if (!(n in row)) row[n] = null;
+                    });
+                    by_index.set(i, row);
+                }
+                return [...by_index.entries()].sort((a, b) => a[0] - b[0]).map(e => e[1]);
+            },
             { names, ids }
         );
 }
@@ -353,11 +354,9 @@ try {
     });
 
     await step('filter', async () => {
-        // Floating filter cells carry no col-id; they line up with the header by aria-colindex
-        const header = grid().locator(`.ag-header-cell[col-id="${await col_id('name')}"]`);
-        const colindex = await header.getAttribute('aria-colindex');
+        // Since ag-grid 33 the floating filter cell has the column's col-id (and .ag-header-cell)
         const input = grid().locator(
-            `.ag-floating-filter[aria-colindex="${colindex}"] .custom-filter-text`
+            `.ag-floating-filter[col-id="${await col_id('name')}"] .custom-filter-text`
         );
         await input.pressSequentially('o'); // the filter listens for keyup, not input
         const filtered = await wait_rows(r => r.length === 2, 'name contains "o" filter');
@@ -368,9 +367,7 @@ try {
 
     await step('cell_edit', async () => {
         const id = await col_id('name');
-        const cell = grid().locator(
-            `.ag-center-cols-container .ag-row[row-index="0"] .ag-cell[col-id="${id}"]`
-        );
+        const cell = grid().locator(`.ag-row[row-index="0"] .ag-cell[col-id="${id}"]`);
         await cell.dblclick();
         const editor = grid()
             .locator('.ag-cell-inline-editing input, .ag-popup-editor input')

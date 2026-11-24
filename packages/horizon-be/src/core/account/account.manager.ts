@@ -1,25 +1,14 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { randomInt } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { Account } from '@app/core/account/account.entity';
 import { ResetPassword } from '../reset-password/reset-password.entity';
+import { generate_api_key } from '@app/core/account/api-key';
 import { is_expired } from '@app/core/helpers/is-expired';
 import { validate_email, validate_password } from '@app/core/helpers/validators';
 
 const bcrypt = require('bcryptjs');
-
-const API_KEY_LENGTH = 32;
-const API_KEY_CHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-export function generate_api_key(): string {
-    let key = '';
-    for (let i = 0; i < API_KEY_LENGTH; i++) {
-        key += API_KEY_CHARS[randomInt(API_KEY_CHARS.length)];
-    }
-    return key;
-}
 
 // A hash of a random value at the same cost as real ones (generate_hash), for timing-safe logins.
 const DUMMY_HASH = bcrypt.hashSync(uuidv4(), 12);
@@ -129,8 +118,6 @@ export class AccountManager {
         }
     }
 
-    // An API key opens its account's tables, so it must be unguessable: crypto.randomInt, never
-    // Math.random (predictable; CodeQL js/insecure-randomness). Same 32-character format as before.
     generate_api_key() {
         return generate_api_key();
     }

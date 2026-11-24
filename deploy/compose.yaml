@@ -1,5 +1,6 @@
-# Production stack for one server. Run through deploy.sh, which passes `--env-file prod.env`
-# (the ${...} values below come from it). Only Caddy (web) publishes ports.
+# Production stack for one server. Run through deploy.sh, which passes
+# `--env-file /opt/invokedb/prod.env`
+# (the server's copy of deploy/prod.env; the ${...} values below come from it). Only Caddy (web) publishes ports.
 name: invokedb
 
 x-backend: &backend

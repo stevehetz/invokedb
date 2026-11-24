@@ -4,7 +4,10 @@
 #
 #   deploy/deploy.sh init-env      create deploy/prod.env with random passwords (once)
 #   deploy/deploy.sh bootstrap     install Docker etc. on a fresh server (once)
-#   deploy/deploy.sh up            ship the committed HEAD, build, migrate, (re)start
+#   deploy/deploy.sh up            ship the committed HEAD and prod.env, build, migrate, (re)start
+#   deploy/deploy.sh env           ship prod.env only, then restart what it changed
+#   deploy/deploy.sh install-ci <key.pub>
+#                                  let that key run only ci-deploy.sh (the GitHub deploy workflow)
 #   deploy/deploy.sh init-db       disable the seeded demo accounts (once, after the first up)
 #   deploy/deploy.sh migrate       run pending migrations only
 #   deploy/deploy.sh backup run | list | verify [stamp] | restore <stamp> | install
@@ -16,6 +19,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$DIR/.." && pwd)"
 ENV_FILE="$DIR/prod.env"
 REMOTE=/opt/invokedb/app
+REMOTE_ENV=/opt/invokedb/prod.env   # outside the app folder, so deploys never touch it
 cmd="${1:-}"; shift || true
 
 if [ "$cmd" = init-env ]; then
@@ -39,7 +43,7 @@ set -a; source "$ENV_FILE"; set +a
 [ -n "${DEPLOY_HOST:-}" ] || { echo "Set DEPLOY_HOST in $ENV_FILE"; exit 1; }
 SSH_OPTS=(-i "${DEPLOY_SSH_KEY:-$HOME/.ssh/id_rsa}" -o StrictHostKeyChecking=accept-new)
 SSH=(ssh "${SSH_OPTS[@]}" "root@$DEPLOY_HOST")
-compose="cd $REMOTE/deploy && docker compose --env-file prod.env"
+compose="cd $REMOTE/deploy && docker compose --env-file $REMOTE_ENV"
 
 ship() {
   if [ -n "$(git -C "$ROOT" status --porcelain -- deploy packages)" ]; then
@@ -49,16 +53,32 @@ ship() {
   git -C "$ROOT" archive --format=tar HEAD deploy packages/horizon-be packages/horizon-fe \
     | "${SSH[@]}" "rm -rf $REMOTE.new && mkdir -p $REMOTE.new && tar -x -C $REMOTE.new \
         && rm -rf $REMOTE.old && { [ ! -d $REMOTE ] || mv $REMOTE $REMOTE.old; } \
-        && mv $REMOTE.new $REMOTE && rm -rf $REMOTE.old"
-  "${SSH[@]}" "umask 077 && cat > $REMOTE/deploy/prod.env" < "$ENV_FILE"
+        && mv $REMOTE.new $REMOTE && rm -rf $REMOTE.old \
+        && echo $(git -C "$ROOT" rev-parse HEAD) > $REMOTE/REVISION"
+  push_env
 }
+
+push_env() { "${SSH[@]}" "umask 077 && cat > $REMOTE_ENV.new && mv $REMOTE_ENV.new $REMOTE_ENV" < "$ENV_FILE"; }
 
 case "$cmd" in
   bootstrap) "${SSH[@]}" 'bash -s' < "$DIR/bootstrap.sh" ;;
   up)
     ship
-    "${SSH[@]}" "$compose build && $compose run --rm migrate && $compose up -d --remove-orphans \
-      && $compose up -d --force-recreate --no-deps web && $compose ps"
+    "${SSH[@]}" "bash $REMOTE/deploy/release.sh"
+    ;;
+  env)
+    push_env
+    "${SSH[@]}" "$compose up -d && $compose ps"
+    ;;
+  install-ci)
+    pub="${1:?usage: deploy.sh install-ci <public key file>}"
+    read -r ktype kdata _ < "$pub"
+    "${SSH[@]}" "install -m 755 /dev/stdin /opt/invokedb/ci-deploy.sh" < "$DIR/ci-deploy.sh"
+    # Replace any earlier CI key; leave every other key alone
+    printf 'command="/opt/invokedb/ci-deploy.sh",restrict %s %s invokedb-ci\n' "$ktype" "$kdata" \
+      | "${SSH[@]}" 'f=/root/.ssh/authorized_keys; { grep -v " invokedb-ci$" "$f" || true; cat; } \
+          > "$f.new" && chmod 600 "$f.new" && mv "$f.new" "$f"'
+    echo "Installed. That key can now only run: deploy <sha of main's tip>"
     ;;
   migrate) "${SSH[@]}" "$compose run --rm migrate" ;;
   init-db)
@@ -71,5 +91,5 @@ case "$cmd" in
   logs) "${SSH[@]}" "$compose logs --tail=200 -f $*" ;;
   compose) "${SSH[@]}" "$compose $*" ;;
   ssh) "${SSH[@]}" ;;
-  *) sed -n '2,15p' "$0"; exit 1 ;;
+  *) sed -n '2,18p' "$0"; exit 1 ;;
 esac

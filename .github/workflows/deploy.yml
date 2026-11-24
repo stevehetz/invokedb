@@ -1,0 +1,65 @@
+# Deploys main to production after CI passes on it (deploy/README.md, "Automatic deploys").
+# Opens SSH on the DigitalOcean firewall to this runner's IP only for the length of the deploy,
+# then sends `deploy <sha>` with a key that can do nothing else (deploy/ci-deploy.sh). Ships code
+# only: prod.env stays on the server (change it with `deploy.sh env` from the Mac).
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      FIREWALL_RULES: https://api.digitalocean.com/v2/firewalls/${{ vars.DO_FIREWALL_ID }}/rules
+      DO_TOKEN: ${{ secrets.DO_FIREWALL_TOKEN }}
+    steps:
+      - name: Open SSH to this runner
+        run: |
+          ip=$(curl -4 -fsS https://api.ipify.org)
+          rule="{\"inbound_rules\":[{\"protocol\":\"tcp\",\"ports\":\"22\",\"sources\":{\"addresses\":[\"$ip/32\"]}}]}"
+          echo "SSH_RULE=$rule" >> "$GITHUB_ENV"
+          curl -fsS -X POST "$FIREWALL_RULES" -H "Authorization: Bearer $DO_TOKEN" \
+            -H 'Content-Type: application/json' -d "$rule"
+          # The rule takes a few seconds to apply
+          for i in $(seq 30); do
+            timeout 3 bash -c "</dev/tcp/$DEPLOY_HOST/22" 2>/dev/null && exit 0
+            sleep 2
+          done
+          echo '::error::SSH still unreachable after opening the firewall'
+          exit 1
+
+      - name: Deploy ${{ github.event.workflow_run.head_sha }}
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 -o ServerAliveInterval=30 "root@$DEPLOY_HOST" "deploy $SHA"
+
+      - name: Close SSH again
+        if: always() && env.SSH_RULE != ''
+        run: |
+          curl -fsS -X DELETE "$FIREWALL_RULES" -H "Authorization: Bearer $DO_TOKEN" \
+            -H 'Content-Type: application/json' -d "$SSH_RULE"

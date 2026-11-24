@@ -31,10 +31,38 @@ site's paths.
    API keys are in this public repo, and this gives them random ones.
 8. Check `https://invokedb.com`, sign up, upload a CSV.
 
+## Automatic deploys
+
+Every push to `main` deploys itself once CI passes on it (`.github/workflows/deploy.yml`). The
+workflow opens SSH on the Cloud Firewall to the runner's IP, sends `deploy <sha>` over SSH,
+then removes the rule again (even if the deploy failed). Its SSH key is locked by
+`authorized_keys` to `ci-deploy.sh`, which deploys the commit only if it's still the tip of
+`main`, downloading it from the public repo, then runs `release.sh` (build, migrate, restart),
+the same as `up`. It ships **code only**: the server's settings live in
+`/opt/invokedb/prod.env` (root-only, outside the app folder, so deploys never touch it), and
+only `deploy.sh env` or `up` from the Mac write them. If two pushes land close together,
+the older one is skipped and the newer one deploys. `/opt/invokedb/app/REVISION` on the server
+holds the deployed commit.
+
+Set up once (GitHub: repo Settings → Environments → `production`, deployment branches limited
+to `main`):
+
+1. A key just for this: `ssh-keygen -t ed25519 -N '' -C invokedb-ci -f ~/.ssh/invokedb-ci`,
+   then `deploy/deploy.sh install-ci ~/.ssh/invokedb-ci.pub`. Rerun `install-ci` after changing
+   `ci-deploy.sh`.
+2. A DigitalOcean API token with custom scopes `firewall:read` and `firewall:update` only.
+3. In the `production` environment: secrets `DEPLOY_SSH_KEY` (the private key file) and
+   `DO_FIREWALL_TOKEN`; variables `DEPLOY_HOST` (the droplet IP), `DO_FIREWALL_ID` (the
+   `invokedb-prod` firewall's ID, from its page URL) and `DEPLOY_KNOWN_HOSTS` (the droplet's
+   line(s) from `ssh-keyscan -t ed25519 <ip>`, run from home).
+
+If the close step ever fails, delete the leftover `/32` SSH rule on the firewall by hand.
+
 ## Day to day
 
-- `deploy/deploy.sh up` deploys the committed `HEAD` (uncommitted changes aren't shipped).
-  Migrations run before the containers restart.
+- Merging to `main` and pushing deploys it (see above). `deploy/deploy.sh up` still deploys
+  the committed `HEAD` of any branch by hand, and also ships `prod.env`; `deploy.sh env` ships
+  only `prod.env`. Migrations run before the containers restart.
 - `deploy/deploy.sh logs [api|prc|web|postgres|mongo]`, `ps`, `ssh`, or
   `compose <any docker compose args>`.
 - Email goes out through Mailgun (`MAILGUN_API_KEY`, `MAILGUN_DN=mail.invokedb.com`, US region,
@@ -66,7 +94,6 @@ site's paths.
   change made in Mongo too. Same for `POSTGRES_PASSWORD`.
 - Changing the domains needs only `prod.env` and an `up`: the browser's runtime env
   (`/env.txt`) is written from them when the web container starts.
-- **Not done yet:** uptime monitoring.
 
 ## Backups
 

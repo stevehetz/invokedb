@@ -19,20 +19,20 @@ shopt -s inherit_errexit
 export LC_ALL=C
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
-set -a; source ./prod.env; set +a
+set -a; source /opt/invokedb/prod.env; set +a
 
 WORK=/opt/invokedb/backups
 LOG=/var/log/invokedb-backup.log
 RCLONE_IMAGE=rclone/rclone:1.68.2
 PG_IMAGE=postgres:17-alpine
 MONGO_IMAGE=mongo:8
-compose=(docker compose --env-file prod.env)
+compose=(docker compose --env-file /opt/invokedb/prod.env)
 cmd="${1:-}"; shift || true
 
 need() {
   local v
   for v in "$@"; do
-    [ -n "${!v:-}" ] || { echo "Set $v in deploy/prod.env (then deploy/deploy.sh up)" >&2; exit 1; }
+    [ -n "${!v:-}" ] || { echo "Set $v in deploy/prod.env (then deploy/deploy.sh env)" >&2; exit 1; }
   done
 }
 

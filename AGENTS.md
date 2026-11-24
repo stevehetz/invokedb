@@ -71,8 +71,8 @@ run against a throwaway stack, never the user's data.
   their originals live in a Dropbox folder that `scripts/secrets.sh` syncs. Never add a secret
   file to git, never weaken `.gitignore`, and never push `~/dev/invokedb-pre-scrub-*.bundle`.
 - **Pushing to `main` deploys to production** (after CI passes; `.github/workflows/cd.yml`).
-  Never push or merge to `main` yourself unless the user asks; `automerge.yml` merges PRs
-  that qualify (below).
+  Never push or merge code to `main` yourself unless the user asks; `automerge.yml` merges PRs
+  that qualify (below). Docs-only changes are the exception (below).
 - **`deploy/deploy.sh` touches the real production server.** Run its server commands (`up`,
   `bootstrap`, `init-db`, `migrate`, `compose`) only when the user asks.
 - **Destructive DB commands need the user's OK first:** `db:reset`, `db:demo`,
@@ -83,10 +83,19 @@ run against a throwaway stack, never the user's data.
   anything with `node-gyp` fails to install. Install the backend with `--omit=optional`.
 - Don't commit or push unless asked. Branch first if on `main`. Exception: when the user asks
   you to work an issue, committing, pushing its branch and opening its PR are part of the job
-  (see "How work is tracked"); merging is left to `automerge.yml` or the user.
+  (see "How work is tracked"); merging is left to `automerge.yml` or the user. Docs-only
+  changes are committed and pushed straight to `main` when done (below).
 - **Changes reach `main` through pull requests.** Push the branch, `gh pr create`; CI and the
   Claude review (`.github/workflows/review.yml`) run on it. Merge (`gh pr merge --merge`) only
-  when the user says so. `main` has a rule requiring a PR with CI passing; never bypass it.
+  when the user says so. `main` has a rule requiring a PR with CI passing; never bypass it,
+  except for docs-only changes.
+- **Docs-only changes go straight to `main`, never through a PR.** If every file you changed is
+  Markdown (`*.md`: `docs/`, `AGENTS.md`, READMEs, skills), commit on `main` and
+  `git push origin main` (no issue, no branch, no PR). The ruleset lets the owner's login bypass
+  the PR rule, and a Markdown-only push runs no CI and so doesn't deploy (#51). Run prettier on
+  the files first, and `git pull --rebase` if the push is rejected. If a change mixes docs and
+  anything else, it's not docs-only: use a PR. The cloud agent can't bypass the rule, so in
+  GitHub Actions docs changes still go in its PR.
 - **Auto-merge** (`.github/workflows/automerge.yml`): a PR into `main` merges, and so deploys,
   by itself once CI passes and the review labels it `review-ok`, unless it has the `hold` label
   or touches a held path (`deploy/`, `.github/`, migrations, `*.env.example`). Those get
@@ -106,10 +115,11 @@ e.g. `gh project item-list 1 --owner stevehetz`). There is no other task list;
 `docs/HANDOFF.md` has project state and history, not tasks. `gh project` commands need the
 `project` token scope (`gh auth refresh -s project`, which the user runs).
 
-1. **Every change has an issue.** Title in the imperative; body with context, scope and a
-   "**Done when**" checklist. Labels: one type (`bug`, `enhancement`, `documentation`,
-   `chore`, `security`), one or more `area:*` (`backend`, `frontend`, `deploy`, `ci`), and
-   `you` when a person has to do it. New issues go on the board (`gh project item-add`).
+1. **Every change has an issue** (except docs-only changes, see Hard rules). Title in the
+   imperative; body with context, scope and a "**Done when**" checklist. Labels: one type
+   (`bug`, `enhancement`, `documentation`, `chore`, `security`), one or more `area:*`
+   (`backend`, `frontend`, `deploy`, `ci`), and `you` when a person has to do it. New issues go on
+   the board (`gh project item-add`).
 2. **The board says what's next.** Status is `Todo` (top = next), `In Progress` or `Done`.
    When the user asks "what's next", give the top `Todo` item, and if it's labelled `you`,
    only its next step (exact clicks or command).

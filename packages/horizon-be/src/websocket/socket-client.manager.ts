@@ -15,6 +15,8 @@ export type WsMessageHandler = (message: WebSocket.MessageEvent) => void;
 export class SocketClientManager extends EventEmitter {
     id: string | null;
     open = false;
+    /** True once the broker has accepted `register`; false again when the connection drops. */
+    registered = false;
     socket: WebSocket | undefined;
     endpoint: string | undefined;
     private message_handlers: WsMessageHandler[] = [];
@@ -40,6 +42,7 @@ export class SocketClientManager extends EventEmitter {
     /** Closes the connection for good (no reconnect). */
     disconnect() {
         this.open = false;
+        this.registered = false;
         if (!this.socket) return;
         this.socket.onopen = null;
         this.socket.onerror = null;
@@ -103,6 +106,7 @@ export class SocketClientManager extends EventEmitter {
 
     private on_close() {
         this.open = false;
+        this.registered = false;
         this.socket.close();
         this.connect(this.endpoint);
         this.emit('close');
@@ -125,6 +129,7 @@ export class SocketClientManager extends EventEmitter {
         }
 
         if (msg.action === 'registered') {
+            this.registered = true;
             this.emit('registered');
             return;
         }

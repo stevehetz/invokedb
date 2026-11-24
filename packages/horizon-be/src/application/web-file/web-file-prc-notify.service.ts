@@ -67,19 +67,27 @@ export class WebFilePrcNotifyService {
         });
     }
 
+    /**
+     * Tells the frontend about a job. Never throws: callers don't await it, so a rejection
+     * (no websocket client yet, a lost connection, a DB error) would crash the process.
+     */
     async ws_pr_send_to_fe(opts) {
         const { client_id, file_id, event, error, account_id } = opts;
 
-        const message: any = {};
-        message.file = await this.file_directory_repository.findOneBy({ id: file_id });
+        try {
+            const message: any = {};
+            message.file = await this.file_directory_repository.findOneBy({ id: file_id });
 
-        const payload = { message, event, error };
+            const payload = { message, event, error };
 
-        this._ws_client_store.send_direct_message_account(
-            client_id,
-            _c.HORIZON_FE_WS_CLIENT_ID,
-            account_id,
-            payload
-        );
+            this._ws_client_store.send_direct_message_account(
+                client_id,
+                _c.HORIZON_FE_WS_CLIENT_ID,
+                account_id,
+                payload
+            );
+        } catch (ex) {
+            logger.error(`${event} for file ${file_id} wasn't sent to the frontend: ${ex.message}`);
+        }
     }
 }

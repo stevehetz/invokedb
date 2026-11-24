@@ -8,6 +8,13 @@ import _c from '@app/constants';
 
 @Injectable()
 export class WebsocketClient {
+    /** The client ids this process's roles need; see `ready()`. */
+    private readonly role_ids = [
+        env.IS_HORIZON_BE === 'true' && _c.HORIZON_BE_WS_CLIENT_ID,
+        env.IS_HORIZON_PRC === 'true' && _c.HORIZON_PRC_WS_CLIENT_ID,
+        env.IS_HORIZON_FS === 'true' && _c.HORIZON_FS_WS_CLIENT_ID
+    ].filter(Boolean) as string[];
+
     constructor(private _store: WebsocketClientStore) {
         setTimeout(() => {
             try {
@@ -35,6 +42,11 @@ export class WebsocketClient {
                 logger.error(ex);
             }
         }, 1000);
+    }
+
+    /** True once every role's client exists and the broker has registered it. */
+    ready(): boolean {
+        return this.role_ids.every(id => this._store.get_client(id)?.registered);
     }
 
     setup_client(log_id: string, client: SocketClientManager) {

@@ -163,6 +163,8 @@ without merging also marks its issue `agent-stuck`; removing the label asks for 
 - Good for well-scoped issues with a clear "Done when". Keep for a local session: anything
   needing a decision (`you`), visual checks, or production.
 - When writing an issue for the agent, put everything it needs in the body: it can't ask.
+- It can't change `.github/workflows/`: the Claude GitHub App has no `workflows` permission, so
+  GitHub refuses the push (#10, #67). Don't label such issues `agent`; do them in a local session.
 
 **Review changes** (`.github/workflows/revise.yml`): when the review labels an agent PR or a
 repair fix PR `review-changes`, Claude fixes each finding or replies in its thread saying why

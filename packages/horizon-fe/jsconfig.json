@@ -12,9 +12,9 @@
         "types": ["vite/client"],
         "resolveJsonModule": true,
         "allowSyntheticDefaultImports": true,
-        "baseUrl": "./",
+        "strict": false,
         "paths": {
-            "@/*": ["src/*"]
+            "@/*": ["./src/*"]
         }
     },
     "include": ["src/**/*.js", "src/**/*.d.ts"],

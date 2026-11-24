@@ -16,6 +16,9 @@ API. A monorepo of two packages with **separate `node_modules`** (no npm workspa
 
 `deploy/` (see `deploy/README.md`) is the production setup: one server, `docker compose`,
 driven from the Mac by `deploy/deploy.sh`. Its `prod.env` is a gitignored secret file.
+`docs/OPERATIONS.md` is the entry point for operations: every outside service (Mailgun,
+Telegram, UptimeRobot, Healthchecks.io, Cloudflare, DigitalOcean) and GitHub workflow, its
+secrets (by name), who it alerts and how to check it.
 
 `examples/` (see `examples/README.md`) holds the `invokedb` npm client (`invokedb-node`,
 TypeScript + `fetch`, built with `tsc`), an Angular 22 example app (`angular`, imports the client

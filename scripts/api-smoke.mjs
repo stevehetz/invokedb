@@ -1,4 +1,5 @@
 // API smoke test for horizon-be: node scripts/api-smoke.mjs [base_url] [out.json]
+// Exits non-zero if any call or check fails (CI runs it: .github/workflows/ci.yml, `smoke`).
 // Logs in as demo@invokedb.com, uploads a small CSV as table "smoke_people", exercises the
 // grid + external /api/v1 endpoints, checks that demo2@invokedb.com can't reach demo's tables
 // or account, then deletes the table. Writes every response to out.json
@@ -9,6 +10,7 @@ import fs from 'node:fs';
 const BASE = process.argv[2] || 'http://127.0.0.1:8001';
 const OUT = process.argv[3];
 const results = {};
+let failures = 0;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function call(name, method, path, { token, body, form, expectFail } = {}) {
@@ -30,6 +32,7 @@ async function call(name, method, path, { token, body, form, expectFail } = {}) 
     }
     results[name] = { status: res.status, data };
     const ok = res.status < 400;
+    if (ok !== !expectFail) failures++;
     console.log(`${ok === !expectFail ? 'ok  ' : 'FAIL'} ${res.status} ${name}`);
     if (ok === !!expectFail) console.log('     ', JSON.stringify(data).slice(0, 300));
     return data;
@@ -37,6 +40,7 @@ async function call(name, method, path, { token, body, form, expectFail } = {}) 
 
 function check(name, pass, detail) {
     results[name] = pass;
+    if (!pass) failures++;
     console.log(`${pass ? 'ok  ' : 'FAIL'} --- ${name}`);
     if (!pass && detail !== undefined) console.log('     ', JSON.stringify(detail).slice(0, 300));
 }
@@ -280,3 +284,9 @@ await call('after_logout', 'POST', `/web-file/data_grid_row/${file_id}?skip=0&li
 });
 
 if (OUT) fs.writeFileSync(OUT, JSON.stringify(results, null, 2));
+if (failures) {
+    console.log(`\n${failures} check(s) failed`);
+    process.exitCode = 1;
+} else {
+    console.log('\nAll checks passed');
+}

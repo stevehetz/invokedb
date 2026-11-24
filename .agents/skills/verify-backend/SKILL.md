@@ -5,14 +5,17 @@ description: Verify a horizon-be (NestJS) change by building it and diffing API 
 
 # Verify a backend change
 
-There are no meaningful unit tests. The evidence that a change is safe is: **it compiles**, and
-**the API answers the same way before and after** (or differs only where you meant it to).
+The evidence that a change is safe is: **it compiles**, **the unit tests pass**, and **the API
+answers the same way before and after** (or differs only where you meant it to). CI runs the
+build, lint, unit tests and the smoke test on every push (`smoke` job), but only this playbook
+diffs before and after.
 
 ## 1. Compile and lint
 
 ```sh
 npm --prefix packages/horizon-be run build    # tsc -p tsconfig.build.json; must be clean
 npm --prefix packages/horizon-be run lint     # tslint; don't add new errors
+npm --prefix packages/horizon-be test         # Jest; add a *.spec.ts for new pure logic
 ```
 
 ## 2. Throwaway environment (never smoke-test against the user's real data)

@@ -2,8 +2,9 @@
 # - CodeQL alerts (code scanning): Claude fixes each on a `security/codeql-<n>` branch and opens a
 #   PR labelled `security` ("Fixes code scanning alert #N"); CI, the review, revise.yml,
 #   resolve.yml and auto-merge take it from there, and the alert closes when the fix reaches main.
-#   A false positive or one needing a decision gets an `agent-found` + `security` issue instead;
-#   dismissing an alert stays with the owner.
+#   A false positive is dismissed (#124): Claude writes it to .git/dismiss.tsv and the "Dismiss
+#   false positives" step dismisses it with the workflow token, listed in the run summary. One
+#   needing a decision gets an `agent-found` + `security` issue instead.
 # - Dependabot alerts aren't handled here: the workflow token can't read them (403). One with a
 #   patched version gets a Dependabot security PR; for one without, GitHub emails the owner.
 # - Secret scanning alerts are never automated: the fix is rotating the credential at its
@@ -35,7 +36,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      security-events: read
+      security-events: write
       id-token: write
     env:
       GH_TOKEN: ${{ github.token }}
@@ -66,6 +67,7 @@ jobs:
                        gh issue list -R "$R" --state open --limit 200 --json title,body --jq '.[] | .title, .body'; } |
             grep -oiE 'code scanning alert #[0-9]+' | tr '[:upper:]' '[:lower:]' | sort -u || true)
           : > .git/alerts.md
+          : > .git/picked.txt
           count=0
           # Code scanning: every open alert on main, most severe first
           alerts=$(gh api "repos/$R/code-scanning/alerts?state=open&ref=refs/heads/main&per_page=100" \
@@ -80,6 +82,7 @@ jobs:
               "Location: \(.most_recent_instance.location.path):\(.most_recent_instance.location.start_line)-\(.most_recent_instance.location.end_line)\n" +
               "Message: \(.most_recent_instance.message.text)\n\n### Rule help\n\(.rule.help // "")\n"' \
               >> .git/alerts.md || { echo "Couldn't read code scanning alert #$n" >&2; continue; }
+            echo "$n" >> .git/picked.txt
             count=$((count + 1))
           done
           echo "count=$count" >> "$GITHUB_OUTPUT"
@@ -120,8 +123,15 @@ jobs:
               --base main --label security` with a body starting "Fixes code scanning alert
               #<n>" and saying what was wrong, the fix, and how you checked it. Then
               `git switch main`.
-            - If it's a false positive, or fixing it needs a decision (a behaviour or API
-              change): don't change code. `gh issue create` with the title "Triage code
+            - If it's a false positive (the flagged data can't reach the sink in a harmful
+              form, it's test-only code, or the code already sanitizes it in a way CodeQL
+              doesn't recognise): don't change code. Append one line to `.git/dismiss.tsv`:
+              the alert number, a tab, the reason (exactly `false positive`, `used in tests` or
+              `won't fix`), a tab, and a one-sentence comment (under 280 characters, no tabs)
+              saying why, naming the PR or code that makes it safe. A later step dismisses it.
+              Be sure: a dismissed alert is never looked at again.
+            - If fixing it needs a decision (a behaviour or API change): don't change code.
+              `gh issue create` with the title "Triage code
               scanning alert #<n>: <rule>", your reasoning and the options, a "**Done when**"
               list, and the labels `agent-found`, `security` and the `area:*` label.
 
@@ -131,6 +141,31 @@ jobs:
             --model claude-opus-5-5
             --max-turns 300
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(ls:*),Bash(gh pr create:*),Bash(gh issue create:*)"
+
+      # Only alerts this run picked, only the API's reasons; the file is the agent's output, so
+      # nothing in it is run
+      - name: Dismiss false positives
+        if: always() && steps.start.outputs.since
+        run: |
+          set -uo pipefail
+          R="$GITHUB_REPOSITORY"
+          [ -s .git/dismiss.tsv ] || { echo "Nothing to dismiss"; exit 0; }
+          echo "### Dismissed code scanning alerts" >> "$GITHUB_STEP_SUMMARY"
+          while IFS=$'\t' read -r n reason comment || [ -n "$n" ]; do
+            if ! grep -qx "$n" .git/picked.txt; then
+              echo "Skipped a line for alert '$n': not picked by this run"; continue
+            fi
+            case "$reason" in 'false positive'|'used in tests'|"won't fix") ;;
+              *) echo "Skipped alert #$n: unknown reason '$reason'"; continue ;; esac
+            comment="${comment:0:280}"
+            if gh api -X PATCH "repos/$R/code-scanning/alerts/$n" -f state=dismissed \
+                 -f dismissed_reason="$reason" -f dismissed_comment="$comment" >/dev/null; then
+              echo "- #$n ($reason): $comment" >> "$GITHUB_STEP_SUMMARY"
+              echo "Dismissed alert #$n ($reason)"
+            else
+              echo "::warning::Couldn't dismiss code scanning alert #$n"
+            fi
+          done < .git/dismiss.tsv
 
       # Issues the agent opened: never queued (agent, you and hold stripped), on the board.
       # Inline, not a script: the checkout is the agent's to edit (#69).

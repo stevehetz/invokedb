@@ -1,3 +1,4 @@
+// @ts-nocheck: not type-checked yet
 import SubscriptionHttp from '@/network/http/subscription/subscription-http';
 import StripeHttp from '@/network/http/stripe/stripe-http';
 import { store } from '@/store';

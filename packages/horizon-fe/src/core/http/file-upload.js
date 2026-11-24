@@ -8,7 +8,7 @@ function getError(url, file_ctx, xhr) {
         msg = `fail to post ${url} ${xhr.status}`;
     }
 
-    const err = new Error(msg);
+    const err = /** @type {any} */ (new Error(msg));
     err.status = xhr.status;
     err.method = 'post';
     err.url = url;
@@ -40,7 +40,7 @@ export default function upload(url, file_ctx) {
     };
 
     if (xhr.upload) {
-        xhr.upload.onprogress = function progress(e) {
+        xhr.upload.onprogress = function progress(/** @type {any} */ e) {
             if (e.total > 0) {
                 e.percent = Math.floor((e.loaded / e.total) * 100);
             }

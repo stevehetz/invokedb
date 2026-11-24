@@ -1,3 +1,4 @@
+// @ts-nocheck: not type-checked yet
 import copy from 'copy-to-clipboard';
 import { store } from '@/store';
 

@@ -1,11 +1,22 @@
 {
     "compilerOptions": {
-        "target": "es2017",
-        "allowSyntheticDefaultImports": false,
+        "target": "es2020",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "lib": ["es2020", "dom", "dom.iterable"],
+        "allowJs": true,
+        "checkJs": true,
+        "noEmit": true,
+        "skipLibCheck": true,
+        "maxNodeModuleJsDepth": 0,
+        "types": ["vite/client"],
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
         "baseUrl": "./",
         "paths": {
             "@/*": ["src/*"]
         }
     },
-    "exclude": ["node_modules"]
+    "include": ["src/**/*.js", "src/**/*.d.ts"],
+    "exclude": ["node_modules", "dist"]
 }

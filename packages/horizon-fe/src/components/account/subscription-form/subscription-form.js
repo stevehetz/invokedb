@@ -1,5 +1,5 @@
 import { subscription_http } from '@/core/context/subscription/subscription-http';
-import moment from 'moment';
+import { format_date } from '@/core/date';
 
 export default {
     name: 'SubscriptionForm',
@@ -51,9 +51,10 @@ export default {
 
                 this.cancel_at_period_end = cancel_at_period_end;
 
-                const end_date = moment
-                    .unix(current_period_end)
-                    .format('MM-DD-YYYY');
+                const end_date = format_date(
+                    new Date(current_period_end * 1000),
+                    'MM-DD-YYYY'
+                );
 
                 if (cancel_at_period_end) {
                     this.subscription_end_message = `Your subscription will end on ${end_date}`;

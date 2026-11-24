@@ -1,9 +1,6 @@
 const { createLogger, format, transports } = require('winston');
-import moment from 'moment';
 import env from '@app/env';
-
-const _m: any = moment;
-_m.suppressDeprecationWarnings = true;
+import { format_date } from '@app/core/date';
 
 let logger;
 let logger_format;
@@ -51,7 +48,7 @@ if (env.IS_LOCAL) {
                 format.printf(data => {
                     const message =
                         data.message && data.message.trim ? data.message.trim() : data.message;
-                    const datetime = moment(data.timestamp).format('YYYY-MM-DD HH:mm:ss');
+                    const datetime = format_date(new Date(data.timestamp), 'YYYY-MM-DD HH:mm:ss');
                     return `${datetime}: ${data.level} - ${message}`;
                 })
             )

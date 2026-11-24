@@ -133,6 +133,8 @@ jobs:
         if: steps.decide.outputs.pr
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Runs after Review runs started by the workflow token or by Claude's own pushes
+          allowed_bots: github-actions,claude
           prompt: |
             The automated review asked for changes on PR #${{ steps.decide.outputs.pr }}
             (branch `${{ steps.decide.outputs.branch }}`, checked out). This is revision round

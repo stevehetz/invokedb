@@ -69,6 +69,8 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # agent-queue.yml starts this with the workflow token, so the actor is github-actions
+          allowed_bots: github-actions,claude
           prompt: |
             You are working GitHub issue #${{ inputs.issue }} of ${{ github.repository }} as an
             unattended agent; nobody is watching. The task (the issue and the owner's comments)

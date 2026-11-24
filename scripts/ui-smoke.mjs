@@ -354,11 +354,9 @@ try {
     });
 
     await step('filter', async () => {
-        // Floating filter cells carry no col-id; they line up with the header by aria-colindex
-        const header = grid().locator(`.ag-header-cell[col-id="${await col_id('name')}"]`);
-        const colindex = await header.getAttribute('aria-colindex');
+        // Since ag-grid 33 the floating filter cell has the column's col-id (and .ag-header-cell)
         const input = grid().locator(
-            `.ag-floating-filter[aria-colindex="${colindex}"] .custom-filter-text`
+            `.ag-floating-filter[col-id="${await col_id('name')}"] .custom-filter-text`
         );
         await input.pressSequentially('o'); // the filter listens for keyup, not input
         const filtered = await wait_rows(r => r.length === 2, 'name contains "o" filter');

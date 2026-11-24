@@ -10,7 +10,7 @@
 #    CI passed and the review labelled it review-ok. Its fix PRs into main follow rule 1.
 #
 # A merge made with the workflow token starts no workflows, so this starts CI on the branch it
-# merged into; on main, cd.yml deploys after that CI run.
+# merged into; on main, that CI run starts cd.yml when it passes (ci.yml, `deploy` job).
 name: Auto-merge
 
 on:

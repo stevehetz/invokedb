@@ -2,8 +2,12 @@
 # Opens SSH on the DigitalOcean firewall to this runner's IP only for the length of the deploy,
 # then sends `deploy <sha>` with a key that can do nothing else (deploy/ci-deploy.sh). Ships code
 # only: prod.env stays on the server (change it with `deploy.sh env` from the Mac).
-# CI runs on main after a push (a person's merge) or a workflow_dispatch (automerge.yml's merge,
-# which starts no workflows by itself). ci-deploy.sh only deploys the current tip of main.
+# Two triggers, both only after CI passed on main:
+# - workflow_run: CI finished after a push to main (a merge made with a person's login)
+# - workflow_dispatch from CI's `deploy` job: CI was started by automerge.yml after its merge.
+#   GitHub sends no workflow_run event for runs started with the workflow token, so CI starts
+#   this itself, with the commit it checked.
+# ci-deploy.sh only deploys the current tip of main either way.
 name: CD
 
 on:
@@ -11,6 +15,11 @@ on:
     workflows: [CI]
     types: [completed]
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit on main that passed CI
+        required: true
 
 permissions: {}
 
@@ -21,17 +30,18 @@ concurrency:
 jobs:
   deploy:
     if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      (github.event.workflow_run.event == 'push' ||
-       github.event.workflow_run.event == 'workflow_dispatch') &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     environment:
       name: production
       url: https://invokedb.com
     timeout-minutes: 30
     env:
-      SHA: ${{ github.event.workflow_run.head_sha }}
+      SHA: ${{ github.event.workflow_run.head_sha || inputs.sha }}
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
       FIREWALL_RULES: https://api.digitalocean.com/v2/firewalls/${{ vars.DO_FIREWALL_ID }}/rules
       DO_TOKEN: ${{ secrets.DO_FIREWALL_TOKEN }}
@@ -51,7 +61,7 @@ jobs:
           echo '::error::SSH still unreachable after opening the firewall'
           exit 1
 
-      - name: Deploy ${{ github.event.workflow_run.head_sha }}
+      - name: Deploy ${{ env.SHA }}
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}

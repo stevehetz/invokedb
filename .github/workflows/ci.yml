@@ -124,3 +124,16 @@ jobs:
       # --ignore-scripts: the root postinstall would install both packages too
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npx prettier --check .
+
+  # automerge.yml starts CI on main after it merges (workflow_dispatch). GitHub doesn't tell
+  # cd.yml when such a run finishes, so this starts the deploy once every check above passed.
+  deploy:
+    needs: [backend, smoke, frontend, format]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - run: gh workflow run cd.yml -R "$GITHUB_REPOSITORY" --ref main -f sha="$GITHUB_SHA"

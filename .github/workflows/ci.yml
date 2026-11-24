@@ -148,3 +148,5 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - run: gh workflow run cd.yml -R "$GITHUB_REPOSITORY" --ref main -f sha="$GITHUB_SHA"
+      # Same reason: resolve.yml gets no workflow_run event for this run, so start it here (#62)
+      - run: gh workflow run resolve.yml -R "$GITHUB_REPOSITORY" --ref main

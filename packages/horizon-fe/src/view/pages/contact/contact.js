@@ -1,7 +1,5 @@
-import SupportHttp from '@/network/http/support/support-http';
+import { support_http } from '@/core/context/support/support-http';
 import { store } from '@/store';
-
-const support_http = new SupportHttp();
 
 export default {
     name: 'ContactUs',

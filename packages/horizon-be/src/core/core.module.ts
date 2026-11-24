@@ -15,6 +15,7 @@ import { Session } from './session/session.entity';
 import { Subscription } from './subscription/subscription.entity';
 import { WebsocketClientStore } from '@app/websocket/client.store';
 import { Job } from './job/job.entity';
+import { AccountIdentity } from './account-identity/account-identity.entity';
 import { JobManager } from './job/job.manager';
 
 @Module({
@@ -23,6 +24,7 @@ import { JobManager } from './job/job.manager';
         EmailModule,
         TypeOrmModule.forFeature([
             Account,
+            AccountIdentity,
             FileDirectory,
             ResetPassword,
             Session,

@@ -5,6 +5,8 @@ import { CoreModule } from '@app/core/core.module';
 import { AuthService } from '@app/application/auth/auth.service';
 import { AccountService } from '@app/application/account/account.service';
 import { HttpStrategy } from '@app/application/auth/http.strategy';
+import { GoogleStrategy } from '@app/application/auth/sso/google.strategy';
+import { GithubStrategy } from '@app/application/auth/sso/github.strategy';
 import { FileDirectoryService } from '@app/application/file-directory/file-directory.service';
 import { WebFileService } from '@app/application/web-file/web-file.service';
 import { WebFilePrcService } from './web-file/web-file-prc.service';
@@ -18,6 +20,8 @@ import { JobService } from './job/job.service';
     providers: [
         AuthService,
         HttpStrategy,
+        GoogleStrategy,
+        GithubStrategy,
         FileDirectoryService,
         WebFileService,
         WebFilePrcService,

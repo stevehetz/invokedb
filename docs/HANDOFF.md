@@ -219,8 +219,10 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   reads the CSV with backpressure so every batch insert is awaited in order, and timeouts are
   per job (an old job's 30-minute timer could fail a later one). The column type change in
   `WebFileManager` got a per-call deadline too. Checked with the backend build only.
-- **2.6 (optional):** ag-grid 32 → current (Theming API, module registration), and move the
-  SCSS off the Sass deprecations that `vite.config.js` silences (`@import`, global `lighten()`).
+- **2.6 (optional):** ag-grid 32 → 36 (Theming API, module registration), and move the SCSS
+  off the Sass deprecations that `vite.config.js` silenced (`@import`, global `lighten()`), #18.
+  The app's own SCSS was already on `@use`/`color.adjust`, and the build shows no Sass
+  warnings without the silences, so they're gone. The grid's look still needs a check by eye.
 - **3: done** (2026-11-15). `WS_SERVER_TOKEN` moved from `constants.ts` to the
   `HORIZON_WS_SERVER_TOKEN` env var (see Things to know). The old hardcoded value is in the public
   history and no longer works. `FS_TOKEN` was unused and is gone. An empty token never counts as
@@ -323,6 +325,12 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   `password_hash` nullable. Link an SSO login to an existing account only by a **verified**
   email (for GitHub, fetch `/user/emails` and take the primary verified one). Add the buttons to
   the login and signup pages, and the client IDs/secrets to `src/env.ts` and `.env`.
+  **Code written** (#17): `src/web/http/auth/sso.controller.ts`, `application/auth/sso/`, the
+  `AccountIdentity` migration, `horizon-fe/src/view/sso/`. The OAuth state lives in a
+  short-lived cookie on the API host (no server sessions), and the token comes back in the URL
+  fragment with a nonce the login page checks. An SSO login never links to an account that has
+  a password (`password_account` error), since password signup doesn't verify the email. Still to do by the owner: create the OAuth apps
+  and set the four `*_CLIENT_*` values (see `docs/OPERATIONS.md`).
 - **6 (backend, optional):** Nest 12 / TypeORM 1.x (#19) and `npm audit`. `tslint` → ESLint is done (#9).
 - **7 (code review, requested 2026-11-24): findings written** (2026-11-24) in
   `docs/CODE_REVIEW.md`; all of them became issues #6–#14. Review the whole codebase (`horizon-be`,

@@ -12,7 +12,7 @@ API. A monorepo of two packages with **separate `node_modules`** (no npm workspa
 | Package               | Stack                                                                      | Dev URL                 |
 | --------------------- | -------------------------------------------------------------------------- | ----------------------- |
 | `packages/horizon-be` | NestJS 12, TypeORM 1.x (Postgres), native `mongodb` 7 driver, `ws` 8       | :8001 (websocket :9000) |
-| `packages/horizon-fe` | Vue 3, Vite 6, ag-grid 32, Element Plus. Public site at `/`, app at `/app` | :8000                   |
+| `packages/horizon-fe` | Vue 3, Vite 6, ag-grid 36, Element Plus. Public site at `/`, app at `/app` | :8000                   |
 
 `deploy/` (see `deploy/README.md`) is the production setup: one server, `docker compose`,
 driven from the Mac by `deploy/deploy.sh`. Its `prod.env` is a gitignored secret file.
@@ -232,7 +232,10 @@ token starts no CI, and a dispatched CI run doesn't count toward a PR's required
   area's shell (`src/view/site.vue`, `src/components/app.vue`) imports its own CSS and is
   lazy-loaded, and **moving between the areas is a full page load** (`window.location` or a
   plain `<a href>`), never `router.push` or `<router-link>`. Within an area, use the router as
-  normal. Don't import global CSS anywhere else. The UI smoke test checks this.
+  normal. Don't import global CSS anywhere else (the one exception: `main.js` imports Font
+  Awesome and the highlight.js theme, which only style their own classes). Route pages are
+  lazy-loaded in `router.js`; `vite.config.js` gives ag-grid, Element Plus and Vue their own
+  chunks. The UI smoke test checks this.
 - Built with **Vite 6** (`vite.config.js`, `index.html` at the package root). Use the npm
   scripts (`start`, `build`, `preview`, `lint`), which `env.sh` feeds the env. Static assets in
   templates are plain `src="@/assets/x.png"`. `lodash` is imported explicitly (no globals).
@@ -245,11 +248,14 @@ token starts no CI, and a dispatched CI run doesn't count toward a PR's required
   `stylesheet.scss` (`.el-input__wrapper`, the `.el-dialog` padding). Horizontal `el-menu`s need
   `:ellipsis="false"` or they fold items into "…". Use `link` buttons, not `type="text"` (removed
   in Element Plus 3), and icon components from `@element-plus/icons-vue`, not `el-icon-*` classes.
-- **ag-grid 32** (`ag-grid-vue3`). The grid API comes from `onGridReady`; there's no
+- **ag-grid 36** (`ag-grid-vue3`). The grid API comes from `onGridReady`; there's no
   `columnApi` or `gridOptions.api`. Keep grid options, column defs and the API out of reactive
   data (`markRaw`, or set them in `created()` rather than `data()`). Custom header/filter
   components are registered in `h-data-grid`'s `components` and named in the col defs, and
-  receive `params` as a prop. The app has no ag-grid theme; `stylesheet.scss` styles the grid.
+  receive `params` as a prop. `h-data-grid.js` registers `AllCommunityModule` (features are
+  modules since v33). The grid's theme (`h-data-grid/grid-theme.js`, Theming API) is
+  `createTheme()`, the core CSS with no parts, and its params only switch off what would draw
+  over `stylesheet.scss`, which styles the grid; there's no ag-grid CSS import.
   Its `.ag-header-viewport` is `overflow: visible` (for the header dropdown menus), so ag-grid
   can't scroll the header; `h-data-grid`'s `body_scrolled` moves it with the body instead.
 - `this.$bus` / `@/core/bus` is a small emitter with the old `$on`/`$off`/`$emit` names. Remove

@@ -653,12 +653,12 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     background-color: $blue400;
     color: #ffffff;
 }
+// The card grows with its content (the SSO buttons, an error message).
 .login-page .panel-box {
-    height: 370px;
-    transition: height 0.2s;
+    min-height: 370px;
 }
 .login-page .panel-box.processing {
-    height: 250px;
+    min-height: 250px;
 }
 .login-page .input-box {
     padding: 1em;

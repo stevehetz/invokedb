@@ -139,6 +139,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
+      # The agent can't write inside .git (Claude Code protects it), so its note goes to
+      # .agent-out/, excluded from git so it can never be committed (#99)
+      - name: Make the agent's output folder
+        run: mkdir -p .agent-out && echo '.agent-out/' >> .git/info/exclude
 
       - uses: anthropics/claude-code-action@v1
         with:
@@ -173,7 +177,7 @@ jobs:
 
             If a conflict needs a decision (the two sides want incompatible things), or the
             checks fail for a reason you can't fix within the merge, run `git merge --abort`,
-            write a short explanation for the owner to .git/blocked.md, and push nothing.
+            write a short explanation for the owner to .agent-out/blocked.md, and push nothing.
 
             Never push to any other branch, never force-push, never rebase, never touch
             deploy/prod.env or secrets. Add no AI attribution anywhere.
@@ -189,7 +193,7 @@ jobs:
           R="$GITHUB_REPOSITORY"
           new_sha=$(git ls-remote "https://github.com/$R.git" "refs/heads/$BRANCH" | cut -f1)
           if [ "$new_sha" = "$OLD_SHA" ]; then
-            why=$(cat .git/blocked.md 2>/dev/null || echo "The run pushed nothing; see $RUN_URL.")
+            why=$(cat .agent-out/blocked.md 2>/dev/null || echo "The run pushed nothing; see $RUN_URL.")
             gh pr edit "$PR" -R "$R" --add-label agent-stuck
             gh pr comment "$PR" -R "$R" --body "$(printf '@%s the conflicts with main could not be resolved automatically, so this PR needs you.\n\n%s' "$OWNER" "$why")"
             exit 0

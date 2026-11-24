@@ -31,6 +31,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       PR: ${{ github.event.pull_request.number }}
+      OWNER: ${{ github.repository_owner }}
     steps:
       # A verdict is only for the commit it reviewed
       - name: Clear the previous verdict
@@ -41,6 +42,18 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 1
+      # Earlier review threads and the replies to them (revise.yml's, the owner's), so a point
+      # already answered isn't raised again. Kept inside .git so it can never be committed.
+      - name: Collect earlier review threads
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/comments" --paginate --jq '.[] |
+            select(.user.login == "claude[bot]" or .user.login == "github-actions[bot]" or
+                   .user.login == env.OWNER) |
+            "\n## \(.path):\(.line // .original_line) \(.user.login) (id \(.id), reply to \(.in_reply_to_id // "-"))\n\(.body)"' \
+            > .git/prior-review.md
+          gh pr view "$PR" -R "$GITHUB_REPOSITORY" --json commits --jq '.commits | last |
+            "\n# Latest commit message\n\(.messageHeadline)\n\n\(.messageBody)"' >> .git/prior-review.md
+          wc -c .git/prior-review.md
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -49,6 +62,11 @@ jobs:
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Earlier review threads on this PR, the replies to them, and the latest commit
+            message (which may say what was fixed or why not) are in .git/prior-review.md.
+            Don't raise a point again if a reply or that commit message answers it with a sound
+            reason; do raise it if the answer doesn't hold up or the problem is still there.
 
             Review this pull request. Read AGENTS.md first: it has the project's rules and
             conventions. Look at the diff (`gh pr diff`) and read the surrounding code as needed.

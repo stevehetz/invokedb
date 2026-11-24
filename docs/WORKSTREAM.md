@@ -37,7 +37,7 @@ yet. Support email and alert routing (the previous workstream) is done: HANDOFF 
       settings change is `deploy.sh env` from the Mac (so there's no third copy to keep in
       step). The deploy key is forced to `ci-deploy.sh`, which deploys only the tip of `main`,
       downloaded from the public repo.
-- [x] 6. (2026-11-24) Claude, branch `cd`: `.github/workflows/deploy.yml` (runs after CI
+- [x] 6. (2026-11-24) Claude, branch `cd`: `.github/workflows/cd.yml` (runs after CI
       passes on a push to `main`), `deploy/ci-deploy.sh`, `deploy/release.sh` (the build,
       migrate, restart that `up` also uses now), `deploy.sh env` and `install-ci`, a `REVISION`
       file on the server, the server's settings moved out of the app folder to
@@ -54,8 +54,13 @@ yet. Support email and alert routing (the previous workstream) is done: HANDOFF 
 - [x] 9. (2026-11-24) GitHub environment `production` (deployment branches: `main` only):
       secrets `DEPLOY_SSH_KEY`, `DO_FIREWALL_TOKEN`; variables `DEPLOY_HOST`,
       `DO_FIREWALL_ID`, `DEPLOY_KNOWN_HOSTS` (checked against the Mac's `known_hosts`).
-- [ ] 10. **Now.** You: merge `cd` to `main` and push; that push is the first automatic deploy. Claude
-      watches the run, then checks the site, `REVISION` and that the firewall rule is gone.
+- [x] 10. (2026-11-24) First automatic deploy (run 45395180705, 1m54s) shipped `0578780`.
+      Checked: `REVISION` matches, settings moved to `/opt/invokedb/prod.env` (root-only), all
+      containers up, site, `/app` and the API answer 200, the firewall rule was removed. The
+      server's settings match the Mac's except the two `MAILGUN_SMTP_*` lines, which the
+      backend doesn't read.
+- [ ] 11. **Now.** Workflow renamed Deploy → CD (`.github/workflows/cd.yml`), branch
+      `cd-rename`. You: merge and push; that push deploys through the renamed workflow.
 
 ## Up next
 

@@ -62,7 +62,7 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
   file to git, never weaken `.gitignore`, and never push `~/dev/invokedb-pre-scrub-*.bundle`.
 - **Don't run `npm run prod:*`, `base:construct` or anything under `ops/azure-*`.** That
   infrastructure is torn down, and the scripts target real Azure resources.
-- **Pushing to `main` deploys to production** (after CI passes; `.github/workflows/deploy.yml`).
+- **Pushing to `main` deploys to production** (after CI passes; `.github/workflows/cd.yml`).
   Never push or merge to `main` unless the user asks.
 - **`deploy/deploy.sh` touches the real production server.** Run its server commands (`up`,
   `bootstrap`, `init-db`, `migrate`, `compose`) only when the user asks.

@@ -1,6 +1,6 @@
 # InvokeDB revamp: handoff
 
-_Last updated 2026-11-24_
+_Last updated 2026-11-24 (evening)_
 
 InvokeDB ("horizon") is a web app for building data tables you can query through an API. The
 revamp makes it run on a modern Mac with no Kubernetes. `README.md` has the commands, and
@@ -21,42 +21,54 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
    **Work is tracked in GitHub Issues on the Project board "InvokeDB"**
    (https://github.com/users/stevehetz/projects/1; AGENTS.md, "How work is tracked"). There is
    no WORKSTREAM file any more (retired 2026-11-24, #5): "what's next" is the board.
-   **Where things stand (end of 2026-11-24, ~18:25 UTC):**
+   **Where things stand (end of 2026-11-24, ~21:30 UTC):** no open PRs; `main` is deployed.
+   - **Open issues** (all on the board): #44 (backend crash when an upload races websocket
+     startup; labelled `agent` but **the queue skips it**: repair.yml filed it as `app/claude`
+     without `agent-found`, and the queue only takes the owner's issues or `agent-found` ones.
+     Work it in a local session, or relabel it `agent-found` and re-add `agent`), #90 (nightly
+     Playwright E2E against production; the owner must first create a test account and the
+     `E2E_EMAIL`/`E2E_PASSWORD`/`TELEGRAM_*` secrets), #117 (CodeQL alert #5 is a false
+     positive: the owner dismisses it, "Used in tests", and closes #117).
+   - **Owner to-do:** dismiss CodeQL alert #6 as "False positive" ("Fixed in #115": CodeQL
+     doesn't recognise `assert_column_update` as a sanitizer; if it stays open, security-fix
+     will re-pick it a day after #115 merged and probably file a triage issue). Delete the stale
+     `security/codeql-2` and `security/codeql-6` branches. Rotating production API keys made
+     by the old `Math.random()` generator: **not now**, the owner decided (2026-11-24).
    - **Merged today** (all deployed): Stripe/Azure removal (#6), dead files (#7), backend ESLint
-     (#9), one frontend HTTP client + bundled CDN assets + bundle split + per-component Element
-     Plus (#11: PRs #45, #65), frontend `typecheck` script + moment dropped (#14), ops docs
-     `docs/OPERATIONS.md` (#15), Google and GitHub sign-in (#17, live, see 5b), ag-grid 36 with
-     the Theming API (#18), Nest 12 / TypeORM 1.x / mongodb 7 (#19), typed websocket managers (#12), and the workflow fixes
-     below.
-   - **Fixed: #67** (PR #70). PRs that `automerge.yml` merged didn't close their issues (GitHub
-     ignores `Closes #N` on a merge made with the workflow token), so the queue re-ran them;
-     `automerge.yml` now closes the linked issues itself. #11, #14, #19, #26 and #35 were closed
-     by hand before that.
-   - **The cloud agent can't change `.github/workflows/`** (the Claude app has no `workflows`
-     permission; AGENTS.md). #10 was finished locally and merged (PR #71): Dependabot
-     (weekly; its PRs get CI and the review and auto-merge; `CLAUDE_CODE_OAUTH_TOKEN` is also a
-     Dependabot secret; `repair.yml` skips `dependabot/` branches), examples and shellcheck in
-     CI, `npm run check`, a PR template. #56 and #69 are local-session work too.
-   - **Cloud agent queue:** running, in board order (`PROJECTS_TOKEN` set). #12 (websocket
-     clean-up) merged as PR #72 and closed itself (the #67 fix works). Queued (`agent`): #44,
-     #60, #64, #66.
-   - #64 and #66 need the user to look in a browser after they merge.
-   - **Workflow changes today** (details in AGENTS.md):
-     - Docs-only (Markdown) changes go straight to `main` with no PR (#51): the ruleset's admin
-       bypass is "Always", a Markdown-only push runs no CI, and `ci-deploy.sh` deploys the tip
-       when only Markdown changed after the checked commit (#53, reinstalled on the server
-       with `install-ci`).
-     - `hold` is only for PRs that need a `prod.env` change or a manual server step, never for
-       large or visual changes (#57).
-     - CI's `deploy` job also starts `resolve.yml`, since an auto-merge sends no `workflow_run`
-       (#62). `persist-credentials: false` works: resolve's push on #54 started CI and review.
-   - **To check on it:** `gh pr list --label agent-pr`, `gh issue list --label agent-stuck`,
-     `gh run list -w implement.yml`. Merge `needs-owner` PRs when the user says so.
-   - Owner-only issues (`you`): #13 (pick a licence), #16 (check signup, tables, CSV upload and
-     the API in production by hand; now also Google/GitHub sign-in end to end).
+     (#9), Dependabot + examples/shellcheck in CI (#10), websocket clean-up (#12), licence (#13:
+     all rights reserved, MIT for `examples/`), frontend `typecheck` (#14, #93), ops docs (#15),
+     Google and GitHub sign-in (#17, live, see 5b), ag-grid 36 (#18), Nest 12 / TypeORM 1.x /
+     mongodb 7 (#19), #64/#66 (styling), #56, #69, #89, #99, and the security work below.
+   - **Security (2026-11-24):** repo settings on: Dependabot alerts + security updates, CodeQL
+     default setup ("code scanning"; PRs and pushes to `main`, plus weekly), private
+     vulnerability reporting, secret push protection. `SECURITY.md` added. CodeQL's first scan
+     found 8 alerts; fixed: #7 API keys now `crypto.randomInt` (#107), #2–#4 batch bodies must
+     be arrays (#112), #6 column updates type-checked (#115), #1 client regex (#116), #8 iframe
+     handlers in a `Map` (#119). #5 and #6 wait on the owner (above).
+   - **`security-fix.yml`** (#104; fixed in #111, #114, #118, #122): every 3 hours and by hand,
+     fixes up to 3 open CodeQL alerts in `security/codeql-<n>` PRs (label `security`, body
+     "Fixes code scanning alert #N", auto-merge) or files `agent-found` + `security` triage
+     issues. Skips alerts named (any case, title or body) in open PRs/issues or PRs merged in the
+     last day. Actions can't trigger on alert events (webhook-only), and the workflow token can't
+     read Dependabot alerts (403), so those are left to Dependabot's PRs and GitHub's emails.
+   - **Dependencies:** `deps-update.yml` (#103) runs on the 1st of each month: two PRs on
+     `deps/*` (minor+patch, majors), following `docs/DEPENDENCY_PINS.md`. It hasn't run yet (a
+     manual run is optional). Dependabot now only opens npm security PRs and weekly GitHub
+     Actions PRs. All old Dependabot version PRs are closed.
+   - **Board:** the Project's built-in **Auto-add** workflow is on (filter `is:issue`), so every
+     new issue lands on the board by itself (2026-11-24). Issues filed before then were added by
+     hand.
+   - **Pipeline gaps found today:**
+     - When `automerge.yml` merges a repair fix PR into a PR's branch, that push is by
+       `github-actions[bot]`, which GitHub treats as a first-time contributor: the PR's CI and
+       review wait for "Approve workflows to run" (seen on #107). The review now allows
+       `github-actions` (#111), but the approval click remains. Not fixed.
+     - Merged `security/*` branches aren't always deleted.
+   - **To check on things:** `gh pr list`, `gh issue list --label agent-stuck`,
+     `gh run list -w security-fix.yml`, `gh run list -w implement.yml`.
    - **Offered, not yet an issue:** run the Playwright UI smoke test (`ui-smoke.mjs`) in CI.
-   - `PROJECTS_TOKEN` is set (2026-11-24; classic token, `project` scope only): the queue follows
-     board order, and #69 will use it to add `agent-found` issues to the board.
+   - **Session rule from the owner (2026-11-24):** for fixes to the automation, the agent may
+     merge its own PR once CI passes, including `.github/` changes; say what was merged.
 
    Check backend changes with the backend build and `npm test` (see `verify-backend`), and
    frontend changes with the frontend build, lint and `typecheck`; CI runs the API smoke test on every PR.

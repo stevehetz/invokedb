@@ -2,7 +2,8 @@
 # often package.json and its lockfile, merged first), Claude merges main into the branch, resolves
 # the conflicts, checks the result and pushes. The push starts CI and a fresh review, and
 # automerge.yml takes it from there. Runs on agent PRs (`agent-pr`), repair's fix PRs
-# (`claude/fix-*`), and any other PR the owner labels `agent-fix`.
+# (`claude/fix-*`), Dependabot PRs (`dependabot/*`), and any other PR the owner labels
+# `agent-fix`.
 #
 # Runs after CI on main finishes (every merge ends in one), every 30 minutes as a safety net, and
 # by hand with a PR number. CI on main after an auto-merge sends no workflow_run event (it was
@@ -73,7 +74,10 @@ jobs:
             number=$(jq -r .number <<<"$pr")
             branch=$(jq -r .headRefName <<<"$pr")
             has() { jq -e --arg l "$1" '.labels | map(.name) | index($l)' <<<"$pr" >/dev/null; }
-            if [ -z "$INPUT_PR" ] && ! has agent-pr && [[ "$branch" != claude/fix-* ]]; then
+            # Dependabot PRs too: once an agent has pushed to one, Dependabot stops rebasing it,
+            # and GitHub runs no PR workflows while it conflicts
+            if [ -z "$INPUT_PR" ] && ! has agent-pr && [[ "$branch" != claude/fix-* ]] &&
+              [[ "$branch" != dependabot/* ]]; then
               # Someone else's PR: only if the owner asked with the agent-fix label
               has agent-fix || continue
               by=$(gh api "repos/$R/issues/$number/events" --paginate \
@@ -139,12 +143,16 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
+      # The agent can't write inside .git (Claude Code protects it), so its note goes to
+      # .agent-out/, excluded from git so it can never be committed (#99)
+      - name: Make the agent's output folder
+        run: mkdir -p .agent-out && echo '.agent-out/' >> .git/info/exclude
 
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Runs after CI runs started by the workflow token, and on a schedule
-          allowed_bots: github-actions,claude
+          allowed_bots: github-actions,claude,dependabot
           prompt: |
             PR #${{ matrix.pr }} (branch `${{ matrix.branch }}`, checked out) conflicts with
             main. Merge main into it and resolve the conflicts. Nobody is watching.
@@ -173,7 +181,7 @@ jobs:
 
             If a conflict needs a decision (the two sides want incompatible things), or the
             checks fail for a reason you can't fix within the merge, run `git merge --abort`,
-            write a short explanation for the owner to .git/blocked.md, and push nothing.
+            write a short explanation for the owner to .agent-out/blocked.md, and push nothing.
 
             Never push to any other branch, never force-push, never rebase, never touch
             deploy/prod.env or secrets. Add no AI attribution anywhere.
@@ -189,7 +197,7 @@ jobs:
           R="$GITHUB_REPOSITORY"
           new_sha=$(git ls-remote "https://github.com/$R.git" "refs/heads/$BRANCH" | cut -f1)
           if [ "$new_sha" = "$OLD_SHA" ]; then
-            why=$(cat .git/blocked.md 2>/dev/null || echo "The run pushed nothing; see $RUN_URL.")
+            why=$(cat .agent-out/blocked.md 2>/dev/null || echo "The run pushed nothing; see $RUN_URL.")
             gh pr edit "$PR" -R "$R" --add-label agent-stuck
             gh pr comment "$PR" -R "$R" --body "$(printf '@%s the conflicts with main could not be resolved automatically, so this PR needs you.\n\n%s' "$OWNER" "$why")"
             exit 0

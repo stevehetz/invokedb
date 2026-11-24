@@ -171,6 +171,11 @@ jobs:
           } > .git/pr.md
           wc -c .git/review.md .git/pr.md
 
+      # The agent can't write inside .git (Claude Code protects it), so its replies and decline
+      # note go to .agent-out/, which is excluded from git here so it can never be committed (#99)
+      - name: Make the agent's output folder
+        if: steps.decide.outputs.pr
+        run: mkdir -p .agent-out && echo '.agent-out/' >> .git/info/exclude
       - name: Note the start time
         id: start
         run: echo "since=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
@@ -204,7 +209,7 @@ jobs:
             - Decline it instead when it shouldn't be taken: a version ahead of the runtime
               (e.g. `@types/node` newer than the Node major in .nvmrc), a deprecated or
               abandoned release, or a fix too big or risky for a dependency PR. Then change
-              no code, write the reason and what would make it acceptable to .git/decline.md,
+              no code, write the reason and what would make it acceptable to .agent-out/decline.md,
               and don't push. A later step comments it and parks the PR for the owner.
 
             For each review finding that hasn't been answered yet:
@@ -225,7 +230,7 @@ jobs:
             then build, lint, and `npm test` for the backend). There are no databases here.
 
             Then:
-            1. Write your replies to .git/replies.json as a JSON array of
+            1. Write your replies to .agent-out/replies.json as a JSON array of
                {"id": <inline comment id from review.md>, "body": "..."}; use `[]` for none.
                Put replies to findings from the summary (with no inline id) in the commit message.
             2. `npx prettier --write` the files you changed (from the root), commit with a
@@ -286,17 +291,17 @@ jobs:
           set -euo pipefail
           R="$GITHUB_REPOSITORY"
           # A declined Dependabot update: say why and park it for the owner (who closes it)
-          if [ "$DEPENDABOT" = true ] && [ -s .git/decline.md ]; then
+          if [ "$DEPENDABOT" = true ] && [ -s .agent-out/decline.md ]; then
             gh pr comment "$PR" -R "$R" --body "@$OWNER the agent recommends not taking this update ($RUN_URL):
 
-          $(cat .git/decline.md)
+          $(cat .agent-out/decline.md)
 
           Close this PR to decline it (Dependabot won't offer this version again), or push a fix and remove \`needs-owner\`."
             gh pr edit "$PR" -R "$R" --add-label needs-owner
             exit 0
           fi
-          if [ -s .git/replies.json ] && jq -e 'type == "array"' .git/replies.json >/dev/null; then
-            jq -c '.[] | select((.id | type) == "number" and (.body | type) == "string")' .git/replies.json |
+          if [ -s .agent-out/replies.json ] && jq -e 'type == "array"' .agent-out/replies.json >/dev/null; then
+            jq -c '.[] | select((.id | type) == "number" and (.body | type) == "string")' .agent-out/replies.json |
               while read -r reply; do
                 gh api -X POST "repos/$R/pulls/$PR/comments/$(jq -r .id <<<"$reply")/replies" \
                   -f body="$(jq -r .body <<<"$reply")" >/dev/null || echo "Couldn't reply to $(jq -r .id <<<"$reply")"

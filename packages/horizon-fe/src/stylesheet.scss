@@ -783,10 +783,6 @@ $nav_active_color: #ffffff;
 }
 
 .h-data-grid {
-    // ag-grid reads these from its theme CSS, which the app doesn't load (it styles the grid itself)
-    --ag-row-height: 30px;
-    --ag-header-height: 35px;
-    --ag-list-item-height: 24px;
     display: flex;
     flex-direction: column;
     width: 100%;

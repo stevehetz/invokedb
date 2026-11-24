@@ -12,7 +12,7 @@ API. A monorepo of two packages with **separate `node_modules`** (no npm workspa
 | Package               | Stack                                                                      | Dev URL                 |
 | --------------------- | -------------------------------------------------------------------------- | ----------------------- |
 | `packages/horizon-be` | NestJS 11, TypeORM 0.3 (Postgres), native `mongodb` 6 driver, `ws` 8       | :8001 (websocket :9000) |
-| `packages/horizon-fe` | Vue 3, Vite 6, ag-grid 32, Element Plus. Public site at `/`, app at `/app` | :8000                   |
+| `packages/horizon-fe` | Vue 3, Vite 6, ag-grid 36, Element Plus. Public site at `/`, app at `/app` | :8000                   |
 
 `deploy/` (see `deploy/README.md`) is the production setup: one server, `docker compose`,
 driven from the Mac by `deploy/deploy.sh`. Its `prod.env` is a gitignored secret file.
@@ -236,11 +236,14 @@ token starts no CI, and a dispatched CI run doesn't count toward a PR's required
   `stylesheet.scss` (`.el-input__wrapper`, the `.el-dialog` padding). Horizontal `el-menu`s need
   `:ellipsis="false"` or they fold items into "…". Use `link` buttons, not `type="text"` (removed
   in Element Plus 3), and icon components from `@element-plus/icons-vue`, not `el-icon-*` classes.
-- **ag-grid 32** (`ag-grid-vue3`). The grid API comes from `onGridReady`; there's no
+- **ag-grid 36** (`ag-grid-vue3`). The grid API comes from `onGridReady`; there's no
   `columnApi` or `gridOptions.api`. Keep grid options, column defs and the API out of reactive
   data (`markRaw`, or set them in `created()` rather than `data()`). Custom header/filter
   components are registered in `h-data-grid`'s `components` and named in the col defs, and
-  receive `params` as a prop. The app has no ag-grid theme; `stylesheet.scss` styles the grid.
+  receive `params` as a prop. `h-data-grid.js` registers `AllCommunityModule` (features are
+  modules since v33). The grid's theme (`h-data-grid/grid-theme.js`, Theming API) is
+  `createTheme()`, the core CSS with no parts, and its params only switch off what would draw
+  over `stylesheet.scss`, which styles the grid; there's no ag-grid CSS import.
   Its `.ag-header-viewport` is `overflow: visible` (for the header dropdown menus), so ag-grid
   can't scroll the header; `h-data-grid`'s `body_scrolled` moves it with the body instead.
 - `this.$bus` / `@/core/bus` is a small emitter with the old `$on`/`$off`/`$emit` names. Remove

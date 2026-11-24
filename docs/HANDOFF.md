@@ -219,8 +219,10 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   reads the CSV with backpressure so every batch insert is awaited in order, and timeouts are
   per job (an old job's 30-minute timer could fail a later one). The column type change in
   `WebFileManager` got a per-call deadline too. Checked with the backend build only.
-- **2.6 (optional):** ag-grid 32 → current (Theming API, module registration), and move the
-  SCSS off the Sass deprecations that `vite.config.js` silences (`@import`, global `lighten()`).
+- **2.6 (optional):** ag-grid 32 → 36 (Theming API, module registration), and move the SCSS
+  off the Sass deprecations that `vite.config.js` silenced (`@import`, global `lighten()`), #18.
+  The app's own SCSS was already on `@use`/`color.adjust`, and the build shows no Sass
+  warnings without the silences, so they're gone. The grid's look still needs a check by eye.
 - **3: done** (2026-11-15). `WS_SERVER_TOKEN` moved from `constants.ts` to the
   `HORIZON_WS_SERVER_TOKEN` env var (see Things to know). The old hardcoded value is in the public
   history and no longer works. `FS_TOKEN` was unused and is gone. An empty token never counts as

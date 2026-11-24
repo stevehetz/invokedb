@@ -32,7 +32,7 @@
         "rxjs": "^7.8.2",
         "split.js": "^1.5.11",
         "vue": "^3.5.46",
-        "vue-router": "^4.6.5"
+        "vue-router": "^5.5.1"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^6.0.11",

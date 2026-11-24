@@ -9,6 +9,7 @@ import _c from '@app/constants';
 import logger from '@app/logger';
 import { parse_utc_date, format_date } from '../date';
 import { assert_array_body } from '../helpers/array-body';
+import { assert_column_update } from '../helpers/column-update';
 
 const MAX_FIELD_VALUE_LENGTH = 2000;
 const MAX_COLUMN_VALUE_LENGTH = 100;
@@ -523,6 +524,7 @@ export class WebFileManager {
     }
 
     async update_dg_column(acct_id, file_id, data) {
+        data = assert_column_update(data);
         const _id = new ObjectId(data._id);
         delete data._id;
         delete data.row_num;

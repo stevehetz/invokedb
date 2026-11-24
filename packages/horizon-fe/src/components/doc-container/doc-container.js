@@ -1,3 +1,4 @@
+// @ts-nocheck: not type-checked yet
 import HDataGrid from '@/components/h-data-grid/index';
 
 export default {

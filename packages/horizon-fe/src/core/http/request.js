@@ -1,7 +1,9 @@
 // JSON requests with a bearer token. Replaces the old `$.ajax` calls and keeps their contract:
 // resolves with the parsed body (JSON when the response says so, else text), and rejects with
 // the parsed JSON error body (`{ status, message, rules? }` from the backend) or undefined.
+/** @returns {Promise<any>} */
 export async function request(method, url, token, data) {
+    /** @type {RequestInit} */
     const options = {
         method,
         headers: {
@@ -21,6 +23,7 @@ export async function request(method, url, token, data) {
 
     const text = await res.text();
     const is_json = (res.headers.get('content-type') || '').includes('json');
+    /** @type {any} */
     let body = text;
     if (is_json && text) {
         try {

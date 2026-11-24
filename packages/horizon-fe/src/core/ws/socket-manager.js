@@ -1,3 +1,4 @@
+// @ts-nocheck: not type-checked yet
 import EventEmitter from 'event-emitter';
 
 const SOCKET_RECONNECT_TIMER = 10000; // 10 seconds

@@ -1,3 +1,4 @@
+// @ts-nocheck: not type-checked yet
 import { bus } from '@/core/bus';
 import AlertDialog from '../alert-dialog';
 import ConfirmDialog from '../confirm-dialog';

@@ -46,6 +46,7 @@ npm run format:check
 npm --prefix packages/horizon-be run build   # tsc: the main backend correctness check
 npm --prefix packages/horizon-be run lint    # ESLint (eslint.config.mjs)
 npm --prefix packages/horizon-be test        # Jest unit tests (src/**/*.spec.ts)
+npm --prefix packages/horizon-fe run typecheck  # tsc --noEmit over the frontend's .js (checkJs)
 node scripts/api-smoke.mjs [base_url] [out.json]  # ~30 API calls against a running backend
 node scripts/ui-smoke.mjs [--out out.json] [--headed]  # Playwright UI flows (load env first, see verify-frontend)
 bash scripts/smoke-env.sh <file>  # throwaway env (horizon_smoke DBs, ports 81xx/9100) for both smoke tests
@@ -59,10 +60,12 @@ are few so far (account scoping, validators, column-name rules); add a `*.spec.t
 for new pure logic. Verify backend changes with `build`, `test`, and `api-smoke.mjs` (see the
 `verify-backend` skill); if you can't run the smoke test locally, the `smoke` job runs it on the PR.
 `api-smoke.mjs` exits non-zero on any failed call or check. Verify UI changes with `npm --prefix
-packages/horizon-fe run build` and `run lint`; don't drive a browser (Playwright MCP or otherwise)
-to check them unless the user asks. The Playwright UI smoke test (`ui-smoke.mjs`, see the
-`verify-frontend` skill) is slow to set up, so **only run it when the user asks**. Both smoke tests
-run against a throwaway stack, never the user's data.
+packages/horizon-fe run build`, `run lint` and `run typecheck` (`checkJs` over `src/**/*.js`; files
+marked `// @ts-nocheck` aren't checked yet, so drop the marker when you fix one; `.vue` files aren't
+checked); don't drive a browser (Playwright MCP or otherwise) to check them unless the user asks.
+The Playwright UI smoke test (`ui-smoke.mjs`, see the `verify-frontend` skill) is slow to set up, so
+**only run it when the user asks**. Both smoke tests run against a throwaway stack, never the user's
+data.
 
 ## Hard rules
 

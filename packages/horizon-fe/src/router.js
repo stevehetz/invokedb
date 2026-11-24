@@ -1,3 +1,4 @@
+// @ts-nocheck: not type-checked yet
 import { createRouter, createWebHistory } from 'vue-router';
 
 // Main app (signed in)

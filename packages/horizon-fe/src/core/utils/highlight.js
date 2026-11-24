@@ -6,7 +6,12 @@ import javascript from 'highlight.js/lib/languages/javascript';
 hljs.registerLanguage('javascript', javascript);
 
 export function highlight_code_blocks() {
-    document
-        .querySelectorAll('pre code')
-        .forEach(block => hljs.highlightElement(block));
+    /** @type {NodeListOf<HTMLElement>} */ (
+        document.querySelectorAll('pre code')
+    ).forEach(block => {
+        // highlight.js 11 skips elements marked `data-highlighted`, but the home page swaps
+        // the contents of the same <code> element between samples, so clear the mark first.
+        delete block.dataset.highlighted;
+        hljs.highlightElement(block);
+    });
 }

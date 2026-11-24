@@ -4,7 +4,8 @@ import { createApp } from 'vue';
 // only style their own classes (`fa*`, `hljs*`), so they can't clash with either area's CSS.
 // Font Awesome is also the loading spinner in index.html. They were CDN links in index.html.
 import '@fortawesome/fontawesome-free/css/all.css';
-import 'highlight.js/styles/atelier-plateau-dark.css';
+// highlight.js 11 moved the dark Atelier Plateau theme to `styles/base16/`.
+import 'highlight.js/styles/base16/atelier-plateau.css';
 
 // Element Plus (each area loads its own theme CSS; see router.js). Only the components the
 // templates use are registered, each imported from its own module: importing from

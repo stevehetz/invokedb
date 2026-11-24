@@ -202,8 +202,9 @@ repo: it's public.
   its mail lands in the support Gmail), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (the
   contact-form bot).
 - **Alerts:** a failure sends a Telegram message naming the trigger (and the commit, after a
-  deploy) and keeps the screenshot and a Playwright trace as the run's `e2e` artifact (14 days).
-  Open the trace with `npx playwright show-trace trace.zip`.
+  deploy) and keeps the failing step's screenshot (password and API key masked) as the run's `e2e`
+  artifact (14 days). No trace: artifacts on this public repo can be downloaded by anyone, and a
+  trace holds the credentials. To dig in, run it locally with `--trace` (see `ui-smoke.mjs`).
 - **Check:** the Actions tab shows a green run each night; `gh run list -w e2e.yml`.
 
 ### Claude review, repair, auto-merge and the cloud agent

@@ -1,5 +1,5 @@
 // UI smoke test for horizon-fe:
-//   node scripts/ui-smoke.mjs [--out out.json] [--headed] [--keep] [--bundled] [--artifacts dir]
+//   node scripts/ui-smoke.mjs [--out out.json] [--headed] [--keep] [--bundled] [--artifacts dir] [--trace]
 //
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
 // render the public site's pages, log in, upload a CSV, sort / filter / edit cells in the grid, add and remove
@@ -14,7 +14,9 @@
 // Production (e2e.yml, #90): the HORIZON_*_PUB_* URLs point at invokedb.com, SMOKE_EMAIL and
 // SMOKE_PASSWORD name the test account (default demo@invokedb.com / password), --bundled uses
 // Playwright's own Chromium instead of the installed Chrome, and --artifacts keeps the failure
-// screenshot and a Playwright trace in that folder. Every run starts by deleting any table left
+// screenshot in that folder (password and API key fields masked). --trace also saves a Playwright
+// trace there on failure; it holds the password, session token and API key, so only use it
+// locally, never in a workflow (the repo's artifacts are public). Every run starts by deleting any table left
 // from an earlier run and, on failure, deletes the one it made.
 //
 // --out writes the observations (grid contents, headers, websocket events) as JSON, with no
@@ -125,7 +127,9 @@ async function step(name, fn) {
     } catch (ex) {
         results.steps[name] = `FAIL: ${ex.message.split('\n')[0]}`;
         const shot = path.join(SHOT_DIR, `${name}.png`);
-        if (page) await page.screenshot({ path: shot }).catch(() => {});
+        // Masked: in CI the screenshot is a public artifact
+        const mask = page ? [page.locator('input[type=password], .api-key-form input')] : [];
+        if (page) await page.screenshot({ path: shot, mask }).catch(() => {});
         console.log(`FAIL ${name}\n      ${ex.message.split('\n').slice(0, 6).join('\n      ')}`);
         console.log(`      screenshot: ${shot}`);
         throw ex;
@@ -244,7 +248,8 @@ const browser = await chromium.launch({
     headless: !flag('--headed')
 });
 const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
-if (ARTIFACTS) await context.tracing.start({ screenshots: true, snapshots: true });
+const TRACE = ARTIFACTS && flag('--trace');
+if (TRACE) await context.tracing.start({ screenshots: true, snapshots: true });
 page = await context.newPage();
 page.setDefaultTimeout(15000);
 page.on('pageerror', e => results.page_errors.push(e.message.split('\n')[0]));
@@ -502,7 +507,7 @@ try {
 } catch {
     failed = true;
 } finally {
-    if (ARTIFACTS) {
+    if (TRACE) {
         const trace = failed ? path.join(ARTIFACTS, 'trace.zip') : undefined;
         await context.tracing.stop(trace ? { path: trace } : undefined).catch(() => {});
         if (trace) console.log(`      trace: ${trace}`);

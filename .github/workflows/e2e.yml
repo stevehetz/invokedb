@@ -7,8 +7,8 @@
 #
 # Runs nightly (06:00 UTC, before the 07:15 backup), by hand, and after every successful deploy:
 # cd.yml starts it with the deployed commit (a workflow_run trigger wouldn't fire, since deploys
-# are started with the workflow token). On failure it keeps the screenshot and a Playwright trace
-# as the `e2e` artifact and sends a Telegram message (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID, the
+# are started with the workflow token). On failure it keeps the screenshot (password and API key
+# masked) as the `e2e` artifact and sends a Telegram message (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID, the
 # bot production uses).
 name: E2E
 
@@ -67,11 +67,13 @@ jobs:
           SMOKE_PASSWORD: ${{ secrets.E2E_PASSWORD }}
         run: node scripts/ui-smoke.mjs --bundled --artifacts e2e-artifacts --out e2e-artifacts/observed.json
 
+      # The repo's artifacts are public: screenshots only, never a trace (it holds the password,
+      # session token and API key; see --trace in ui-smoke.mjs)
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e
-          path: e2e-artifacts/
+          path: e2e-artifacts/*.png
           retention-days: 14
 
       - name: Alert on Telegram

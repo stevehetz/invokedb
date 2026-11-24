@@ -14,8 +14,9 @@ const config: DataSourceOptions = {
     migrations: [__dirname + '/migration/*{.ts,.js}'],
     migrationsRun: false,
     synchronize: false,
-    // TypeORM 0.3 silently drops `undefined` (and `null`) from find conditions, so
-    // findOneBy({ token: undefined }) would return the first row. Fail loudly instead.
+    // TypeORM 0.3 silently dropped `undefined` (and `null`) from find conditions, so
+    // findOneBy({ token: undefined }) returned the first row. 1.x throws by default;
+    // keep it explicit so a future default change can't bring the old behaviour back.
     invalidWhereValuesBehavior: { null: 'throw', undefined: 'throw' }
 };
 

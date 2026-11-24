@@ -34,7 +34,7 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
      (#65), and #14 and #19 were re-run, found nothing to do and went `agent-stuck`. #11, #14
      and #19 were closed by hand. Until #67 is fixed, close the issue of every auto-merged PR
      by hand (`gh issue close <n> --reason completed`).
-   - **Cloud agent queue:** running, in issue-number order (no `PROJECTS_TOKEN`). At handoff
+   - **Cloud agent queue:** running, in board order (`PROJECTS_TOKEN` set). At handoff
      `implement.yml` was working **#26** (missing column name returns 500). `agent-stuck`:
      #10 (CI/Dependabot/PR template; changes `.github/`, better in a local session) and #12
      (its run failed at once during a usage limit; remove the label to retry).
@@ -56,7 +56,8 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
    - Owner-only issues (`you`): #13 (pick a licence), #16 (check signup, tables, CSV upload and
      the API in production by hand; now also Google/GitHub sign-in end to end).
    - **Offered, not yet an issue:** run the Playwright UI smoke test (`ui-smoke.mjs`) in CI.
-   - Optional: a `PROJECTS_TOKEN` repo secret makes the queue follow board order.
+   - `PROJECTS_TOKEN` is set (2026-11-24; classic token, `project` scope only): the queue follows
+     board order, and #69 will use it to add `agent-found` issues to the board.
 
    Check backend changes with the backend build and `npm test` (see `verify-backend`), and
    frontend changes with the frontend build, lint and `typecheck`; CI runs the API smoke test on every PR.

@@ -1,6 +1,10 @@
 # Weekly dependency updates: every npm lockfile (root tools, both packages, both examples) and
 # the GitHub Actions in .github/workflows. Minor and patch updates come as one grouped PR per
-# directory; majors get a PR each. They go through CI and the review like any other PR.
+# directory; majors get a PR each. They go through CI and the review like any other PR, and
+# auto-merge when both pass. A Dependabot PR only gets Dependabot secrets, so the review needs
+# CLAUDE_CODE_OAUTH_TOKEN saved as a Dependabot secret too (`gh secret set ... --app
+# dependabot`), and review.yml allows the dependabot bot. repair.yml skips dependabot/ branches:
+# a failing update stays red for the owner instead of getting a fix PR.
 version: 2
 updates:
   - package-ecosystem: npm

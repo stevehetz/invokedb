@@ -1,10 +1,11 @@
-# Checks every push and pull request: backend build + lint, frontend build + lint (and no Sass
-# deprecation warnings), and prettier. Needs no secrets.
+# Checks every push to any branch: backend build + lint, frontend build + lint (and no Sass
+# deprecation warnings), and prettier. Needs no secrets. Push only, not pull_request: a PR shows
+# the push run for its head commit (and the merge rule on main counts it), so listening to both
+# would run everything twice. Merging to main pushes a new commit, so CI runs again before CD.
 name: CI
 
 on:
   push:
-  pull_request:
 
 permissions:
   contents: read

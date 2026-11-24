@@ -74,6 +74,11 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
   anything with `node-gyp` fails to install. Install the backend with `--omit=optional`.
 - **Don't run `npm run push`** (it bumps versions, tags and pushes) unless asked.
 - Don't commit or push unless asked. Branch first if on `main`.
+- **Changes reach `main` through pull requests.** Push the branch, `gh pr create`; CI and the
+  Claude review (`.github/workflows/review.yml`) run on it. Merge (`gh pr merge --merge`) only
+  when the user says so. `main` has a rule requiring a PR with CI passing; never bypass it.
+- `.github/workflows/repair.yml` opens fix PRs (`claude/fix-*` branches) or issues when CI or CD
+  fails. Treat its PRs like any other: review, and merge only when the user says so.
 - Give the user one step at a time: only the next thing they have to do, then wait.
 
 ## Formatting

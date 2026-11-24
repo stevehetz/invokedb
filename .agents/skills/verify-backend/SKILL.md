@@ -14,7 +14,7 @@ diffs before and after.
 
 ```sh
 npm --prefix packages/horizon-be run build    # tsc -p tsconfig.build.json; must be clean
-npm --prefix packages/horizon-be run lint     # tslint; don't add new errors
+npm --prefix packages/horizon-be run lint     # ESLint; don't add new errors
 npm --prefix packages/horizon-be test         # Jest; add a *.spec.ts for new pure logic
 ```
 

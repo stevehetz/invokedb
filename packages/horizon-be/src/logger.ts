@@ -59,7 +59,6 @@ if (env.IS_LOCAL) {
     );
     // Postgres log transport needs the native libpq bindings (optional dependency).
     try {
-        // tslint:disable-next-line:no-var-requires
         const Postgres = require('@pauleliet/winston-pg-native');
         logger_transports.push(
             new Postgres({

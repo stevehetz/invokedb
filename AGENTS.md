@@ -41,7 +41,7 @@ npm run migration:run | migration:revert
 npm run format               # prettier --write . (root prettier 3)
 npm run format:check
 npm --prefix packages/horizon-be run build   # tsc: the main backend correctness check
-npm --prefix packages/horizon-be run lint    # tslint
+npm --prefix packages/horizon-be run lint    # ESLint (eslint.config.mjs)
 npm --prefix packages/horizon-be test        # Jest unit tests (src/**/*.spec.ts)
 node scripts/api-smoke.mjs [base_url] [out.json]  # ~30 API calls against a running backend
 node scripts/ui-smoke.mjs [--out out.json] [--headed]  # Playwright UI flows (load env first, see verify-frontend)

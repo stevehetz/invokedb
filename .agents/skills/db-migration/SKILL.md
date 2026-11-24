@@ -1,6 +1,6 @@
 ---
 name: db-migration
-description: Create, write, run and revert TypeORM 0.3 migrations for horizon-be's Postgres schema, including entity changes. Use when adding or changing an entity or column, writing seed data, or when the user mentions migrations or schema changes.
+description: Create, write, run and revert TypeORM 1.x migrations for horizon-be's Postgres schema, including entity changes. Use when adding or changing an entity or column, writing seed data, or when the user mentions migrations or schema changes.
 ---
 
 # TypeORM migrations (horizon-be, Postgres)
@@ -16,7 +16,7 @@ description: Create, write, run and revert TypeORM 0.3 migrations for horizon-be
 
 1. **Change the entity** (`src/core/**/<name>.entity.ts`). Use explicit column types for
    anything that isn't a plain int or string: `@Column({ type: 'decimal' })` for money
-   (otherwise 0.3 `parseInt`s it), `varchar` lengths, `nullable: true` where null is valid.
+   (otherwise TypeORM `parseInt`s it), `varchar` lengths, `nullable: true` where null is valid.
 2. **Create the migration** from the repo root:
 
    ```sh

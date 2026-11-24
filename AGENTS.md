@@ -11,7 +11,7 @@ API. A monorepo of two packages with **separate `node_modules`** (no npm workspa
 
 | Package               | Stack                                                                      | Dev URL                 |
 | --------------------- | -------------------------------------------------------------------------- | ----------------------- |
-| `packages/horizon-be` | NestJS 11, TypeORM 0.3 (Postgres), native `mongodb` 6 driver, `ws` 8       | :8001 (websocket :9000) |
+| `packages/horizon-be` | NestJS 12, TypeORM 1.x (Postgres), native `mongodb` 7 driver, `ws` 8       | :8001 (websocket :9000) |
 | `packages/horizon-fe` | Vue 3, Vite 6, ag-grid 32, Element Plus. Public site at `/`, app at `/app` | :8000                   |
 
 `deploy/` (see `deploy/README.md`) is the production setup: one server, `docker compose`,
@@ -200,10 +200,14 @@ token starts no CI, and a dispatched CI run doesn't count toward a PR's required
   `src/env.ts` lists every env var the backend reads.
 - Import alias `@app/*` → `src/*`.
 - Code style is `snake_case` for variables, methods and DB columns. Match the code around you.
-- **TypeORM 0.3:** use `findOneBy`/`findBy`/`countBy`, `In(...)`, and an injected `DataSource`
-  (never `getManager()`). `invalidWhereValuesBehavior` throws on `null`/`undefined` in where
-  clauses, so check for missing input and **return early** instead of querying with it.
-- Decimal columns need `@Column({ type: 'decimal' })`, or 0.3 `parseInt`s them.
+- **TypeORM 1.x:** use `findOneBy`/`findBy`/`countBy`, `In(...)`, and an injected `DataSource`
+  (`getManager()` and the global `createQueryBuilder` are gone). `invalidWhereValuesBehavior`
+  throws on `null`/`undefined` in where clauses, so check for missing input and **return
+  early** instead of querying with it.
+- Decimal columns need `@Column({ type: 'decimal' })`, or TypeORM `parseInt`s them.
+- **Nest 12 is ESM-only**; the backend stays CommonJS and loads it through Node's
+  `require(esm)` (Node 22.12+). Jest can't, so `jest-esm-transform.js` compiles
+  `node_modules/@nestjs/*` to CommonJS for the unit tests.
 - **Mongo** uses the native driver (no mongoose). There is one database per account,
   `horizon:acct_<id>`, with grid collections such as `dg:row:file_<fileId>:acct_<id>` and
   `dg:column:...`, plus `horizon:tracking`. Await bulk writes and skip empty batches.

@@ -39,14 +39,20 @@ CI.
       run on the fix branch (its push used the workflow token, which starts no workflows), the
       review refused a bot-opened PR, and the commit and PR carried AI attribution. PR #2
       closed and its branch deleted.
-- [ ] 8. **Now.** Claude, PR #3 (`automation-fixes`): repair starts CI on its fix branch with
-      `gh workflow run` (CI gained `workflow_dispatch`); review allows the `claude` bot and ends
-      with a `review-ok` / `review-changes` label; repair forbids AI attribution; new
-      `automerge.yml` (decided 2026-11-24: only repair's fix PRs, only into feature branches,
-      after CI passes and `review-ok`; into `main` always waits for you). You: merge it.
-- [ ] 9. Claude: rerun the test (push to `repair-test` again): CI and the review run on the fix
-      PR, it gets `review-ok`, and it merges into `repair-test` by itself, after which CI on
-      `repair-test` passes. Then delete `repair-test`.
+- [x] 8. (2026-11-24) Claude, PR #3 (`automation-fixes`, CI passed): repair starts CI on its
+      fix branch with `gh workflow run` (CI gained `workflow_dispatch`); review allows the
+      `claude` bot and ends with a `review-ok` / `review-changes` label (both labels exist);
+      repair forbids AI attribution; new `automerge.yml` (decided 2026-11-24: only repair's fix
+      PRs, only into feature branches, after CI passes and `review-ok`; into `main` always
+      waits for you).
+- [ ] 9. **Now.** You: merge PR #3 (it deploys; only workflows and docs change). The review
+      skipped it, as it does any PR that changes the workflow files.
+- [ ] 10. Claude: rerun the test. Branch `repair-test` (on GitHub, never merge it) holds a
+      deliberate typo (`acount_id` in `request-account.ts`); push an empty commit to it so CI
+      fails again. Check: Repair opens a fix PR with no attribution; CI (started by Repair) and
+      the review run on it; it's labelled `review-ok`; Auto-merge merges it into
+      `repair-test` and deletes the fix branch; CI on `repair-test` then passes. If a step
+      fails, read that run's log (`gh run view <id> --log`). Then delete `repair-test`.
 
 ## Done: GitHub Actions CI/CD
 

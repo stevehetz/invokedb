@@ -68,7 +68,8 @@ outside service and GitHub workflow, its secrets by name, who it alerts and how 
    backend unit tests (`npm test`) in the `backend` job.
 5. Work on a branch and open a pull request (CI and the Claude review run on it). Merging to
    `main` deploys. Safe PRs merge themselves (AGENTS.md, "Auto-merge"); the rest wait for the
-   user.
+   user. Docs-only (Markdown) changes skip all that: commit on `main` and push (no CI, no
+   deploy; #51).
 
 ## Current state
 

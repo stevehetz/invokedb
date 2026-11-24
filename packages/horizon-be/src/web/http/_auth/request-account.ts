@@ -12,7 +12,7 @@ import { Account } from '@app/core/account/account.entity';
  */
 export function session_account_id(user: any): number {
     if (user instanceof Session && user.account_id) {
-        return user.account_id;
+        return user.acount_id;
     }
     throw new UnauthorizedException();
 }

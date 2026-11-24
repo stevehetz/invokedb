@@ -5,7 +5,8 @@
 # (`claude/fix-*`), and any other PR the owner labels `agent-fix`.
 #
 # Runs after CI on main finishes (every merge ends in one), every 30 minutes as a safety net, and
-# by hand with a PR number. One attempt per PR per main commit: if Claude can't resolve it, or a
+# by hand with a PR number. CI on main after an auto-merge sends no workflow_run event (it was
+# started with the workflow token), so CI's `deploy` job starts this one directly (#62). One attempt per PR per main commit: if Claude can't resolve it, or a
 # PR still conflicts with a main it already tried, the PR gets `agent-stuck` and the owner is
 # mentioned. Auth as in review.yml.
 #
@@ -25,8 +26,8 @@ on:
   workflow_dispatch:
     inputs:
       pr:
-        description: PR number
-        required: true
+        description: PR number (empty checks every open PR, as the schedule does)
+        required: false
 
 permissions: {}
 

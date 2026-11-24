@@ -1,7 +1,6 @@
 // Runs pending migrations from the compiled build: `node dist/database/migrate.js`. The TypeORM
 // CLI entry (data-source.ts) needs ts-node and tsconfig-paths, so it's for local dev only.
 if (!process.env.IS_TS_NODE) {
-    // tslint:disable-next-line:no-var-requires
     require('module-alias/register');
 }
 

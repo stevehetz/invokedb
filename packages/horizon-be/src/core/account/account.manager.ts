@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { Account } from '@app/core/account/account.entity';
 import { ResetPassword } from '../reset-password/reset-password.entity';
+import { generate_api_key } from '@app/core/account/api-key';
 import { is_expired } from '@app/core/helpers/is-expired';
 import { validate_email, validate_password } from '@app/core/helpers/validators';
 
@@ -118,14 +119,7 @@ export class AccountManager {
     }
 
     generate_api_key() {
-        const randomString = (length, chars) => {
-            let result = '';
-            for (let i = length; i > 0; --i) {
-                result += chars[Math.floor(Math.random() * chars.length)];
-            }
-            return result;
-        };
-        return randomString(32, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
+        return generate_api_key();
     }
 
     async hash_password(password) {

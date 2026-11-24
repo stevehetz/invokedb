@@ -314,7 +314,12 @@ frontend) and 2.2 (Vite) are done. Steps 2.x go on their own branches.
   so Caddy's Let's Encrypt certificates issue simply; turning on the proxy later needs SSL set
   to Full (strict). Cloudflare Email Routing can forward `@invokedb.com` mail for free; Mailgun
   needs its DNS records added there if outbound email comes back.
-- **5b (single sign-on: Google and GitHub):** after 5 and 5a, since the OAuth apps need real
+- **5b (single sign-on: Google and GitHub): live** (2026-11-24, #17, PR #54). The GitHub OAuth
+  App "InvokeDB" is under `stevehetz`; the Google client "InvokeDB web" is in the Cloud project
+  `invokedb` owned by `stevehetzel2@gmail.com` (published, External; consent-screen support email
+  is that account, the only one allowed). Both register the production and `127.0.0.1:8001`
+  callbacks. The IDs and secrets are `GOOGLE_*` / `GITHUB_*` in `prod.env` and `.env`, pushed to
+  the server with `deploy.sh env`. Original plan, kept for reference: after 5 and 5a, since the OAuth apps need real
   callback URLs (also register `http://127.0.0.1:8001` callbacks for local dev). Today login is
   email + bcrypt password, which creates an `internal_…` `Session` token that
   `application/auth/http.strategy.ts` validates as a bearer token. Plan: add

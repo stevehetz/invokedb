@@ -108,12 +108,6 @@ deploy) by themselves. `AGENTS.md`, "How work is tracked", has the details.
 Agent playbooks ("skills") are in `.agents/skills`, and `AGENTS.md` says when to read each one.
 `.mcp.json` adds Playwright (browser) and a read-only MongoDB MCP server.
 
-## Versioning
-
-```
-npm run push "your commit message"  # bumps the patch version everywhere, commits, tags, pushes
-```
-
 ## Production (Azure, currently torn down)
 
 `ops/azure-*` and `npm run prod:*` build and deploy to Azure AKS. They aren't used for local

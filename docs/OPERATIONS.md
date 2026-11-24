@@ -205,9 +205,15 @@ by its own new version. Each file's top comment explains it; AGENTS.md "Hard rul
 | `resolve.yml`     | Merges `main` into conflicting agent and repair PRs and resolves the conflicts                                     | `agent-stuck` and a mention if it can't             |
 | `agent-queue.yml` | Starts `implement.yml` on the next `agent`-labelled issue, one at a time                                           | `agent-stuck` and a mention on a stuck PR           |
 | `implement.yml`   | The cloud agent: works one issue and opens an `agent-pr` PR                                                        | The PR                                              |
+| `deps-update.yml` | Monthly (1st, 09:00 UTC) and by hand: updates every npm package, opens a minor/patch PR and a majors PR (`deps/*`) | The PRs; skipped majors listed with reasons         |
 
-- **Secrets:** `CLAUDE_CODE_OAUTH_TOKEN`; `PROJECTS_TOKEN` (optional, lets the queue read the
-  Project board's order).
+- **Secrets:** `CLAUDE_CODE_OAUTH_TOKEN` (also saved as a Dependabot secret, so the review runs on
+  Dependabot PRs); `PROJECTS_TOKEN` (lets the queue read the Project board's order).
+- **Dependencies:** `deps-update.yml` does routine npm updates monthly, following
+  `docs/DEPENDENCY_PINS.md`. Dependabot (`.github/dependabot.yml`) only opens npm **security** PRs
+  (Dependabot alerts and security updates are on in the repo settings) and weekly GitHub Actions
+  updates. Also on: CodeQL code scanning (default setup), private vulnerability reporting, secret
+  scanning with push protection; `SECURITY.md` says how to report a vulnerability.
 - **Check:** a PR gets a review comment and a `review-ok`/`review-changes` label within a few
   minutes; the Actions tab shows each workflow's runs. `revise.yml` and `resolve.yml` run on the
   owner's own PRs only with the `agent-fix` label.

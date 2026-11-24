@@ -1,11 +1,17 @@
-# Weekly dependency updates: every npm lockfile (root tools, both packages, both examples) and
-# the GitHub Actions in .github/workflows. Minor and patch updates come as one grouped PR per
-# directory; majors get a PR each. They go through CI and the review like any other PR, and
-# auto-merge when both pass. A Dependabot PR only gets Dependabot secrets, so the review needs
-# CLAUDE_CODE_OAUTH_TOKEN saved as a Dependabot secret too (`gh secret set ... --app
-# dependabot`), and review.yml allows the dependabot bot. repair.yml skips dependabot/ branches;
-# instead revise.yml, after review-changes or failed CI, fixes what the update breaks or declines
-# it (a comment and needs-owner, for the owner to close) (#89).
+# Dependabot here does two things (#103):
+# - npm: **security updates only**. `open-pull-requests-limit: 0` turns its version updates off
+#   (GitHub's documented way); security updates are a repo setting (on) with their own limit, so
+#   a vulnerable package still gets a PR the day the advisory appears. Routine npm updates come
+#   from the monthly update agent (.github/workflows/deps-update.yml), which moves related
+#   packages together and retries skipped majors every month (docs/DEPENDENCY_PINS.md).
+# - GitHub Actions: weekly version updates (the agent can't edit .github/workflows/).
+#
+# Its PRs go through CI and the review like any other PR, and auto-merge when both pass. A
+# Dependabot PR only gets Dependabot secrets, so the review needs CLAUDE_CODE_OAUTH_TOKEN saved as
+# a Dependabot secret too (`gh secret set ... --app dependabot`), and review.yml allows the
+# dependabot bot. repair.yml skips dependabot/ branches; instead revise.yml, after review-changes
+# or failed CI, fixes what the update breaks or declines it (a comment and needs-owner) (#89).
+# Don't use `@dependabot ignore` comments: they're invisible, and they suppress security PRs too.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -17,10 +23,7 @@ updates:
       - /examples/angular
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      minor-and-patch:
-        update-types: [minor, patch]
+    open-pull-requests-limit: 0
 
   - package-ecosystem: github-actions
     directory: /

@@ -1,0 +1,4 @@
+# shellcheck settings for deploy/*.sh and scripts/*.sh (CI and `npm run check`).
+# Follow `source` of the repo's own scripts (scripts/env.sh), relative to the sourcing script.
+external-sources=true
+source-path=SCRIPTDIR

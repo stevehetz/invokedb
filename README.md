@@ -93,6 +93,10 @@ npm run format:check    # check only
 VS Code formats on save (`.vscode/settings.json`; install the recommended Prettier extension).
 It's pointed at the root prettier.
 
+`npm run check` runs what CI runs (builds, lints, unit tests, the examples, shellcheck,
+prettier), except the API smoke test. shellcheck is skipped if it isn't installed
+(`brew install shellcheck`).
+
 Staged files are also formatted when you commit (`.githooks/pre-commit`). `npm install` at the
 root turns this on by setting `git config core.hooksPath .githooks`.
 

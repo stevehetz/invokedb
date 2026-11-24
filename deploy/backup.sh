@@ -14,12 +14,19 @@
 # last, so a folder without one is incomplete). The dumps are encrypted with BACKUP_PASSPHRASE
 # (openssl AES-256, PBKDF2) before they leave the server. After each successful upload, files
 # older than BACKUP_KEEP_DAYS (default 30) are deleted, so the newest backup always survives.
+
+# The single-quoted $MONGO_INITDB_ROOT_PASSWORD is meant for the shell inside the mongo container.
+# shellcheck disable=SC2016
 set -euo pipefail
 shopt -s inherit_errexit
 export LC_ALL=C
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
-set -a; source /opt/invokedb/prod.env; set +a
+set -a
+# prod.env exists only on the server
+# shellcheck source=/dev/null
+source /opt/invokedb/prod.env
+set +a
 
 WORK=/opt/invokedb/backups
 LOG=/var/log/invokedb-backup.log
@@ -114,8 +121,8 @@ do_run() {
 }
 
 wait_for() { # $1 = what, then the check command; gives up after 90s
-  local what="$1" i; shift
-  for i in $(seq 90); do "$@" >/dev/null 2>&1 && return 0; sleep 1; done
+  local what="$1"; shift
+  for _ in $(seq 90); do "$@" >/dev/null 2>&1 && return 0; sleep 1; done
   echo "$what didn't start" >&2; return 1
 }
 

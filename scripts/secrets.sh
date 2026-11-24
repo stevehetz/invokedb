@@ -6,6 +6,9 @@
 # Without --force, a copy is skipped when the destination is newer than the source.
 # Paths starting with ~/ are files in $HOME (e.g. the production SSH key); their copy in the
 # secret folder lives under home/.
+
+# "~/" in FILES is a literal marker that local_path and secret_path expand, not a path.
+# shellcheck disable=SC2088
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SECRET_DIR="${INVOKEDB_SECRET_DIR:-$HOME/Library/CloudStorage/Dropbox/dropbox/secret/invokedb}"

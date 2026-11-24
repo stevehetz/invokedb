@@ -39,7 +39,11 @@ if [ "$cmd" = init-env ]; then
 fi
 
 [ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE (run: deploy/deploy.sh init-env)"; exit 1; }
-set -a; source "$ENV_FILE"; set +a
+set -a
+# prod.env is a gitignored secret
+# shellcheck source=/dev/null
+source "$ENV_FILE"
+set +a
 [ -n "${DEPLOY_HOST:-}" ] || { echo "Set DEPLOY_HOST in $ENV_FILE"; exit 1; }
 SSH_OPTS=(-i "${DEPLOY_SSH_KEY:-$HOME/.ssh/id_rsa}" -o StrictHostKeyChecking=accept-new)
 SSH=(ssh "${SSH_OPTS[@]}" "root@$DEPLOY_HOST")
@@ -74,7 +78,8 @@ case "$cmd" in
     pub="${1:?usage: deploy.sh install-ci <public key file>}"
     read -r ktype kdata _ < "$pub"
     "${SSH[@]}" "install -m 755 /dev/stdin /opt/invokedb/ci-deploy.sh" < "$DIR/ci-deploy.sh"
-    # Replace any earlier CI key; leave every other key alone
+    # Replace any earlier CI key; leave every other key alone ($f expands on the server)
+    # shellcheck disable=SC2016
     printf 'command="/opt/invokedb/ci-deploy.sh",restrict %s %s invokedb-ci\n' "$ktype" "$kdata" \
       | "${SSH[@]}" 'f=/root/.ssh/authorized_keys; { grep -v " invokedb-ci$" "$f" || true; cat; } \
           > "$f.new" && chmod 600 "$f.new" && mv "$f.new" "$f"'

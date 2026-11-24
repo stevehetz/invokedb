@@ -1,14 +1,23 @@
-# Checks every push to any branch: backend build + lint + unit tests, the API smoke test against
-# a real backend (Postgres and Mongo as service containers), frontend build + lint (and no Sass
-# deprecation warnings), and prettier. Needs no secrets. Push only, not pull_request: a PR shows
-# the push run for its head commit (and the merge rule on main counts it), so listening to both
-# would run everything twice. Merging to main pushes a new commit, so CI runs again before CD.
-# workflow_dispatch: repair.yml starts CI on its fix branches (its own push doesn't start
-# workflows).
+# Checks every pull request and every push to main: backend build + lint + unit tests, the API
+# smoke test against a real backend (Postgres and Mongo as service containers), frontend build +
+# lint (and no Sass deprecation warnings), and prettier. Needs no secrets.
+#
+# pull_request (opened, each push to the PR's branch, reopened): one run per push, a person's PR
+# or the cloud agent's, and it's the run the merge rule on main counts. It tests the PR's head
+# merged with the current base. The agent's own push uses the workflow token, which starts no
+# workflows, and GitHub doesn't count workflow_dispatch runs toward a PR's required checks (#40);
+# the agent, revise and repair open or push with the Claude app's token, which does start this
+# run. A branch without a PR gets no CI until one is opened (#42).
+# push to main: a merge made in the browser, so CI runs again before CD (cd.yml deploys only
+# after a push run on main).
+# workflow_dispatch: automerge.yml's merges push nothing that starts workflows, so it starts CI
+# on main itself (its `deploy` job then starts cd.yml).
 name: CI
 
 on:
   push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:

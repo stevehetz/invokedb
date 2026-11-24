@@ -51,18 +51,18 @@ node scripts/ui-smoke.mjs [--out out.json] [--headed]  # Playwright UI flows (lo
 bash scripts/smoke-env.sh <file>  # throwaway env (horizon_smoke DBs, ports 81xx/9100) for both smoke tests
 ```
 
-CI (`.github/workflows/ci.yml`) runs on every push to a PR and every push to `main` (a branch
-with no PR gets no CI until one is opened; a dispatched CI run doesn't count toward a PR's
-required checks, #40, #42): backend build + lint + unit tests, the API smoke test (`smoke` job: the built backend on
-Postgres and Mongo service containers), frontend build + lint, and prettier. Unit tests are few so far (account scoping, validators,
-column-name rules); add a `*.spec.ts` next to the code for new pure logic. Verify backend
-changes with `build`, `test`, and `api-smoke.mjs` (see the `verify-backend` skill); if you
-can't run the smoke test locally, the `smoke` job runs it on the PR. `api-smoke.mjs` exits
-non-zero on any failed call or check. Verify UI
-changes with `npm --prefix packages/horizon-fe run build` and `run lint`; don't drive a browser
-(Playwright MCP or otherwise) to check them unless the user asks. The Playwright UI smoke
-test (`ui-smoke.mjs`, see the `verify-frontend` skill) is slow to set up, so **only run it when
-the user asks**. Both smoke tests run against a throwaway stack, never the user's data.
+CI (`.github/workflows/ci.yml`) runs on every push to a PR and every push to `main` (a branch with
+no PR gets no CI until one is opened; a dispatched CI run doesn't count toward a PR's required
+checks, #40, #42): backend build + lint + unit tests, the API smoke test (`smoke` job: the built
+backend on Postgres and Mongo service containers), frontend build + lint, and prettier. Unit tests
+are few so far (account scoping, validators, column-name rules); add a `*.spec.ts` next to the code
+for new pure logic. Verify backend changes with `build`, `test`, and `api-smoke.mjs` (see the
+`verify-backend` skill); if you can't run the smoke test locally, the `smoke` job runs it on the PR.
+`api-smoke.mjs` exits non-zero on any failed call or check. Verify UI changes with `npm --prefix
+packages/horizon-fe run build` and `run lint`; don't drive a browser (Playwright MCP or otherwise)
+to check them unless the user asks. The Playwright UI smoke test (`ui-smoke.mjs`, see the
+`verify-frontend` skill) is slow to set up, so **only run it when the user asks**. Both smoke tests
+run against a throwaway stack, never the user's data.
 
 ## Hard rules
 
@@ -71,8 +71,8 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
   their originals live in a Dropbox folder that `scripts/secrets.sh` syncs. Never add a secret
   file to git, never weaken `.gitignore`, and never push `~/dev/invokedb-pre-scrub-*.bundle`.
 - **Pushing to `main` deploys to production** (after CI passes; `.github/workflows/cd.yml`).
-  Never push or merge to `main` yourself unless the user asks; `automerge.yml` merges PRs
-  that qualify (below).
+  Never push or merge code to `main` yourself unless the user asks; `automerge.yml` merges PRs
+  that qualify (below). Docs-only changes are the exception (below).
 - **`deploy/deploy.sh` touches the real production server.** Run its server commands (`up`,
   `bootstrap`, `init-db`, `migrate`, `compose`) only when the user asks.
 - **Destructive DB commands need the user's OK first:** `db:reset`, `db:demo`,
@@ -83,16 +83,27 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
   anything with `node-gyp` fails to install. Install the backend with `--omit=optional`.
 - Don't commit or push unless asked. Branch first if on `main`. Exception: when the user asks
   you to work an issue, committing, pushing its branch and opening its PR are part of the job
-  (see "How work is tracked"); merging is left to `automerge.yml` or the user.
+  (see "How work is tracked"); merging is left to `automerge.yml` or the user. Docs-only
+  changes are committed and pushed straight to `main` when done (below).
 - **Changes reach `main` through pull requests.** Push the branch, `gh pr create`; CI and the
   Claude review (`.github/workflows/review.yml`) run on it. Merge (`gh pr merge --merge`) only
-  when the user says so. `main` has a rule requiring a PR with CI passing; never bypass it.
+  when the user says so. `main` has a rule requiring a PR with CI passing; never bypass it,
+  except for docs-only changes.
+- **Docs-only changes go straight to `main`, never through a PR.** If every file you changed is
+  Markdown (`*.md`: `docs/`, `AGENTS.md`, READMEs, skills), commit on `main` and
+  `git push origin main` (no issue, no branch, no PR). The ruleset lets the owner's login bypass
+  the PR rule, and a Markdown-only push runs no CI and so doesn't deploy (#51). Run prettier on
+  the files first, and `git pull --rebase` if the push is rejected. If a change mixes docs and
+  anything else, it's not docs-only: use a PR. The cloud agent can't bypass the rule, so in
+  GitHub Actions docs changes still go in its PR.
 - **Auto-merge** (`.github/workflows/automerge.yml`): a PR into `main` merges, and so deploys,
   by itself once CI passes and the review labels it `review-ok`, unless it has the `hold` label
   or touches a held path (`deploy/`, `.github/`, migrations, `*.env.example`). Those get
   `needs-owner` and
-  wait for the user. Add `hold` when opening a PR the user should look at first (a risky change,
-  or one that needs a `prod.env` change or a manual step on deploy).
+  wait for the user. Add `hold` only when a PR can't deploy safely without the user: it needs
+  a `prod.env` change or a manual step on the server. Never for a change that's large,
+  risky-looking or visual (those merge by themselves), or for a follow-up the author can't do
+  (list it under "Follow-ups" and open an issue).
 - `.github/workflows/repair.yml` opens fix PRs (`claude/fix-*` branches) or issues when CI or CD
   fails. `automerge.yml` merges its fix PRs into feature branches after CI passes and the review
   labels them `review-ok`; its fix PRs into `main` follow the auto-merge rule.
@@ -106,10 +117,11 @@ e.g. `gh project item-list 1 --owner stevehetz`). There is no other task list;
 `docs/HANDOFF.md` has project state and history, not tasks. `gh project` commands need the
 `project` token scope (`gh auth refresh -s project`, which the user runs).
 
-1. **Every change has an issue.** Title in the imperative; body with context, scope and a
-   "**Done when**" checklist. Labels: one type (`bug`, `enhancement`, `documentation`,
-   `chore`, `security`), one or more `area:*` (`backend`, `frontend`, `deploy`, `ci`), and
-   `you` when a person has to do it. New issues go on the board (`gh project item-add`).
+1. **Every change has an issue** (except docs-only changes, see Hard rules). Title in the
+   imperative; body with context, scope and a "**Done when**" checklist. Labels: one type
+   (`bug`, `enhancement`, `documentation`, `chore`, `security`), one or more `area:*`
+   (`backend`, `frontend`, `deploy`, `ci`), and `you` when a person has to do it. New issues go on
+   the board (`gh project item-add`).
 2. **The board says what's next.** Status is `Todo` (top = next), `In Progress` or `Done`.
    When the user asks "what's next", give the top `Todo` item, and if it's labelled `you`,
    only its next step (exact clicks or command).

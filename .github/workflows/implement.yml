@@ -97,8 +97,11 @@ jobs:
             5. `gh pr create --base main --label agent-pr` with a short title and a body that
                has `Closes #${{ inputs.issue }}`, what changed, how you checked it (and what you
                couldn't), which of the issue's "Done when" items are met, and anything the owner
-               must do on deploy (a prod.env change, a manual step). If it needs such a step, or
-               it's risky enough that a person should look first, also pass `--label hold`.
+               must do on deploy (a prod.env change, a manual step on the server). Pass
+               `--label hold` only if it needs such a step, so it can't deploy safely without
+               the owner. Never add `hold` because a change is large, risky-looking or visual,
+               or for a follow-up you can't do yourself (such as a `.github/` change): list
+               those under "Follow-ups" and let the PR merge.
 
             If the issue needs a decision from the owner, or you can't finish it safely, open no
             PR: explain what's needed with `gh issue comment ${{ inputs.issue }}` and stop.

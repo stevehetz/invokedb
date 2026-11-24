@@ -1,12 +1,14 @@
 {
     "name": "horizon",
     "version": "2.0.371",
+    "description": "InvokeDB: build data tables you can query through an API (monorepo root)",
+    "private": true,
+    "license": "UNLICENSED",
     "author": "Steve Hetzel",
-    "description": "Web documents",
-    "license": "ISC",
+    "homepage": "https://invokedb.com",
     "repository": {
         "type": "git",
-        "url": "git+ssh://git@bitbucket.org-shetzel84:shetzel84/horizon.git"
+        "url": "git+https://github.com/stevehetz/invokedb.git"
     },
     "scripts": {
         "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",

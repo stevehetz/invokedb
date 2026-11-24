@@ -1,0 +1,15 @@
+Copyright (c) 2026 Steve Hetzel. All rights reserved.
+
+This repository's source code is published so it can be read and reviewed. No licence is
+granted to copy, modify, distribute, sublicense, host or otherwise use the software, in whole
+or in part, without the copyright holder's prior written permission.
+
+Exceptions: the code under examples/invokedb-node (the "invokedb" npm client) and
+examples/angular (the example app) is licensed under the MIT License; see the LICENSE file in
+each of those directories.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

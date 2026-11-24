@@ -3,8 +3,9 @@
 # directory; majors get a PR each. They go through CI and the review like any other PR, and
 # auto-merge when both pass. A Dependabot PR only gets Dependabot secrets, so the review needs
 # CLAUDE_CODE_OAUTH_TOKEN saved as a Dependabot secret too (`gh secret set ... --app
-# dependabot`), and review.yml allows the dependabot bot. repair.yml skips dependabot/ branches:
-# a failing update stays red for the owner instead of getting a fix PR.
+# dependabot`), and review.yml allows the dependabot bot. repair.yml skips dependabot/ branches;
+# instead revise.yml, after review-changes or failed CI, fixes what the update breaks or declines
+# it (a comment and needs-owner, for the owner to close) (#89).
 version: 2
 updates:
   - package-ecosystem: npm

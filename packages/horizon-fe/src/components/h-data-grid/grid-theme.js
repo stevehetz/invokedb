@@ -36,4 +36,5 @@ export const grid_theme = createTheme().withParams({
     cellEditingBorder: false,
     cellEditingShadow: false,
     focusShadow: false
+    // No inputFocusShadow: it belongs to the input-style part, which this theme doesn't include
 });

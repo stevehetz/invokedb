@@ -155,7 +155,8 @@ repo: it's public.
 - **Does:** deploys `main` to production after CI passed on it. It opens SSH on the
   DigitalOcean Cloud Firewall to the runner's IP, sends `deploy <sha>` over SSH, then closes
   the rule again. On the server, the key can only run `deploy/ci-deploy.sh`, which deploys the
-  commit only if it's still the tip of `main`, downloads it from GitHub and runs
+  commit only if it's still the tip of `main` (or the tip, if only Markdown changed after it),
+  downloads it from GitHub and runs
   `deploy/release.sh` (build, migrate, restart). Code only: `prod.env` isn't touched.
 - **Configured:** the GitHub environment `production` (deployment branches limited to `main`);
   `deploy/deploy.sh install-ci` installs the key on the server.

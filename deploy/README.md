@@ -44,7 +44,9 @@ then removes the rule again (even if the deploy failed). Its SSH key is locked b
 the same as `up`. It ships **code only**: the server's settings live in
 `/opt/invokedb/prod.env` (root-only, outside the app folder, so deploys never touch it), and
 only `deploy.sh env` or `up` from the Mac write them. If two pushes land close together,
-the older one is skipped and the newer one deploys. `/opt/invokedb/app/REVISION` on the server
+the older one is skipped and the newer one deploys. A push that only changes Markdown starts no
+CI, so when everything after the checked commit is Markdown, `ci-deploy.sh` deploys the tip
+instead (same code; #53). `/opt/invokedb/app/REVISION` on the server
 holds the deployed commit.
 
 Set up once (GitHub: repo Settings → Environments → `production`, deployment branches limited

@@ -1,10 +1,16 @@
-# Merges repair.yml's fix PRs by itself, but only into feature branches: anything into main
-# waits for a person (merging into main deploys). Runs after CI or Review finishes, so whichever
-# finishes last does the merge. Merges only when all of these hold:
-# - the branch is claude/fix-* and the PR was opened by the Claude app
-# - the PR doesn't target main
-# - the review labelled it review-ok
-# - CI passed on the PR's current head commit
+# Merges PRs by itself when it's safe, so nobody has to click merge. Runs after CI or Review
+# finishes, so whichever finishes last does the merge. Two kinds of PR qualify:
+#
+# 1. A PR into main from this repo (merging deploys, through cd.yml), when all of these hold:
+#    - CI passed on the PR's head commit
+#    - the Review workflow ran on that commit and labelled the PR review-ok
+#    - it has no `hold` label (the owner's opt-out)
+#    - it touches none of HELD_PATHS below; such a PR is labelled needs-owner and left alone
+# 2. repair.yml's fix PRs (claude/fix-*, opened by the Claude app) into a feature branch, when
+#    CI passed and the review labelled it review-ok. Its fix PRs into main follow rule 1.
+#
+# A merge made with the workflow token starts no workflows, so this starts CI on the branch it
+# merged into; on main, cd.yml deploys after that CI run.
 name: Auto-merge
 
 on:
@@ -23,40 +29,73 @@ jobs:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_repository.full_name == github.repository &&
-      startsWith(github.event.workflow_run.head_branch, 'claude/fix-')
+      github.event.workflow_run.head_branch != 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: write
       pull-requests: write
+      issues: write # labels
       actions: write # start CI on the branch merged into
     env:
       GH_TOKEN: ${{ github.token }}
       BRANCH: ${{ github.event.workflow_run.head_branch }}
+      # Paths (prefixes, or globs for *) that a person must merge into main. The backend stays
+      # here until the API smoke test runs in CI (issue #8).
+      HELD_PATHS: >-
+        deploy/
+        .github/
+        packages/horizon-be/src/database/migration/
+        packages/horizon-be/
+        *.env.example
     steps:
       - name: Merge if every condition holds
         run: |
           set -euo pipefail
+          set -f # HELD_PATHS holds globs: match them, don't expand them
           R="$GITHUB_REPOSITORY"
           pr=$(gh pr list -R "$R" --head "$BRANCH" --state open \
-            --json number,baseRefName,headRefOid,author,labels --jq '.[0] // empty')
+            --json number,baseRefName,headRefOid,author,labels,isDraft --jq '.[0] // empty')
           [ -n "$pr" ] || { echo "No open PR for $BRANCH"; exit 0; }
           number=$(jq -r .number <<<"$pr")
           base=$(jq -r .baseRefName <<<"$pr")
           sha=$(jq -r .headRefOid <<<"$pr")
           author=$(jq -r .author.login <<<"$pr")
+          has_label() { jq -e --arg l "$1" '.labels | map(.name) | index($l)' <<<"$pr" >/dev/null; }
 
-          if [ "$base" = main ]; then echo "PR #$number targets main: left for a person"; exit 0; fi
-          if [ "$author" != app/claude ]; then echo "PR #$number wasn't opened by the Claude app"; exit 0; fi
-          if ! jq -e '.labels | map(.name) | index("review-ok")' <<<"$pr" >/dev/null; then
-            echo "PR #$number has no review-ok label (yet)"; exit 0
+          if [ "$(jq -r .isDraft <<<"$pr")" = true ]; then echo "PR #$number is a draft"; exit 0; fi
+          if [ "$base" != main ] && { [[ "$BRANCH" != claude/fix-* ]] || [ "$author" != app/claude ]; }; then
+            echo "PR #$number targets $base and isn't a repair fix PR: left for a person"; exit 0
           fi
-          passed=$(gh run list -R "$R" -w CI --commit "$sha" \
-            --json conclusion --jq 'map(select(.conclusion == "success")) | length')
-          if [ "$passed" -eq 0 ]; then echo "CI hasn't passed on $sha (yet)"; exit 0; fi
+          if has_label hold; then echo "PR #$number is on hold"; exit 0; fi
+          if ! has_label review-ok; then echo "PR #$number has no review-ok label (yet)"; exit 0; fi
+
+          # The review clears its label when it starts, so a successful Review run on this
+          # commit plus the label means the verdict is for this commit
+          ok_runs() {
+            gh run list -R "$R" -w "$1" --commit "$sha" \
+              --json conclusion --jq 'map(select(.conclusion == "success")) | length'
+          }
+          if [ "$(ok_runs CI)" -eq 0 ]; then echo "CI hasn't passed on $sha (yet)"; exit 0; fi
+          if [ "$base" = main ] && [ "$(ok_runs Review)" -eq 0 ]; then
+            echo "No finished review of $sha (yet)"; exit 0
+          fi
+
+          if [ "$base" = main ]; then
+            held=$(gh api --paginate "repos/$R/pulls/$number/files" --jq '.[].filename' |
+              while read -r f; do
+                for p in $HELD_PATHS; do
+                  case "$f" in ("$p"*|$p) echo "$f"; break ;; esac
+                done
+              done)
+            if [ -n "$held" ]; then
+              echo "PR #$number touches paths a person must merge:"; echo "$held"
+              gh pr edit "$number" -R "$R" --add-label needs-owner
+              exit 0
+            fi
+          fi
 
           gh pr merge "$number" -R "$R" --merge --match-head-commit "$sha"
-          gh api -X DELETE "repos/$R/git/refs/heads/$BRANCH" >/dev/null
+          # The repo deletes merged branches itself (delete_branch_on_merge)
           echo "Merged PR #$number into $base"
-          # A merge made with the workflow token doesn't start workflows
           gh workflow run ci.yml -R "$R" --ref "$base"

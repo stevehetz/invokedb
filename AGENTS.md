@@ -63,7 +63,8 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
 - **Don't run `npm run prod:*`, `base:construct` or anything under `ops/azure-*`.** That
   infrastructure is torn down, and the scripts target real Azure resources.
 - **Pushing to `main` deploys to production** (after CI passes; `.github/workflows/cd.yml`).
-  Never push or merge to `main` unless the user asks.
+  Never push or merge to `main` yourself unless the user asks; `automerge.yml` merges PRs
+  that qualify (below).
 - **`deploy/deploy.sh` touches the real production server.** Run its server commands (`up`,
   `bootstrap`, `init-db`, `migrate`, `compose`) only when the user asks.
 - **Destructive DB commands need the user's OK first:** `db:reset`, `db:demo`,
@@ -75,13 +76,19 @@ the user asks**. Both smoke tests run against a throwaway stack, never the user'
 - **Don't run `npm run push`** (it bumps versions, tags and pushes) unless asked.
 - Don't commit or push unless asked. Branch first if on `main`. Exception: when the user asks
   you to work an issue, committing, pushing its branch and opening its PR are part of the job
-  (see "How work is tracked"); merging still waits for the user.
+  (see "How work is tracked"); merging is left to `automerge.yml` or the user.
 - **Changes reach `main` through pull requests.** Push the branch, `gh pr create`; CI and the
   Claude review (`.github/workflows/review.yml`) run on it. Merge (`gh pr merge --merge`) only
   when the user says so. `main` has a rule requiring a PR with CI passing; never bypass it.
+- **Auto-merge** (`.github/workflows/automerge.yml`): a PR into `main` merges, and so deploys,
+  by itself once CI passes and the review labels it `review-ok`, unless it has the `hold` label
+  or touches a held path (`deploy/`, `.github/`, migrations, `*.env.example`, and for now all of
+  `packages/horizon-be/` until the API smoke test is in CI, #8). Those get `needs-owner` and
+  wait for the user. Add `hold` when opening a PR the user should look at first (a risky change,
+  or one that needs a `prod.env` change or a manual step on deploy).
 - `.github/workflows/repair.yml` opens fix PRs (`claude/fix-*` branches) or issues when CI or CD
-  fails. `automerge.yml` merges a fix PR by itself only into a feature branch, after CI passes
-  and the review labels it `review-ok`; fix PRs into `main` wait for the user like any other.
+  fails. `automerge.yml` merges its fix PRs into feature branches after CI passes and the review
+  labels them `review-ok`; its fix PRs into `main` follow the auto-merge rule.
 - Give the user one step at a time: only the next thing they have to do, then wait.
 
 ## How work is tracked
@@ -107,8 +114,9 @@ e.g. `gh project item-list 1 --owner stevehetz`). There is no other task list;
    prettier, commit, push, and `gh pr create` with `Closes #<issue>` in the body and how it
    was checked. CI and the Claude review run on it. Tick the "Done when" boxes that are done;
    say plainly which aren't.
-6. **Merge:** only the user merges. The merge closes the issue and the board moves it to
-   `Done`. Decisions and findings made along the way go in issue or PR comments; anything a
+6. **Merge:** `automerge.yml` merges a PR that qualifies (see Hard rules, "Auto-merge");
+   otherwise the user does. Never merge yourself unless asked. The merge closes the issue and
+   the board moves it to `Done`. Decisions and findings made along the way go in issue or PR comments; anything a
    future session needs goes in HANDOFF or this file.
 
 Issues opened by `repair.yml` (failed CI/CD) are bugs: label and add them to the board like any

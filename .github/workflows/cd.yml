@@ -2,6 +2,8 @@
 # Opens SSH on the DigitalOcean firewall to this runner's IP only for the length of the deploy,
 # then sends `deploy <sha>` with a key that can do nothing else (deploy/ci-deploy.sh). Ships code
 # only: prod.env stays on the server (change it with `deploy.sh env` from the Mac).
+# CI runs on main after a push (a person's merge) or a workflow_dispatch (automerge.yml's merge,
+# which starts no workflows by itself). ci-deploy.sh only deploys the current tip of main.
 name: CD
 
 on:
@@ -20,7 +22,8 @@ jobs:
   deploy:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
+      (github.event.workflow_run.event == 'push' ||
+       github.event.workflow_run.event == 'workflow_dispatch') &&
       github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-latest
     environment:

@@ -2,8 +2,8 @@
 # often package.json and its lockfile, merged first), Claude merges main into the branch, resolves
 # the conflicts, checks the result and pushes. The push starts CI and a fresh review, and
 # automerge.yml takes it from there. Runs on agent PRs (`agent-pr`), repair's fix PRs
-# (`claude/fix-*`), Dependabot PRs (`dependabot/*`), and any other PR the owner labels
-# `agent-fix`.
+# (`claude/fix-*`), Dependabot PRs (`dependabot/*`), the monthly update agent's PRs (`deps/*`),
+# and any other PR the owner labels `agent-fix`.
 #
 # Runs after CI on main finishes (every merge ends in one), every 30 minutes as a safety net, and
 # by hand with a PR number. CI on main after an auto-merge sends no workflow_run event (it was
@@ -77,7 +77,7 @@ jobs:
             # Dependabot PRs too: once an agent has pushed to one, Dependabot stops rebasing it,
             # and GitHub runs no PR workflows while it conflicts
             if [ -z "$INPUT_PR" ] && ! has agent-pr && [[ "$branch" != claude/fix-* ]] &&
-              [[ "$branch" != dependabot/* ]]; then
+              [[ "$branch" != dependabot/* ]] && [[ "$branch" != deps/* ]]; then
               # Someone else's PR: only if the owner asked with the agent-fix label
               has agent-fix || continue
               by=$(gh api "repos/$R/issues/$number/events" --paginate \

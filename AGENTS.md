@@ -183,12 +183,22 @@ rounds per PR, then `agent-stuck`. On the user's own PRs it runs only when the u
 CI's npm rejects) or declines it (a comment and `needs-owner`; the user closes it). It never sees
 a Dependabot PR's body, which quotes upstream release notes (#89).
 
+**Dependency updates** (`.github/workflows/deps-update.yml`, #103): on the 1st of each month an
+agent updates every npm package and opens two PRs on `deps/*` branches, labelled `dependencies`:
+minor and patch updates, and majors (one commit per group of packages that move together; a
+major it can't make pass every check is dropped, listed with the reason, and retried next
+month). It follows `docs/DEPENDENCY_PINS.md`, the owner's short list of packages that only move
+by a rule (e.g. `@types/node` follows the Node runtime). The PRs get CI, the review, revise,
+resolve and auto-merge like agent PRs, but don't hold the issue queue. Dependabot only opens
+**security** PRs for npm (and updates the GitHub Actions); never use `@dependabot ignore`
+comments.
+
 **Merge conflicts** (`.github/workflows/resolve.yml`): when an agent PR or a repair fix PR
 conflicts with `main` (another PR changed the same files first, often a `package-lock.json`),
 Claude merges `main` in, resolves the conflicts, runs the checks and pushes, which starts CI and
 a fresh review. It runs after every merge to `main` and every 30 minutes. One attempt per PR per
-`main` commit; if it can't resolve them, the PR gets `agent-stuck`. Dependabot PRs are included
-(GitHub runs no PR workflows while a PR conflicts). On the user's own PRs it runs only with
+`main` commit; if it can't resolve them, the PR gets `agent-stuck`. Dependabot PRs and the
+monthly `deps/*` PRs are included (GitHub runs no PR workflows while a PR conflicts). On the user's own PRs it runs only with
 `agent-fix`. Workflows where Claude pushes check out with
 `persist-credentials: false`, so the push uses the Claude app's token: a push with the workflow
 token starts no CI, and a dispatched CI run doesn't count toward a PR's required checks.

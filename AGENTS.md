@@ -100,8 +100,10 @@ run against a throwaway stack, never the user's data.
   by itself once CI passes and the review labels it `review-ok`, unless it has the `hold` label
   or touches a held path (`deploy/`, `.github/`, migrations, `*.env.example`). Those get
   `needs-owner` and
-  wait for the user. Add `hold` when opening a PR the user should look at first (a risky change,
-  or one that needs a `prod.env` change or a manual step on deploy).
+  wait for the user. Add `hold` only when a PR can't deploy safely without the user: it needs
+  a `prod.env` change or a manual step on the server. Never for a change that's large,
+  risky-looking or visual (those merge by themselves), or for a follow-up the author can't do
+  (list it under "Follow-ups" and open an issue).
 - `.github/workflows/repair.yml` opens fix PRs (`claude/fix-*` branches) or issues when CI or CD
   fails. `automerge.yml` merges its fix PRs into feature branches after CI passes and the review
   labels them `review-ok`; its fix PRs into `main` follow the auto-merge rule.

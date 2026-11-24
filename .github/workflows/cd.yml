@@ -8,6 +8,7 @@
 #   GitHub sends no workflow_run event for runs started with the workflow token, so CI starts
 #   this itself, with the commit it checked.
 # ci-deploy.sh only deploys the current tip of main either way.
+# After a successful deploy it starts e2e.yml against production with the deployed commit (#90).
 name: CD
 
 on:
@@ -40,6 +41,8 @@ jobs:
       name: production
       url: https://invokedb.com
     timeout-minutes: 30
+    permissions:
+      actions: write
     env:
       SHA: ${{ github.event.workflow_run.head_sha || inputs.sha }}
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
@@ -78,3 +81,9 @@ jobs:
         run: |
           curl -fsS -X DELETE "$FIREWALL_RULES" -H "Authorization: Bearer $DO_TOKEN" \
             -H 'Content-Type: application/json' -d "$SSH_RULE"
+
+      # Workflow-token runs start no workflows by themselves; workflow_dispatch is the exception
+      - name: Start the end-to-end test
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run e2e.yml -R "$GITHUB_REPOSITORY" --ref main -f sha="$SHA"

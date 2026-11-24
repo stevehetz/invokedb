@@ -67,7 +67,8 @@ packages/horizon-fe run build`, `run lint` and `run typecheck` (`checkJs` over `
 marked `// @ts-nocheck` aren't checked yet, so drop the marker when you fix one; `.vue` files aren't
 checked); don't drive a browser (Playwright MCP or otherwise) to check them unless the user asks.
 The Playwright UI smoke test (`ui-smoke.mjs`, see the `verify-frontend` skill) is slow to set up, so
-**only run it when the user asks**. Both smoke tests run against a throwaway stack, never the user's
+**only run it when the user asks**. `.github/workflows/e2e.yml` runs the same script against production
+nightly and after each deploy, as a test account (#90; `docs/OPERATIONS.md`). Both smoke tests run against a throwaway stack, never the user's
 data.
 
 ## Hard rules

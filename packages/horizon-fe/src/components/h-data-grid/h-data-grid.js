@@ -103,6 +103,9 @@ export default {
             // stylesheet.scss draws the header row at 35px and the filter row at 30px
             headerHeight: 35,
             floatingFiltersHeight: 30,
+            // ag-grid 36 adds a clear (×) button to its text inputs; the Row column's
+            // built-in floating filter would show it as a second box once it has a value
+            suppressInputClearButton: true,
             rowModelType: 'infinite',
             // Click selects a row (ctrl/shift for more); no checkbox column
             rowSelection: {

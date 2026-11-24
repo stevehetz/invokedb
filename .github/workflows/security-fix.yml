@@ -67,8 +67,8 @@ jobs:
                        gh issue list -R "$R" --state open --limit 200 --json title,body --jq '.[] | .title, .body'; } |
             grep -oiE 'code scanning alert #[0-9]+' | tr '[:upper:]' '[:lower:]' | sort -u || true)
           : > .git/alerts.md
-          : > .git/picked.txt
           count=0
+          picked=''
           # Code scanning: every open alert on main, most severe first
           alerts=$(gh api "repos/$R/code-scanning/alerts?state=open&ref=refs/heads/main&per_page=100" \
             --jq 'map(.rank = ({"critical":0,"high":1,"medium":2,"low":3}[.rule.security_severity_level // "low"] // 4)) |
@@ -82,10 +82,11 @@ jobs:
               "Location: \(.most_recent_instance.location.path):\(.most_recent_instance.location.start_line)-\(.most_recent_instance.location.end_line)\n" +
               "Message: \(.most_recent_instance.message.text)\n\n### Rule help\n\(.rule.help // "")\n"' \
               >> .git/alerts.md || { echo "Couldn't read code scanning alert #$n" >&2; continue; }
-            echo "$n" >> .git/picked.txt
+            picked="$picked $n"
             count=$((count + 1))
           done
           echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "picked=$picked" >> "$GITHUB_OUTPUT"
           echo "$count alert(s) to handle"
           wc -c .git/alerts.md
 
@@ -142,17 +143,20 @@ jobs:
             --max-turns 300
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(cd:*),Bash(ls:*),Bash(gh pr create:*),Bash(gh issue create:*)"
 
-      # Only alerts this run picked, only the API's reasons; the file is the agent's output, so
-      # nothing in it is run
+      # Only alerts this run picked (from the pick step's output, which the agent can't change;
+      # the checkout is the agent's to edit) and only the API's reasons. The file is the agent's
+      # output, so nothing in it is run.
       - name: Dismiss false positives
         if: always() && steps.start.outputs.since
+        env:
+          PICKED: ${{ steps.pick.outputs.picked }}
         run: |
           set -uo pipefail
           R="$GITHUB_REPOSITORY"
           [ -s .git/dismiss.tsv ] || { echo "Nothing to dismiss"; exit 0; }
           echo "### Dismissed code scanning alerts" >> "$GITHUB_STEP_SUMMARY"
           while IFS=$'\t' read -r n reason comment || [ -n "$n" ]; do
-            if ! grep -qx "$n" .git/picked.txt; then
+            if ! [[ $n =~ ^[0-9]+$ ]] || ! [[ " $PICKED " == *" $n "* ]]; then
               echo "Skipped a line for alert '$n': not picked by this run"; continue
             fi
             case "$reason" in 'false positive'|'used in tests'|"won't fix") ;;

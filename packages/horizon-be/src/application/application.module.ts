@@ -14,6 +14,7 @@ import { WebFilePrcNotifyService } from './web-file/web-file-prc-notify.service'
 import { SubscriptionService } from '@app/application/subscription/subscription.service';
 import { JobService } from './job/job.service';
 import { TableTemplateService } from './table-template/table-template.service';
+import { OnboardingService } from './onboarding/onboarding.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -29,7 +30,8 @@ import { TableTemplateService } from './table-template/table-template.service';
         AccountService,
         SubscriptionService,
         JobService,
-        TableTemplateService
+        TableTemplateService,
+        OnboardingService
     ],
     exports: [
         AuthService,
@@ -41,7 +43,8 @@ import { TableTemplateService } from './table-template/table-template.service';
         AccountService,
         SubscriptionService,
         JobService,
-        TableTemplateService
+        TableTemplateService,
+        OnboardingService
     ]
 })
 export class ApplicationModule {}

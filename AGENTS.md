@@ -264,6 +264,11 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   columns and builds the Mongo find (cursor = keyset on the sort columns + `_id`). The page cap
   is `max_query_limit()`, one value until #137 sets per-plan limits. `/get` and `/search` are
   unchanged.
+- Onboarding checklist (#143): `src/core/onboarding/` (pure logic + a manager storing one
+  `tracking:onboarding:acct_<id>` document in the tracking DB, no Postgres change),
+  `GET /onboarding`, `PUT /onboarding/steps/:step`, `PUT /onboarding/dismiss` (session only).
+  `OnboardingInterceptor` on `/api/v1` ticks "call the API" after a successful call with the key.
+  The frontend's checklist is `components/onboarding`, on the Tables page.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

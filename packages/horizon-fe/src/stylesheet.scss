@@ -2324,6 +2324,152 @@ $page_nav_active_color: #dcb467;
     padding-left: 2em;
 }
 
+// The onboarding checklist (#143), over the bottom-right of the Tables page and under the
+// page overlays (Account, Api, Guide; z-index 101)
+.onboarding {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    z-index: 100;
+    width: 400px;
+    max-width: calc(100% - 40px);
+    max-height: calc(100% - 40px);
+    overflow: auto;
+    background-color: #fff;
+    border: solid 1px #cacaca;
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    color: $gray400;
+    font-size: 14px;
+}
+.onboarding button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+.onboarding .onboarding-heading {
+    display: flex;
+    align-items: center;
+    background-color: $gray400;
+    color: #fff;
+}
+.onboarding .onboarding-toggle {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    text-align: left;
+}
+.onboarding .onboarding-title {
+    flex: 1;
+    font-weight: bold;
+}
+.onboarding .onboarding-progress {
+    font-size: 13px;
+    color: $gray50;
+}
+.onboarding .onboarding-dismiss {
+    padding: 10px 12px;
+}
+.onboarding .onboarding-heading button:hover {
+    color: $orange300;
+}
+.onboarding .onboarding-steps {
+    list-style: none;
+    margin: 0;
+    padding: 4px 12px 8px;
+}
+.onboarding .onboarding-step {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: solid 1px #ececec;
+}
+.onboarding .onboarding-step:last-child {
+    border-bottom: none;
+}
+.onboarding .step-check {
+    margin-top: 2px;
+    color: $gray50;
+}
+.onboarding .onboarding-step.done .step-check {
+    color: $green500;
+}
+.onboarding .step-body {
+    flex: 1;
+    min-width: 0;
+}
+.onboarding .step-title {
+    font-weight: bold;
+}
+.onboarding .onboarding-step.done .step-title {
+    color: $gray200;
+}
+.onboarding .step-detail p {
+    margin: 4px 0 6px;
+    font-size: 13px;
+    color: $gray300;
+}
+.onboarding .step-detail .el-button + .el-button {
+    margin-left: 6px;
+}
+.onboarding .onboarding-code {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    background-color: #f5f5f5;
+    border: solid 1px #e0e0e0;
+    border-radius: 3px;
+}
+.onboarding .onboarding-code code {
+    flex: 1;
+    padding: 6px 8px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+.onboarding .onboarding-copy {
+    padding: 6px 8px;
+    color: $gray300;
+}
+.onboarding .onboarding-copy:hover {
+    color: $blue400;
+}
+.onboarding .onboarding-copied {
+    position: absolute;
+    top: -22px;
+    right: 0;
+    background-color: $gray400;
+    color: #e9e9e9;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+.onboarding .onboarding-response {
+    margin-top: 6px;
+    border-left: solid 3px $green500;
+    background-color: #f5f5f5;
+}
+.onboarding .onboarding-response.failed {
+    border-left-color: $red400;
+}
+.onboarding .onboarding-response .response-status {
+    padding: 4px 8px 0;
+    font-size: 12px;
+    font-weight: bold;
+}
+.onboarding .onboarding-response pre {
+    margin: 0;
+    padding: 4px 8px 6px;
+    max-height: 200px;
+    overflow: auto;
+    font-size: 12px;
+}
+
 .manage-page {
     width: 100%;
     height: 100%;

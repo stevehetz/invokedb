@@ -2,7 +2,7 @@
 //   node scripts/ui-smoke.mjs [--out out.json] [--headed] [--keep] [--bundled] [--artifacts dir] [--trace]
 //
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
-// render the public site's pages, log in, upload a CSV, sort / filter / edit cells in the grid, add and remove
+// render the public site's pages, log in, check the onboarding checklist, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
 // open the table's API docs and "Try it" on Get, read the API key from the account page and call /api/v1 with it, make (and delete) a table
 // from a template, then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
@@ -371,6 +371,40 @@ try {
             results.observed.app_css.loaded.includes(SITE_CSS),
             `the site's CSS isn't loaded after signing in (have ${results.observed.app_css.loaded})`
         );
+    });
+
+    // The onboarding checklist (#143), unless this account dismissed it: four steps, the key and
+    // the command (with that key) are shown, then it's folded away so it covers nothing below
+    await step('onboarding_checklist', async () => {
+        const s = await be_session();
+        const view = await be('GET', '/onboarding', { token: s.token });
+        await be('GET', `/auth/logout?token=${s.token}`).catch(() => {});
+        results.observed.onboarding_shown = view.show;
+        const box = page.locator('.onboarding');
+        if (!view.show) {
+            await sleep(1000);
+            check((await box.count()) === 0, 'the dismissed checklist is on the page');
+            return;
+        }
+        await box.waitFor();
+        const steps = await box
+            .locator('.onboarding-step')
+            .evaluateAll(els => els.map(el => el.getAttribute('data-step')));
+        results.observed.onboarding_steps = steps;
+        check(
+            steps.join() === 'create_table,view_api_key,copy_command,call_api',
+            `checklist steps are ${steps}`
+        );
+        const key_step = box.locator('.onboarding-step[data-step="view_api_key"]');
+        await key_step.getByRole('button', { name: 'Show key' }).click();
+        const key = (await key_step.locator('code').textContent()).trim();
+        check(key.length >= 32, 'the checklist shows no API key');
+        if (view.first_call) {
+            const cmd = await box.locator('.onboarding-command').textContent();
+            check(cmd.includes(key), "the checklist's command doesn't carry the key");
+        }
+        await box.locator('.onboarding-toggle').click();
+        await box.locator('.onboarding-steps').waitFor({ state: 'detached' });
     });
 
     await step('upload_csv', async () => {

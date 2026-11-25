@@ -17,6 +17,7 @@ import { WebsocketClientStore } from '@app/websocket/client.store';
 import { Job } from './job/job.entity';
 import { AccountIdentity } from './account-identity/account-identity.entity';
 import { JobManager } from './job/job.manager';
+import { OnboardingManager } from './onboarding/onboarding.manager';
 
 @Module({
     imports: [
@@ -40,6 +41,7 @@ import { JobManager } from './job/job.manager';
         CsvProcessor,
         TrackingManager,
         JobManager,
+        OnboardingManager,
         WebsocketClientStore
     ],
     exports: [
@@ -50,6 +52,7 @@ import { JobManager } from './job/job.manager';
         CsvProcessor,
         TrackingManager,
         JobManager,
+        OnboardingManager,
         WebsocketClientStore,
         TypeOrmModule
     ]

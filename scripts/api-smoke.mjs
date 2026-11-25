@@ -2701,6 +2701,15 @@ await call('api_key_still_works_after_other_revoke', 'GET', TASKS, { token: ro?.
 // Revoked: refused everywhere at once, listed as revoked, and can't be revoked into life again
 const revoked = await call('api_key_revoke', 'DELETE', `/api-key/${ro?.key?.id}`, { token });
 check('api_key_revoke_marked', !!revoked?.revoked_datetime, revoked);
+// Still listed right after revoking (as revoked); only keys revoked REVOKED_KEPT_DAYS ago are
+// deleted when the list is read (#178)
+const keys_after_revoke = await call('api_key_list_after_revoke', 'GET', '/api-key', { token });
+const listed_revoked = keys_after_revoke?.keys?.find(k => k.id === ro?.key?.id);
+check(
+    'api_key_revoked_listed',
+    !!listed_revoked?.revoked_datetime && keys_after_revoke?.revoked_kept_days > 0,
+    keys_after_revoke
+);
 await call('api_key_revoked_get', 'GET', TASKS, { token: ro?.secret, expectFail: true });
 status_is('api_key_revoked_get', 401);
 await call('api_key_revoked_other_table', 'GET', CONTACTS, { token: ro?.secret, expectFail: true });

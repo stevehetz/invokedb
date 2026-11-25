@@ -2,7 +2,8 @@ import { Entity, Column, CreateDateColumn, PrimaryGeneratedColumn } from 'typeor
 import type { ApiKeyAccess } from './api-key-rules';
 
 // One of an account's API keys (#138). The key itself is only shown when it's made: this keeps
-// its SHA-256 (key_hash) and first characters (prefix). A revoked key stays listed.
+// its SHA-256 (key_hash) and first characters (prefix). A revoked key stays listed for
+// REVOKED_KEPT_DAYS, then is deleted (#178).
 @Entity()
 export class ApiKey {
     @PrimaryGeneratedColumn()

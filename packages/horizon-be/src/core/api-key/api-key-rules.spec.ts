@@ -4,11 +4,13 @@ import {
     ApiKeyScope,
     MAX_KEY_NAME,
     MAX_KEY_TABLES,
+    REVOKED_KEPT_DAYS,
     assert_key_allows,
     hash_api_key,
     key_prefix,
     key_refusal,
     parse_new_key,
+    revoked_cutoff,
     should_touch_last_used
 } from './api-key-rules';
 
@@ -124,5 +126,14 @@ describe('should_touch_last_used', () => {
 
     it('skips the write within a minute', () => {
         expect(should_touch_last_used(new Date('2026-11-25T11:59:30Z'), now)).toBe(false);
+    });
+});
+
+describe('revoked_cutoff', () => {
+    it('is REVOKED_KEPT_DAYS before now', () => {
+        const now = new Date('2026-11-25T12:00:00Z');
+        expect(now.getTime() - revoked_cutoff(now).getTime()).toBe(
+            REVOKED_KEPT_DAYS * 24 * 60 * 60 * 1000
+        );
     });
 });

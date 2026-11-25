@@ -26,6 +26,11 @@ export default defineComponent({
             keys: [],
             tables: [],
             max: 0,
+            // Days a revoked key is kept (and listed) before the backend deletes it (#178)
+            revoked_kept_days: 0,
+            // Revoked keys are hidden unless asked for, except those revoked on this visit
+            show_revoked: false,
+            revoked_here: [],
             show_new: false,
             saving: false,
             form: { name: '', access: 'read', all_tables: true, table_ids: [] },
@@ -39,6 +44,23 @@ export default defineComponent({
     computed: {
         live_count() {
             return this.keys.filter(k => !k.revoked_datetime).length;
+        },
+
+        revoked_count() {
+            return this.keys.length - this.live_count;
+        },
+
+        shown_keys() {
+            if (this.show_revoked) return this.keys;
+            return this.keys.filter(
+                k => !k.revoked_datetime || this.revoked_here.includes(k.id)
+            );
+        },
+
+        revoked_toggle_label() {
+            return this.show_revoked
+                ? 'Hide revoked keys'
+                : `Show revoked keys (${this.revoked_count})`;
         },
 
         at_max() {
@@ -80,6 +102,7 @@ export default defineComponent({
                 this.keys = res.keys || [];
                 this.tables = res.tables || [];
                 this.max = res.max || 0;
+                this.revoked_kept_days = res.revoked_kept_days || 0;
                 this.load_error = null;
             } catch (ex) {
                 this.load_error = error_message(ex, "Couldn't load your keys");
@@ -135,6 +158,7 @@ export default defineComponent({
                 callback: async () => {
                     try {
                         await api_key_http.revoke(key.id);
+                        this.revoked_here.push(key.id);
                         if (this.created && this.created.key.id === key.id) {
                             this.created = null;
                         }

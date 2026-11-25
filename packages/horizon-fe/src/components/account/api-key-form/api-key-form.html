@@ -114,8 +114,9 @@
         <div class="api-key-status error" v-else-if="load_error">
             {{ load_error }}
         </div>
-        <div class="api-key-status" v-else-if="keys.length === 0">
-            No keys yet. Make one to call the API.
+        <div class="api-key-status" v-else-if="shown_keys.length === 0">
+            {{ keys.length === 0 ? 'No keys yet.' : 'No live keys.' }} Make one
+            to call the API.
         </div>
         <table class="api-key-list" v-else>
             <thead>
@@ -130,7 +131,7 @@
             </thead>
             <tbody>
                 <tr
-                    v-for="k in keys"
+                    v-for="k in shown_keys"
                     :key="k.id"
                     class="api-key-item"
                     :class="{ revoked: !!k.revoked_datetime }"
@@ -162,5 +163,17 @@
                 </tr>
             </tbody>
         </table>
+        <div
+            class="api-key-revoked-toggle"
+            v-if="!loading && revoked_count > 0"
+        >
+            <el-button link type="primary" @click="show_revoked = !show_revoked"
+                >{{ revoked_toggle_label }}</el-button
+            >
+            <span class="api-key-revoked-note" v-if="revoked_kept_days"
+                >Revoked keys are removed after {{ revoked_kept_days }}
+                days.</span
+            >
+        </div>
     </div>
 </div>

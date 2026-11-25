@@ -2133,6 +2133,37 @@ $nav_active_color: #ffffff;
     margin-top: 8px;
     color: $gray600;
 }
+// Clean up (#206): the problems a scan found, each with its fix
+.ask-dialog .cleanup-problem {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: solid 1px #e2e2e2;
+}
+.ask-dialog .cleanup-problem-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ask-dialog .cleanup-title {
+    font-weight: bold;
+    color: $gray600;
+}
+.ask-dialog .cleanup-ai {
+    padding: 0 5px;
+    font-size: 11px;
+    color: #696fe4;
+    border: solid 1px #696fe4;
+    border-radius: 3px;
+}
+.ask-dialog .cleanup-examples {
+    margin: 4px 0 6px;
+    padding-left: 18px;
+    font-size: 12px;
+}
+.ask-dialog .cleanup-problem .ask-rows {
+    max-height: 200px;
+    margin-top: 6px;
+}
 
 // A table's webhooks (#140); its top-bar button (.webhooks-button) is styled with .api-button
 .webhooks-dialog {

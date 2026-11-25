@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AskService } from '@app/application/ai/ask.service';
 import { AiService } from '@app/application/ai/ai.service';
 import { EditService } from '@app/application/ai/edit.service';
+import { CleanupService } from '@app/application/ai/cleanup.service';
 import { session_account_id } from '@app/web/http/_auth/request-account';
 import { public_api_base_url } from '@app/web/http/public-api-url';
 
@@ -15,7 +16,8 @@ export class AiController {
     constructor(
         private ask_service: AskService,
         private ai_service: AiService,
-        private edit_service: EditService
+        private edit_service: EditService,
+        private cleanup_service: CleanupService
     ) {}
 
     /**
@@ -50,6 +52,35 @@ export class AiController {
     async apply_edit(@Param('file_directory_id') file_id: string, @Body() body, @Request() req) {
         const account_id = session_account_id(req.user);
         return await this.edit_service.apply(account_id, file_id, body);
+    }
+
+    /**
+     * Scans a table for problems (#206): stray spaces, invalid emails, mixed formats,
+     * duplicates; the model judges spellings and near-duplicates. Uses one question; writes
+     * nothing. Answers `{ answer, problems, scanned, total, capped, ai, usage }`.
+     */
+    @Post('web-file/:file_directory_id/cleanup')
+    async cleanup(@Param('file_directory_id') file_id: string, @Request() req) {
+        const account_id = session_account_id(req.user);
+        return await this.cleanup_service.scan(account_id, file_id);
+    }
+
+    /**
+     * Deletes the duplicate rows a cleanup found and the user ticked. Body: `{ rows: [{ _id,
+     * before }] }`; a row is deleted only if it still holds `before`. Answers `{ deleted,
+     * skipped }`. Calls no model.
+     */
+    @Post('web-file/:file_directory_id/delete-rows')
+    async delete_rows(@Param('file_directory_id') file_id: string, @Body() body, @Request() req) {
+        const account_id = session_account_id(req.user);
+        return await this.cleanup_service.delete_rows(account_id, file_id, body);
+    }
+
+    /** Undoes a cleanup's deletes: `{ rows: [cells keyed by field] }` → `{ restored }`. */
+    @Post('web-file/:file_directory_id/restore-rows')
+    async restore_rows(@Param('file_directory_id') file_id: string, @Body() body, @Request() req) {
+        const account_id = session_account_id(req.user);
+        return await this.cleanup_service.restore_rows(account_id, file_id, body);
     }
 
     /** Body: `{ prompt, count }`. Answers `{ rows, columns, usage }`; nothing is saved. */

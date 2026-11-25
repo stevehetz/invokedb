@@ -3194,10 +3194,14 @@ let ai_next_input = {};
 let ai_next_tool = 'run_query';
 // What the stub says each call used (a big number tests the cost cap)
 let ai_next_usage = { input_tokens: 50, output_tokens: 5 };
+// The stub's answer to a cleanup scan (#206): spellings and near-duplicate rows
+let ai_next_cleanup = { spellings: [], near_duplicates: [] };
 // The stub's answer to a structured-output request (#148): a table design, or the rows the
 // prompt asks for ("Generate exactly N new rows."), text values "<column> <n>"
 function ai_stub_json(body) {
     const props = body.output_config.format.schema.properties || {};
+    // A cleanup scan (#206): what the test sets
+    if (props.spellings) return ai_next_cleanup;
     if (props.columns) {
         return {
             table_name: 'stub_table',
@@ -3758,6 +3762,201 @@ check(
         JSON.stringify(await edit_read('edit_rows_undone')) === JSON.stringify(edit_rows_before),
     edit_undo
 );
+
+// Clean up in Ask AI (#206), on a table of its own with known problems: stray spaces, a
+// mailto: email and one that can't be fixed, "waiting" for "Waiting", an exact duplicate, and
+// (from the stub, as the model) "Wait-listed" for "Waiting" and rows 0 and 1 as near-duplicates.
+// The scan uses one question and changes nothing; the fixes go through apply-edit and
+// delete-rows, a stale delete is skipped, demo2 and API keys are refused, and undo
+// (apply-edit backwards, restore-rows) puts every row back.
+const cu_table = await call('cleanup_table', 'POST', '/table-template/waitlist', {
+    token,
+    body: { name: 'smoke_cleanup' }
+});
+const cu_cols = await call(
+    'cleanup_cols',
+    'POST',
+    `/web-file/data_grid_column/${cu_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const cu_field = Object.fromEntries((cu_cols?.data || []).map(c => [c.headerName, c.field]));
+const cu_row = (email, name, position, status, joined) => ({
+    [cu_field.Email]: email,
+    [cu_field.Name]: name,
+    [cu_field.Position]: position,
+    [cu_field.Status]: status,
+    [cu_field.Joined]: joined
+});
+await call('cleanup_rows', 'POST', `/web-file/batch_create/data_grid_row/${cu_table}`, {
+    token,
+    body: [
+        cu_row(' mailto:ana@example.com', 'Ana  Diaz ', 4, 'waiting', '2026-10-10'),
+        cu_row('dup@example.com', 'Dup Row', 5, 'Waiting', '2026-10-11'),
+        cu_row('dup@example.com', 'Dup Row', 5, 'Waiting', '2026-10-11'),
+        cu_row('not-an-email', 'Bad Email', 6, 'Invited', '2026-10-12'),
+        cu_row('lee@example.com', 'Lee Wong', 7, 'Wait-listed', '2026-10-13')
+    ]
+});
+// Every row, keyed by column name, in a stable order (restored rows get new ids)
+const cu_read = async name =>
+    (
+        (
+            await call(name, 'POST', '/api/v1/query?table=smoke_cleanup', {
+                token: key,
+                body: { limit: 100 }
+            })
+        )?.data || []
+    )
+        .map(({ _id, ...cells }) => JSON.stringify(Object.entries(cells).sort()))
+        .sort();
+const cu_rows_before = await cu_read('cleanup_rows_before');
+const cu_status_before = await call('cleanup_status_before', 'GET', '/ai/status', { token });
+ai_next_cleanup = {
+    spellings: [{ column: 'Status', canonical: 'Waiting', variants: ['Wait-listed'] }],
+    near_duplicates: [{ rows: [0, 1], reason: 'Stub: the same person' }]
+};
+const cu_seen = ai_requests.length;
+const cu_path = `/ai/web-file/${cu_table}`;
+const cu_scan = await call('cleanup_scan', 'POST', `${cu_path}/cleanup`, { token, body: {} });
+ai_next_cleanup = { spellings: [], near_duplicates: [] };
+const cu_problem = kind => (cu_scan?.problems || []).find(p => p.kind === kind);
+const cu_calls = ai_requests.slice(cu_seen);
+check(
+    'cleanup_scan_problems',
+    cu_scan?.scanned === 8 &&
+        cu_scan.ai === 'checked' &&
+        cu_problem('whitespace')?.edit?.rows?.some(r =>
+            Object.values(r.after).includes('Ana Diaz')
+        ) &&
+        cu_problem('email')?.count === 2 &&
+        cu_problem('email')?.fixable === 1 &&
+        cu_problem('email')?.edit?.rows?.[0]?.after?.[cu_field.Email] === 'ana@example.com' &&
+        cu_problem('case')?.edit?.rows?.length === 1 &&
+        cu_problem('duplicate')?.delete?.rows?.length === 1 &&
+        cu_problem('spelling')?.source === 'ai' &&
+        cu_problem('spelling')?.edit?.rows?.[0]?.after?.[cu_field.Status] === 'Waiting' &&
+        cu_problem('near_duplicate')?.delete?.rows?.length === 1,
+    cu_scan
+);
+check(
+    'cleanup_scan_one_model_call',
+    cu_calls.length === 1 &&
+        !!cu_calls[0].body.output_config?.format?.schema?.properties?.spellings &&
+        String(cu_calls[0].body.messages?.[0]?.content).includes('Wait-listed') &&
+        cu_scan?.usage?.used === (cu_status_before?.usage?.used ?? 0) + 1,
+    { calls: cu_calls.length, usage: cu_scan?.usage }
+);
+check(
+    'cleanup_scan_changes_nothing',
+    JSON.stringify(await cu_read('cleanup_rows_after_scan')) === JSON.stringify(cu_rows_before)
+);
+
+// The fixes as the app applies them: every edit (a cell's last fix wins) and the exact
+// duplicate; not the near-duplicate
+const cu_deletes = cu_problem('duplicate')?.delete?.rows || [];
+const cu_deleting = new Set(cu_deletes.map(r => r._id));
+const cu_merged = new Map();
+for (const p of cu_scan?.problems || []) {
+    for (const r of p.edit?.rows || []) {
+        if (cu_deleting.has(r._id)) continue;
+        const m = cu_merged.get(r._id) || { _id: r._id, before: {}, after: {} };
+        for (const f of Object.keys(r.after)) {
+            if (!(f in m.before)) m.before[f] = r.before[f];
+            m.after[f] = r.after[f];
+        }
+        cu_merged.set(r._id, m);
+    }
+}
+const cu_edits = [...cu_merged.values()];
+const cu_delete_body = { rows: cu_deletes.map(r => ({ _id: r._id, before: r.before })) };
+
+// demo2 can't scan, delete or restore in demo's table; an API key can't use the routes
+const cu_other = await call('cleanup_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const cu_other_seen = ai_requests.length;
+for (const [name, path, body] of [
+    ['cleanup_other_scan', 'cleanup', {}],
+    ['cleanup_other_delete', 'delete-rows', cu_delete_body],
+    ['cleanup_other_restore', 'restore-rows', { rows: [{ [cu_field.Name]: 'pwned' }] }]
+]) {
+    await call(name, 'POST', `${cu_path}/${path}`, {
+        token: cu_other.token,
+        body,
+        expectFail: true
+    });
+    check(`${name}_refused`, [401, 403, 404].includes(results[name].status), results[name]);
+    await call(`${name}_api_key`, 'POST', `${cu_path}/${path}`, {
+        token: key,
+        body,
+        expectFail: true
+    });
+}
+await call('cleanup_other_logout', 'GET', `/auth/logout?token=${cu_other.token}`);
+check('cleanup_other_never_called_model', ai_requests.length === cu_other_seen);
+for (const [name, path, body] of [
+    ['cleanup_delete_empty', 'delete-rows', { rows: [] }],
+    ['cleanup_delete_bad_id', 'delete-rows', { rows: [{ _id: 'x', before: { a: 'y' } }] }],
+    ['cleanup_restore_unknown_column', 'restore-rows', { rows: [{ zz: 'x' }] }]
+]) {
+    await call(name, 'POST', `${cu_path}/${path}`, { token, body, expectFail: true });
+    check(`${name}_400`, results[name].status === 400, results[name]);
+}
+check(
+    'cleanup_refused_changed_nothing',
+    JSON.stringify(await cu_read('cleanup_rows_after_refused')) === JSON.stringify(cu_rows_before)
+);
+
+const cu_deleted = await call('cleanup_delete', 'POST', `${cu_path}/delete-rows`, {
+    token,
+    body: cu_delete_body
+});
+const cu_fixed = await call('cleanup_apply', 'POST', `${cu_path}/apply-edit`, {
+    token,
+    body: { rows: cu_edits }
+});
+const cu_rows_fixed = await cu_read('cleanup_rows_fixed');
+const cu_text = cu_rows_fixed.join('\n');
+check(
+    'cleanup_applied',
+    cu_deleted?.deleted?.length === 1 &&
+        cu_fixed?.updated?.length === cu_edits.length &&
+        cu_rows_fixed.length === cu_rows_before.length - 1 &&
+        cu_text.includes('"Ana Diaz"') &&
+        cu_text.includes('"ana@example.com"') &&
+        !cu_text.includes('"waiting"') &&
+        !cu_text.includes('Wait-listed') &&
+        cu_text.includes('"not-an-email"') &&
+        cu_rows_fixed.filter(r => r.includes('"Dup Row"')).length === 1,
+    { cu_deleted, cu_fixed, cu_rows_fixed }
+);
+const cu_stale = await call('cleanup_delete_stale', 'POST', `${cu_path}/delete-rows`, {
+    token,
+    body: cu_delete_body
+});
+check(
+    'cleanup_delete_stale_skipped',
+    cu_stale?.deleted?.length === 0 && cu_stale?.skipped?.length === 1,
+    cu_stale
+);
+await call('cleanup_undo_edit', 'POST', `${cu_path}/apply-edit`, {
+    token,
+    body: { rows: cu_edits.map(r => ({ _id: r._id, before: r.after, after: r.before })) }
+});
+const cu_restored = await call('cleanup_restore', 'POST', `${cu_path}/restore-rows`, {
+    token,
+    body: { rows: cu_deletes.map(r => r.before) }
+});
+check(
+    'cleanup_undone',
+    cu_restored?.restored === 1 &&
+        JSON.stringify(await cu_read('cleanup_rows_undone')) === JSON.stringify(cu_rows_before),
+    cu_restored
+);
+await call('cleanup_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [cu_table] }
+});
 for (const [name, body] of [
     ['gen_rows_over_request_cap', { prompt: 'x', count: 501 }],
     ['gen_rows_no_prompt', { prompt: ' ', count: 5 }],

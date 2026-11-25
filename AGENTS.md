@@ -393,6 +393,16 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   `POST /ai/web-file/:id/apply-edit` writes it through `batch_update_internal` (locks,
   webhooks), only to rows still holding `before`, and calls no model; Undo is the same route
   with before and after swapped (the dialog keeps the last edit per table until a page load).
+- AI cleanup (#206): Ask AI's **Clean up** button, `POST /ai/web-file/:id/cleanup` (one
+  question, writes nothing). `src/core/ai/cleanup.ts` (pure) runs the checks in code on the first
+  `CLEANUP_MAX_ROWS` (500) rows, in order on a working copy (spaces, emails, phones, numbers,
+  dates, capitals; then exact duplicates), so each fix's `after` builds on the earlier ones and
+  its `before` is the stored cell; the app keeps a cell's last ticked fix. One `AiClient.json`
+  call judges only spellings (repeated values of plain text columns) and near-duplicates
+  (mostly-distinct text columns); its answer is kept only where it names what it was sent. Edits
+  apply through `apply-edit`; duplicates through `delete-rows` (only rows still holding
+  `before`), and Undo re-creates them with `restore-rows` (new ids). Frontend:
+  `h-data-grid/cleanup-panel`, inside `ask-dialog`.
 - Email verification (#132): `account.email_verified` (migration marks every older account
   verified; Google/GitHub accounts are created verified). `src/core/email-verification/` has the
   rules; links are rows of `email_verification` (24 hours, one per account). `create-account`

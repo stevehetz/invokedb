@@ -9,12 +9,10 @@ import copy from 'copy-to-clipboard';
 import { bus } from '@/core/bus';
 import { ai_http } from '@/core/context/ai/ai-http';
 import { table_display_name } from '../table-name';
+import CleanupPanel from '../cleanup-panel/index.vue';
+import { cell_text, edit_batches, rows_text } from './edit-batches';
 
 export const MAX_QUESTION_LENGTH = 500;
-// An edit is applied in requests of at most this many rows or about this many bytes, under
-// the server's body limit
-const EDIT_BATCH_ROWS = 100;
-const EDIT_BATCH_BYTES = 60000;
 
 /**
  * @typedef {{ _id: string, before: Record<string, any>,
@@ -26,53 +24,17 @@ const EDIT_BATCH_BYTES = 60000;
 /** @type {Map<number, EditRow[]>} */
 const last_edits = new Map();
 
-/**
- * Splits an edit's rows into requests the server takes.
- * @param {EditRow[]} rows
- * @returns {EditRow[][]}
- */
-export function edit_batches(rows) {
-    /** @type {EditRow[][]} */
-    const batches = [];
-    /** @type {EditRow[]} */
-    let batch = [];
-    let bytes = 0;
-    rows.forEach(row => {
-        const size = JSON.stringify(row).length;
-        if (
-            batch.length > 0 &&
-            (batch.length >= EDIT_BATCH_ROWS || bytes + size > EDIT_BATCH_BYTES)
-        ) {
-            batches.push(batch);
-            batch = [];
-            bytes = 0;
-        }
-        batch.push(row);
-        bytes += size;
-    });
-    if (batch.length > 0) batches.push(batch);
-    return batches;
-}
-
-/** @param {number} n */
-function rows_text(n) {
-    return `${n} row${n === 1 ? '' : 's'}`;
-}
+export { edit_batches, cell_text };
 
 /** @param {any} ex @param {string} fallback */
 function message_of(ex, fallback) {
     return (ex && ex.message) || fallback;
 }
 
-/** A cell as text: null as empty, anything else as it would print */
-export function cell_text(value) {
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'object') return JSON.stringify(value);
-    return String(value);
-}
-
 export default defineComponent({
     props: ['props'],
+
+    components: { CleanupPanel },
 
     data() {
         return {
@@ -99,7 +61,9 @@ export default defineComponent({
             /** @type {string | null} */
             edit_message: null,
             /** @type {EditRow[] | null} */
-            undo_rows: last_edits.get(this.props.file.id) || null
+            undo_rows: last_edits.get(this.props.file.id) || null,
+            // Clean up (#206): a new number starts a new scan in the cleanup panel; 0 hides it
+            cleanup_key: 0
         };
     },
 
@@ -292,10 +256,24 @@ export default defineComponent({
             bus.$emit('container-dialog:close');
         },
 
+        // Scans the table for problems (#206), in place of a question's answer
+        clean_up() {
+            if (this.asking || this.used_up || this.unverified) return;
+            this.result = null;
+            this.error = null;
+            this.cleanup_key++;
+        },
+
+        /** @param {any} usage */
+        cleanup_usage(usage) {
+            if (usage) this.usage = usage;
+        },
+
         async ask() {
             if (!this.can_ask) return;
             this.asking = true;
             this.error = null;
+            this.cleanup_key = 0;
             try {
                 const res = await ai_http.ask(
                     this.props.file.id,

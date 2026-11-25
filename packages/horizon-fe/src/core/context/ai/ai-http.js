@@ -58,6 +58,38 @@ export const ai_http = {
     },
 
     /**
+     * Scans a table for problems (#206), using one question; writes nothing. Answers
+     * `{ answer, problems, scanned, total, capped, ai, usage }`.
+     * @param {number} table the table's id
+     */
+    async cleanup(table) {
+        return http.post(http.get_url(`/ai/web-file/${table}/cleanup`), {});
+    },
+
+    /**
+     * Deletes duplicate rows a scan found, each only if it still holds `before`:
+     * `{ deleted: [ids], skipped: [ids] }`.
+     * @param {number} table the table's id
+     * @param {{ _id: string, before: object }[]} rows
+     */
+    async delete_rows(table, rows) {
+        return http.post(http.get_url(`/ai/web-file/${table}/delete-rows`), {
+            rows
+        });
+    },
+
+    /**
+     * Puts deleted rows back (Undo of a cleanup), as new rows: `{ restored }`.
+     * @param {number} table the table's id
+     * @param {object[]} rows cells keyed by field
+     */
+    async restore_rows(table, rows) {
+        return http.post(http.get_url(`/ai/web-file/${table}/restore-rows`), {
+            rows
+        });
+    },
+
+    /**
      * A new table's design and rows, not saved: `{ table_name, columns, rows, usage }`.
      * @param {{ description: string, row_count: number }} body
      */

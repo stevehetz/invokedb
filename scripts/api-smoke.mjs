@@ -3219,8 +3219,9 @@ await call('ai_cost_logout', 'GET', `/auth/logout?token=${ai_cost_token}`);
 
 // AI rows and tables (#148), against the same stub. Generated rows fit the column types and
 // aren't saved until the app inserts them; every row asked for counts against the account's
-// monthly allowance (Free: 50, docs/PRICING.md 3.5); demo2 can't generate rows for demo's
-// table or read a table demo made from a description.
+// monthly allowance (docs/PRICING.md 3.5: demo is on Premium, so Pro's 10000; demo3 is on
+// Free, so 50); demo2 can't generate rows for demo's table or read a table demo made from a
+// description.
 const gen_count = async (name, id) =>
     (await call(name, 'POST', `/web-file/data_grid_row/${id}?skip=0&limit=1`, { token, body: {} }))
         ?.count;
@@ -3229,7 +3230,8 @@ check(
     'gen_status_rows_and_limits',
     gen_status?.available === true &&
         gen_status?.limits?.max_rows_per_request === 500 &&
-        gen_status?.rows?.limit === 50,
+        gen_status?.usage?.tier === 'PRO' &&
+        gen_status?.rows?.limit === 10000,
     gen_status
 );
 const gen_used_before = gen_status?.rows?.used ?? 0;
@@ -3288,18 +3290,42 @@ for (const [name, body] of [
     });
     check(`${name}_400`, results[name].status === 400, results[name]);
 }
-// More than the month's allowance has left: 429, nothing asked of the model
+// More than the month's allowance has left (demo3, Free: 50 rows): 429, nothing asked of the
+// model. Nothing is reserved, so reruns in the same month see the same.
+const gen_free = await call('gen_free_login', 'POST', '/auth/login', {
+    body: { email: 'demo3@invokedb.com', password: 'password' }
+});
+const gen_free_token = gen_free.token;
+const gen_free_table = await call('gen_free_table', 'POST', '/table-template/waitlist', {
+    token: gen_free_token,
+    body: { name: 'smoke_ai_gen_free' }
+});
+const gen_free_status = await call('gen_free_status', 'GET', '/ai/status', {
+    token: gen_free_token
+});
+check(
+    'gen_free_rows_limit',
+    gen_free_status?.usage?.tier === 'FREE' && gen_free_status?.rows?.limit === 50,
+    gen_free_status
+);
 const gen_seen = ai_requests.length;
-await call('gen_rows_over_allowance', 'POST', `/ai/web-file/${file_id}/generate-rows`, {
-    token,
-    body: { prompt: 'x', count: 60 },
+await call('gen_rows_over_allowance', 'POST', `/ai/web-file/${gen_free_table}/generate-rows`, {
+    token: gen_free_token,
+    body: { prompt: 'x', count: 51 },
     expectFail: true
 });
 check(
     'gen_rows_over_allowance_429',
-    results.gen_rows_over_allowance.status === 429 && ai_requests.length === gen_seen,
+    results.gen_rows_over_allowance.status === 429 &&
+        JSON.stringify(results.gen_rows_over_allowance.data).includes('AI rows') &&
+        ai_requests.length === gen_seen,
     results.gen_rows_over_allowance
 );
+await call('gen_free_table_delete', 'POST', '/file-directory/batch_delete', {
+    token: gen_free_token,
+    body: { ids: [gen_free_table] }
+});
+await call('gen_free_logout', 'GET', `/auth/logout?token=${gen_free_token}`);
 await call('gen_rows_no_table', 'POST', '/ai/web-file/99999999/generate-rows', {
     token,
     body: { prompt: 'x', count: 1 },
@@ -3318,7 +3344,8 @@ await call('gen_other_generate', 'POST', `/ai/web-file/${file_id}/generate-rows`
 });
 check(
     'gen_other_generate_refused',
-    [403, 404].includes(results.gen_other_generate.status),
+    // 401 is what every route answers for another account's table (assert_owned)
+    [401, 403, 404].includes(results.gen_other_generate.status),
     results.gen_other_generate
 );
 const gen_other_after = await call('gen_other_status_after', 'GET', '/ai/status', {

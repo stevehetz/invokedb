@@ -18,6 +18,7 @@ const Login = () => import('@/view/pages/login');
 const CreateAccount = () => import('@/view/pages/create-account');
 const ForgotPassword = () => import('@/view/pages/forgot-password');
 const ResetPassword = () => import('@/view/pages/reset-password');
+const VerifyEmail = () => import('@/view/pages/verify-email');
 const Pricing = () => import('@/view/pages/pricing');
 const Contact = () => import('@/view/pages/contact');
 const Tos = () => import('@/view/pages/tos');
@@ -100,6 +101,11 @@ const router = createRouter({
                     path: 'reset-password',
                     name: 'reset-password',
                     component: ResetPassword
+                },
+                {
+                    path: 'verify-email',
+                    name: 'verify-email',
+                    component: VerifyEmail
                 },
                 { path: 'pricing', name: 'pricing', component: Pricing },
                 { path: 'contact', name: 'contact', component: Contact },

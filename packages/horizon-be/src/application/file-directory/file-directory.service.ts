@@ -18,6 +18,10 @@ import { UrlImportManager } from '@app/core/url-import/url-import.manager';
 import { WebhookManager } from '@app/core/webhook/webhook.manager';
 import { FormManager } from '@app/core/form/form.manager';
 import { ViewManager } from '@app/core/view/view.manager';
+import {
+    assert_verified,
+    creating_needs_verified_email
+} from '@app/core/email-verification/email-verification';
 import _c from '@app/constants';
 import logger from '@app/logger';
 
@@ -123,6 +127,8 @@ export class FileDirectoryService {
     async create(acct_id, data, no_file) {
         data.account_id = acct_id;
         const account = await this.account_service.get(acct_id);
+        // Every way of making a table comes through here (new, upload, template, URL import)
+        if (creating_needs_verified_email(data)) assert_verified(account);
         await this.tracking_manager.add_table(account);
         await this.validate(data);
         data.deleted = false;

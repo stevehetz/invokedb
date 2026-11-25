@@ -313,6 +313,14 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   itself (filter model, sort, hidden columns); moving a kanban card is an ordinary row update.
   The frontend's Views menu is on the grid's top bar (`h-data-grid/views-dialog`,
   `kanban-view`, `chart-view`, SVG with no chart library).
+- Email verification (#132): `account.email_verified` (migration marks every older account
+  verified; Google/GitHub accounts are created verified). `src/core/email-verification/` has the
+  rules; links are rows of `email_verification` (24 hours, one per account). `create-account`
+  answers the same for a taken email (that address gets a "someone tried to sign up" email). An
+  unverified account can sign in, but `FileDirectoryService.create` refuses tables (403; folders
+  are fine), its API key is rejected and `authorize`/onboarding return it as null. Routes:
+  `GET /auth/verify-email?token=`, `POST /auth/resend-verification` (session). The site's page is
+  `/verify-email`; the app's banner is in `components/layout`.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

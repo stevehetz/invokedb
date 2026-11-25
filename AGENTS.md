@@ -41,6 +41,7 @@ npm run dev                  # backend + frontend (concurrently); Ctrl-C stops b
 npm run db:setup             # create missing DBs + run pending migrations (safe)
 npm run migration:create -- Name
 npm run migration:run | migration:revert
+npm run onboarding:funnel -- [--days 30] [--json]  # signup → first API call funnel (read-only)
 npm run format               # prettier --write . (root prettier 3)
 npm run format:check
 npm run check                # what CI runs, minus the smoke test (scripts/check.sh)
@@ -275,7 +276,11 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `tracking:onboarding:acct_<id>` document in the tracking DB, no Postgres change),
   `GET /onboarding`, `PUT /onboarding/steps/:step`, `PUT /onboarding/dismiss` (session only).
   `OnboardingInterceptor` on `/api/v1` ticks "call the API" after a successful call with the key.
-  The frontend's checklist is `components/onboarding`, on the Tables page.
+  The frontend's checklist is `components/onboarding`, on the Tables page. The same document
+  holds the funnel's times (#169): `signed_up_at` (signup, `AuthService`), `email_verified_at`
+  and `table_created_at` (first table, `FileDirectoryService.create`), recorded without ever
+  failing the request. `onboarding-funnel.ts` (pure) builds the funnel and
+  `src/cli/onboarding-funnel.ts` prints it (`npm run onboarding:funnel`, `docs/OPERATIONS.md`).
 - Import from a URL (#144): `src/core/url-import/` has the pure rules (`url-import.ts`: allowed
   URLs, Google Sheet links → CSV export, private-address ranges, JSON → CSV, sync settings), the
   fetcher (`url-fetch.ts`: checks every address it connects to, redirects, 10 MB, 30 s) and the

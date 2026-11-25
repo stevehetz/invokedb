@@ -18,6 +18,7 @@ import { UrlImportManager } from '@app/core/url-import/url-import.manager';
 import { WebhookManager } from '@app/core/webhook/webhook.manager';
 import { FormManager } from '@app/core/form/form.manager';
 import { ViewManager } from '@app/core/view/view.manager';
+import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
 import {
     assert_verified,
     creating_needs_verified_email
@@ -38,7 +39,8 @@ export class FileDirectoryService {
         private url_import_manager: UrlImportManager,
         private webhook_manager: WebhookManager,
         private form_manager: FormManager,
-        private view_manager: ViewManager
+        private view_manager: ViewManager,
+        private onboarding_manager: OnboardingManager
     ) {}
 
     async get_by_id(file_directory_id: number) {
@@ -152,6 +154,8 @@ export class FileDirectoryService {
             if (!no_file) {
                 await this.web_file_manager.create_new(acct_id, res.id, data.web_file_type);
             }
+            // The funnel's "created a table" step (#169)
+            if (data.type !== 'dir') await this.onboarding_manager.record_table_created(acct_id);
             return res;
         } finally {
             await release();

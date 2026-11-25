@@ -26,7 +26,8 @@
         "secrets:status": "bash scripts/secrets.sh status",
         "migration:create": "bash scripts/be-run.sh migration:create",
         "migration:run": "bash scripts/be-run.sh migration:run",
-        "migration:revert": "bash scripts/be-run.sh migration:revert"
+        "migration:revert": "bash scripts/be-run.sh migration:revert",
+        "onboarding:funnel": "bash scripts/be-run.sh onboarding:funnel"
     },
     "engines": {
         "node": ">=20"

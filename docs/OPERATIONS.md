@@ -332,3 +332,17 @@ by its own new version. Each file's top comment explains it; AGENTS.md "Hard rul
 - **Secrets:** none.
 - **Alerts:** none.
 - **Check:** the droplet's Backups tab lists a backup from the last week.
+
+### Onboarding funnel (#169)
+
+- **Does:** prints how many accounts that signed up reach each onboarding step (verified the
+  email, made a table, viewed the API key, copied the command, called the API), with the median
+  time from signup to each, above all to the first API call. Read-only: it reads the onboarding
+  documents in the tracking Mongo database. Accounts made before #169 have no signup time and
+  are left out (counted at the bottom).
+- **Configured:** nothing; `src/cli/onboarding-funnel.ts` in the backend.
+- **Secrets:** none beyond the backend's Mongo settings.
+- **Check:** in production,
+  `deploy/deploy.sh compose exec -T api node dist/cli/onboarding-funnel.js --days 30` (or
+  `--since 2026-12-01 --until 2027-01-01`, UTC days, `until` excluded; `--json` for JSON).
+  Locally, `npm run onboarding:funnel -- --days 30`.

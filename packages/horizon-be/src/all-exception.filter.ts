@@ -62,6 +62,13 @@ export class AllExceptionFilter implements ExceptionFilter {
             json_response.errors = errors;
         }
 
-        ctx.getResponse<Response>().status(status).json(json_response);
+        // How long to wait, for a rate limit that knows (the /api/v1 request limit, #182)
+        const res = ctx.getResponse<Response>();
+        const retry_after = response && response.retry_after;
+        if (status === 429 && Number.isInteger(retry_after) && retry_after > 0) {
+            res.setHeader('Retry-After', String(retry_after));
+        }
+
+        res.status(status).json(json_response);
     }
 }

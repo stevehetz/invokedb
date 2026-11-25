@@ -50,8 +50,10 @@ export class WebFileService {
         private webhook_svc: WebhookService
     ) {}
 
-    async get_new_column(acct_id, file_id) {
-        return await this.web_file_manager.get_new_column(acct_id, file_id);
+    async get_new_column(account, file_id) {
+        // A locked account makes no placeholders either (#182)
+        await this.tracking_manager.check_account_lock(account);
+        return await this.web_file_manager.get_new_column(account.id, file_id);
     }
 
     async validate(account_id, file_directory_id) {
@@ -672,6 +674,8 @@ export class WebFileService {
         if (web_file_type === 'data_grid_column') {
             data = assert_column_update(data);
             await this.assert_link_columns(account.id, [data]);
+            // 403 if this turns a new column on past the column limit (#182)
+            await this.tracking_manager.add_columns(account, { columns: [data], file_id });
         } else if (web_file_type === 'data_grid_row') {
             await this.web_file_manager.resolve_links(account.id, file_id, [data], true);
         }
@@ -755,23 +759,33 @@ export class WebFileService {
         data = assert_array_body(data);
         if (web_file_type === 'data_grid_column') {
             await this.assert_link_columns(account.id, data);
+            // 403 if the new columns would take the table past the column limit (#182)
+            await this.tracking_manager.create_columns(account, { columns: data, file_id });
         }
+        let release: (() => Promise<void>) | null = null;
         if (web_file_type === 'data_grid_row') {
             // Before the row count goes up, so a bad link adds nothing (#147)
             await this.web_file_manager.resolve_links(account.id, file_id, data);
-            await this.tracking_manager.add_rows(account, {
+            // Holds room for the rows until they're written, so parallel writes can't pass the
+            // row limit together (#182)
+            release = await this.tracking_manager.add_rows(account, {
                 rows_to_be_added: data.length,
                 file_id
             });
         }
         const inserted = [];
-        const res = await this.web_file_manager.batch_create(
-            account.id,
-            file_id,
-            web_file_type,
-            data,
-            inserted
-        );
+        let res;
+        try {
+            res = await this.web_file_manager.batch_create(
+                account.id,
+                file_id,
+                web_file_type,
+                data,
+                inserted
+            );
+        } finally {
+            if (release) await release();
+        }
         if (web_file_type === 'data_grid_row') {
             await this.webhook_svc.emit(account.id, file_id, 'row.created', inserted);
         }

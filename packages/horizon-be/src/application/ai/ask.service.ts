@@ -150,6 +150,9 @@ export class AskService {
         const columns = ask_columns(col_defs);
         if (columns.length === 0) throw new BadRequestException('This table has no columns yet');
 
+        // Read before the question is reserved, so a failed read doesn't use one up
+        const samples = await this.samples(acct_id, file.id, columns);
+
         const month = usage_month(this.now());
         const limit = question_limit(account.subscription_id);
         if (!(await this.ai_usage.reserve(acct_id, month, limit))) {
@@ -159,7 +162,6 @@ export class AskService {
             );
         }
 
-        const samples = await this.samples(acct_id, file.id, columns);
         const system = ask_system_prompt(
             file.name,
             columns,

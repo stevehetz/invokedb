@@ -5,6 +5,7 @@
 import { defineComponent } from 'vue';
 import copy from 'copy-to-clipboard';
 import { ai_http } from '@/core/context/ai/ai-http';
+import { table_display_name } from '../table-name';
 
 export const MAX_QUESTION_LENGTH = 500;
 
@@ -41,6 +42,11 @@ export default defineComponent({
     },
 
     computed: {
+        /** @returns {string} */
+        table_name() {
+            return table_display_name(this.props.file.name);
+        },
+
         /** @returns {boolean} */
         can_ask() {
             const q = this.question.trim();

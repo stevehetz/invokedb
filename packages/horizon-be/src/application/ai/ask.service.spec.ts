@@ -277,4 +277,14 @@ describe('AskService', () => {
         );
         expect(usage[`${ACCT}:2026-11`].questions).toBe(0);
     });
+
+    it("doesn't count a question when the sample rows can't be read", async () => {
+        const { svc, ai_usage, ai_client, web_file_manager } = setup([[text('unused')]]);
+        web_file_manager.query_rows.mockRejectedValueOnce(new Error('mongo timeout'));
+        await expect(svc.ask(ACCT, { table: 11, question: 'q' }, BASE)).rejects.toThrow(
+            'mongo timeout'
+        );
+        expect(ai_usage.reserve).not.toHaveBeenCalled();
+        expect(ai_client.create_message).not.toHaveBeenCalled();
+    });
 });

@@ -46,8 +46,8 @@ export class WebFileService {
         }
     }
 
+    // A read: still allowed when the account or table is read-only (over its plan's caps)
     async get_all(account, file_id, web_file_type, page_params) {
-        await this.tracking_manager.check_account_lock(account);
         if (page_params && page_params.filters) {
             const { filters } = page_params;
             Object.keys(filters).forEach(key => {
@@ -126,10 +126,9 @@ export class WebFileService {
         });
     }
 
+    // A read: counts against the monthly API calls, but works on a read-only account or table
     async external_get_rows(account, file_id, page_params, format) {
-        await this.tracking_manager.check_account_lock(account);
         await this.tracking_manager.update_req_count(account);
-        await this.tracking_manager.check_table_lock(file_id);
 
         const columns = await this.web_file_manager.get_all(
             account.id,
@@ -280,9 +279,9 @@ export class WebFileService {
         return await this.batch_update(account, file_id, 'data_grid_row', data);
     }
 
+    // Deleting works on a read-only table (as in the app), so the owner can get back under the cap
     async external_delete_rows(account, file_id, body) {
         await this.tracking_manager.update_req_count(account);
-        await this.tracking_manager.check_table_lock(file_id);
         this.validate_external_delete_rows_body(body);
         return await this.batch_delete(account, file_id, 'data_grid_row', body);
     }

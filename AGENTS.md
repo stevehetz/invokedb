@@ -300,9 +300,11 @@ token starts no CI, and a dispatched CI run doesn't count toward a PR's required
   terminal if that happens.
 - Run long-lived servers (`npm run dev`) in the background, never as a blocking foreground
   command.
-- Stripe was removed (no routes, no SDK, no checkout page). The `subscription` and `stripe_env`
-  tables and the account's `stripe_*` columns are still in the schema; a later migration can
-  drop them.
+- **Billing** (#129): the account's `plan` (`free`, `pro`, `internal`) is set only by the Stripe
+  webhook (`application/billing/billing.service.ts`); its caps are in `core/billing/plans.ts`
+  and `TrackingManager` enforces them (over a cap the account or table turns read-only). Tests
+  mock Stripe; never put real keys in tests or CI. The demo accounts are `internal`, so the smoke
+  test's free-tier checks sign up a fresh account.
 - `npm run db:demo` starts its own backend to load the example tables (`examples/setup.mjs`),
   so `npm run dev` must be stopped first.
 - Mailgun and Telegram are optional. Without keys, emails and support requests go to the

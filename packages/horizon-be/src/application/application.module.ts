@@ -11,7 +11,8 @@ import { FileDirectoryService } from '@app/application/file-directory/file-direc
 import { WebFileService } from '@app/application/web-file/web-file.service';
 import { WebFilePrcService } from './web-file/web-file-prc.service';
 import { WebFilePrcNotifyService } from './web-file/web-file-prc-notify.service';
-import { SubscriptionService } from '@app/application/subscription/subscription.service';
+import { BillingService } from '@app/application/billing/billing.service';
+import { stripe_client_provider } from '@app/application/billing/stripe-client';
 import { JobService } from './job/job.service';
 
 @Module({
@@ -26,7 +27,8 @@ import { JobService } from './job/job.service';
         WebFilePrcService,
         WebFilePrcNotifyService,
         AccountService,
-        SubscriptionService,
+        BillingService,
+        stripe_client_provider,
         JobService
     ],
     exports: [
@@ -37,7 +39,7 @@ import { JobService } from './job/job.service';
         WebFilePrcService,
         WebFilePrcNotifyService,
         AccountService,
-        SubscriptionService,
+        BillingService,
         JobService
     ]
 })

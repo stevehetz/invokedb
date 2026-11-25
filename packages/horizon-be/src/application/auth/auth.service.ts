@@ -11,7 +11,6 @@ import { SessionManager } from '@app/core/session/session.manager';
 import { EmailManager } from '@app/email/email.manager';
 import { welcome_tmpl } from '@app/email/welcome.template';
 import { reset_pass_tmpl } from '@app/email/reset-pass.template';
-import { SubscriptionService } from '../subscription/subscription.service';
 import logger from '@app/logger';
 import env from '@app/env';
 import { validate_email } from '@app/core/helpers/validators';
@@ -31,8 +30,7 @@ export class AuthService {
     private readonly identity_repository: Repository<AccountIdentity>,
     private account_manager: AccountManager,
     private session_manager: SessionManager,
-    private email_manager: EmailManager,
-    private subscription_service: SubscriptionService
+    private email_manager: EmailManager
   ) {}
 
     async login(account_dto: any) {
@@ -72,12 +70,9 @@ export class AuthService {
                 token: session.token,
                 locked: account.locked,
                 locked_reason: account.locked_reason,
-                api_key: account.api_key
+                api_key: account.api_key,
+                plan: account.plan
             };
-
-            if (account.subscription_id) {
-                res.subscription = await this.subscription_service.get(account.subscription_id);
-            }
 
             return res;
         } catch (ex) {

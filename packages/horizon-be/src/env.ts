@@ -50,7 +50,17 @@ const env = {
     HORIZON_MONGO_TRACKING_URI: process.env.HORIZON_MONGO_TRACKING_URI,
     HORIZON_MONGO_TRACKING_DB: process.env.HORIZON_MONGO_TRACKING_DB,
     MAILGUN_API_KEY: process.env.MAILGUN_API_KEY,
-    MAILGUN_DN: process.env.MAILGUN_DN
+    MAILGUN_DN: process.env.MAILGUN_DN,
+    // Optional. Billing through Stripe (#129): test-mode keys locally, live in production.
+    // Without the secret key and price, the /billing routes answer 503 and the app hides the
+    // upgrade button; without the webhook secret, /webhook/stripe answers 503.
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID,
+    // Optional overrides of the free plan's caps (core/billing/plans.ts has the defaults)
+    HORIZON_FREE_MAX_TABLES: process.env.HORIZON_FREE_MAX_TABLES,
+    HORIZON_FREE_MAX_ROWS: process.env.HORIZON_FREE_MAX_ROWS,
+    HORIZON_FREE_MAX_API_CALLS: process.env.HORIZON_FREE_MAX_API_CALLS
 };
 
 export default env;

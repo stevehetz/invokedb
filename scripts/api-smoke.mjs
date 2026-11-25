@@ -2,11 +2,15 @@
 // Exits non-zero if any call or check fails (CI runs it: .github/workflows/ci.yml, `smoke`).
 // Logs in as demo@invokedb.com, uploads a small CSV as table "smoke_people", exercises the
 // grid + external /api/v1 endpoints, checks that demo2@invokedb.com can't reach demo's tables
-// or account, then deletes the table. Writes every response to out.json
+// or account, then deletes the table. Then signs up a free account and checks the plan caps,
+// a (locally signed) Stripe webhook upgrade and a lapse to read-only. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 
+// The made-up webhook secret smoke-env.sh gives the backend (not a real Stripe secret)
+const SMOKE_WEBHOOK_SECRET = 'whsec_smoke_not_a_real_secret';
 const BASE = process.argv[2] || 'http://127.0.0.1:8001';
 const OUT = process.argv[3];
 const results = {};
@@ -75,7 +79,8 @@ await call('confirm_reset_no_token', 'GET', '/auth/confirm-reset-token', { expec
 await call('unauth_web_file', 'POST', '/web-file/data_grid_row/1?skip=0&limit=1', {
     expectFail: true
 });
-await call('plan_tiers', 'GET', '/subscription/plan-tiers', { token });
+const demo_billing = await call('billing_status', 'GET', '/billing', { token });
+check('demo_is_internal_plan', demo_billing.plan === 'internal', demo_billing);
 
 // Upload a CSV and wait for the processor to finish
 const csv = 'name,age,joined\nalice,30,2020-01-02\nbob,41,2021-05-06\ncarol,25,2019-12-31\n';
@@ -294,6 +299,173 @@ await call('after_logout', 'POST', `/web-file/data_grid_row/${file_id}?skip=0&li
     body: {},
     expectFail: true
 });
+
+await billing_checks();
+
+// Plans and caps (#129), on a new free account. smoke-env.sh makes the free caps tiny
+// (1 table, 5 rows, 3 API calls a month) and sets a made-up webhook secret, so the webhook is
+// "stubbed": this script signs Stripe-shaped events itself, as Stripe would.
+async function billing_checks() {
+    const email = `smoke-${Date.now()}@invokedb.com`;
+    const password = 'Smoke-test-1A';
+    await call('signup', 'POST', '/auth/create-account', { body: { email, password } });
+    const s = await call('signup_login', 'POST', '/auth/login', { body: { email, password } });
+    const t = s.token;
+    const acct = await call('signup_authorize', 'GET', `/auth/authorize?token=${t}`);
+    const status = await call('free_billing_status', 'GET', '/billing', { token: t });
+    check('signup_is_free', status.plan === 'free', status);
+    check('free_needs_no_stripe_customer', status.has_billing_account === false, status);
+    if (!status.limits || status.limits.max_tables > 1 || status.limits.max_rows > 5) {
+        console.log('skip --- free caps not lowered (run with smoke-env.sh): billing checks');
+        return;
+    }
+    // Stripe isn't configured in the smoke env: no API key, so Checkout and the portal are off
+    await call('checkout_without_stripe', 'POST', '/billing/checkout', {
+        token: t,
+        expectFail: true
+    });
+
+    // Free caps: one table (a new table has 3 rows), 5 rows, 3 API calls
+    const new_table = name => ({
+        token: t,
+        body: { account_id: acct.id, name, type: 'file', web_file_type: 'data-grid' }
+    });
+    const t1 = await call('free_table_1', 'POST', '/file-directory', new_table('smoke_free_1'));
+    await call('free_table_2_refused', 'POST', '/file-directory', {
+        ...new_table('smoke_free_2'),
+        expectFail: true
+    });
+    const rows_url = `/web-file/batch_create/data_grid_row/${t1}`;
+    await call('free_rows_to_cap', 'POST', rows_url, { token: t, body: [{ a: 'x' }, { a: 'y' }] });
+    await call('free_rows_past_cap_refused', 'POST', rows_url, {
+        token: t,
+        body: [{ a: 'z' }],
+        expectFail: true
+    });
+    const ext = `/api/v1/get?table=smoke_free_1&skip=0&limit=1`;
+    for (let i = 1; i <= 3; i++)
+        await call(`free_api_call_${i}`, 'GET', ext, { token: acct.api_key });
+    await call('free_api_call_past_cap_refused', 'GET', ext, {
+        token: acct.api_key,
+        expectFail: true
+    });
+
+    // The webhook: unsigned and badly signed events are refused
+    const now = Math.floor(Date.now() / 1000);
+    const checkout_event = {
+        id: `evt_smoke_checkout_${now}`,
+        object: 'event',
+        type: 'checkout.session.completed',
+        created: now,
+        data: {
+            object: {
+                id: 'cs_smoke',
+                object: 'checkout.session',
+                mode: 'subscription',
+                payment_status: 'paid',
+                client_reference_id: String(acct.id),
+                customer: `cus_smoke_${acct.id}`,
+                subscription: `sub_smoke_${acct.id}`,
+                metadata: { account_id: String(acct.id) }
+            }
+        }
+    };
+    await webhook('webhook_unsigned', checkout_event, { sign: false, expectFail: true });
+    await webhook('webhook_bad_signature', checkout_event, {
+        secret: 'whsec_wrong',
+        expectFail: true
+    });
+    const still_free = await call('billing_after_bad_webhook', 'GET', '/billing', { token: t });
+    check('bad_webhook_changes_nothing', still_free.plan === 'free', still_free);
+
+    // Upgrade: a signed checkout.session.completed raises the caps
+    await webhook('webhook_checkout_completed', checkout_event);
+    const pro = await call('billing_after_upgrade', 'GET', '/billing', { token: t });
+    check('upgrade_sets_pro', pro.plan === 'pro' && pro.has_billing_account, pro);
+    const t2 = await call('pro_table_2', 'POST', '/file-directory', new_table('smoke_free_2'));
+    await call('pro_rows_past_free_cap', 'POST', rows_url, { token: t, body: [{ a: 'z' }] });
+    await call('pro_api_call', 'GET', ext, { token: acct.api_key });
+    const replay = await webhook('webhook_replayed', checkout_event);
+    check('webhook_replay_is_duplicate', replay && replay.duplicate === true, replay);
+
+    // Lapse: the subscription is deleted, so back to free, and over the free caps the account
+    // turns read-only (reads work, writes don't) until it's back under them
+    const subscription = (status, created, id) => ({
+        id,
+        object: 'event',
+        type:
+            status === 'canceled'
+                ? 'customer.subscription.deleted'
+                : 'customer.subscription.updated',
+        created,
+        data: {
+            object: {
+                id: `sub_smoke_${acct.id}`,
+                object: 'subscription',
+                status,
+                customer: `cus_smoke_${acct.id}`,
+                metadata: { account_id: String(acct.id) }
+            }
+        }
+    });
+    await webhook(
+        'webhook_subscription_deleted',
+        subscription('canceled', now + 10, `evt_smoke_del_${now}`)
+    );
+    // An older event arriving late must not undo the cancel
+    await webhook('webhook_out_of_order', subscription('active', now + 5, `evt_smoke_old_${now}`));
+    const lapsed = await call('billing_after_lapse', 'GET', '/billing', { token: t });
+    check('lapse_sets_free_read_only', lapsed.plan === 'free' && lapsed.read_only, lapsed);
+    await call('read_only_read_works', 'POST', `/web-file/data_grid_row/${t1}?skip=0&limit=10`, {
+        token: t,
+        body: {}
+    });
+    await call('read_only_write_refused', 'POST', `/web-file/batch_create/data_grid_row/${t2}`, {
+        token: t,
+        body: [{ a: 'w' }],
+        expectFail: true
+    });
+    await call('lapsed_api_calls_refused', 'GET', ext, { token: acct.api_key, expectFail: true });
+    // Deleting gets it back under the caps (and the delete itself is allowed)
+    await call('read_only_delete_works', 'POST', '/file-directory/batch_delete', {
+        token: t,
+        body: { ids: [t2] }
+    });
+    const back = await call('billing_after_delete', 'GET', '/billing', { token: t });
+    check('under_caps_is_writable_again', back.read_only === false, back);
+    await call('free_cleanup', 'POST', '/file-directory/batch_delete', {
+        token: t,
+        body: { ids: [t1] }
+    });
+    await call('signup_logout', 'GET', `/auth/logout?token=${t}`);
+}
+
+// Posts a Stripe-shaped event to /webhook/stripe, signed the way Stripe signs (HMAC-SHA256 of
+// "<timestamp>.<body>" with the endpoint secret)
+async function webhook(name, event, { sign = true, secret, expectFail } = {}) {
+    const key = secret || process.env.STRIPE_WEBHOOK_SECRET || SMOKE_WEBHOOK_SECRET;
+    const body = JSON.stringify(event);
+    const headers = { 'Content-Type': 'application/json' };
+    if (sign) {
+        const ts = Math.floor(Date.now() / 1000);
+        const v1 = crypto.createHmac('sha256', key).update(`${ts}.${body}`).digest('hex');
+        headers['Stripe-Signature'] = `t=${ts},v1=${v1}`;
+    }
+    const res = await fetch(BASE + '/webhook/stripe', { method: 'POST', headers, body });
+    const text = await res.text();
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch {
+        data = text;
+    }
+    results[name] = { status: res.status, data };
+    const ok = res.status < 400;
+    if (ok !== !expectFail) failures++;
+    console.log(`${ok === !expectFail ? 'ok  ' : 'FAIL'} ${res.status} ${name}`);
+    if (ok === !!expectFail) console.log('     ', JSON.stringify(data).slice(0, 300));
+    return data;
+}
 
 if (OUT) fs.writeFileSync(OUT, JSON.stringify(results, null, 2));
 if (failures) {

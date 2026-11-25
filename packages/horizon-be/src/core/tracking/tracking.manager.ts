@@ -4,34 +4,40 @@ import { MongoDbCollections } from '../mongodb/collections';
 import { Repository } from 'typeorm';
 import { Account } from '../account/account.entity';
 import { FileDirectory } from '../file-directory/file-directory.entity';
-import { Subscription } from '../subscription/subscription.entity';
+import { get_plan, PlanLimits, usage_month } from '../billing/plans';
 import env from '@app/env';
 
 const EXCEPTIONS = {
-    TABLE_LIMIT_EXCEEDED: 'Table limit exceeded for current subscription',
-    ROW_COUNT_EXCEEDED: 'Row count limit exceeded for current subscription',
-    COL_COUNT_EXCEEDED: 'Column count limit exceeded for current subscription',
-    REQ_COUNT_EXCEEDED: 'External API request limit exceeded for current subscription'
+    TABLE_LIMIT_EXCEEDED: 'Table limit reached for your plan',
+    ROW_COUNT_EXCEEDED: 'Row limit reached for your plan',
+    COL_COUNT_EXCEEDED: 'Column count limit exceeded',
+    REQ_COUNT_EXCEEDED: 'Monthly API call limit reached for your plan'
 };
 
+export interface Usage {
+    plan: string;
+    plan_status: string | null;
+    limits: PlanLimits;
+    tables: number;
+    // Rows in the account's biggest table (the row cap is per table)
+    max_table_rows: number;
+    api_calls_this_month: number;
+    read_only: boolean;
+    read_only_reason: string | null;
+}
+
+// Enforces the account's plan caps (core/billing/plans.ts). An account over its table cap is
+// locked and a table over its row cap is locked: both turn read-only (writes are refused, reads
+// and deletes still work, so the owner can get back under the caps or upgrade).
 @Injectable()
 export class TrackingManager {
     constructor(
         private _collections: MongoDbCollections,
         @InjectRepository(Account)
         private readonly account_repository: Repository<Account>,
-        @InjectRepository(Subscription)
-        private readonly subscription_repository: Repository<Subscription>,
         @InjectRepository(FileDirectory)
         private readonly file_directory_repository: Repository<FileDirectory>
     ) {}
-
-    async get_tracking_limits_collection(account) {
-        return await this._collections.get_collection(account.id, 'tracking:limits', {
-            db_name: env.HORIZON_MONGO_TRACKING_DB,
-            mongo_uri: env.HORIZON_MONGO_TRACKING_URI
-        });
-    }
 
     async get_tracking_row_count_collection(account) {
         return await this._collections.get_collection(account.id, 'tracking:row_count', {
@@ -55,25 +61,9 @@ export class TrackingManager {
         return await this._collections.get_dg_collection('data_grid_column', account.id, file_id);
     }
 
-    private async get_subscription(account) {
-        if (account.subscription_id) {
-            return await this.subscription_repository.findOneBy({
-                id: account.subscription_id
-            });
-        } else {
-            return await this.subscription_repository.findOneBy({
-                id: 'SUB_FREE'
-            });
-        }
-    }
-
-    private async get_limits(account) {
-        const collection = await this.get_tracking_limits_collection(account);
-        const limits = await collection.findOne();
-
-        if (limits) return limits;
-
-        return await this.update_limits(account);
+    // The caps come from the account's plan; nothing is cached, so a plan change applies at once
+    private get_limits(account): PlanLimits {
+        return get_plan(account.plan).limits;
     }
 
     private async get_row_count(account, file_id) {
@@ -124,37 +114,28 @@ export class TrackingManager {
         }
     }
 
-    private async validate_table_count(account, tables_to_be_added = 0) {
-        const limits = await this.get_limits(account);
-
-        let table_count = await this.file_directory_repository.countBy({
+    private async count_tables(account) {
+        return await this.file_directory_repository.countBy({
             account_id: account.id,
             type: 'file',
             deleted: false
         });
+    }
 
-        table_count += tables_to_be_added;
+    private async validate_table_count(account, tables_to_be_added = 0) {
+        const limits = this.get_limits(account);
+        const table_count = (await this.count_tables(account)) + tables_to_be_added;
 
         if (table_count > limits.max_tables) {
             throw new HttpException(EXCEPTIONS.TABLE_LIMIT_EXCEEDED, HttpStatus.FORBIDDEN);
         }
     }
 
-    public async update_limits(account) {
-        const subscription = await this.get_subscription(account);
-        const collection = await this.get_tracking_limits_collection(account);
-        const curr_limits = await collection.findOne();
-        const new_limits = {
-            max_tables: subscription.max_tables,
-            max_rows: subscription.max_rows,
-            max_requests_per_minute: subscription.max_requests_per_minute
-        };
-        if (curr_limits) {
-            await collection.updateOne({ _id: curr_limits._id }, { $set: new_limits });
-        } else {
-            await collection.insertOne(new_limits);
-        }
-        return new_limits;
+    // After a plan change: lock the account if it's over its table cap and each table over its
+    // row cap, and unlock whatever is back under them
+    public async on_plan_change(account) {
+        await this.update_account_lock(account);
+        await this.update_account_table_locks(account);
     }
 
     public async update_account_lock(account) {
@@ -178,9 +159,10 @@ export class TrackingManager {
     }
 
     public async update_account_table_locks(account) {
-        const limits = await this.get_limits(account);
+        const limits = this.get_limits(account);
         const tables = await this.file_directory_repository.findBy({
             account_id: account.id,
+            type: 'file',
             deleted: false
         });
         for (const table of tables) {
@@ -198,46 +180,51 @@ export class TrackingManager {
         }
     }
 
+    // Counts one external API call against this month's cap; past it the call is refused (429)
     public async update_req_count(account) {
-        const limits = await this.get_limits(account);
-
-        if (!limits.max_requests_per_minute) {
-            return;
-        }
-
-        const now = new Date();
+        const limits = this.get_limits(account);
         const req_count_c = await this.get_tracking_request_count_collection(account);
-        const req_count_obj = await req_count_c.findOne();
-
-        if (req_count_obj) {
-            const req_time_limit_min = 0.2;
-            const { start_time, count } = req_count_obj;
-            const diff_ms = now.getTime() - start_time;
-            const diff_min = diff_ms / 60000;
-            if (diff_min >= req_time_limit_min) {
-                // Over time limit
-                await req_count_c.updateOne(
-                    { start_time },
-                    { $set: { count: 1, start_time: now.getTime() } }
-                );
-            } else {
-                if (count + 1 > limits.max_requests_per_minute)
-                    // Over req_count limit
-                    throw new HttpException(EXCEPTIONS.REQ_COUNT_EXCEEDED, HttpStatus.FORBIDDEN);
-
-                // Within time limit, within req_count limit
-                await req_count_c.updateOne({ start_time }, { $set: { count: count + 1 } });
-            }
-        } else {
-            await req_count_c.insertOne({
-                start_time: now.getTime(),
-                count: 1
-            });
+        const doc = await req_count_c.findOneAndUpdate(
+            { month: usage_month() },
+            { $inc: { count: 1 } },
+            { upsert: true, returnDocument: 'after' }
+        );
+        if ((doc?.count ?? 1) > limits.max_api_calls_per_month) {
+            throw new HttpException(EXCEPTIONS.REQ_COUNT_EXCEEDED, HttpStatus.TOO_MANY_REQUESTS);
         }
     }
 
+    private async get_api_calls_this_month(account) {
+        const req_count_c = await this.get_tracking_request_count_collection(account);
+        const doc = await req_count_c.findOne({ month: usage_month() });
+        // Refused calls are counted too; show at most the cap
+        return Math.min(doc?.count ?? 0, this.get_limits(account).max_api_calls_per_month);
+    }
+
+    public async get_usage(account): Promise<Usage> {
+        const tables = await this.file_directory_repository.findBy({
+            account_id: account.id,
+            type: 'file',
+            deleted: false
+        });
+        let max_table_rows = 0;
+        for (const table of tables) {
+            max_table_rows = Math.max(max_table_rows, await this.get_row_count(account, table.id));
+        }
+        return {
+            plan: get_plan(account.plan).id,
+            plan_status: account.plan_status ?? null,
+            limits: this.get_limits(account),
+            tables: tables.length,
+            max_table_rows,
+            api_calls_this_month: await this.get_api_calls_this_month(account),
+            read_only: !!account.locked,
+            read_only_reason: account.locked ? account.locked_reason : null
+        };
+    }
+
     public async validate_row_count(account, total_rows, limits?) {
-        limits = limits || (await this.get_limits(account));
+        limits = limits || this.get_limits(account);
         if (total_rows > limits.max_rows) {
             throw new HttpException(EXCEPTIONS.ROW_COUNT_EXCEEDED, HttpStatus.FORBIDDEN);
         }
@@ -255,17 +242,21 @@ export class TrackingManager {
         }
     }
 
+    // Refuses a write to a read-only (locked) table
     public async check_table_lock(file_id) {
         const file_directory = await this.file_directory_repository.findOneBy({ id: file_id });
         if (file_directory && file_directory.locked) {
-            const msg = file_directory.locked_reason || 'File is locked';
+            const reason = file_directory.locked_reason || 'over your plan limits';
+            const msg = `Table is read-only: ${reason}. Delete rows or upgrade.`;
             throw new HttpException(msg, HttpStatus.FORBIDDEN);
         }
     }
 
+    // Refuses a write to a read-only (locked) account
     public async check_account_lock(account) {
         if (account.locked) {
-            const msg = `Account locked: ${account.locked_reason}` || 'Account is locked';
+            const reason = account.locked_reason || 'over your plan limits';
+            const msg = `Account is read-only: ${reason}. Delete tables or upgrade.`;
             throw new HttpException(msg, HttpStatus.FORBIDDEN);
         }
     }
@@ -291,6 +282,7 @@ export class TrackingManager {
     }
 
     public async add_table(account) {
+        await this.check_account_lock(account);
         const tables_to_be_added = 1;
         await this.validate_table_count(account, tables_to_be_added);
     }

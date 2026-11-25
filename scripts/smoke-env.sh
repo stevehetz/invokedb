@@ -29,5 +29,13 @@ HORIZON_PRC_PUB_HTTP_URL=http://127.0.0.1:8101
 HORIZON_FS_PUB_HTTP_URL=http://127.0.0.1:8101
 HORIZON_SB_PUB_WS_URL=ws://127.0.0.1:9100
 HORIZON_SB_PRIV_WS_URL=ws://127.0.0.1:9100
+# Billing (#129): no Stripe API key (Checkout is off), a made-up webhook secret that
+# api-smoke.mjs signs its own events with, and free caps small enough to hit
+STRIPE_SECRET_KEY=
+STRIPE_PRICE_ID=
+STRIPE_WEBHOOK_SECRET=whsec_smoke_not_a_real_secret
+HORIZON_FREE_MAX_TABLES=1
+HORIZON_FREE_MAX_ROWS=5
+HORIZON_FREE_MAX_API_CALLS=3
 VARS
 echo "Wrote $OUT"

@@ -95,6 +95,37 @@ repo: it's public.
 - **Check:** `https://api.invokedb.com/auth/sso-providers` shows which are on; then sign in
   with each on `https://invokedb.com/login`.
 
+### Stripe (billing)
+
+- **Does:** paid plans (#129). Every account starts on a permanent free plan with small caps and
+  no Stripe customer. "Upgrade" (account page, or the pricing page) opens Stripe Checkout;
+  "Manage billing" opens the Stripe Customer Portal (change card, cancel). The plan on the
+  account (`account.plan`: `free`, `pro`, or `internal` for the demo and E2E accounts) is only
+  ever set by Stripe's signed webhook, never by the browser. When a subscription ends, the
+  account drops to free, and anything over the free caps turns read-only (reads and deletes
+  work, writes don't) until it's back under them or upgrades. The caps are in
+  `packages/horizon-be/src/core/billing/plans.ts` (placeholders until #137).
+- **Configured:** one Stripe account, test mode locally and in CI, live mode in production.
+  One product with one monthly price (its `price_…` id is `STRIPE_PRICE_ID`). A webhook
+  endpoint `https://api.invokedb.com/webhook/stripe` with the events
+  `checkout.session.completed`, `customer.subscription.created`,
+  `customer.subscription.updated`, `customer.subscription.deleted` and
+  `invoice.payment_failed`. The Customer Portal turned on (Settings → Billing → Customer
+  portal) with cancelling allowed. The webhook checks the signature over the raw body and
+  records each event id (`stripe_event` table), so a replay is a no-op; an event older than
+  the last one applied is ignored.
+- **Secrets:** `STRIPE_SECRET_KEY` (`sk_live_…` / `sk_test_…`, or a restricted key with write
+  access to Customers, Checkout Sessions and Customer Portal), `STRIPE_WEBHOOK_SECRET`
+  (`whsec_…`, from the webhook endpoint) and `STRIPE_PRICE_ID` (`prod.env`, and `.env` with
+  test-mode values locally). Without the key and price the upgrade button is hidden and
+  `/billing/checkout` answers 503; without the webhook secret `/webhook/stripe` answers 503.
+- **Alerts:** Stripe emails the account owner when webhook deliveries keep failing. The api
+  container logs each plan change (`Account <id> plan: …`).
+- **Check:** Stripe dashboard → Developers → Webhooks → the endpoint shows recent deliveries
+  answered 200. Locally: `stripe listen --forward-to 127.0.0.1:8001/webhook/stripe`, then
+  upgrade with the test card `4242 4242 4242 4242` and the account page shows Pro. The API
+  smoke test signs its own webhook events with a made-up secret (`scripts/smoke-env.sh`).
+
 ### UptimeRobot (uptime)
 
 - **Does:** checks `https://invokedb.com` and `https://api.invokedb.com/auth/authorize` every 5

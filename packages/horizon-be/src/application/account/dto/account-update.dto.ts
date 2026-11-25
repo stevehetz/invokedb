@@ -6,6 +6,4 @@ export class AccountUpdateDto {
 
     @Contains('')
     last_name: string;
-
-    subscription_id: string;
 }

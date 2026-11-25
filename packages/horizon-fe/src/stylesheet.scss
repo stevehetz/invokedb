@@ -2185,6 +2185,31 @@ $page_nav_active_color: #dcb467;
     color: #e44949;
     margin-top: 15px;
 }
+.account-page .subscription-form .plan-status {
+    color: #e44949;
+}
+.account-page .subscription-form .usage-table {
+    margin-bottom: 10px;
+    border-collapse: collapse;
+}
+.account-page .subscription-form .usage-table td {
+    padding: 2px 20px 2px 0;
+}
+.account-page .subscription-form .usage-label {
+    color: $gray300;
+}
+.account-page .subscription-form .usage-value.over {
+    color: #e44949;
+}
+.account-page .subscription-form .notice {
+    margin-bottom: 10px;
+}
+.account-page .subscription-form .links {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
 
 .account-page .api-key-form {
     margin-bottom: 20px;

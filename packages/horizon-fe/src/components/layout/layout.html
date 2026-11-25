@@ -66,6 +66,16 @@
             <div class="header-text" v-if="account">
                 <span>{{ account.email }}</span>
             </div>
+            <a
+                class="header-link help-link"
+                href="/help"
+                target="_blank"
+                rel="noopener"
+                title="Help"
+                aria-label="Help"
+            >
+                <i class="header-icon fa fa-circle-question"></i>
+            </a>
             <div class="header-link" @click="contact">
                 <i class="header-icon fa fa-user-edit"></i>
             </div>

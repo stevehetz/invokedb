@@ -28,6 +28,10 @@ writes `angular/public/invokedb.config.json` (gitignored, holds the API key). Th
 Angular app each have their own `node_modules` and 2-space prettier style, so they're in
 `.prettierignore`. The Angular CLI needs Node 22.22.3+ /
 24.15+ (`.nvmrc` 22 works). Don't `npm publish` the client unless asked.
+`examples/invokedb-python` is the Python client (#218: stdlib `urllib`, typed, Python 3.9+, not on
+PyPI; don't publish unless asked). Its tests are `python3 -m unittest discover -s tests` in that
+folder: offline against a stub server, plus live ones against a backend when `INVOKEDB_TEST_BASE`
+is set (they make and delete their own table and key).
 
 Logins (local and demo data): `demo@invokedb.com` … `demo7@invokedb.com`, password `password`.
 
@@ -42,6 +46,7 @@ npm run db:setup             # create missing DBs + run pending migrations (safe
 npm run migration:create -- Name
 npm run migration:run | migration:revert
 npm run onboarding:funnel -- [--days 30] [--json]  # signup → first API call funnel (read-only)
+npm run changelog            # rebuild the site's /changelog from merged `enhancement` PRs (needs gh)
 npm run format               # prettier --write . (root prettier 3)
 npm run format:check
 npm run check                # what CI runs, minus the smoke test (scripts/check.sh)
@@ -455,6 +460,11 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   can't scroll the header; `h-data-grid`'s `body_scrolled` moves it with the body instead.
 - `this.$bus` / `@/core/bus` is a small emitter with the old `$on`/`$off`/`$emit` names. Remove
   your handler with `$off` in `beforeUnmount`. Prefer props, emits or the store for new code.
+- Help and changelog (#219): the site's `/help/:topic` (`view/pages/help`; topics in
+  `help-topics.js`, their text in `help.html`) is linked from the site's nav and the app's header.
+  **When a feature changes, update its help topic.** `/changelog` reads `changelog.json`, written by
+  `npm run changelog` (`scripts/changelog.mjs`: merged PRs labelled `enhancement` or closing an
+  `enhancement` issue).
 
 ## Gotchas
 

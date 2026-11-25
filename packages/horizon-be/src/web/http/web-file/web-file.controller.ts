@@ -24,6 +24,7 @@ import logger from '@app/logger';
 import _c from '@app/constants';
 import { session_account_id } from '@app/web/http/_auth/request-account';
 import { public_api_base_url } from '@app/web/http/public-api-url';
+import { parse_pending_ids } from '@app/core/web-file/column-placeholder';
 
 // The largest CSV an upload takes, for every plan (#182). Past it multer stops reading, deletes
 // the partial temp file and Nest answers 413, before the handler makes a table.
@@ -44,7 +45,9 @@ export class WebFileController {
         await this.web_file_service.validate(acct_id, req.params.file_directory_id);
         const account = await this.account_service.get(acct_id);
         const file_id = req.params.file_directory_id;
-        const res = await this.web_file_service.get_new_column(account, file_id);
+        // Placeholders the grid already holds unsaved (#236), so a second add gets a new one
+        const pending = parse_pending_ids(req.query?.pending);
+        const res = await this.web_file_service.get_new_column(account, file_id, pending);
         return res;
     }
 

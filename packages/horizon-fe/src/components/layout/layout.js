@@ -119,13 +119,7 @@ export default {
         /** An item of the account menu. @param {string} command */
         account_command(command) {
             if (command === 'settings') this.$router.push('/app/account');
-            else if (command === 'api-keys') {
-                this.$router.push({
-                    path: '/app/account',
-                    query: { section: 'api-keys' }
-                });
-            } else if (command === 'contact') this.contact();
-            else if (command === 'help') window.open('/help', '_blank');
+            else if (command === 'contact') this.contact();
             else if (command === 'logout') this.logout();
         },
 

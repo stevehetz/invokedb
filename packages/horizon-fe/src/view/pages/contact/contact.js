@@ -60,8 +60,11 @@ export default {
                 });
                 this.success = true;
             } catch (ex) {
+                // 429: too many requests (rate-limited); the backend's message says to wait
                 this.error.message =
-                    'An error occurred when submitting your request. Please try again.';
+                    ex && ex.status === 429
+                        ? ex.message
+                        : 'An error occurred when submitting your request. Please try again.';
                 this.submitting = false;
             }
         }

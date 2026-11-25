@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MongoDbCollections } from '../mongodb/collections';
 import { Repository } from 'typeorm';
+import { ObjectId } from 'mongodb';
 import { Account } from '../account/account.entity';
 import { FileDirectory } from '../file-directory/file-directory.entity';
 import { Subscription } from '../subscription/subscription.entity';
@@ -289,10 +290,35 @@ export class TrackingManager {
         await this.update_row_count(account, file_id, new_row_count);
     }
 
+    // A column update adds a column when it turns a deleted one back on: new columns start as
+    // deleted placeholders (`get_new_column`) that the grid's batch update switches on. Updates
+    // to columns that are already on (renames, widths, order) add nothing.
+    private async count_columns_to_be_added(account, file_id, columns: any[]) {
+        const ids = [
+            ...new Set(
+                (columns || [])
+                    .filter(c => c && 'deleted' in c && c.deleted !== true)
+                    .map(c => String(c._id))
+                    .filter(id => ObjectId.isValid(id))
+            )
+        ];
+        if (ids.length === 0) return 0;
+        const col_c = await this.get_col_collection(account, file_id);
+        return await col_c.countDocuments({
+            _id: { $in: ids.map(id => new ObjectId(id)) },
+            deleted: true
+        });
+    }
+
     public async add_columns(account, data) {
         const file_id = parseInt(data.file_id, 10);
-        const cols_to_be_added = data.cols_to_be_added;
-        this.validate_column_count(account, file_id, cols_to_be_added);
+        const cols_to_be_added = await this.count_columns_to_be_added(
+            account,
+            file_id,
+            data.columns
+        );
+        if (cols_to_be_added === 0) return;
+        await this.validate_column_count(account, file_id, cols_to_be_added);
     }
 
     public async add_table(account) {

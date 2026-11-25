@@ -11,9 +11,12 @@ Elsewhere:
   in priority order. "What's next" is the top `Todo` item (AGENTS.md, "How work is tracked").
 - `docs/OPERATIONS.md`: every outside service and GitHub workflow, its secrets by name, who it
   alerts, how to check it. `deploy/README.md`: the server and deploys.
-- Plans: `docs/INFRASTRUCTURE_PLAN.md` (current direction: a trial-only showcase on one server,
-  keeping Mongo), `docs/SAAS_PLAN.md`, `docs/AI_IDEAS.md`. `docs/DEPENDENCY_PINS.md`: packages
-  that only move by a rule.
+- `docs/INFRASTRUCTURE_PLAN.md`: the hosting direction (one server, keeping Mongo, a free tier
+  then paid plans). `docs/PRICING.md`: tiers, limits, costs and their test plan (#137).
+  `docs/DEPENDENCY_PINS.md`: packages that only move by a rule. Feature ideas are issues on the
+  board, not docs (`SAAS_PLAN.md`, `AI_IDEAS.md` and `CODE_REVIEW.md` were retired 2026-11-25).
+- The GitHub wiki has an Infrastructure page with the diagrams from `docs/images/`; the docs in
+  the repo stay the source of truth (agents and workflows read them).
 - Git history and closed issues/PRs: everything done so far.
 
 ## Where things stand (2026-11-24)

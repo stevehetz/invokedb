@@ -3,8 +3,9 @@
 _Started 2026-11-17. Still a draft: the direction below is the current leaning, not a final
 decision._
 
-Where InvokeDB is heading and why. `HANDOFF.md` has the current state and the numbered steps.
-`SAAS_PLAN.md` is the larger SaaS feature list, and this file narrows it.
+Where InvokeDB's hosting is heading and why. `HANDOFF.md` has the current state; features and
+work items are issues on the Project board (the old `SAAS_PLAN.md` and `AI_IDEAS.md` became
+issues and were removed on 2026-11-25).
 
 ## Goals
 

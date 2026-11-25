@@ -988,8 +988,10 @@ try {
         await open_dialog();
         const item = dialog.locator('.view-item', { hasText: 'UI smoke Sam' });
         await item.locator('.view-rename-button').click();
-        await item.locator('.view-rename-input').fill('UI smoke Sam renamed');
-        await item.locator('.view-rename-save').click();
+        // Renaming swaps the name for an input (whose value isn't text), so `item` no longer
+        // matches; only one view is renamed at a time, so find the input in the dialog
+        await dialog.locator('.view-rename-input').fill('UI smoke Sam renamed');
+        await dialog.locator('.view-rename-save').click();
         await dialog.locator('.view-item-name', { hasText: 'UI smoke Sam renamed' }).waitFor();
         await close_dialog();
         check(
@@ -1145,8 +1147,9 @@ try {
         await page.locator('.el-tabs__item', { hasText: LINK_TABLE }).waitFor();
         await wait_rows(r => r.length === 4, 'the tasks table rows');
 
-        // Back to the uploaded table, and add the link column
-        await page.locator('.h-tree .tree-wrapper').getByText(TABLE, { exact: true }).click();
+        // Back to the uploaded table (still open in its tab; a single click on a tree item
+        // only highlights it), and add the link column
+        await page.locator('.el-tabs__item', { hasText: TABLE }).click();
         await page.locator('.el-tabs__item.is-active', { hasText: TABLE }).waitFor();
         await grid().getByRole('button', { name: 'Edit Columns' }).click();
         const inputs = grid().locator('.ag-header-row .grid-header.edit .grid-header-input input');

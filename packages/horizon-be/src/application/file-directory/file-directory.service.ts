@@ -14,6 +14,7 @@ import { WebFileManager } from '@app/core/web-file/web-file.manager';
 import { TrackingManager } from '@app/core/tracking/tracking.manager';
 import { plainToClass } from 'class-transformer';
 import { WebFilePrcNotifyService } from '../web-file/web-file-prc-notify.service';
+import { UrlImportManager } from '@app/core/url-import/url-import.manager';
 import _c from '@app/constants';
 import logger from '@app/logger';
 
@@ -25,7 +26,8 @@ export class FileDirectoryService {
         private account_service: AccountService,
         private web_file_manager: WebFileManager,
         private tracking_manager: TrackingManager,
-        private web_file_prc_notify_svc: WebFilePrcNotifyService
+        private web_file_prc_notify_svc: WebFilePrcNotifyService,
+        private url_import_manager: UrlImportManager
     ) {}
 
     async get_by_id(file_directory_id: number) {
@@ -183,6 +185,13 @@ export class FileDirectoryService {
                     await this.web_file_manager.delete_dg(account, file_directory.id);
                 } catch (ex) {
                     logger.error(`delete_dg failed for file ${file_directory.id}: ${ex.message}`);
+                }
+                try {
+                    await this.url_import_manager.remove(account.id, file_directory.id);
+                } catch (ex) {
+                    logger.error(
+                        `URL source of file ${file_directory.id} not removed: ${ex.message}`
+                    );
                 }
             }
         }

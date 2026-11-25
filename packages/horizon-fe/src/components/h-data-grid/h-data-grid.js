@@ -17,6 +17,7 @@ import { AgGridVue } from 'ag-grid-vue3';
 import { data_grid_manager as mgr } from './data-grid-manager';
 import { grid_theme } from './grid-theme';
 import { bus } from '@/core/bus';
+import { web_file_http } from '@/core/context/web-file/web-file-http';
 import GridHeader from './grid-header';
 import GridFilter from './grid-filter';
 import GridToast from './grid-toast';
@@ -83,7 +84,9 @@ export default {
             disable_add_column: false,
             delete_columns: [],
             add_row_mode: false,
-            show_delete_rows: false
+            show_delete_rows: false,
+            // Where the table was imported from (#144), or null
+            url_source: null
         };
     },
 
@@ -177,6 +180,7 @@ export default {
     methods: {
         grid_ready(params) {
             this.grid_api = markRaw(params.api);
+            this.load_url_source();
             if (this.file.status === 'PENDING') {
                 this.set_table_load_pending();
             } else if (this.file.status === 'ERROR') {
@@ -215,9 +219,11 @@ export default {
                         break;
                     case 'WEB_FILE_PROCESS_COMPLETE':
                         this.load_table();
+                        this.load_url_source();
                         break;
                     case 'WEB_FILE_PROCESS_ERROR':
-                        this.set_table_load_error(message.file);
+                        this.set_table_load_error(message.file, data.error);
+                        this.load_url_source();
                         break;
                 }
             }
@@ -228,15 +234,61 @@ export default {
             this.processing = true;
         },
 
-        set_table_load_error(file) {
+        set_table_load_error(file, error) {
             let err_msg = file.status_reason ? file.status_reason : null;
             if (err_msg) {
                 this.toast.error(err_msg);
                 this.table_lock = true;
                 this.processing = false;
             } else {
+                // A failed URL re-sync (#144) leaves the table as it was
+                if (error) this.toast.error(`Sync failed: ${error}`);
                 this.load_table();
             }
+        },
+
+        async load_url_source() {
+            try {
+                const res = await web_file_http.get_url_source(
+                    this.file_directory_id
+                );
+                this.url_source = (res && res.source) || null;
+            } catch (ex) {
+                this.url_source = null;
+            }
+        },
+
+        url_source_clicked() {
+            this.$bus.$emit('url-import-dialog:open', {
+                source: this.url_source,
+                callback: async (form, sync_now) => {
+                    try {
+                        const res = await web_file_http.update_url_source(
+                            this.file_directory_id,
+                            {
+                                url: form.url,
+                                mode: form.mode,
+                                key_column: form.key_column,
+                                schedule: form.schedule
+                            }
+                        );
+                        this.url_source = (res && res.source) || null;
+                        if (sync_now) {
+                            await web_file_http.sync_url_source(
+                                this.file_directory_id
+                            );
+                            this.set_table_load_pending();
+                        }
+                        this.$bus.$emit('url-import-dialog:close');
+                    } catch (ex) {
+                        this.$bus.$emit(
+                            'notify:error',
+                            (ex && ex.message) || 'Could not save the source'
+                        );
+                        this.$bus.$emit('url-import-dialog:processing', false);
+                    }
+                }
+            });
         },
 
         async load_table() {

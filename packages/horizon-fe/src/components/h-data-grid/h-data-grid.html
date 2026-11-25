@@ -82,6 +82,16 @@
                                 <i class="fa fa-sync-alt"></i>
                                 <span>Refresh</span>
                             </el-button>
+                            <el-button
+                                link
+                                class="purple url-source-button"
+                                @click="url_source_clicked"
+                                v-if="url_source"
+                                :disabled="saving_columns || edit_column_mode || add_row_mode || processing"
+                            >
+                                <i class="fa fa-cloud-download-alt"></i>
+                                <span>Sync</span>
+                            </el-button>
                         </div>
                     </div>
                 </div>

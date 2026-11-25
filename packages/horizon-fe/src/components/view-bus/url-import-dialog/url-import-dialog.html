@@ -1,0 +1,93 @@
+<div class="dialog url-import-dialog">
+    <el-dialog :title="title" v-model="dialog_visible" width="600px">
+        <div class="url-import-form">
+            <div class="form-row" v-if="is_new">
+                <label>Name:</label>
+                <el-input
+                    class="new-name"
+                    v-model="name"
+                    placeholder="Table name"
+                    @keyup.enter="confirm_handler(false)"
+                ></el-input>
+            </div>
+            <div class="form-row">
+                <label>URL:</label>
+                <el-input
+                    class="source-url"
+                    ref="url_input"
+                    v-model="url"
+                    placeholder="https://docs.google.com/spreadsheets/d/…"
+                    @keyup.enter="confirm_handler(false)"
+                ></el-input>
+            </div>
+            <p class="hint">
+                A Google Sheet shared with “Anyone with the link” (or published
+                to the web), or any public URL that returns CSV or JSON. Up to
+                10 MB.
+            </p>
+            <div class="form-row">
+                <label>Re-sync:</label>
+                <el-radio-group v-model="mode" class="sync-mode">
+                    <el-radio value="replace">Replace all rows</el-radio>
+                    <el-radio value="upsert">Update by key column</el-radio>
+                </el-radio-group>
+            </div>
+            <div class="form-row" v-if="mode === 'upsert'">
+                <label>Key:</label>
+                <el-input
+                    class="key-column"
+                    v-model="key_column"
+                    placeholder="Column whose value identifies a row, e.g. email"
+                ></el-input>
+            </div>
+            <div class="form-row">
+                <label>Schedule:</label>
+                <el-select class="sync-schedule" v-model="schedule">
+                    <el-option label="Only when I sync" value="off"></el-option>
+                    <el-option label="Every hour" value="hourly"></el-option>
+                    <el-option label="Every day" value="daily"></el-option>
+                </el-select>
+            </div>
+            <div class="sync-status" v-if="!is_new && source">
+                <span v-if="source.last_status === 'PENDING'">
+                    <i class="fa fa-sync fa-spin"></i> Syncing…
+                </span>
+                <span v-else-if="source.last_synced_at">
+                    Last synced {{ format_time(source.last_synced_at) }}
+                    <span v-if="source.last_row_count !== null"
+                        >· {{ source.last_row_count.toLocaleString() }}
+                        rows</span
+                    >
+                </span>
+                <span v-else>Not synced yet</span>
+                <span v-if="source.next_sync_at && source.schedule !== 'off'">
+                    · next {{ format_time(source.next_sync_at) }}
+                </span>
+                <div
+                    class="sync-error"
+                    v-if="source.last_status === 'ERROR' && source.last_error"
+                >
+                    Last sync failed: {{ source.last_error }}
+                </div>
+            </div>
+        </div>
+        <template #footer
+            ><span class="dialog-footer">
+                <el-button @click="close_dialog">Cancel</el-button>
+                <el-button
+                    v-if="!is_new"
+                    :disabled="processing || !can_confirm"
+                    @click="confirm_handler(false)"
+                    >Save</el-button
+                >
+                <el-button
+                    type="primary"
+                    class="confirm-button"
+                    :disabled="processing || !can_confirm"
+                    @click="confirm_handler(true)"
+                    >{{ is_new ? 'Import' : 'Save and sync now' }}</el-button
+                >
+            </span></template
+        >
+    </el-dialog>
+</div>

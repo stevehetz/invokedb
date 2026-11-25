@@ -60,6 +60,18 @@ export const tree_manager = {
         });
     },
 
+    /** Creates a table from a Google Sheet or CSV / JSON URL (#144); answers its id. */
+    async add_from_url(data) {
+        return await http.post(http.get_url(`/url-import`), {
+            new_name: data.name,
+            parent_id: data.parent_id,
+            url: data.url,
+            mode: data.mode,
+            key_column: data.key_column,
+            schedule: data.schedule
+        });
+    },
+
     async update_item(tree_item) {
         let account = store.get('account');
         tree_item.account_id = account.id;

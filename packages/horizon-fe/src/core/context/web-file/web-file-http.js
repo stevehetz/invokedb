@@ -81,6 +81,27 @@ export const web_file_http = {
         });
     },
 
+    /**
+     * A table's source URL and last sync (#144); `{ source: null }` if it wasn't imported.
+     * @param {number} id
+     */
+    async get_url_source(id) {
+        return http.get(http.get_url(`/url-import/${id}`));
+    },
+
+    /**
+     * @param {number} id
+     * @param {{ url?: string, mode?: string, key_column?: string | null, schedule?: string }} data
+     */
+    async update_url_source(id, data) {
+        return http.put(http.get_url(`/url-import/${id}`), data);
+    },
+
+    /** Fetches the table's source again (a background job). @param {number} id */
+    async sync_url_source(id) {
+        return http.post(http.get_url(`/url-import/${id}/sync`), {});
+    },
+
     async file_upload(file_ctx) {
         const url = http.get_fs_url(`/web-file/file_upload`);
         return http.file_upload(url, file_ctx);

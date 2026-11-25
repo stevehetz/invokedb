@@ -10,19 +10,24 @@ import {
     MAX_SORT,
     OPERATORS
 } from '../web-file/row-query';
+import { LINK_TYPE, MAX_LINKS_PER_CELL, is_row_id } from '../web-file/link';
 
-export type ColumnType = 'string' | 'number' | 'date';
+// A link column (#147) holds an array of row ids of another table (or null), or the linked
+// rows themselves when the request names it in `expand`
+export type ColumnType = 'string' | 'number' | 'date' | 'link';
 
 export interface DocColumn {
     name: string;
     type: ColumnType;
+    // A link column's table, by name (when it's known)
+    link_table?: string;
 }
 
 export interface TableDocsInput {
     table: string;
     // The /api/v1 base, e.g. https://api.invokedb.com/api/v1
     base_url: string;
-    columns: Array<{ name: string; type?: string }>;
+    columns: Array<{ name: string; type?: string; link_table?: string }>;
     // One row of the table, by column name, so the examples use real values
     sample_row?: Record<string, unknown>;
 }
@@ -63,15 +68,32 @@ const EXAMPLE_ID = '5f38f1a22a3a9d1db22bae3d';
 const DEFAULT_DATE = '2024-01-15';
 // The API returns dates like this (web-file.manager format_date_field)
 const DEFAULT_DATE_OUT = '2024-01-15 12:00:00 AM';
+// A row id of a linked table, for responses when the sample row has none
+const EXAMPLE_LINK_ID = '5f38f1a22a3a9d1db22bae3e';
 
 export function column_type(type: unknown): ColumnType {
-    return type === 'number' || type === 'date' ? type : 'string';
+    return type === 'number' || type === 'date' || type === LINK_TYPE ? type : 'string';
 }
 
 export function doc_columns(columns: TableDocsInput['columns']): DocColumn[] {
     return (columns || [])
         .filter(c => c && typeof c.name === 'string' && c.name.length > 0)
-        .map(c => ({ name: c.name, type: column_type(c.type) }));
+        .map(c => {
+            const col: DocColumn = { name: c.name, type: column_type(c.type) };
+            if (col.type === 'link' && typeof c.link_table === 'string' && c.link_table) {
+                col.link_table = c.link_table;
+            }
+            return col;
+        });
+}
+
+const is_link = (c: DocColumn) => c.type === 'link';
+
+// The row ids in the sample row's link cell, if it has any
+function sample_link_ids(v: unknown): string[] | null {
+    if (!Array.isArray(v)) return null;
+    const ids = v.filter(is_row_id).slice(0, 3);
+    return ids.length > 0 ? ids : null;
 }
 
 function trim_slashes(url: string) {
@@ -83,6 +105,8 @@ function trim_slashes(url: string) {
 // A value for a column in a request body: the sample row's when it fits the type
 function request_value(col: DocColumn, sample: Record<string, unknown>) {
     const v = sample[col.name];
+    // Only real ids (or null): a made-up id is refused, and the create snippet has to run
+    if (is_link(col)) return sample_link_ids(v);
     if (col.type === 'number') return typeof v === 'number' && isFinite(v) ? v : 42;
     if (col.type === 'date') return DEFAULT_DATE;
     return typeof v === 'string' && v.length > 0 && v.length <= 60 ? v : 'example text';
@@ -92,6 +116,7 @@ function request_value(col: DocColumn, sample: Record<string, unknown>) {
 function response_value(col: DocColumn, sample: Record<string, unknown>) {
     const v = sample[col.name];
     if (col.type === 'date') return typeof v === 'string' && v ? v : DEFAULT_DATE_OUT;
+    if (is_link(col)) return sample_link_ids(v) || [EXAMPLE_LINK_ID];
     return request_value(col, sample);
 }
 
@@ -114,7 +139,7 @@ function search_column(columns: DocColumn[], sample: Record<string, unknown>) {
     return (
         columns.find(c => c.type === 'string' && typeof sample[c.name] === 'string') ||
         columns.find(c => c.type === 'string') ||
-        columns[0]
+        columns.find(c => !is_link(c))
     );
 }
 
@@ -144,7 +169,9 @@ function query_filters(col: DocColumn | undefined, sample: Record<string, unknow
 
 // Sorts by a number or date column, largest or newest first, if there is one
 function query_sort(columns: DocColumn[]) {
-    const col = columns.find(c => c.type !== 'string') || columns[0];
+    const col =
+        columns.find(c => c.type === 'number' || c.type === 'date') ||
+        columns.find(c => !is_link(c));
     if (!col) return [];
     return [{ column: col.name, dir: col.type === 'string' ? 'asc' : 'desc' }];
 }
@@ -286,6 +313,21 @@ const TABLE_PARAM: EndpointDoc['params'] = [
     { name: 'table', in: 'query', description: 'The table name' }
 ];
 
+// /get, /search and /query take `expand` when the table has link columns (#147)
+function expand_params(links: DocColumn[]): EndpointDoc['params'] {
+    if (links.length === 0) return [];
+    return [
+        {
+            name: 'expand',
+            in: 'query',
+            description:
+                'Optional: link columns, comma-separated (' +
+                links.map(c => c.name).join(', ') +
+                '), to return as the linked rows instead of their _ids'
+        }
+    ];
+}
+
 export function build_table_docs(input: TableDocsInput): TableDocs {
     const table = input.table;
     const base_url = trim_slashes(input.base_url);
@@ -294,6 +336,7 @@ export function build_table_docs(input: TableDocsInput): TableDocs {
     const t = encodeURIComponent(table);
     const url = (action: string, query = '') => `${base_url}/${action}?table=${t}${query}`;
     const page = '&skip=0&limit=10';
+    const expand = expand_params(columns.filter(is_link));
 
     const row = example_row(columns, sample);
     const out_row = response_row(columns, sample);
@@ -308,7 +351,7 @@ export function build_table_docs(input: TableDocsInput): TableDocs {
     };
     const query_row: Record<string, unknown> = { _id: out_row._id };
     fields.forEach(name => (query_row[name] = out_row[name]));
-    const update_col = columns[0];
+    const update_col = columns.find(c => !is_link(c)) || columns[0];
     const update_row: Record<string, unknown> = { _id: ROW_ID_PLACEHOLDER };
     if (update_col) update_row[update_col.name] = request_value(update_col, sample);
 
@@ -331,7 +374,7 @@ export function build_table_docs(input: TableDocsInput): TableDocs {
             ...get_req,
             description: 'Returns a page of rows and the total row count.',
             read_only: true,
-            params: PAGE_PARAMS,
+            params: [...PAGE_PARAMS, ...expand],
             response: { status: 200, body: { count: 1, data: [out_row] } },
             snippets: snippets(get_req, base_url, table, 'table.find().skip(0).limit(10).exec()')
         },
@@ -347,6 +390,7 @@ export function build_table_docs(input: TableDocsInput): TableDocs {
             read_only: true,
             params: [
                 ...PAGE_PARAMS,
+                ...expand,
                 { name: 'body', in: 'body', description: 'The filter, by column name' }
             ],
             response: { status: 201, body: { count: 1, data: [out_row] } },
@@ -373,6 +417,7 @@ export function build_table_docs(input: TableDocsInput): TableDocs {
             read_only: true,
             params: [
                 ...TABLE_PARAM,
+                ...expand,
                 {
                     name: 'body',
                     in: 'body',
@@ -412,7 +457,11 @@ export function build_table_docs(input: TableDocsInput): TableDocs {
             id: 'create',
             title: 'Create rows',
             ...create_req,
-            description: `Adds rows (an array of up to ${MAX_WRITE_ROWS}, by column name). Leave out any column to leave it empty.`,
+            description:
+                `Adds rows (an array of up to ${MAX_WRITE_ROWS}, by column name). Leave out any column to leave it empty.` +
+                (columns.some(is_link)
+                    ? ' A link column takes an array of _ids of rows of its table, or null.'
+                    : ''),
             read_only: false,
             params: [
                 ...TABLE_PARAM,
@@ -488,6 +537,29 @@ function column_schema(col: DocColumn) {
             description: `A date. Send e.g. ${DEFAULT_DATE} or ISO 8601; returned like ${DEFAULT_DATE_OUT}.`
         };
     }
+    if (is_link(col)) {
+        const table = col.link_table ? `"${col.link_table}"` : 'another table';
+        return {
+            type: 'array',
+            nullable: true,
+            maxItems: MAX_LINKS_PER_CELL,
+            description:
+                `A link to rows of ${table}: an array of their _ids, or null. With ` +
+                `expand=${col.name} the API returns the linked rows instead (_id and their ` +
+                'columns); those can be sent back as they are.',
+            items: {
+                oneOf: [
+                    { type: 'string', pattern: '^[0-9a-fA-F]{24}$' },
+                    {
+                        type: 'object',
+                        required: ['_id'],
+                        properties: { _id: { type: 'string' } },
+                        additionalProperties: true
+                    }
+                ]
+            }
+        };
+    }
     return { type: 'string' };
 }
 
@@ -525,6 +597,20 @@ export function build_openapi(input: TableDocsInput) {
         },
         { name: 'sort_dir', in: 'query', schema: { type: 'string', enum: ['asc', 'desc'] } }
     ];
+    // Link columns (#147): /get, /search and /query take `expand`
+    const link_names = columns.filter(is_link).map(c => c.name);
+    const expand_param = link_names.length
+        ? [
+              {
+                  name: 'expand',
+                  in: 'query',
+                  description:
+                      'Link columns, comma-separated, to return as the linked rows instead of ' +
+                      `their _ids (${link_names.join(', ')})`,
+                  schema: { type: 'string', example: link_names.join(',') }
+              }
+          ]
+        : [];
     const errors = {
         '400': { description: 'Bad request (unknown table or column, bad filter or body)' },
         '401': { description: 'Missing or wrong API key' }
@@ -549,7 +635,7 @@ export function build_openapi(input: TableDocsInput) {
                     operationId: 'get_rows',
                     summary: by_id.get.title,
                     description: by_id.get.description,
-                    parameters: page_params,
+                    parameters: [...page_params, ...expand_param],
                     responses: { '200': row_list(by_id.get.response.body), ...errors }
                 }
             },
@@ -558,7 +644,7 @@ export function build_openapi(input: TableDocsInput) {
                     operationId: 'search_rows',
                     summary: by_id.search.title,
                     description: by_id.search.description,
-                    parameters: page_params,
+                    parameters: [...page_params, ...expand_param],
                     requestBody: {
                         required: true,
                         content: json(ref('Filter'), by_id.search.body)
@@ -571,7 +657,7 @@ export function build_openapi(input: TableDocsInput) {
                     operationId: 'query_rows',
                     summary: by_id.query.title,
                     description: by_id.query.description,
-                    parameters: [table_param],
+                    parameters: [table_param, ...expand_param],
                     requestBody: {
                         required: true,
                         content: json(ref('Query'), by_id.query.body)

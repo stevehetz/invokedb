@@ -76,6 +76,11 @@ Elsewhere:
   then paid tiers through **Stripe, which comes back** (#129). Caps and prices come from the
   pricing review (#137). This replaced "a trial instead of a free tier".
 
+- **AI costs are capped in the pricing** (2026-11-25, `docs/PRICING.md` 3.5): Haiku 5.5 for
+  every tier, small monthly allowances (Free: 10 questions, no row generation), a dollar budget
+  per account and server-wide, and Sonnet 5.5 only as a separate paid add-on. #186 and #188
+  must match before they merge.
+
 - **No UI test on PRs for now** (2026-11-24): it would add ~1 minute before a PR can merge;
   the owner prefers faster merges. Revisit if UI breakage keeps reaching production (as
   ag-grid 36 did, #127).

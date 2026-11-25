@@ -14,7 +14,9 @@
 // (#145: public view and submissions, typed answers, honeypot, closing, the rate limit, deleted
 // forms and tables, demo2 locked out), checks link columns (#147: picker, grid labels, ids and
 // `expand` on /api/v1, bad links refused, deleted rows cleared from links, no links across
-// accounts), then deletes the tables. Writes every response to out.json
+// accounts), checks API keys (#138: made for each account and revoked at the end; read-only and
+// table-scoped keys refused, revoked keys refused, only hashes listed, demo's migrated key still
+// works, demo2 locked out), then deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -85,6 +87,18 @@ await call('login_no_email', 'POST', '/auth/login', {
     expectFail: true
 });
 const me = await call('authorize', 'GET', `/auth/authorize?token=${token}`);
+check('authorize_has_no_api_key', me && !('api_key' in me), me);
+// API keys (#138) are only shown when they're made, so the test makes a read-write key for every
+// table per account (me.api_key, other_me.api_key) and revokes them at the end
+const smoke_keys = [];
+async function make_key(name, tok, body) {
+    const made = await call(name, 'POST', '/api-key', { token: tok, body });
+    if (made?.key?.id) smoke_keys.push({ id: made.key.id, owner: tok });
+    return made;
+}
+me.api_key = (
+    await make_key('api_key_create', token, { name: 'smoke', access: 'read_write' })
+)?.secret;
 await call('authorize_no_token', 'GET', '/auth/authorize');
 await call('confirm_reset_no_token', 'GET', '/auth/confirm-reset-token', { expectFail: true });
 await call('unauth_web_file', 'POST', '/web-file/data_grid_row/1?skip=0&limit=1', {
@@ -329,6 +343,9 @@ await call('other_template_rows', 'POST', `/web-file/data_grid_row/${tpl_id}?ski
     expectFail: true
 });
 const other_me = await call('other_authorize', 'GET', `/auth/authorize?token=${otoken}`);
+other_me.api_key = (
+    await make_key('other_api_key_create', otoken, { name: 'smoke', access: 'read_write' })
+)?.secret;
 await call('other_ext_template_table', 'GET', '/api/v1/get?table=smoke_crm&skip=0&limit=1', {
     token: other_me.api_key,
     expectFail: true
@@ -673,8 +690,8 @@ await call('url_import_delete', 'POST', '/file-directory/batch_delete', {
 });
 await call('url_source_after_delete', 'GET', `/url-import/${url_id}`, { token, expectFail: true });
 
-// Onboarding checklist (#143): each account sees only its own, with its own key in the command;
-// the command runs as copied; only a login session may read or change it.
+// Onboarding checklist (#143): each account sees only its own; the command has a placeholder for
+// the key, never a key (#138), and runs with one put in; only a login session may read or change it.
 const ONBOARDING_STEPS = ['create_table', 'view_api_key', 'copy_command', 'call_api'];
 const step_done = (view, id) => !!view?.steps?.find?.(s => s.id === id)?.done;
 const ob = await call('onboarding', 'GET', '/onboarding', { token });
@@ -685,16 +702,22 @@ check(
 );
 check('onboarding_has_table', step_done(ob, 'create_table') && !!ob.first_call, ob);
 const ob_cmd = ob?.first_call?.command || '';
+const ob_placeholder = ob?.first_call?.key_placeholder || '';
 check(
-    'onboarding_command_has_own_key',
-    ob_cmd.includes(me.api_key) && !ob_cmd.includes(other_me.api_key),
+    'onboarding_command_has_key_placeholder',
+    !!ob_placeholder &&
+        ob_cmd.includes(`Bearer ${ob_placeholder}`) &&
+        !ob_cmd.includes(me.api_key) &&
+        !ob_cmd.includes(other_me.api_key),
     ob_cmd
 );
-// Run the command as copied, pointed at this backend (as snippet() does for the docs)
+// Run the command with the key in (as the app does), pointed at this backend (as snippet() does
+// for the docs)
 let ob_out;
 try {
     const pub_base = ob.first_call.url.slice(0, ob.first_call.url.indexOf('/api/v1/'));
-    ob_out = execFileSync('bash', ['-c', ob_cmd.split(pub_base).join(BASE)], {
+    const with_key = ob_cmd.split(ob_placeholder).join(me.api_key);
+    ob_out = execFileSync('bash', ['-c', with_key.split(pub_base).join(BASE)], {
         encoding: 'utf8',
         timeout: 30000
     });
@@ -750,8 +773,7 @@ const ob_other = await call('other_onboarding', 'GET', '/onboarding', { token: o
 const ob_other_cmd = ob_other?.first_call?.command || '';
 check(
     'other_onboarding_is_own',
-    !ob_other_cmd.includes(me.api_key) &&
-        (!ob_other.first_call || ob_other_cmd.includes(other_me.api_key)),
+    !ob_other_cmd.includes(me.api_key) && !ob_other_cmd.includes(other_me.api_key),
     ob_other
 );
 // Dismissed, it stays hidden, and demo's checklist doesn't change. demo2 dismisses, so the UI
@@ -2090,7 +2112,7 @@ const link_other = await call('link_other_login', 'POST', '/auth/login', {
     body: { email: 'demo2@invokedb.com', password: 'password' }
 });
 const ltoken2 = link_other.token;
-const link_other_me = await call('link_other_authorize', 'GET', `/auth/authorize?token=${ltoken2}`);
+await call('link_other_authorize', 'GET', `/auth/authorize?token=${ltoken2}`);
 await call('link_other_targets', 'GET', `/web-file/${link_tasks}/link-targets`, {
     token: ltoken2,
     expectFail: true
@@ -2103,12 +2125,242 @@ await call(
     'link_other_ext_expand',
     'GET',
     '/api/v1/get?table=smoke_link_tasks&skip=0&limit=1&expand=Contact',
-    { token: link_other_me.api_key, expectFail: true }
+    { token: other_me.api_key, expectFail: true }
 );
 await call('link_api_key_targets', 'GET', `/web-file/${link_tasks}/link-targets`, {
     token: key,
     expectFail: true
 });
+
+// API keys (#138), on the two linked tables: a read-only key reads but can't write, a key limited
+// to the tasks table can't reach contacts (nor expand its link to them), a revoked key works
+// nowhere, only hashes are kept, the key migrated from the old api_key column still works, a key
+// can't manage keys, and demo2 can't see, revoke or use demo's keys.
+const status_is = (name, status) => check(`${name}_is_${status}`, results[name]?.status === status);
+const TASKS = '/api/v1/get?table=smoke_link_tasks&skip=0&limit=1';
+const CONTACTS = '/api/v1/get?table=smoke_link_contacts&skip=0&limit=1';
+const ro = await make_key('api_key_create_read_only', token, { name: 'smoke ro', access: 'read' });
+check(
+    'api_key_create_shape',
+    typeof ro?.secret === 'string' &&
+        ro.secret.length === 32 &&
+        ro.key?.prefix === ro.secret.slice(0, 6) &&
+        ro.key?.access === 'read' &&
+        ro.key?.table_ids === null &&
+        !('key_hash' in (ro.key || {})),
+    ro?.key
+);
+await call('api_key_read_only_get', 'GET', TASKS, { token: ro?.secret });
+await call('api_key_read_only_query', 'POST', '/api/v1/query?table=smoke_link_tasks', {
+    token: ro?.secret,
+    body: { limit: 1 }
+});
+await call('api_key_read_only_create', 'POST', '/api/v1/create?table=smoke_link_tasks', {
+    token: ro?.secret,
+    body: [{ Task: 'smoke_refused' }],
+    expectFail: true
+});
+status_is('api_key_read_only_create', 403);
+await call('api_key_read_only_update', 'PUT', '/api/v1/update?table=smoke_link_tasks', {
+    token: ro?.secret,
+    body: [{ _id: task0?._id, Task: 'smoke_refused' }],
+    expectFail: true
+});
+status_is('api_key_read_only_update', 403);
+await call('api_key_read_only_delete', 'POST', '/api/v1/delete?table=smoke_link_tasks', {
+    token: ro?.secret,
+    body: [task0?._id],
+    expectFail: true
+});
+status_is('api_key_read_only_delete', 403);
+const ro_rows = await call(
+    'api_key_read_only_rows_after',
+    'GET',
+    TASKS.replace('limit=1', 'limit=50'),
+    {
+        token: key
+    }
+);
+check(
+    'api_key_read_only_wrote_nothing',
+    !(ro_rows?.data || []).some(r => r.Task === 'smoke_refused') &&
+        (ro_rows?.data || []).some(r => r._id === task0?._id),
+    ro_rows
+);
+
+const scoped = await make_key('api_key_create_scoped', token, {
+    name: 'smoke tasks only',
+    access: 'read_write',
+    table_ids: [link_tasks]
+});
+check(
+    'api_key_scoped_shape',
+    JSON.stringify(scoped?.key?.table_ids) === JSON.stringify([link_tasks]) &&
+        scoped?.key?.tables?.[0]?.name === 'smoke_link_tasks',
+    scoped?.key
+);
+await call('api_key_scoped_own_table', 'GET', TASKS, { token: scoped?.secret });
+await call('api_key_scoped_other_table', 'GET', CONTACTS, {
+    token: scoped?.secret,
+    expectFail: true
+});
+status_is('api_key_scoped_other_table', 403);
+await call('api_key_scoped_other_table_query', 'POST', '/api/v1/query?table=smoke_link_contacts', {
+    token: scoped?.secret,
+    body: {},
+    expectFail: true
+});
+await call(
+    'api_key_scoped_other_table_openapi',
+    'GET',
+    '/api/v1/openapi?table=smoke_link_contacts',
+    {
+        token: scoped?.secret,
+        expectFail: true
+    }
+);
+await call('api_key_scoped_expand', 'GET', `${TASKS}&expand=Contact`, {
+    token: scoped?.secret,
+    expectFail: true
+});
+status_is('api_key_scoped_expand', 403);
+await call(
+    'api_key_scoped_query_expand',
+    'POST',
+    '/api/v1/query?table=smoke_link_tasks&expand=Contact',
+    {
+        token: scoped?.secret,
+        body: {},
+        expectFail: true
+    }
+);
+const scoped_made = await call(
+    'api_key_scoped_create',
+    'POST',
+    '/api/v1/create?table=smoke_link_tasks',
+    {
+        token: scoped?.secret,
+        body: [{ Task: 'smoke_scoped' }]
+    }
+);
+const scoped_row = (
+    await call('api_key_scoped_find', 'POST', '/api/v1/query?table=smoke_link_tasks', {
+        token: scoped?.secret,
+        body: { filters: [{ column: 'Task', op: 'eq', value: 'smoke_scoped' }] }
+    })
+)?.data?.[0];
+check('api_key_scoped_created_row', !!scoped_row?._id, scoped_made);
+if (scoped_row?._id) {
+    await call('api_key_scoped_delete', 'POST', '/api/v1/delete?table=smoke_link_tasks', {
+        token: scoped?.secret,
+        body: [scoped_row._id]
+    });
+}
+await call(
+    'api_key_scoped_other_table_delete',
+    'POST',
+    '/api/v1/delete?table=smoke_link_contacts',
+    {
+        token: scoped?.secret,
+        body: [],
+        expectFail: true
+    }
+);
+
+// A table id that isn't one of the account's tables, bad bodies, and a key on the key routes
+await call('api_key_create_other_table', 'POST', '/api-key', {
+    token,
+    body: { name: 'x', access: 'read', table_ids: [link_tasks, 999999999] },
+    expectFail: true
+});
+await call('api_key_create_bad_access', 'POST', '/api-key', {
+    token,
+    body: { name: 'x', access: 'admin' },
+    expectFail: true
+});
+await call('api_key_create_no_name', 'POST', '/api-key', {
+    token,
+    body: { access: 'read' },
+    expectFail: true
+});
+await call('api_key_list_with_key', 'GET', '/api-key', { token: key, expectFail: true });
+await call('api_key_create_with_key', 'POST', '/api-key', {
+    token: key,
+    body: { name: 'x', access: 'read_write' },
+    expectFail: true
+});
+await call('api_key_unauth_list', 'GET', '/api-key', { expectFail: true });
+
+// The list: no secrets or hashes; the migrated key (Initial seeds demo's old key) is read-write
+// for every table and still works
+const DEMO_OLD_KEY = 'fmh99QgCYnufhYDuAYSgpPblGAYgEWi7';
+const key_list = await call('api_key_list', 'GET', '/api-key', { token });
+const listed = key_list?.keys || [];
+const list_text = JSON.stringify(key_list);
+check(
+    'api_key_list_has_keys',
+    [ro?.key?.id, scoped?.key?.id].every(id => listed.some(k => k.id === id)) &&
+        Array.isArray(key_list?.tables) &&
+        key_list.tables.some(t => t.id === link_tasks),
+    key_list
+);
+check(
+    'api_key_list_no_secrets',
+    ![me.api_key, ro?.secret, scoped?.secret, DEMO_OLD_KEY].some(s => s && list_text.includes(s)) &&
+        !list_text.includes('key_hash'),
+    key_list
+);
+const migrated = listed.find(k => k.prefix === DEMO_OLD_KEY.slice(0, 6));
+check(
+    'api_key_migrated_listed',
+    migrated?.access === 'read_write' &&
+        migrated?.table_ids === null &&
+        !migrated?.revoked_datetime,
+    migrated
+);
+await call('api_key_migrated_works', 'GET', TASKS, { token: DEMO_OLD_KEY });
+const used = (await call('api_key_list_after_use', 'GET', '/api-key', { token }))?.keys?.find(
+    k => k.id === ro?.key?.id
+);
+check('api_key_last_used', !!used?.last_used_datetime, used);
+
+// demo2: can't see or revoke demo's keys, and its own key can't reach demo's tables
+const lkey2 = other_me.api_key;
+const other_keys = await call('api_key_other_list', 'GET', '/api-key', { token: ltoken2 });
+check(
+    'api_key_other_list_is_own',
+    !(other_keys?.keys || []).some(k =>
+        [ro?.key?.id, scoped?.key?.id, migrated?.id].includes(k.id)
+    ),
+    other_keys
+);
+await call('api_key_other_revoke', 'DELETE', `/api-key/${ro?.key?.id}`, {
+    token: ltoken2,
+    expectFail: true
+});
+await call('api_key_other_table_ids', 'POST', '/api-key', {
+    token: ltoken2,
+    body: { name: 'x', access: 'read', table_ids: [link_tasks] },
+    expectFail: true
+});
+await call('api_key_other_key_on_own_table', 'GET', TASKS, { token: lkey2, expectFail: true });
+await call('api_key_still_works_after_other_revoke', 'GET', TASKS, { token: ro?.secret });
+
+// Revoked: refused everywhere at once, listed as revoked, and can't be revoked into life again
+const revoked = await call('api_key_revoke', 'DELETE', `/api-key/${ro?.key?.id}`, { token });
+check('api_key_revoke_marked', !!revoked?.revoked_datetime, revoked);
+await call('api_key_revoked_get', 'GET', TASKS, { token: ro?.secret, expectFail: true });
+status_is('api_key_revoked_get', 401);
+await call('api_key_revoked_other_table', 'GET', CONTACTS, { token: ro?.secret, expectFail: true });
+await call('api_key_revoked_query', 'POST', '/api/v1/query?table=smoke_link_tasks', {
+    token: ro?.secret,
+    body: {},
+    expectFail: true
+});
+await call('api_key_revoke_again', 'DELETE', `/api-key/${ro?.key?.id}`, { token });
+await call('api_key_revoke_unknown', 'DELETE', '/api-key/999999999', { token, expectFail: true });
+await call('api_key_revoke_bad_id', 'DELETE', '/api-key/abc', { token, expectFail: true });
+await call('api_key_other_keys_unaffected', 'GET', TASKS, { token: scoped?.secret });
 // demo2 needs a table of its own: a new one if it's under the free tier's limit
 const other_link_files = await call('link_other_list', 'GET', '/file-directory', {
     token: ltoken2
@@ -2205,6 +2457,10 @@ if (other_table_made) {
         body: { ids: [other_table] }
     });
 }
+// The keys this test made for demo2 (#138)
+for (const [i, k] of smoke_keys.filter(k => k.owner === otoken).entries()) {
+    await call(`api_key_cleanup_other_${i}`, 'DELETE', `/api-key/${k.id}`, { token: ltoken2 });
+}
 await call('link_other_logout', 'GET', `/auth/logout?token=${ltoken2}`);
 await call('link_tables_delete', 'POST', '/file-directory/batch_delete', {
     token,
@@ -2225,6 +2481,14 @@ await call('support', 'POST', '/support/request', {
 await call('file_delete', 'POST', '/file-directory/batch_delete', {
     token,
     body: { ids: [file_id] }
+});
+// The keys this test made for demo (#138); revoked, they stop working at once
+for (const [i, k] of smoke_keys.filter(k => k.owner === token).entries()) {
+    await call(`api_key_cleanup_${i}`, 'DELETE', `/api-key/${k.id}`, { token });
+}
+await call('api_key_after_cleanup', 'GET', '/api/v1/get?table=smoke_people&skip=0&limit=1', {
+    token: key,
+    expectFail: true
 });
 await call('logout', 'GET', `/auth/logout?token=${token}`);
 await call('after_logout', 'POST', `/web-file/data_grid_row/${file_id}?skip=0&limit=1`, {

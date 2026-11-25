@@ -71,8 +71,7 @@ export class AuthService {
                 last_name: account.last_name,
                 token: session.token,
                 locked: account.locked,
-                locked_reason: account.locked_reason,
-                api_key: account.api_key
+                locked_reason: account.locked_reason
             };
 
             if (account.subscription_id) {
@@ -95,16 +94,10 @@ export class AuthService {
 
         const password_hash = await this.account_manager.hash_password(account_dto.password);
 
-        const api_key = await this.get_unique_api_key();
-
-        if (!api_key) {
-            throw new Error('Could not find a unique API key');
-        }
-
+        // No API key yet: the account makes its keys on the Account page (#138)
         const account = await this.account_repository.save({
             email: account_dto.email,
-            password_hash,
-            api_key
+            password_hash
         });
 
         logger.info(`Account created. ID: ${account.id}, Email: ${account.email}.`);
@@ -186,15 +179,11 @@ export class AuthService {
             throw new SsoError('failed');
         }
 
-        const api_key = await this.get_unique_api_key();
-        if (!api_key) throw new Error('Could not find a unique API key');
-
         const account = await this.account_repository.save({
             email: identity.email,
             password_hash: null,
             first_name: identity.first_name,
-            last_name: identity.last_name,
-            api_key
+            last_name: identity.last_name
         });
 
         logger.info(
@@ -203,29 +192,6 @@ export class AuthService {
         this.send_welcome(account);
 
         return account;
-    }
-
-    async get_unique_api_key() {
-        const total_tries = 5;
-        let tries = 0;
-        let unique_key;
-
-        const go = async () => {
-            if (tries < total_tries) {
-                tries++;
-                const api_key = this.account_manager.generate_api_key();
-                const account = await this.account_repository.findOneBy({ api_key });
-                if (account) {
-                    await go();
-                } else {
-                    unique_key = api_key;
-                }
-            }
-        };
-
-        await go();
-
-        return unique_key;
     }
 
     // Always answers 'success', whether or not the email has an account, so the reply doesn't

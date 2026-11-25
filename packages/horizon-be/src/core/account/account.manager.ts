@@ -4,7 +4,6 @@ import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 import { Account } from '@app/core/account/account.entity';
 import { ResetPassword } from '../reset-password/reset-password.entity';
-import { generate_api_key } from '@app/core/account/api-key';
 import { is_expired } from '@app/core/helpers/is-expired';
 import { validate_email, validate_password } from '@app/core/helpers/validators';
 
@@ -116,10 +115,6 @@ export class AccountManager {
         } catch (ex) {
             throw new Error('Could not find reset password token');
         }
-    }
-
-    generate_api_key() {
-        return generate_api_key();
     }
 
     async hash_password(password) {

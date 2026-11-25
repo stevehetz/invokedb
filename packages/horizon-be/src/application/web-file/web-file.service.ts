@@ -27,6 +27,7 @@ import {
     parse_row_query
 } from '@app/core/web-file/row-query';
 import { WebhookService } from '../webhook/webhook.service';
+import { assert_key_allows } from '@app/core/api-key/api-key-rules';
 import {
     LINK_TYPE,
     assert_link_settings,
@@ -159,12 +160,17 @@ export class WebFileService {
      * API returns rows (`_id` and the columns by name, in the same format). Rows that are gone
      * are left out.
      */
-    private async expand_links(account_id, rows: any[], columns: any[], expand, format) {
+    private async expand_links(account, rows: any[], columns: any[], expand, format) {
+        const account_id = account.id;
         const named = columns.map(c => ({
             name: this.get_key_from_column_name(c.headerName, format),
             col: c
         }));
         const to_expand = parse_expand(expand, named);
+        // The linked rows are another table's: a key limited to some tables must reach it (#138)
+        to_expand.forEach(({ col }) => {
+            if (col.link_table_id) assert_key_allows(account.key_scope, col.link_table_id);
+        });
         for (const { name, col } of to_expand) {
             const ids = collect_link_ids(rows.map(r => r[name]));
             if (ids.length === 0 || !col.link_table_id) continue;
@@ -330,7 +336,7 @@ export class WebFileService {
         };
 
         if (!(page_params.filters && page_params.filters.$group)) {
-            await this.expand_links(account.id, response.data, columns.data, expand, format);
+            await this.expand_links(account, response.data, columns.data, expand, format);
         }
         return response;
     }
@@ -396,7 +402,7 @@ export class WebFileService {
             return row;
         });
         if (col_defs.length > 0) {
-            await this.expand_links(account.id, data, col_defs, expand, format);
+            await this.expand_links(account, data, col_defs, expand, format);
         }
         return {
             data,

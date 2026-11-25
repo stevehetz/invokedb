@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { FileDirectory } from '../file-directory/file-directory.entity';
+import type { ApiKeyScope } from '../api-key/api-key-rules';
 
 @Entity()
 export class Account {
@@ -18,9 +19,6 @@ export class Account {
 
     @Column()
     last_name: string;
-
-    @Column()
-    api_key: string;
 
     @Column()
     subscription_id: string;
@@ -42,4 +40,8 @@ export class Account {
 
     @Column()
     stripe_env_id: string;
+
+    // Not a column: set by the bearer strategy on the account an /api/v1 key belongs to, with
+    // what that key may do (#138). The keys themselves are in `api_key` (ApiKey).
+    key_scope?: ApiKeyScope;
 }

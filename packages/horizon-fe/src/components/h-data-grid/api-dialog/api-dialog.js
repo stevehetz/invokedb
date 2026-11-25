@@ -1,6 +1,7 @@
 // The table's own API docs (#139): its endpoints with examples and snippets built from its
 // columns by the backend (GET /web-file/:id/api-docs), and "Try it", which sends a real request
-// to the public API with the account's key. Requests that change data are off by default.
+// to the public API with one of the account's keys (#138: made in this visit, or pasted).
+// Requests that change data are off by default.
 import { defineComponent } from 'vue';
 import copy from 'copy-to-clipboard';
 import { store } from '@/store';
@@ -33,7 +34,7 @@ export default defineComponent({
             languages: LANGUAGES,
             copied: null,
             copied_timer: null,
-            key_id: 'account',
+            try_key: (store.get('new_api_key') || {}).secret || '',
             allow_writes: false,
             try_url: '',
             try_body: '',
@@ -59,26 +60,14 @@ export default defineComponent({
             return this.endpoint ? this.endpoint.snippets[this.lang] : '';
         },
 
-        // One key per account for now; scoped (read-only) keys are #138
-        keys() {
-            const account = store.get('account') || {};
-            return [
-                {
-                    id: 'account',
-                    label: 'Account API key (full access)',
-                    value: account.api_key
-                }
-            ];
-        },
-
+        // Keys are only shown when they're made (#138): a key made in this visit, or one pasted
         api_key() {
-            const key = this.keys.find(k => k.id === this.key_id);
-            return key ? key.value : null;
+            return this.try_key.trim();
         },
 
         export_line() {
             if (!this.docs) return '';
-            return `export ${this.docs.api_key_env}=${this.api_key || ''}`;
+            return `export ${this.docs.api_key_env}=${this.api_key || 'YOUR_API_KEY'}`;
         },
 
         export_line_masked() {
@@ -196,6 +185,11 @@ export default defineComponent({
             a.download = `${this.docs.table}.openapi.json`;
             a.click();
             URL.revokeObjectURL(url);
+        },
+
+        go_to_account() {
+            bus.$emit('container-dialog:close');
+            this.$router.push({ name: 'account' });
         },
 
         go_to_doc_link(hash) {

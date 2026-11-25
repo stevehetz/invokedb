@@ -305,6 +305,14 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `/link-options` feed the settings dialog and picker (`h-data-grid/link-dialog`). `/api/v1`
   returns ids, or rows with `expand=<column>[,<column>]`. Deleting rows clears them from every
   link to them (owner's decision); link columns are left out of forms.
+- API keys (#138): Postgres `api_key` (entity `core/api-key/api-key.entity.ts`, pure rules in
+  `api-key-rules.ts`): several per account, each `read` or `read_write`, for every table
+  (`table_ids` null) or some, revocable. Only a SHA-256 and a 6-character prefix are stored; the
+  key is shown once, when `POST /api-key` makes it (routes `/api-key`, session only). The bearer
+  strategy puts the key's scope on the `Account` as `key_scope`, and `/api/v1` checks it in
+  `get_file_id` (writes: create/update/delete) and for `expand`. There's no `account.api_key`
+  any more: the smoke tests and `examples/setup.mjs` make their own keys, and the onboarding
+  command has a `YOUR_API_KEY` placeholder the app fills with a key made in the same visit.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

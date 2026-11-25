@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Account } from '@app/core/account/account.entity';
 import { FileDirectory } from '@app/core/file-directory/file-directory.entity';
 import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
 import { build_onboarding, MarkableStep, OnboardingView } from '@app/core/onboarding/onboarding';
@@ -9,17 +8,14 @@ import { build_onboarding, MarkableStep, OnboardingView } from '@app/core/onboar
 @Injectable()
 export class OnboardingService {
     constructor(
-        @InjectRepository(Account)
-        private readonly account_repository: Repository<Account>,
         @InjectRepository(FileDirectory)
         private readonly file_directory_repository: Repository<FileDirectory>,
         private readonly onboarding_manager: OnboardingManager
     ) {}
 
     async get(account_id: number, base_url: string): Promise<OnboardingView> {
-        const [state, account, table] = await Promise.all([
+        const [state, table] = await Promise.all([
             this.onboarding_manager.get_state(account_id),
-            this.account_repository.findOneBy({ id: account_id }),
             // The newest table: most likely the one just made for this
             this.file_directory_repository.findOne({
                 where: { account_id, type: 'file', deleted: false },
@@ -29,7 +25,6 @@ export class OnboardingService {
         return build_onboarding({
             state,
             table: table ? table.name : null,
-            api_key: account ? account.api_key : null,
             base_url
         });
     }

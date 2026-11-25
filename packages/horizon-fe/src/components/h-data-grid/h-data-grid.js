@@ -1089,7 +1089,9 @@ export default {
                 props: {
                     file: this.file,
                     // Rows the AI proposed (#234) become new rows to review, then Save
-                    on_generated: rows => this.add_proposed_rows(rows)
+                    on_generated: rows => this.add_proposed_rows(rows),
+                    // An AI edit (#204) was applied or undone: show the new values
+                    on_edited: () => this.grid_api && this.refresh_clicked()
                 },
                 component: AskDialog
             });

@@ -3371,6 +3371,145 @@ check(
     'gen_ask_saves_nothing',
     (await gen_count('gen_rows_after_ask', file_id)) === gen_rows_before + 10
 );
+
+// Editing rows in Ask AI (#204): the model calls propose_edit (two rows by _id, " (edited)"
+// added to their names); the answer previews them before and after, nothing changes until
+// apply-edit, a stale preview is skipped, demo2 and API keys can't apply, and undo puts the
+// names back. A spec that isn't a known change goes back to the model and changes nothing.
+const edit_read = async name =>
+    (
+        await call(name, 'POST', '/api/v1/query?table=smoke_people', {
+            token: key,
+            body: { fields: ['name'], sort: ['_id'], limit: 2 }
+        })
+    )?.data || [];
+const edit_rows_before = await edit_read('edit_rows_before');
+const edit_ids = edit_rows_before.map(r => r._id);
+ai_next_tool = 'propose_edit';
+ai_next_input = {
+    summary: 'Mark two names as edited',
+    filters: [{ column: '_id', op: 'in', value: edit_ids }],
+    changes: [{ column: 'name', op: 'concat', parts: [{ column: 'name' }, { text: ' (edited)' }] }]
+};
+const edit_seen = ai_requests.length;
+const edit_ask = await call('edit_ask', 'POST', '/ai/ask', {
+    token,
+    body: { table: file_id, question: 'add (edited) to the first two names' }
+});
+const edit_field = edit_ask?.edit?.columns?.[0]?.field;
+check(
+    'edit_ask_previews',
+    edit_ids.length === 2 &&
+        edit_ask?.edit?.columns?.length === 1 &&
+        edit_ask.edit.columns[0].name === 'name' &&
+        edit_ask.edit.matching === 2 &&
+        edit_ask.edit.rows.length === 2 &&
+        edit_ask.edit.rows.every((r, i) => {
+            const was = edit_rows_before[i].name;
+            return (
+                r._id === edit_ids[i] &&
+                (r.before[edit_field] ?? null) === (was ?? null) &&
+                r.after[edit_field] === `${was ?? ''} (edited)`.trim()
+            );
+        }) &&
+        edit_ask.api_call === null &&
+        String(edit_ask.answer).includes('2 rows') &&
+        ai_requests.slice(edit_seen).length === 1 &&
+        ai_requests[edit_seen].body.tools?.some(t => t.name === 'propose_edit'),
+    edit_ask
+);
+check(
+    'edit_preview_changes_nothing',
+    JSON.stringify(await edit_read('edit_rows_after_preview')) === JSON.stringify(edit_rows_before)
+);
+ai_next_input = { changes: [{ column: 'name', op: 'eval', value: 'process.exit()' }] };
+const edit_bad = await call('edit_ask_bad', 'POST', '/ai/ask', {
+    token,
+    body: { table: file_id, question: 'run this' }
+});
+const edit_bad_result = ai_requests.at(-1)?.body?.messages?.at(-1)?.content?.[0];
+check(
+    'edit_ask_bad_spec_refused',
+    edit_bad?.edit === null &&
+        edit_bad_result?.is_error === true &&
+        String(edit_bad?.answer).startsWith('Stub: the query failed'),
+    { edit_bad, edit_bad_result }
+);
+ai_next_tool = 'run_query';
+ai_next_input = {};
+
+const edit_rows = edit_ask?.edit?.rows || [];
+const edit_path = `/ai/web-file/${file_id}/apply-edit`;
+// demo2 can't apply an edit to demo's table, and an API key can't use the route
+const edit_other = await call('edit_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+await call('edit_other_apply', 'POST', edit_path, {
+    token: edit_other.token,
+    body: { rows: edit_rows },
+    expectFail: true
+});
+check(
+    'edit_other_apply_refused',
+    [401, 403, 404].includes(results.edit_other_apply.status),
+    results.edit_other_apply
+);
+await call('edit_other_logout', 'GET', `/auth/logout?token=${edit_other.token}`);
+await call('edit_api_key_apply', 'POST', edit_path, {
+    token: key,
+    body: { rows: edit_rows },
+    expectFail: true
+});
+for (const [name, body] of [
+    ['edit_apply_empty', { rows: [] }],
+    [
+        'edit_apply_unknown_column',
+        { rows: [{ _id: edit_ids[0], before: { zz: 1 }, after: { zz: 2 } }] }
+    ],
+    ['edit_apply_bad_id', { rows: [{ _id: 'x', before: { a: 1 }, after: { a: 2 } }] }]
+]) {
+    await call(name, 'POST', edit_path, { token, body, expectFail: true });
+    check(`${name}_400`, results[name].status === 400, results[name]);
+}
+check(
+    'edit_refused_changed_nothing',
+    JSON.stringify(await edit_read('edit_rows_after_refused')) === JSON.stringify(edit_rows_before)
+);
+
+const edit_applied = await call('edit_apply', 'POST', edit_path, {
+    token,
+    body: { rows: edit_rows }
+});
+const edit_rows_applied = await edit_read('edit_rows_applied');
+check(
+    'edit_applied',
+    JSON.stringify(edit_applied?.updated) === JSON.stringify(edit_ids) &&
+        edit_applied?.skipped?.length === 0 &&
+        edit_rows_applied.every(
+            (r, i) => r.name === `${edit_rows_before[i].name ?? ''} (edited)`.trim()
+        ),
+    { edit_applied, edit_rows_applied }
+);
+// The same preview again: the rows no longer hold its "before", so nothing is written
+const edit_again = await call('edit_apply_stale', 'POST', edit_path, {
+    token,
+    body: { rows: edit_rows }
+});
+check(
+    'edit_stale_skipped',
+    edit_again?.updated?.length === 0 && edit_again?.skipped?.length === 2,
+    edit_again
+);
+const edit_undo = await call('edit_undo', 'POST', edit_path, {
+    token,
+    body: { rows: edit_rows.map(r => ({ _id: r._id, before: r.after, after: r.before })) }
+});
+check(
+    'edit_undone',
+    edit_undo?.updated?.length === 2 &&
+        JSON.stringify(await edit_read('edit_rows_undone')) === JSON.stringify(edit_rows_before),
+    edit_undo
+);
 for (const [name, body] of [
     ['gen_rows_over_request_cap', { prompt: 'x', count: 501 }],
     ['gen_rows_no_prompt', { prompt: ' ', count: 5 }],

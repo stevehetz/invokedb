@@ -23,6 +23,7 @@ import { ApiKeyService } from './api-key/api-key.service';
 import { ViewService } from './view/view.service';
 import { AskService } from './ai/ask.service';
 import { AiService } from './ai/ai.service';
+import { EditService } from './ai/edit.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -47,7 +48,8 @@ import { AiService } from './ai/ai.service';
         ApiKeyService,
         ViewService,
         AskService,
-        AiService
+        AiService,
+        EditService
     ],
     exports: [
         AuthService,
@@ -67,7 +69,8 @@ import { AiService } from './ai/ai.service';
         ApiKeyService,
         ViewService,
         AskService,
-        AiService
+        AiService,
+        EditService
     ]
 })
 export class ApplicationModule {}

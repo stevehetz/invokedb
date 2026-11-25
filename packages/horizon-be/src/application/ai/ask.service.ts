@@ -16,6 +16,7 @@ import { AiClient } from '@app/core/ai/ai-client';
 import { AiUsageManager } from '@app/core/ai/ai-usage.manager';
 import { AiSpend } from '@app/core/ai/ai-spend';
 import { AiService } from './ai.service';
+import { EditPreview, EditService } from './edit.service';
 import { QueryColumn, parse_row_query } from '@app/core/web-file/row-query';
 import {
     ASK_MAX_TURNS,
@@ -36,6 +37,14 @@ import {
     tool_result_content
 } from '@app/core/ai/ask';
 import {
+    EDIT_TOOL_NAME,
+    EditSpec,
+    edit_answer,
+    edit_prompt_lines,
+    edit_tool,
+    parse_edit_input
+} from '@app/core/ai/edit';
+import {
     AI_OFF_MESSAGE,
     AI_PAUSED_MESSAGE,
     AI_UNVERIFIED_MESSAGE,
@@ -55,7 +64,8 @@ interface RanQuery {
 export { AI_OFF_MESSAGE, AI_PAUSED_MESSAGE, AI_UNVERIFIED_MESSAGE };
 // Tells the model to read the table when its first reply didn't
 const QUERY_FIRST =
-    'Call run_query to read the rows before you answer, or propose_rows if I asked for rows.';
+    'Call run_query to read the rows before you answer, propose_rows if I asked for new rows, ' +
+    'or propose_edit if I asked to change rows.';
 
 // "Ask your data" (#149): a question about one of the account's tables is answered by Claude,
 // which reads the table only through run_query, a read-only /api/v1/query body that is checked
@@ -73,7 +83,8 @@ export class AskService {
         private ai_client: AiClient,
         private ai_usage: AiUsageManager,
         private ai_spend: AiSpend,
-        private ai_service: AiService
+        private ai_service: AiService,
+        private edit_service: EditService
     ) {}
 
     // Overridden by the unit tests
@@ -202,13 +213,17 @@ export class AskService {
             file.name,
             columns,
             samples,
-            new Date(this.now()).toISOString().slice(0, 10)
+            new Date(this.now()).toISOString().slice(0, 10),
+            edit_prompt_lines()
         );
         const tool = ask_tool(columns);
+        const tools = [tool as any, propose_tool() as any, edit_tool(columns) as any];
         const messages: any[] = [{ role: 'user', content: question }];
         let last: RanQuery | null = null;
         // Rows the model proposed (#234), not saved: `{ rows, columns, usage }`
         let proposal: { rows: any[]; columns: any[]; usage: any } | null = null;
+        // An edit of existing rows the model proposed (#204), not applied
+        let edit: EditPreview | null = null;
         let answer = '';
         // Every model call, for charging what it used
         const spent: { model: string; usage: any }[] = [];
@@ -223,7 +238,7 @@ export class AskService {
                 const { reply, model }: any = await this.ai_client.create_message({
                     max_tokens: 2048,
                     system,
-                    tools: [tool as any, propose_tool() as any],
+                    tools,
                     tool_choice: tool_choice as any,
                     messages
                 });
@@ -266,15 +281,35 @@ export class AskService {
                         break;
                     }
                 }
+                // Asked to change rows (#204): work the edit out on the rows and stop. Nothing is
+                // written; the app shows each changed row and the user applies it or not. A bad
+                // spec goes back to the model.
+                const propose_edit = calls.find(c => c.name === EDIT_TOOL_NAME);
+                let bad_edit = '';
+                if (propose_edit) {
+                    let spec: EditSpec | null = null;
+                    try {
+                        spec = parse_edit_input(propose_edit.input, columns);
+                    } catch (ex) {
+                        if (!(ex instanceof AskError)) throw ex;
+                        bad_edit = ex.message;
+                    }
+                    if (spec) {
+                        edit = await this.edit_service.preview(acct_id, file.id, columns, spec);
+                        answer = edit_answer(edit.summary, edit.matching, edit.rows.length);
+                        if (edit.rows.length === 0) edit = null;
+                        break;
+                    }
+                }
                 messages.push({ role: 'assistant', content: reply.content });
                 const results = [];
                 for (const call of calls) {
-                    if (call.name === PROPOSE_TOOL_NAME) {
+                    if (call.name === PROPOSE_TOOL_NAME || call.name === EDIT_TOOL_NAME) {
                         results.push({
                             type: 'tool_result',
                             tool_use_id: call.id,
                             is_error: true,
-                            content: bad_propose
+                            content: call.name === PROPOSE_TOOL_NAME ? bad_propose : bad_edit
                         });
                         continue;
                     }
@@ -307,6 +342,9 @@ export class AskService {
             api_call: last ? api_call(base_url, file.name, last.body) : null,
             // Rows to review (keyed by field) and their columns, or null
             proposed: proposal ? { rows: proposal.rows, columns: proposal.columns } : null,
+            // An edit to review (#204): `{ summary, columns, rows: [{ _id, before, after }],
+            // matching, limit, capped }`, or null
+            edit,
             usage: await this.usage(account),
             rows_usage: await this.ai_service.rows_usage(account)
         };

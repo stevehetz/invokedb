@@ -1947,6 +1947,22 @@ $nav_active_color: #ffffff;
     margin: 4px 0 0;
     font-size: 12px;
 }
+// An edit's preview (#204): each changed cell, before (struck through) and after
+.ask-dialog .ask-edit-before {
+    color: #a03e3e;
+    text-decoration: line-through;
+}
+.ask-dialog .ask-edit-after {
+    color: #2f7d45;
+}
+.ask-dialog .ask-edit-arrow {
+    padding: 0 4px;
+    color: $gray300;
+}
+.ask-dialog .ask-edit-done {
+    margin-top: 8px;
+    color: $gray600;
+}
 
 // A table's webhooks (#140); its top-bar button (.webhooks-button) is styled with .api-button
 .webhooks-dialog {

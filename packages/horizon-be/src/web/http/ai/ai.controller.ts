@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Request, UseGuards } from '@nestjs/
 import { AuthGuard } from '@nestjs/passport';
 import { AskService } from '@app/application/ai/ask.service';
 import { AiService } from '@app/application/ai/ai.service';
+import { EditService } from '@app/application/ai/edit.service';
 import { session_account_id } from '@app/web/http/_auth/request-account';
 import { public_api_base_url } from '@app/web/http/public-api-url';
 
@@ -13,7 +14,8 @@ import { public_api_base_url } from '@app/web/http/public-api-url';
 export class AiController {
     constructor(
         private ask_service: AskService,
-        private ai_service: AiService
+        private ai_service: AiService,
+        private edit_service: EditService
     ) {}
 
     /**
@@ -37,6 +39,17 @@ export class AiController {
     async ask(@Body() body, @Request() req) {
         const account_id = session_account_id(req.user);
         return await this.ask_service.ask(account_id, body, public_api_base_url(req));
+    }
+
+    /**
+     * Applies an edit Ask AI proposed (#204), or undoes one (before and after swapped). Body:
+     * `{ rows: [{ _id, before, after }] }`, cells keyed by field. A row is written only if it
+     * still holds `before`. Answers `{ updated: [ids], skipped: [ids] }`. Calls no model.
+     */
+    @Post('web-file/:file_directory_id/apply-edit')
+    async apply_edit(@Param('file_directory_id') file_id: string, @Body() body, @Request() req) {
+        const account_id = session_account_id(req.user);
+        return await this.edit_service.apply(account_id, file_id, body);
     }
 
     /** Body: `{ prompt, count }`. Answers `{ rows, columns, usage }`; nothing is saved. */

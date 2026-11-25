@@ -308,6 +308,14 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   link to them (owner's decision); so does a replace URL re-sync (every row of the table). Deleting
   the linked table empties those cells and turns the link columns into string columns (#175,
   `FileDirectoryService.clear_links_to_table`). Link columns are left out of forms.
+- API keys (#138): Postgres `api_key` (entity `core/api-key/api-key.entity.ts`, pure rules in
+  `api-key-rules.ts`): several per account, each `read` or `read_write`, for every table
+  (`table_ids` null) or some, revocable. Only a SHA-256 and a 6-character prefix are stored; the
+  key is shown once, when `POST /api-key` makes it (routes `/api-key`, session only). The bearer
+  strategy puts the key's scope on the `Account` as `key_scope`, and `/api/v1` checks it in
+  `get_file_id` (writes: create/update/delete) and for `expand`. There's no `account.api_key`
+  any more: the smoke tests and `examples/setup.mjs` make their own keys, and the onboarding
+  command has a `YOUR_API_KEY` placeholder the app fills with a key made in the same visit.
 - Saved views (#146): `src/core/view/` has the pure rules (`view.ts`: settings checked against
   the columns, filters kept in the grid's own format `{ field, type, value }` and turned into a
   Mongo filter, the kanban and chart aggregations) and the store (`view.manager.ts`,

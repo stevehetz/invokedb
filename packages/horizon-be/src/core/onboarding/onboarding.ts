@@ -28,7 +28,6 @@ export interface OnboardingInput {
     state: OnboardingState | null;
     // The table the command calls (the account's newest), or null if it has none
     table: string | null;
-    api_key: string | null;
     // The /api/v1 base, e.g. https://api.invokedb.com/api/v1
     base_url: string;
 }
@@ -38,8 +37,12 @@ export interface OnboardingView {
     show: boolean;
     complete: boolean;
     steps: Array<{ id: StepId; done: boolean }>;
-    first_call: { table: string; url: string; command: string } | null;
+    first_call: { table: string; url: string; command: string; key_placeholder: string } | null;
 }
+
+// Keys are only shown when they're made (#138), so the command has this in place of the key; the
+// app puts in a key made in the same visit, and the owner pastes theirs otherwise
+export const API_KEY_PLACEHOLDER = 'YOUR_API_KEY';
 
 export function markable_step(step: unknown): MarkableStep | null {
     return (MARKABLE_STEPS as readonly unknown[]).includes(step) ? (step as MarkableStep) : null;
@@ -60,6 +63,7 @@ export function first_call_url(base_url: string, table: string) {
 }
 
 // One line with the key in it, so it runs as pasted (a POSIX shell, or PowerShell's curl.exe)
+// once the key replaces the placeholder
 export function first_call_command(base_url: string, table: string, api_key: string) {
     const url = first_call_url(base_url, table);
     return `curl ${sh_quote(url)} -H ${sh_quote(`Authorization: Bearer ${api_key}`)}`;
@@ -76,14 +80,14 @@ export function build_onboarding(input: OnboardingInput): OnboardingView {
         call_api: called
     };
     const steps = STEP_IDS.map(id => ({ id, done: done[id] }));
-    const first_call =
-        input.table && input.api_key
-            ? {
-                  table: input.table,
-                  url: first_call_url(input.base_url, input.table),
-                  command: first_call_command(input.base_url, input.table, input.api_key)
-              }
-            : null;
+    const first_call = input.table
+        ? {
+              table: input.table,
+              url: first_call_url(input.base_url, input.table),
+              command: first_call_command(input.base_url, input.table, API_KEY_PLACEHOLDER),
+              key_placeholder: API_KEY_PLACEHOLDER
+          }
+        : null;
     return {
         show: !state.dismissed_at,
         complete: steps.every(s => s.done),

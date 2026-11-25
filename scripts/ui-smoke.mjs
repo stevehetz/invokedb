@@ -4,7 +4,7 @@
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
 // render the public site's pages, log in, check the onboarding checklist, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
-// open the table's API docs and "Try it" on Get, add / test / disable / delete a webhook, read the API key from the account page and call /api/v1 with it, make a form and submit it
+// open the table's API docs and "Try it" on Get, add / test / disable / delete a webhook, make a read-only table-scoped API key on the account page, call /api/v1 with it and revoke it (#138), make a form and submit it
 // through its public link, then close and delete it, make (and delete) a table
 // from a template (saving a grid view of it, a kanban view where a card is dragged and a
 // chart view, #146) and one from a URL (a CSV on GitHub, so it needs internet), add a link column
@@ -147,7 +147,11 @@ async function step(name, fn) {
         const shot = path.join(SHOT_DIR, `${name}.png`);
         // Masked: in CI the screenshot is a public artifact
         const mask = page
-            ? [page.locator('input[type=password], .api-key-form input, .webhook-secret input')]
+            ? [
+                  page.locator(
+                      'input[type=password], .api-key-secret, .onboarding-key code, .onboarding-command, .webhook-secret input'
+                  )
+              ]
             : [];
         if (page) await page.screenshot({ path: shot, mask }).catch(() => {});
         console.log(`FAIL ${name}\n      ${ex.message.split('\n').slice(0, 6).join('\n      ')}`);
@@ -341,6 +345,8 @@ fs.writeFileSync(csv_path, CSV);
 let file_id;
 let be_s;
 let failed = false;
+// The account's API keys before this run (#138), so it revokes only the ones it made
+let initial_key_ids = null;
 
 try {
     await step('public_pages', async () => {
@@ -390,11 +396,14 @@ try {
         );
     });
 
-    // The onboarding checklist (#143), unless this account dismissed it: four steps, the key and
-    // the command (with that key) are shown, then it's folded away so it covers nothing below
+    // The onboarding checklist (#143), unless this account dismissed it: four steps; it makes a
+    // read-only key (#138), shown once, and the command carries it; then it's folded away so it
+    // covers nothing below. The keys this run makes are revoked in api_key_and_external_api.
     await step('onboarding_checklist', async () => {
         const s = await be_session();
         const view = await be('GET', '/onboarding', { token: s.token });
+        const keys_before = await be('GET', '/api-key', { token: s.token });
+        initial_key_ids = new Set((keys_before.keys || []).map(k => k.id));
         await be('GET', `/auth/logout?token=${s.token}`).catch(() => {});
         results.observed.onboarding_shown = view.show;
         const box = page.locator('.onboarding');
@@ -413,12 +422,21 @@ try {
             `checklist steps are ${steps}`
         );
         const key_step = box.locator('.onboarding-step[data-step="view_api_key"]');
-        await key_step.getByRole('button', { name: 'Show key' }).click();
-        const key = (await key_step.locator('code').textContent()).trim();
-        check(key.length >= 32, 'the checklist shows no API key');
         if (view.first_call) {
             const cmd = await box.locator('.onboarding-command').textContent();
-            check(cmd.includes(key), "the checklist's command doesn't carry the key");
+            check(
+                cmd.includes(view.first_call.key_placeholder),
+                "the checklist's command has no key placeholder before a key is made"
+            );
+        }
+        await key_step.getByRole('button', { name: 'Make a read-only key' }).click();
+        const key_code = key_step.locator('.onboarding-key code');
+        await key_code.waitFor();
+        const key = (await key_code.textContent()).trim();
+        check(key.length === 32, 'the checklist shows no API key');
+        if (view.first_call) {
+            const cmd = await box.locator('.onboarding-command').textContent();
+            check(cmd.includes(key), "the checklist's command doesn't carry the new key");
         }
         await box.locator('.onboarding-toggle').click();
         await box.locator('.onboarding-steps').waitFor({ state: 'detached' });
@@ -572,12 +590,22 @@ try {
     });
 
     // The table's own API docs (#139): its endpoints, snippets with its name, and "Try it" on
-    // Get, which sends a real (read-only) request with the account's key
+    // Get, which sends a real (read-only) request with a key: the checklist's, or (when this
+    // account dismissed the checklist) one made here and pasted in, as a person would (#138)
     await step('table_api_docs', async () => {
         await grid().locator('.api-button button').click();
         const dialog = page.locator('.container-dialog .api-dialog');
         const tabs = dialog.locator('.api-dialog-tab');
         await tabs.first().waitFor();
+        const try_key = dialog.locator('.try-key');
+        if (!(await try_key.inputValue())) {
+            const made = await be('POST', '/api-key', {
+                token: be_s.token,
+                body: { name: 'ui-smoke docs', access: 'read' }
+            });
+            check(made && made.secret, `couldn't make a key: ${JSON.stringify(made)}`);
+            await try_key.fill(made.secret);
+        }
         results.observed.api_docs_tabs = await tabs.allInnerTexts();
         check(results.observed.api_docs_tabs.length === 7, 'the API dialog has no 7 endpoint tabs');
         const snippet = await dialog.locator('.api-dialog-snippet pre').innerText();
@@ -694,13 +722,16 @@ try {
         await dialog.waitFor({ state: 'detached' });
     });
 
-    // To the Account page through the API docs' "account" link (a router link, not the nav):
-    // only Account is highlighted in the nav afterwards, not Api as well (#189)
+    // API keys (#138): go to the Account page through the API docs' "account" link (a router
+    // link, not the nav): only Account is highlighted in the nav afterwards, not Api as well
+    // (#189). Then make a read-only key limited to the table, read it (shown once), call /api/v1
+    // with it (a read works, a write is refused), see it listed by its prefix only, revoke it and
+    // see it refused; then revoke the other keys this run made.
     await step('api_key_and_external_api', async () => {
         await page.locator('.layout .nav .el-menu-item', { hasText: 'Api' }).click();
         await page.locator('.api-key-message a', { hasText: 'account' }).click();
-        const key_input = page.locator('.api-key-form input');
-        await key_input.waitFor();
+        const form = page.locator('.api-key-form');
+        await form.locator('.api-key-new-button').waitFor();
         const highlighted = async cls =>
             (await page.locator(`.layout .nav .el-menu-item.${cls}`).allInnerTexts()).map(t =>
                 t.trim()
@@ -711,10 +742,26 @@ try {
                 (await highlighted('is-active2')).join() === 'Account',
             `after the docs' account link the nav highlights ${JSON.stringify(results.observed.nav_active_after_docs_link)}`
         );
-        const end = Date.now() + 10000;
-        let key = '';
-        while (Date.now() < end && !(key = await key_input.inputValue())) await sleep(250);
-        check(key, 'API key field is empty');
+        await form.locator('.api-key-new-button').click();
+        await form.locator('.api-key-name input').fill('ui-smoke');
+        await form.locator('.api-key-scope').getByText('Only these').click();
+        await form.locator('.api-key-tables').click();
+        await page.locator('.el-select-dropdown__item:visible', { hasText: TABLE }).click();
+        await form.locator('.api-key-name input').click();
+        await form.locator('.api-key-save').click();
+        const secret = form.locator('.api-key-secret');
+        await secret.waitFor();
+        const key = await secret.inputValue();
+        check(key.length === 32, 'the new API key is not shown');
+        const item = form.locator('.api-key-item', { hasText: 'ui-smoke' }).first();
+        await item.waitFor();
+        const item_text = await item.innerText();
+        check(
+            item_text.includes(key.slice(0, 6)) && !item_text.includes(key),
+            `the key is listed as ${item_text}`
+        );
+        check(item_text.includes(TABLE), `the key's tables are listed as ${item_text}`);
+
         const res = await fetch(`${API_URL}/v1/get?table=${TABLE}&skip=0&limit=10`, {
             headers: { Authorization: `Bearer ${key}` }
         });
@@ -726,6 +773,33 @@ try {
             return rest;
         });
         check(rows.length === 3, `/api/v1/get returned ${rows.length} rows`);
+        const write = await fetch(`${API_URL}/v1/create?table=${TABLE}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify([{ name: 'refused' }])
+        });
+        check(write.status === 403, `/api/v1/create with a read-only key -> ${write.status}`);
+
+        await form.getByRole('button', { name: "I've saved it" }).click();
+        await secret.waitFor({ state: 'detached' });
+        await item.locator('.api-key-revoke').click();
+        await page
+            .locator('.confirm-dialog .el-dialog')
+            .getByRole('button', { name: 'Confirm' })
+            .click();
+        await form.locator('.api-key-item.revoked', { hasText: 'ui-smoke' }).first().waitFor();
+        const after = await fetch(`${API_URL}/v1/get?table=${TABLE}&skip=0&limit=1`, {
+            headers: { Authorization: `Bearer ${key}` }
+        });
+        check(after.status === 401, `/api/v1/get with the revoked key -> ${after.status}`);
+
+        // The checklist's key and any made for "Try it"
+        const { keys } = await be('GET', '/api-key', { token: be_s.token });
+        for (const k of keys || []) {
+            if (initial_key_ids && !initial_key_ids.has(k.id) && !k.revoked_datetime) {
+                await be('DELETE', `/api-key/${k.id}`, { token: be_s.token });
+            }
+        }
         await page.locator('.layout .nav .el-menu-item', { hasText: 'Tables' }).click();
     });
 

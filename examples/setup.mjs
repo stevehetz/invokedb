@@ -7,8 +7,9 @@
 // For each CSV in examples/data it uploads a table (todo, contacts, wine_reviews), waits for the
 // processor, then sets the column types and indexes the examples rely on. Tables that already
 // exist are left alone unless you pass --replace, which deletes and re-creates them.
-// Finally it writes examples/angular/public/invokedb.config.json (gitignored) with the account's
-// API key, so `npm start` in examples/angular works straight away.
+// Finally it writes examples/angular/public/invokedb.config.json (gitignored) with a read-write
+// API key it makes for the account ("Examples (setup.mjs)", replacing the last run's), so
+// `npm start` in examples/angular works straight away.
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -81,6 +82,18 @@ const session = await call('POST', '/auth/login', {
 });
 const token = session.token;
 const me = await call('GET', `/auth/authorize?token=${token}`);
+
+// API keys are only shown when they're made (#138), so each run makes a fresh read-write key for
+// the examples and revokes the one the last run made
+const KEY_NAME = 'Examples (setup.mjs)';
+const { keys } = await call('GET', '/api-key', { token });
+for (const old of keys.filter(k => k.name === KEY_NAME && !k.revoked_datetime)) {
+    await call('DELETE', `/api-key/${old.id}`, { token });
+}
+const { secret: api_key } = await call('POST', '/api-key', {
+    token,
+    body: { name: KEY_NAME, access: 'read_write' }
+});
 console.log(`Logged in as ${opts.email} (account ${me.id}) at ${BASE}`);
 
 const listTables = () => call('GET', `/file-directory?account_id=${me.id}`, { token });
@@ -159,7 +172,7 @@ for (const table of TABLES) {
     }
 
     const rows = await call('GET', `/api/v1/get?table=${table.name}&skip=0&limit=1`, {
-        token: me.api_key
+        token: api_key
     });
     console.log(`- ${table.name}: ${existing ? 're-created' : 'created'}, ${rows.count} rows`);
 }
@@ -167,7 +180,8 @@ for (const table of TABLES) {
 const configPath = path.join(here, 'angular', 'public', 'invokedb.config.json');
 fs.writeFileSync(
     configPath,
-    JSON.stringify({ apiKey: me.api_key, baseUrl: `${BASE}/api/v1` }, null, 2) + '\n'
+    JSON.stringify({ apiKey: api_key, baseUrl: `${BASE}/api/v1` }, null, 2) + '\n'
 );
-console.log(`\nAPI key: ${me.api_key}`);
+// Never print the key, not even part of it: it's in the config file below
+console.log(`\nMade the API key "${KEY_NAME}".`);
 console.log(`Wrote ${path.relative(process.cwd(), configPath)}`);

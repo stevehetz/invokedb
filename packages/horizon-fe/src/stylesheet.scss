@@ -3294,12 +3294,79 @@ $page_nav_active_color: #dcb467;
     margin-bottom: 20px;
     position: relative;
 }
+.account-page .api-key-form .form-body {
+    padding-left: 20px;
+}
+.account-page .api-key-form .api-key-intro {
+    margin: 0 0 15px;
+    color: $gray400;
+}
+.account-page .api-key-form .api-key-created,
+.account-page .api-key-form .api-key-new {
+    margin-bottom: 20px;
+    padding: 12px 15px;
+    border: solid 1px $gray50;
+    border-radius: 5px;
+    max-width: 640px;
+}
+.account-page .api-key-form .api-key-created p {
+    margin: 0 0 10px;
+}
 .account-page .api-key-form .api-key-input-block {
     position: relative;
-    padding-left: 20px;
     display: flex;
     height: 35px;
     max-width: 500px;
+    margin-bottom: 5px;
+}
+.account-page .api-key-form .api-key-secret {
+    flex: 1;
+    min-width: 0;
+    padding: 0 10px;
+    font-family: monospace;
+    border: solid 1px $gray100;
+    border-right: none;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+.account-page .api-key-form .api-key-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.account-page .api-key-form .api-key-row > label {
+    width: 70px;
+    flex-shrink: 0;
+}
+.account-page .api-key-form .api-key-row .el-input,
+.account-page .api-key-form .api-key-row .el-select {
+    max-width: 400px;
+}
+.account-page .api-key-form .api-key-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+.account-page .api-key-form .api-key-status.error {
+    color: #e44949;
+}
+.account-page .api-key-form .api-key-list {
+    border-collapse: collapse;
+    width: 100%;
+    max-width: 900px;
+}
+.account-page .api-key-form .api-key-list th,
+.account-page .api-key-form .api-key-list td {
+    text-align: left;
+    padding: 6px 10px 6px 0;
+    border-bottom: solid 1px $gray50;
+    vertical-align: middle;
+}
+.account-page .api-key-form .api-key-list tr.revoked td {
+    color: $gray100;
+}
+.account-page .api-key-form .api-key-item-actions {
+    text-align: right;
+    white-space: nowrap;
 }
 .account-page .api-key-form .copied-popup {
     position: absolute;

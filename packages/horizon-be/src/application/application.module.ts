@@ -19,6 +19,7 @@ import { UrlImportService } from './url-import/url-import.service';
 import { WebhookService } from './webhook/webhook.service';
 import { WebhookPrcService } from './webhook/webhook-prc.service';
 import { FormService } from './form/form.service';
+import { ApiKeyService } from './api-key/api-key.service';
 import { ViewService } from './view/view.service';
 
 @Module({
@@ -41,6 +42,7 @@ import { ViewService } from './view/view.service';
         WebhookService,
         WebhookPrcService,
         FormService,
+        ApiKeyService,
         ViewService
     ],
     exports: [
@@ -58,6 +60,7 @@ import { ViewService } from './view/view.service';
         UrlImportService,
         WebhookService,
         FormService,
+        ApiKeyService,
         ViewService
     ]
 })

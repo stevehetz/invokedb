@@ -65,34 +65,50 @@
                 </div>
 
                 <div class="step-detail" v-if="step.id === 'view_api_key'">
-                    <p>
-                        It opens your tables through the API: keep it secret.
-                        It's also on the
-                        <router-link :to="{ name: 'account' }"
-                            >Account page</router-link
-                        >.
-                    </p>
-                    <p v-if="!api_key">
-                        You'll get it once you confirm your email address (see
-                        the banner at the top).
-                    </p>
-                    <div class="onboarding-code" v-else-if="key_shown">
-                        <code>{{ api_key }}</code>
-                    </div>
-                    <el-button v-else size="small" @click="show_key"
-                        >Show key</el-button
-                    >
+                    <template v-if="api_key">
+                        <p>
+                            A read-only key for your tables. Copy it now: it's
+                            only shown this once. Manage your keys on the
+                            <router-link :to="{ name: 'account' }"
+                                >Account page</router-link
+                            >.
+                        </p>
+                        <div class="onboarding-code onboarding-key">
+                            <code>{{ api_key }}</code>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <p>
+                            A key opens your tables through the API: keep it
+                            secret. It's only shown when it's made; make more,
+                            or revoke them, on the
+                            <router-link :to="{ name: 'account' }"
+                                >Account page</router-link
+                            >.
+                        </p>
+                        <el-button
+                            class="onboarding-make-key"
+                            size="small"
+                            :disabled="making_key"
+                            @click="make_key"
+                            >Make a read-only key</el-button
+                        >
+                    </template>
                 </div>
 
                 <div
                     class="step-detail"
                     v-if="step.id === 'copy_command' && view.first_call"
                 >
-                    <p>It has your key in it, so it runs as pasted.</p>
+                    <p v-if="api_key">
+                        It has your new key in it, so it runs as pasted.
+                    </p>
+                    <p v-else>
+                        Put your key in place of
+                        <code>{{ view.first_call.key_placeholder }}</code>.
+                    </p>
                     <div class="onboarding-code">
-                        <code class="onboarding-command"
-                            >{{ view.first_call.command }}</code
-                        >
+                        <code class="onboarding-command">{{ command }}</code>
                         <button
                             class="onboarding-copy"
                             type="button"
@@ -114,13 +130,16 @@
                 >
                     <p v-if="!step.done">
                         Paste it into a terminal. This ticks itself when the API
-                        answers. No terminal?
-                        <el-link
-                            type="primary"
-                            :disabled="running"
-                            @click="run_here"
-                            >Run it here</el-link
-                        >
+                        answers.
+                        <template v-if="api_key">
+                            No terminal?
+                            <el-link
+                                type="primary"
+                                :disabled="running"
+                                @click="run_here"
+                                >Run it here</el-link
+                            >
+                        </template>
                     </p>
                     <p v-else>
                         Next: the

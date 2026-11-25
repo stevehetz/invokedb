@@ -2,20 +2,165 @@
     <div class="form-heading">
         <div class="flex-2-col">
             <div class="left">
-                <h3>API Key</h3>
+                <h3>API Keys</h3>
+            </div>
+            <div class="right">
+                <el-button
+                    class="api-key-new-button"
+                    size="small"
+                    type="primary"
+                    :disabled="loading || at_max || show_new"
+                    @click="open_new"
+                    >New key</el-button
+                >
             </div>
         </div>
     </div>
     <div class="form-body">
-        <div class="api-key-input-block">
-            <div class="copied-popup" v-if="show_copied_popup">copied!</div>
-            <el-input
-                :disabled="true"
-                :value="account ? account.api_key : ''"
-            ></el-input>
-            <span class="copy no-highlight" @click="copy_to_clipboard()">
-                <i class="fa fa-copy"></i>
-            </span>
+        <p class="api-key-intro">
+            A key opens your tables through the API: keep it secret. Each key
+            can be read-only and limited to some tables; revoke one and it stops
+            working at once.
+            <span v-if="at_max"
+                >You have {{ max }} keys: revoke one to make another.</span
+            >
+        </p>
+
+        <div class="api-key-created" v-if="created">
+            <p>
+                <b>{{ created.key.name }}</b> is ready. Copy it now: it's only
+                shown this once.
+            </p>
+            <div class="api-key-input-block">
+                <div class="copied-popup" v-if="show_copied_popup">copied!</div>
+                <input
+                    class="api-key-secret"
+                    :value="created.secret"
+                    readonly
+                    aria-label="The new API key"
+                />
+                <span
+                    class="copy no-highlight"
+                    title="Copy"
+                    @click="copy_secret()"
+                >
+                    <i class="fa fa-copy"></i>
+                </span>
+            </div>
+            <el-button link type="primary" @click="created = null"
+                >I've saved it</el-button
+            >
         </div>
+
+        <div class="api-key-new" v-if="show_new">
+            <div class="api-key-row">
+                <label for="api-key-name">Name</label>
+                <el-input
+                    id="api-key-name"
+                    class="api-key-name"
+                    v-model="form.name"
+                    maxlength="100"
+                    placeholder="e.g. Website, Zapier"
+                    @keyup.enter="save"
+                ></el-input>
+            </div>
+            <div class="api-key-row">
+                <label>Access</label>
+                <el-radio-group class="api-key-access" v-model="form.access">
+                    <el-radio value="read">Read only</el-radio>
+                    <el-radio value="read_write">Read and write</el-radio>
+                </el-radio-group>
+            </div>
+            <div class="api-key-row">
+                <label>Tables</label>
+                <el-radio-group class="api-key-scope" v-model="form.all_tables">
+                    <el-radio :value="true">All tables</el-radio>
+                    <el-radio :value="false">Only these</el-radio>
+                </el-radio-group>
+            </div>
+            <div class="api-key-row" v-if="!form.all_tables">
+                <label></label>
+                <el-select
+                    class="api-key-tables"
+                    v-model="form.table_ids"
+                    multiple
+                    filterable
+                    placeholder="Choose tables"
+                >
+                    <el-option
+                        v-for="t in tables"
+                        :key="t.id"
+                        :label="t.name"
+                        :value="t.id"
+                    ></el-option>
+                </el-select>
+            </div>
+            <div class="api-key-actions">
+                <el-button size="small" @click="show_new = false"
+                    >Cancel</el-button
+                >
+                <el-button
+                    class="api-key-save"
+                    size="small"
+                    type="primary"
+                    :disabled="!can_save"
+                    @click="save"
+                    >Make key</el-button
+                >
+            </div>
+        </div>
+
+        <div class="api-key-status" v-if="loading">Loading your keys...</div>
+        <div class="api-key-status error" v-else-if="load_error">
+            {{ load_error }}
+        </div>
+        <div class="api-key-status" v-else-if="keys.length === 0">
+            No keys yet. Make one to call the API.
+        </div>
+        <table class="api-key-list" v-else>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Key</th>
+                    <th>Access</th>
+                    <th>Tables</th>
+                    <th>Last used</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr
+                    v-for="k in keys"
+                    :key="k.id"
+                    class="api-key-item"
+                    :class="{ revoked: !!k.revoked_datetime }"
+                    :data-key-id="k.id"
+                >
+                    <td class="api-key-item-name">{{ k.name }}</td>
+                    <td>
+                        <code>{{ k.prefix }}…</code>
+                    </td>
+                    <td>{{ access_label(k.access) }}</td>
+                    <td>{{ tables_label(k) }}</td>
+                    <td>
+                        {{ k.last_used_datetime ? time(k.last_used_datetime) :
+                        'Never' }}
+                    </td>
+                    <td class="api-key-item-actions">
+                        <span v-if="k.revoked_datetime" class="api-key-revoked"
+                            >Revoked {{ time(k.revoked_datetime) }}</span
+                        >
+                        <el-button
+                            v-else
+                            class="api-key-revoke"
+                            link
+                            type="danger"
+                            @click="revoke(k)"
+                            >Revoke</el-button
+                        >
+                    </td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 </div>

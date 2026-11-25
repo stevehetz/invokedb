@@ -16,6 +16,7 @@ import { OnboardingInterceptor } from './http/external/onboarding.interceptor';
 import { UrlImportController } from './http/url-import/url-import.controller';
 import { WebhookController } from './http/webhook/webhook.controller';
 import { FormController, PublicFormController } from './http/form/form.controller';
+import { ApiKeyController } from './http/api-key/api-key.controller';
 import { ViewController } from './http/view/view.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
@@ -39,6 +40,7 @@ import { WebsocketClient } from './ws/websocket-client';
         WebhookController,
         FormController,
         PublicFormController,
+        ApiKeyController,
         ViewController
     ],
     providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor]

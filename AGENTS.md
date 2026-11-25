@@ -62,8 +62,9 @@ bash scripts/smoke-env.sh <file>  # throwaway env (horizon_smoke DBs, ports 81xx
 CI (`.github/workflows/ci.yml`) runs on every push to a PR and every push to `main` (a branch with
 no PR gets no CI until one is opened; a dispatched CI run doesn't count toward a PR's required
 checks, #40, #42): backend build + lint + unit tests, the API smoke test (`smoke` job: the built
-backend on Postgres and Mongo service containers), frontend build + lint + typecheck, the
-`examples/` builds, shellcheck (`deploy/*.sh`, `scripts/*.sh`; settings in `.shellcheckrc`) and
+backend on Postgres and Mongo service containers, then the Python client's live tests against
+it), frontend build + lint + typecheck, the `examples/` builds, the Python client's offline
+tests (`python-client`, #257), shellcheck (`deploy/*.sh`, `scripts/*.sh`; settings in `.shellcheckrc`) and
 prettier; `npm run check` runs all but the smoke test locally. Dependabot
 (`.github/dependabot.yml`) opens weekly update PRs. Unit tests are few so far (account scoping, validators, column-name rules); add a `*.spec.ts` next to the code
 for new pure logic. Verify backend changes with `build`, `test`, and `api-smoke.mjs` (see the
@@ -117,9 +118,15 @@ data.
   a `prod.env` change or a manual step on the server. Never for a change that's large,
   risky-looking or visual (those merge by themselves), or for a follow-up the author can't do
   (list it under "Follow-ups" and open an issue).
-- `.github/workflows/repair.yml` opens fix PRs (`claude/fix-*` branches) or issues when CI or CD
-  fails. `automerge.yml` merges its fix PRs into feature branches after CI passes and the review
-  labels them `review-ok`; its fix PRs into `main` follow the auto-merge rule.
+- `.github/workflows/repair.yml` fixes failed CI or CD, or opens an issue. On an open agent PR's
+  branch it pushes the fix straight onto that branch and comments on the PR (#135: a fix PR
+  merged into the branch with the workflow token started no CI); anywhere else it opens a fix PR
+  (`claude/fix-*`). `automerge.yml` merges those into feature branches after CI passes and the
+  review labels them `review-ok`; its fix PRs into `main` follow the auto-merge rule.
+- The site's `/changelog` (#219) is rebuilt before every deploy: `cd.yml` runs
+  `scripts/changelog.mjs` and publishes the file as the `changelog` release's asset, and the
+  web image's build fetches it (`deploy/web.Dockerfile`), keeping the repo's copy if it can't
+  (#259). A removed feature's PR goes in the script's `SKIP`.
 - Give the user one step at a time: only the next thing they have to do, then wait.
 
 ## How work is tracked

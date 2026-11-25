@@ -6,15 +6,27 @@
 //
 //   npm run changelog              # writes packages/horizon-fe/src/view/pages/changelog/changelog.json
 //   npm run changelog -- --check   # exits 1 if the file is out of date (writes nothing)
+//   npm run changelog -- --out <file>  # writes there instead (cd.yml publishes it, #259)
+//
+// In production the site's build fetches the copy cd.yml publishes as the `changelog` release's
+// asset before every deploy (deploy/web.Dockerfile), so the page is current without a commit;
+// the file in the repo is only the fallback when that fetch fails.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const LABEL = 'enhancement';
+// PRs of features that were later removed, left off the changelog: #244 dashboards (removed in
+// #265, #264). Add a PR here when its feature is taken out.
+const SKIP = new Set([244]);
 const LIMIT = '1000';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const out = join(root, 'packages/horizon-fe/src/view/pages/changelog/changelog.json');
+const out_arg = process.argv.indexOf('--out');
+const out =
+    out_arg > -1 && process.argv[out_arg + 1]
+        ? process.argv[out_arg + 1]
+        : join(root, 'packages/horizon-fe/src/view/pages/changelog/changelog.json');
 
 function gh(args) {
     const text = execFileSync('gh', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 << 20 });
@@ -50,6 +62,7 @@ const prs = gh([
 ]);
 
 const entries = prs
+    .filter(pr => !SKIP.has(pr.number))
     .filter(
         pr =>
             pr.labels.some(l => l.name === LABEL) ||

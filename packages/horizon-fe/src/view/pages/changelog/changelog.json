@@ -1,8 +1,23 @@
 [
     {
         "date": "2026-11-25",
+        "number": 260,
+        "title": "Help pages and a changelog on the site"
+    },
+    {
+        "date": "2026-11-25",
         "number": 258,
         "title": "Add the Python client (examples/invokedb-python)"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 255,
+        "title": "Per-key rate limits and API request logs"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 254,
+        "title": "Add data export of an account"
     },
     {
         "date": "2026-11-25",
@@ -13,6 +28,11 @@
         "date": "2026-11-25",
         "number": 243,
         "title": "Edit rows with natural language in Ask AI, with a preview and undo"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 242,
+        "title": "Measure onboarding: signup time and a funnel report"
     },
     {
         "date": "2026-11-25",
@@ -36,8 +56,23 @@
     },
     {
         "date": "2026-11-25",
+        "number": 199,
+        "title": "Start repair when the production E2E fails"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 197,
+        "title": "Queue agent-found bugs automatically"
+    },
+    {
+        "date": "2026-11-25",
         "number": 188,
         "title": "Ask your data: plain-English questions about a table"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 185,
+        "title": "Add the pricing review: limits audit, cost model, tiers and test plan"
     },
     {
         "date": "2026-11-25",
@@ -95,8 +130,73 @@
         "title": "Table templates with sample data"
     },
     {
+        "date": "2026-11-25",
+        "number": 162,
+        "title": "Stop the frontend entry from loading the ag-grid chunk"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 157,
+        "title": "agent-queue: move on past stuck agent PRs"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 126,
+        "title": "Run the UI test against production nightly and after each deploy"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 125,
+        "title": "security-fix: dismiss CodeQL false positives itself"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 108,
+        "title": "Have the agent fix CodeQL alerts and triage unfixable dependency alerts"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 105,
+        "title": "Replace Dependabot version updates with a monthly update agent"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 91,
+        "title": "Let the agent fix or decline Dependabot PRs that need changes"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 88,
+        "title": "Let the cloud agent open issues for follow-ups it finds"
+    },
+    {
         "date": "2026-11-24",
         "number": 54,
         "title": "Add Google and GitHub sign-in"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 47,
+        "title": "Resolve merge conflicts on agent PRs automatically"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 34,
+        "title": "Revise: address review comments automatically"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 32,
+        "title": "Cloud agent: implement agent-labelled issues one at a time"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 25,
+        "title": "Run the API smoke test in CI; first backend unit tests"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 22,
+        "title": "Auto-merge safe PRs into main"
     }
 ]

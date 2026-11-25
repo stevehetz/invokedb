@@ -27,7 +27,7 @@ only where you meant them to).
 | `add_column`               | Edit Columns → Add Column → name it → save; shown and saved                                                                                                          |
 | `remove_column`            | Edit Columns → ⊖ on `joined` → save; gone from grid and backend                                                                                                      |
 | `websocket_type_change`    | change `age` to number + index → background job; grid reloads only after `WEB_FILE_PROCESS_START`/`COMPLETE` over the websocket                                      |
-| `api_key_and_external_api` | Account page shows the API key; `/api/v1/get` with that key returns the table                                                                                        |
+| `api_key_and_external_api` | Account page makes a read-only key for the table (shown once); `/api/v1/get` with it returns the table, a write is a 403; revoked, it's a 401                        |
 | `delete_table`             | select the table in the tree → trash → Confirm; tab closes, backend has no table                                                                                     |
 | `logout`                   | sign-out icon returns to the public site                                                                                                                             |
 

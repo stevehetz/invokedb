@@ -123,16 +123,25 @@
                 <h4>Try it</h4>
                 <div class="try-row">
                     <label>Key</label>
-                    <select class="try-key" v-model="key_id">
-                        <option v-for="k in keys" :key="k.id" :value="k.id">
-                            {{ k.label }}
-                        </option>
-                    </select>
+                    <input
+                        class="try-key"
+                        type="password"
+                        v-model="try_key"
+                        placeholder="Paste an API key"
+                        autocomplete="off"
+                    />
                     <label class="try-writes">
                         <input type="checkbox" v-model="allow_writes" />
                         Allow requests that change data
                     </label>
                 </div>
+                <p class="api-dialog-hint try-key-hint" v-if="!api_key">
+                    Keys are only shown when they're made: make one on the
+                    <span class="go-to-doc-link" @click="go_to_account"
+                        >Account page</span
+                    >
+                    and paste it here.
+                </p>
                 <div class="try-row">
                     <label>URL</label>
                     <input class="try-url" v-model="try_url" />

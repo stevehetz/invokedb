@@ -3,8 +3,7 @@ import {
     assert_verified,
     creating_needs_verified_email,
     is_verified,
-    verify_email_url,
-    visible_api_key
+    verify_email_url
 } from './email-verification';
 
 describe('is_verified', () => {
@@ -50,13 +49,5 @@ describe('verify_email_url', () => {
             'https://invokedb.com/verify-email?token=a-b'
         );
         expect(verify_email_url('https://x', 'a&b')).toBe('https://x/verify-email?token=a%26b');
-    });
-});
-
-describe('visible_api_key', () => {
-    it('shows the key only once the email is verified', () => {
-        expect(visible_api_key({ email_verified: true, api_key: 'k' })).toBe('k');
-        expect(visible_api_key({ email_verified: false, api_key: 'k' })).toBeNull();
-        expect(visible_api_key({ api_key: 'k' })).toBeNull();
     });
 });

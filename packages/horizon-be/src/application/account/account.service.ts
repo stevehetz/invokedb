@@ -19,11 +19,6 @@ export class AccountService {
         return await this.account_repository.findOneBy({ id });
     }
 
-    async account_from_key(api_key) {
-        if (!api_key) return null;
-        return await this.account_repository.findOneBy({ api_key });
-    }
-
     async update(account_id, update_dto: AccountUpdateDto) {
         await this.account_repository.update(account_id, update_dto);
         return account_id;

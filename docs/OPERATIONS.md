@@ -218,8 +218,8 @@ repo: it's public.
 
 - **Does:** drives `https://invokedb.com` in Playwright's Chromium as a dedicated test account
   with `scripts/ui-smoke.mjs`: the public pages, login, a CSV upload (progress over the
-  websocket), sort, filter, a cell edit, column changes, the API key and `/api/v1`, deleting the
-  table, logout. It deletes any table it left behind, even when a step fails. It doesn't sign up
+  websocket), sort, filter, a cell edit, column changes, making an API key and calling
+  `/api/v1` with it (it revokes the keys it made), deleting the table, logout. It deletes any table it left behind, even when a step fails. It doesn't sign up
   or use Google/GitHub sign-in.
 - **Runs:** nightly at 06:00 UTC, by hand ("Run workflow"), and after every successful deploy
   (`cd.yml` starts it with the deployed commit).

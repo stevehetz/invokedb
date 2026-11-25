@@ -23,7 +23,8 @@ Needs Node 22.22.3+ or 24.15+ (the repo's `.nvmrc` gives you a Node 22 that work
 
    It logs in as `demo@invokedb.com`, uploads `examples/data/*.csv` as the `todo`, `contacts`
    and `wine_reviews` tables, sets their column types and indexes, and writes
-   `public/invokedb.config.json` (gitignored) with that account's API key. Options:
+   `public/invokedb.config.json` (gitignored) with a new read-write API key for that account
+   (named "Examples (setup.mjs)"; each run revokes the last run's). Options:
    `--email`, `--password`, `--base http://127.0.0.1:8001`, and `--replace` to re-create the
    tables from the CSVs.
 

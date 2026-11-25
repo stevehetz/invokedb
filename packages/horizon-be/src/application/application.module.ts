@@ -19,6 +19,7 @@ import { UrlImportService } from './url-import/url-import.service';
 import { WebhookService } from './webhook/webhook.service';
 import { WebhookPrcService } from './webhook/webhook-prc.service';
 import { FormService } from './form/form.service';
+import { ApiKeyService } from './api-key/api-key.service';
 import { ViewService } from './view/view.service';
 import { AskService } from './ai/ask.service';
 
@@ -42,6 +43,7 @@ import { AskService } from './ai/ask.service';
         WebhookService,
         WebhookPrcService,
         FormService,
+        ApiKeyService,
         ViewService,
         AskService
     ],
@@ -60,6 +62,7 @@ import { AskService } from './ai/ask.service';
         UrlImportService,
         WebhookService,
         FormService,
+        ApiKeyService,
         ViewService,
         AskService
     ]

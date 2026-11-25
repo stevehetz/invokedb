@@ -15,6 +15,7 @@ import { AccountService } from '@app/application/account/account.service';
 import { FileDirectoryService } from '@app/application/file-directory/file-directory.service';
 import { AuthGuard } from '@nestjs/passport';
 import { api_key_account } from '@app/web/http/_auth/request-account';
+import { assert_key_allows } from '@app/core/api-key/api-key-rules';
 import { public_api_base_url } from '@app/web/http/public-api-url';
 import { OnboardingInterceptor } from './onboarding.interceptor';
 
@@ -29,7 +30,9 @@ export class ExternalV1Controller {
         private readonly file_dir_service: FileDirectoryService
     ) {}
 
-    async get_file_id(user, file_name) {
+    // The table's id, once the key may make this call on it (#138): `write` for calls that change
+    // rows, which a read-only key can't make; a key limited to some tables only reaches those.
+    async get_file_id(user, file_name, write = false) {
         const account = api_key_account(user);
         if (typeof file_name !== 'string' || file_name.length === 0) {
             throw new HttpException(
@@ -48,6 +51,7 @@ export class ExternalV1Controller {
         if (!file_directory) {
             throw new HttpException('File name not found', HttpStatus.BAD_REQUEST);
         }
+        assert_key_allows(account.key_scope, file_directory.id, write);
 
         return file_directory.id;
     }
@@ -101,7 +105,7 @@ export class ExternalV1Controller {
 
     @Post('create')
     async grid_as_json_create_rows(@Request() req) {
-        const file_id = await this.get_file_id(req.user, req.query.table);
+        const file_id = await this.get_file_id(req.user, req.query.table, true);
         const format = req.query.format;
 
         return await this.web_file_service.external_create_rows(
@@ -114,7 +118,7 @@ export class ExternalV1Controller {
 
     @Put('update')
     async grid_as_json_update(@Request() req) {
-        const file_id = await this.get_file_id(req.user, req.query.table);
+        const file_id = await this.get_file_id(req.user, req.query.table, true);
         const format = req.query.format;
 
         return await this.web_file_service.external_update_rows(
@@ -139,7 +143,7 @@ export class ExternalV1Controller {
 
     @Post('delete')
     async grid_as_json_delete(@Request() req) {
-        const file_id = await this.get_file_id(req.user, req.query.table);
+        const file_id = await this.get_file_id(req.user, req.query.table, true);
 
         return await this.web_file_service.external_delete_rows(req.user, file_id, req.body);
     }

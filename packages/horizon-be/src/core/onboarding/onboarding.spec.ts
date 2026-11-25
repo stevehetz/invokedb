@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import {
+    API_KEY_PLACEHOLDER,
     build_onboarding,
     first_call_command,
     first_call_url,
@@ -14,7 +15,7 @@ const done_of = (view: ReturnType<typeof build_onboarding>) =>
 
 describe('build_onboarding', () => {
     it('shows every step undone for a new account', () => {
-        const view = build_onboarding({ state: null, table: null, api_key: KEY, base_url: BASE });
+        const view = build_onboarding({ state: null, table: null, base_url: BASE });
         expect(view.show).toBe(true);
         expect(view.complete).toBe(false);
         expect(view.steps.map(s => s.id)).toEqual([...STEP_IDS]);
@@ -23,7 +24,7 @@ describe('build_onboarding', () => {
     });
 
     it('ticks "create a table" from the account having one, and offers the command', () => {
-        const view = build_onboarding({ state: {}, table: 'people', api_key: KEY, base_url: BASE });
+        const view = build_onboarding({ state: {}, table: 'people', base_url: BASE });
         expect(done_of(view)).toEqual({
             create_table: true,
             view_api_key: false,
@@ -33,15 +34,16 @@ describe('build_onboarding', () => {
         expect(view.first_call).toEqual({
             table: 'people',
             url: `${BASE}/get?table=people&skip=0&limit=10`,
-            command: first_call_command(BASE, 'people', KEY)
+            command: first_call_command(BASE, 'people', API_KEY_PLACEHOLDER),
+            key_placeholder: API_KEY_PLACEHOLDER
         });
+        expect(view.first_call.command).toContain(`Bearer ${API_KEY_PLACEHOLDER}'`);
     });
 
     it('ticks the steps the app recorded', () => {
         const view = build_onboarding({
             state: { key_viewed_at: 1, command_copied_at: 2 },
             table: 'people',
-            api_key: KEY,
             base_url: BASE
         });
         expect(done_of(view)).toEqual({
@@ -57,7 +59,6 @@ describe('build_onboarding', () => {
         const view = build_onboarding({
             state: { api_called_at: 3 },
             table: 'people',
-            api_key: KEY,
             base_url: BASE
         });
         expect(view.steps.every(s => s.done)).toBe(true);
@@ -69,16 +70,15 @@ describe('build_onboarding', () => {
         const view = build_onboarding({
             state: { dismissed_at: 5 },
             table: null,
-            api_key: KEY,
             base_url: BASE
         });
         expect(view.show).toBe(false);
         expect(view.complete).toBe(false);
     });
 
-    it('has no command without an API key', () => {
-        const view = build_onboarding({ state: {}, table: 't', api_key: null, base_url: BASE });
-        expect(view.first_call).toBeNull();
+    it('never has a real key in the command: keys are only shown when made (#138)', () => {
+        const view = build_onboarding({ state: {}, table: 't', base_url: BASE });
+        expect(view.first_call.command).toBe(first_call_command(BASE, 't', API_KEY_PLACEHOLDER));
     });
 });
 

@@ -22,8 +22,7 @@ import {
     SIGNUP_ANSWER,
     VERIFY_LINK_HOURS,
     is_verified,
-    verify_email_url,
-    visible_api_key
+    verify_email_url
 } from '@app/core/email-verification/email-verification';
 import { verify_email_tmpl } from '@app/email/verify-email.template';
 import { signup_attempt_tmpl } from '@app/email/signup-attempt.template';
@@ -93,9 +92,7 @@ export class AuthService {
                 token: session.token,
                 locked: account.locked,
                 locked_reason: account.locked_reason,
-                email_verified: is_verified(account),
-                // Null until the email is verified (#132): the key can't be used before then
-                api_key: visible_api_key(account)
+                email_verified: is_verified(account)
             };
 
             if (account.subscription_id) {
@@ -136,16 +133,11 @@ export class AuthService {
             return SIGNUP_ANSWER;
         }
 
-        const api_key = await this.get_unique_api_key();
-
-        if (!api_key) {
-            throw new Error('Could not find a unique API key');
-        }
-
+        // No API key yet: once the email is verified (#132), the account makes its keys on the
+        // Account page (#138)
         const account = await this.account_repository.save({
             email,
             password_hash,
-            api_key,
             email_verified: false
         });
 
@@ -276,15 +268,11 @@ export class AuthService {
             throw new SsoError('failed');
         }
 
-        const api_key = await this.get_unique_api_key();
-        if (!api_key) throw new Error('Could not find a unique API key');
-
         const account = await this.account_repository.save({
             email: identity.email,
             password_hash: null,
             first_name: identity.first_name,
             last_name: identity.last_name,
-            api_key,
             // The provider verified the email (identity.email is null otherwise)
             email_verified: true
         });
@@ -295,29 +283,6 @@ export class AuthService {
         this.send_welcome(account);
 
         return account;
-    }
-
-    async get_unique_api_key() {
-        const total_tries = 5;
-        let tries = 0;
-        let unique_key;
-
-        const go = async () => {
-            if (tries < total_tries) {
-                tries++;
-                const api_key = this.account_manager.generate_api_key();
-                const account = await this.account_repository.findOneBy({ api_key });
-                if (account) {
-                    await go();
-                } else {
-                    unique_key = api_key;
-                }
-            }
-        };
-
-        await go();
-
-        return unique_key;
     }
 
     // Always answers 'success', whether or not the email has an account, so the reply doesn't

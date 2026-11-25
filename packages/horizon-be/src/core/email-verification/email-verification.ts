@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
 
 // Email verification on signup (#132). A new password account starts unverified: it can sign in
-// and look around, but can't create tables or use its API key until its owner clicks the link
+// and look around, but can't create tables or API keys, or use a key, until its owner clicks the link
 // sent to the address. Google and GitHub accounts (the provider verified the email) and accounts
 // from before #132 are verified.
 
@@ -34,9 +34,4 @@ export function creating_needs_verified_email(file_directory: { type?: string })
 /** The page the verification email links to (on the public site). */
 export function verify_email_url(site_url: string, token: string): string {
     return `${site_url}/verify-email?token=${encodeURIComponent(token)}`;
-}
-
-/** The API key, but only for a verified account (an unverified one doesn't have one to use yet). */
-export function visible_api_key(account: { email_verified?: boolean; api_key?: string }) {
-    return is_verified(account) ? account.api_key : null;
 }

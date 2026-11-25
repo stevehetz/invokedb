@@ -368,6 +368,14 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   the answer carries `proposed: { rows, columns }`, which the dialog's "Add to table" hands to
   the grid's `preview_generated_rows` (review, then Save). The `generate-rows` route stays for
   the API.
+- AI edits (#204): Ask AI's third tool, `propose_edit`, is a spec, never code: filters (as
+  `/api/v1/query`) plus one change per column from a fixed list (`set`, `copy`, `title`,
+  `replace`, `split`, `map`, `concat`, `add`...), checked and worked out row by row in
+  `src/core/ai/edit.ts` (pure). `EditService.preview` answers `edit: { rows: [{ _id, before,
+after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
+  `POST /ai/web-file/:id/apply-edit` writes it through `batch_update_internal` (locks,
+  webhooks), only to rows still holding `before`, and calls no model; Undo is the same route
+  with before and after swapped (the dialog keeps the last edit per table until a page load).
 - Email verification (#132): `account.email_verified` (migration marks every older account
   verified; Google/GitHub accounts are created verified). `src/core/email-verification/` has the
   rules; links are rows of `email_verification` (24 hours, one per account). `create-account`

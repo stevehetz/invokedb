@@ -46,6 +46,18 @@ export const ai_http = {
     },
 
     /**
+     * Applies an edit Ask AI proposed (#204), or undoes one (before and after swapped). A row
+     * is written only if it still holds `before`: `{ updated: [ids], skipped: [ids] }`.
+     * @param {number} table the table's id
+     * @param {{ _id: string, before: object, after: object }[]} rows
+     */
+    async apply_edit(table, rows) {
+        return http.post(http.get_url(`/ai/web-file/${table}/apply-edit`), {
+            rows
+        });
+    },
+
+    /**
      * A new table's design and rows, not saved: `{ table_name, columns, rows, usage }`.
      * @param {{ description: string, row_count: number }} body
      */

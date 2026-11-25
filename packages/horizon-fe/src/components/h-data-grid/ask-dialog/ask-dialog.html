@@ -1,10 +1,12 @@
 <div class="ask-dialog">
     <p class="ask-intro">
-        Ask about <b>{{ table_name }}</b> in plain English, or ask for new rows.
-        A question becomes an API query that only reads the table: you see the
-        answer, the rows behind it and the API call. Rows you ask for are made
-        up to fit the columns and shown here first; nothing is saved until you
-        add them and click Save.
+        Ask about <b>{{ table_name }}</b> in plain English, ask for new rows, or
+        ask to change rows. A question becomes an API query that only reads the
+        table: you see the answer, the rows behind it and the API call. Rows you
+        ask for are made up to fit the columns and shown here first; nothing is
+        saved until you add them and click Save. A change ("title-case the
+        names") is shown row by row, before and after, and is made only when you
+        apply it.
     </p>
 
     <div class="ask-row">
@@ -41,6 +43,20 @@
 
     <div class="ask-status" v-if="asking">Thinking...</div>
     <div class="ask-status error" v-if="error">{{ error }}</div>
+    <div class="ask-edit-done" v-if="edit_message || undo_rows">
+        <span v-if="edit_message">{{ edit_message }}</span>
+        <span v-else>Your last AI edit of this table can be undone.</span>
+        <el-button
+            v-if="undo_rows"
+            class="ask-undo-edit"
+            link
+            size="small"
+            :loading="undoing"
+            :disabled="applying"
+            @click="undo_edit"
+            >Undo</el-button
+        >
+    </div>
 
     <div class="ask-result" v-if="result && !asking">
         <div class="ask-answer">{{ result.answer }}</div>
@@ -85,6 +101,65 @@
                 <span class="ask-hint"
                     >They show in the grid as new rows: edit or delete any, then
                     Save.</span
+                >
+            </div>
+        </div>
+
+        <div v-if="edit">
+            <h4>
+                Changes
+                <span class="ask-count"
+                    >{{ edit.rows.length }} row{{ edit.rows.length === 1 ? '' :
+                    's' }}<span v-if="edit.capped">
+                        (of {{ edit.matching }} matching; an edit changes at
+                        most {{ edit.limit }})</span
+                    ></span
+                >
+            </h4>
+            <div class="ask-rows">
+                <table>
+                    <thead>
+                        <tr>
+                            <th v-for="c in edit.columns" :key="c.field">
+                                {{ c.name }}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            class="ask-edit-row"
+                            v-for="r in edit.rows"
+                            :key="r._id"
+                        >
+                            <td v-for="c in edit.columns" :key="c.field">
+                                <template v-if="edit_changes(r, c.field)">
+                                    <span class="ask-edit-before"
+                                        >{{ edit_cell(r.before[c.field])
+                                        }}</span
+                                    ><span class="ask-edit-arrow">→</span
+                                    ><span class="ask-edit-after"
+                                        >{{ edit_cell(r.after[c.field]) }}</span
+                                    >
+                                </template>
+                                <span v-else class="ask-count">unchanged</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="ask-actions">
+                <el-button
+                    class="ask-apply-edit"
+                    type="primary"
+                    size="small"
+                    :loading="applying"
+                    :disabled="edit_applied || undoing"
+                    @click="apply_edit"
+                    >{{ edit_applied ? 'Applied' : 'Apply' }}</el-button
+                >
+                <span class="ask-hint"
+                    >Nothing changes until you apply it, and you can undo it
+                    here afterwards.</span
                 >
             </div>
         </div>

@@ -149,7 +149,9 @@ export function ask_system_prompt(
     table: string,
     columns: QueryColumn[],
     samples: Record<string, unknown>[],
-    today: string
+    today: string,
+    // More tools' instructions (propose_edit, #204)
+    extra: string[] = []
 ) {
     const cols = columns.map(c => `- ${JSON.stringify(c.name)} (${c.type})`).join('\n');
     return [
@@ -166,6 +168,7 @@ export function ask_system_prompt(
             `entries...), call ${PROPOSE_TOOL_NAME} with how many rows (default 10, at most ` +
             `${PROPOSE_MAX_ROWS}) and a short description of what they should contain. It only ` +
             'prepares rows for the user to review; the user decides whether to save them.',
+        ...extra,
         `For anything else, always call ${ASK_TOOL_NAME} first to read the rows the question ` +
             `is about. It returns ` +
             `how many rows match (total_matching) and at most ${ASK_MAX_ROWS} of them, so for a ` +

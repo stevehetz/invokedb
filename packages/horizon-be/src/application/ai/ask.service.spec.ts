@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ObjectId } from 'mongodb';
 import { AskService } from './ask.service';
+import { EditService } from './edit.service';
 import { ASK_MAX_TURNS } from '@app/core/ai/ask';
 import { AI_ALLOWANCES } from '@app/core/ai/ai-plan';
 import { AiSpend } from '@app/core/ai/ai-spend';
@@ -17,6 +18,7 @@ import * as telegram from '@app/core/telegram/telegram';
 // The model is never called: every reply is scripted.
 jest.mock('../file-directory/file-directory.service', () => ({}));
 jest.mock('../account/account.service', () => ({}));
+jest.mock('../web-file/web-file.service', () => ({}));
 jest.mock('../../core/ai/ai-client', () => ({ AiClient: class {} }));
 jest.mock('../../core/telegram/telegram', () => ({
     telegram_configured: () => true,
@@ -151,6 +153,7 @@ function setup(
         })),
         rows_usage: jest.fn(async () => ({ month: '2026-11', used: 0, limit: 50 }))
     };
+    const web_file_svc = { batch_update_internal: jest.fn(async () => 0) };
     const svc = new AskService(
         file_directory_svc as any,
         account_svc as any,
@@ -159,7 +162,14 @@ function setup(
         ai_client as any,
         ai_usage as any,
         new AiSpend(ai_client as any, ai_usage as any),
-        ai_service as any
+        ai_service as any,
+        // Edits (#204) are worked out on the rows above; nothing is written by a preview
+        new EditService(
+            file_directory_svc as any,
+            account_svc as any,
+            web_file_manager as any,
+            web_file_svc as any
+        )
     );
     svc.now = () => NOW;
     return {
@@ -171,6 +181,7 @@ function setup(
         ai_usage,
         ai_service,
         web_file_manager,
+        web_file_svc,
         tracking_manager
     };
 }
@@ -265,7 +276,11 @@ describe('AskService', () => {
         const res = await svc.ask(ACCT, { table: 11, question: 'add 3 VIP signups' }, BASE);
         // One model call: the rows come from the generator, not another turn
         expect(calls).toHaveLength(1);
-        expect(calls[0].tools.map(t => t.name)).toEqual(['run_query', 'propose_rows']);
+        expect(calls[0].tools.map(t => t.name)).toEqual([
+            'run_query',
+            'propose_rows',
+            'propose_edit'
+        ]);
         const [account, file, request] = ai_service.preview_rows.mock.calls[0];
         expect(account.id).toBe(ACCT);
         expect(file.id).toBe(11);
@@ -303,6 +318,64 @@ describe('AskService', () => {
             is_error: true
         });
         expect(res.answer).toBe('I can add at most 100 rows at a time.');
+    });
+
+    it('previews an edit when asked to change rows, writing nothing (#204)', async () => {
+        const { svc, calls, usage, web_file_svc } = setup([
+            [
+                tool_use(
+                    {
+                        summary: 'Upper-case the names of products over 10',
+                        filters: [{ column: 'Price', op: 'gt', value: 10 }],
+                        changes: [{ column: 'Name', op: 'upper' }]
+                    },
+                    'tu_1',
+                    'propose_edit'
+                )
+            ]
+        ]);
+        const res = await svc.ask(ACCT, { table: 11, question: 'upper-case those names' }, BASE);
+        expect(calls).toHaveLength(1);
+        expect(calls[0].tools.map(t => t.name)).toEqual([
+            'run_query',
+            'propose_rows',
+            'propose_edit'
+        ]);
+        expect(calls[0].system).toContain('propose_edit');
+        expect(res.edit.columns).toEqual([{ field: 'a', name: 'Name', type: 'string' }]);
+        expect(res.edit.rows).toEqual([
+            { _id: String(ROWS[1]._id), before: { a: 'Lamp' }, after: { a: 'LAMP' } },
+            { _id: String(ROWS[2]._id), before: { a: 'Desk' }, after: { a: 'DESK' } }
+        ]);
+        expect(res.edit).toMatchObject({ matching: 2, capped: false, limit: 500 });
+        expect(res.answer).toContain('This changes 2 rows');
+        expect(res.api_call).toBeNull();
+        expect(web_file_svc.batch_update_internal).not.toHaveBeenCalled();
+        expect(usage[`${ACCT}:2026-11`].questions).toBe(1);
+    });
+
+    it('sends a bad propose_edit input back to the model', async () => {
+        const { svc, calls } = setup([
+            [tool_use({ changes: [{ column: 'Name', op: 'eval' }] }, 'tu_1', 'propose_edit')],
+            [text('I can only use the listed operations.')]
+        ]);
+        const res = await svc.ask(ACCT, { table: 11, question: 'run this code' }, BASE);
+        expect(calls[1].messages[2].content[0]).toMatchObject({
+            type: 'tool_result',
+            tool_use_id: 'tu_1',
+            is_error: true
+        });
+        expect(res.edit).toBeNull();
+        expect(res.answer).toBe('I can only use the listed operations.');
+    });
+
+    it('says so when an edit changes nothing', async () => {
+        const { svc } = setup([
+            [tool_use({ changes: [{ column: 'Name', op: 'title' }] }, 'tu_1', 'propose_edit')]
+        ]);
+        const res = await svc.ask(ACCT, { table: 11, question: 'title-case names' }, BASE);
+        expect(res.edit).toBeNull();
+        expect(res.answer).toContain('None of the 3 rows would change');
     });
 
     it('refuses other tools', async () => {
@@ -443,7 +516,8 @@ describe('AskService', () => {
         expect(calls[1].messages[2]).toEqual({
             role: 'user',
             content:
-                'Call run_query to read the rows before you answer, or propose_rows if I asked for rows.'
+                'Call run_query to read the rows before you answer, propose_rows if I asked for ' +
+                'new rows, or propose_edit if I asked to change rows.'
         });
     });
 

@@ -128,17 +128,30 @@ if (env.ANTHROPIC_BASE_URL === AI_STUB_URL) {
                             text: `Stub: ${JSON.parse(result.content).total_matching} rows match`
                         }
                     ]
-                  : // "add ..." asks for rows (#234): propose 2 of them
-                    /^add /i.test(String(body.messages?.[0]?.content || ''))
+                  : // "change ..." asks for an edit (#204): upper-case every name
+                    /^change /i.test(String(body.messages?.[0]?.content || ''))
                     ? [
                           {
                               type: 'tool_use',
                               id: 'toolu_ui_smoke',
-                              name: 'propose_rows',
-                              input: { count: 2, description: 'two more people' }
+                              name: 'propose_edit',
+                              input: {
+                                  summary: 'Upper-case the names',
+                                  changes: [{ column: 'name', op: 'upper' }]
+                              }
                           }
                       ]
-                    : [{ type: 'tool_use', id: 'toolu_ui_smoke', name: 'run_query', input: {} }];
+                    : // "add ..." asks for rows (#234): propose 2 of them
+                      /^add /i.test(String(body.messages?.[0]?.content || ''))
+                      ? [
+                            {
+                                type: 'tool_use',
+                                id: 'toolu_ui_smoke',
+                                name: 'propose_rows',
+                                input: { count: 2, description: 'two more people' }
+                            }
+                        ]
+                      : [{ type: 'tool_use', id: 'toolu_ui_smoke', name: 'run_query', input: {} }];
             res.setHeader('Content-Type', 'application/json');
             res.end(
                 JSON.stringify({
@@ -858,6 +871,53 @@ try {
             check(
                 (await dialog.locator('.ask-usage').innerText()).includes('questions used'),
                 "the Ask dialog doesn't show the usage"
+            );
+
+            // Editing rows (#204): the stub upper-cases every name. The preview shows each
+            // changed row before and after and changes nothing; Apply writes it, Undo puts
+            // the names back.
+            const before = await be_table(be_s, file_id);
+            const to_change = before.rows.filter(
+                r => typeof r.name === 'string' && r.name !== r.name.toUpperCase()
+            );
+            await dialog.locator('.ask-question').fill('change the names to upper case');
+            await dialog.getByRole('button', { name: 'Ask', exact: true }).click();
+            const edit_rows = dialog.locator('.ask-edit-row');
+            await dialog.locator('.ask-apply-edit').waitFor();
+            const shown = await edit_rows.count();
+            const first = to_change[0] ? await edit_rows.first().innerText() : '';
+            results.observed.ai_edit_preview = { shown, first };
+            check(shown === to_change.length, `the edit preview shows ${shown} rows`);
+            check(
+                !to_change[0] ||
+                    (first.includes(to_change[0].name) &&
+                        first.includes(to_change[0].name.toUpperCase())),
+                `the edit preview's first row is "${first}"`
+            );
+            const previewed = await be_table(be_s, file_id);
+            check(
+                JSON.stringify(previewed.rows) === JSON.stringify(before.rows),
+                'the edit preview changed the table'
+            );
+            await dialog.locator('.ask-apply-edit').click();
+            await dialog.locator('.ask-undo-edit').waitFor();
+            const applied = await be_table(be_s, file_id);
+            check(
+                applied.rows.every(
+                    (r, i) =>
+                        r.name ===
+                        (typeof before.rows[i].name === 'string'
+                            ? before.rows[i].name.toUpperCase()
+                            : before.rows[i].name)
+                ),
+                `after Apply the names are ${applied.rows.map(r => r.name).join(', ')}`
+            );
+            await dialog.locator('.ask-undo-edit').click();
+            await dialog.locator('.ask-undo-edit').waitFor({ state: 'detached' });
+            const undone = await be_table(be_s, file_id);
+            check(
+                JSON.stringify(undone.rows) === JSON.stringify(before.rows),
+                `after Undo the names are ${undone.rows.map(r => r.name).join(', ')}`
             );
         }
         await page.locator('.container-dialog .el-dialog__headerbtn').click();

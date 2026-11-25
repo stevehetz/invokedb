@@ -138,8 +138,14 @@ function same(a, b) {
 
 function matches(doc, query) {
     return Object.entries(query || {}).every(([key, cond]: [string, any]) => {
+        if (key === '$or') return cond.some(q => matches(doc, q));
         const value = doc[key];
         if (cond && typeof cond === 'object' && !(cond instanceof ObjectId)) {
+            // Like Mongo's, comparisons only match values of the same type
+            if ('$lt' in cond && !(typeof value === typeof cond.$lt && value < cond.$lt))
+                return false;
+            if ('$type' in cond && cond.$type === 'objectId' && !(value instanceof ObjectId))
+                return false;
             if ('$lte' in cond && !(value <= cond.$lte)) return false;
             if ('$gt' in cond && !(value > cond.$gt)) return false;
             if ('$ne' in cond && same(value, cond.$ne)) return false;
@@ -292,6 +298,29 @@ describe('TrackingManager.update_req_count', () => {
         set_clock(T0 + 3 * 60_000);
         await manager.update_req_count(account);
         expect(collection('tracking:req_count').docs).toEqual([{ _id: T0 + 3 * 60_000, count: 1 }]);
+    });
+
+    it('drops the old single document', async () => {
+        const { manager, collection } = setup();
+        collection('tracking:req_count').docs.push({ _id: new ObjectId(), count: 7 });
+        await manager.update_req_count(account);
+        expect(collection('tracking:req_count').docs).toEqual([{ _id: T0, count: 1 }]);
+    });
+
+    it("doesn't reset the current window when a late call from the minute before lands", async () => {
+        const { manager, collection, set_clock } = setup();
+        set_clock(T0 + 60_000);
+        for (let i = 0; i < 5; i++) await manager.update_req_count(account);
+        // A call that read the clock in the previous minute re-creates that window's document
+        set_clock(T0 + 59_900);
+        await manager.update_req_count(account);
+        expect(collection('tracking:req_count').docs).toContainEqual({
+            _id: T0 + 60_000,
+            count: 5
+        });
+        set_clock(T0 + 60_500);
+        const err = await outcome(manager.update_req_count(account));
+        expect(err.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
     });
 
     it("doesn't treat a plan with no limit as unlimited", async () => {

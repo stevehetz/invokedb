@@ -311,8 +311,14 @@ export class TrackingManager {
             if (ex.code !== 11000) throw ex;
             doc = await count_call();
         }
-        // The first call of a window drops the earlier ones (and the old single document)
-        if (doc && doc.count === 1) await c.deleteMany({ _id: { $ne: start as any } });
+        // The first call of a window drops the earlier windows (and the old single document,
+        // whose `_id` is an ObjectId). Only older ones: a slow call from the minute before can
+        // re-create its window after the current one has started, and must not delete it.
+        if (doc && doc.count === 1) {
+            await c.deleteMany({
+                $or: [{ _id: { $lt: start as any } }, { _id: { $type: 'objectId' } }]
+            });
+        }
         if (doc && doc.count > max) {
             throw new HttpException(
                 { message: EXCEPTIONS.REQ_COUNT_EXCEEDED, retry_after: retry_after_s },

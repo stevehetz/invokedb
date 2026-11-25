@@ -10,6 +10,7 @@ import { ObjectId } from 'mongodb';
 import { AskService } from './ask.service';
 import { ASK_MAX_TURNS } from '@app/core/ai/ask';
 import { AI_ALLOWANCES } from '@app/core/ai/ai-plan';
+import { AiSpend } from '@app/core/ai/ai-spend';
 import * as telegram from '@app/core/telegram/telegram';
 
 // Stand-ins below; the real ones pull in TypeORM, ESM-only packages and the Anthropic SDK.
@@ -144,7 +145,8 @@ function setup(
         tracking_manager as any,
         web_file_manager as any,
         ai_client as any,
-        ai_usage as any
+        ai_usage as any,
+        new AiSpend(ai_client as any, ai_usage as any)
     );
     svc.now = () => NOW;
     return { svc, calls, usage, server, ai_client, ai_usage, web_file_manager, tracking_manager };

@@ -14,6 +14,7 @@ import { TrackingManager } from '@app/core/tracking/tracking.manager';
 import { WebFileManager } from '@app/core/web-file/web-file.manager';
 import { AiClient } from '@app/core/ai/ai-client';
 import { AiUsageManager } from '@app/core/ai/ai-usage.manager';
+import { AiSpend } from '@app/core/ai/ai-spend';
 import { QueryColumn, parse_row_query } from '@app/core/web-file/row-query';
 import {
     ASK_MAX_TURNS,
@@ -30,8 +31,7 @@ import {
     reply_text,
     tool_result_content
 } from '@app/core/ai/ask';
-import { ai_allowance, call_cost_micros, crossed_alerts, usage_month } from '@app/core/ai/ai-plan';
-import { send_telegram, telegram_configured } from '@app/core/telegram/telegram';
+import { ai_allowance, usage_month } from '@app/core/ai/ai-plan';
 import logger from '@app/logger';
 
 // A run_query call that ran: its body and what it returned
@@ -62,7 +62,8 @@ export class AskService {
         private tracking_manager: TrackingManager,
         private web_file_manager: WebFileManager,
         private ai_client: AiClient,
-        private ai_usage: AiUsageManager
+        private ai_usage: AiUsageManager,
+        private ai_spend: AiSpend
     ) {}
 
     // Overridden by the unit tests
@@ -97,16 +98,11 @@ export class AskService {
         };
     }
 
-    // The server has spent its monthly AI budget
-    private async server_paused(month: string) {
-        return (await this.ai_usage.server_cost(month)) >= this.ai_client.budget_micros();
-    }
-
     /** `{ available, usage }`. Not available without a key and budget, or once it's spent. */
     async status(acct_id: number) {
         const account = await this.account(acct_id);
         const available =
-            this.ai_client.available() && !(await this.server_paused(usage_month(this.now())));
+            this.ai_client.available() && !(await this.ai_spend.paused(usage_month(this.now())));
         return { available, usage: await this.usage(account) };
     }
 
@@ -178,7 +174,7 @@ export class AskService {
         const samples = await this.samples(acct_id, file.id, columns);
 
         const month = usage_month(this.now());
-        if (await this.server_paused(month)) {
+        if (await this.ai_spend.paused(month)) {
             throw new ServiceUnavailableException(AI_PAUSED_MESSAGE);
         }
         const limit = allowance.questions;
@@ -202,9 +198,8 @@ export class AskService {
         const messages: any[] = [{ role: 'user', content: question }];
         let last: RanQuery | null = null;
         let answer = '';
-        let input_tokens = 0;
-        let output_tokens = 0;
-        let cost_micros = 0;
+        // Every model call, for charging what it used
+        const spent: { model: string; usage: any }[] = [];
         let answered = false;
         try {
             for (let turn = 0; turn < ASK_MAX_TURNS; turn++) {
@@ -221,9 +216,7 @@ export class AskService {
                     messages
                 });
                 answered = true;
-                input_tokens += (reply.usage && reply.usage.input_tokens) || 0;
-                output_tokens += (reply.usage && reply.usage.output_tokens) || 0;
-                cost_micros += call_cost_micros(model, reply.usage);
+                spent.push({ model, usage: reply.usage });
                 const calls = (reply.content || []).filter(c => c && c.type === 'tool_use');
                 if (calls.length === 0) {
                     if (turn === 0 && ASK_MAX_TURNS > 2) {
@@ -250,16 +243,7 @@ export class AskService {
             if (!answered) await this.ai_usage.release(acct_id, month);
             throw new BadGatewayException("The AI service didn't answer. Please try again.");
         } finally {
-            if (input_tokens || output_tokens || cost_micros) {
-                await this.ai_usage.add_usage(
-                    acct_id,
-                    month,
-                    input_tokens,
-                    output_tokens,
-                    cost_micros
-                );
-                await this.add_server_cost(month, cost_micros);
-            }
+            await this.ai_spend.charge(acct_id, month, spent);
         }
 
         if (!answer) {
@@ -275,27 +259,6 @@ export class AskService {
             api_call: last ? api_call(base_url, file.name, last.body) : null,
             usage: await this.usage(account)
         };
-    }
-
-    // Adds to the server's monthly cost and tells the owner when it passes 50%, 80% and 100%
-    // of the budget
-    private async add_server_cost(month: string, cost_micros: number) {
-        if (!(cost_micros > 0)) return;
-        const budget = this.ai_client.budget_micros();
-        const { before, after } = await this.ai_usage.add_server_cost(month, cost_micros);
-        for (const level of crossed_alerts(before, after, budget)) {
-            const text =
-                `InvokeDB: AI spending for ${month} reached ${Math.round(level * 100)}% of the ` +
-                `$${(budget / 1e6).toFixed(2)} budget ($${(after / 1e6).toFixed(2)} so far).` +
-                (level >= 1 ? ' AI features are paused until the 1st (UTC).' : '');
-            logger.warn(text);
-            if (!telegram_configured()) continue;
-            try {
-                await send_telegram(text);
-            } catch (ex) {
-                logger.error(`ai budget alert: Telegram failed: ${ex && ex.message}`);
-            }
-        }
     }
 
     // Runs one run_query call of the model's, or tells it what was wrong with the input

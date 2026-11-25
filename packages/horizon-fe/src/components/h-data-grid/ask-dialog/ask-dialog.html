@@ -39,6 +39,12 @@
 
     <div class="ask-result" v-if="result && !asking">
         <div class="ask-answer">{{ result.answer }}</div>
+        <div class="ask-hint" v-if="write_hint && props.on_generate">
+            Ask only reads the table. To add rows, use
+            <el-button link type="primary" @click="open_generate"
+                >Generate rows</el-button
+            >.
+        </div>
 
         <div v-if="result.api_call">
             <h4>

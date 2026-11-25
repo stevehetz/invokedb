@@ -53,7 +53,11 @@ export class TableTemplateService {
     async create(acct_id: number, template_id: string, body: any) {
         const template = this.get_templates().find(t => t.id === template_id);
         if (!template) throw new NotFoundException('Template not found');
+        return await this.create_from(acct_id, template, body);
+    }
 
+    /** Creates a table from a checked template: a template file's, or one the AI made (#148). */
+    async create_from(acct_id: number, template: TableTemplate, body: any) {
         const account = await this.account_svc.get(acct_id);
         if (!account) throw new NotFoundException();
         await this.tracking_manager.check_account_lock(account);

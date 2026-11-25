@@ -7,13 +7,20 @@ const SERVER = 'tracking:ai_server_usage';
 export interface AiUsage {
     month: string;
     questions: number;
+    // Generated rows (#148)
+    rows: number;
     input_tokens: number;
     output_tokens: number;
     // What the month's AI use cost, in micro-dollars
     cost_micros: number;
 }
 
-const EMPTY = { questions: 0, input_tokens: 0, output_tokens: 0, cost_micros: 0 };
+const EMPTY = { questions: 0, rows: 0, input_tokens: 0, output_tokens: 0, cost_micros: 0 };
+
+// The month's cost is under the budget (an older document may have no cost yet)
+const under_budget = (budget_micros: number) => ({
+    $or: [{ cost_micros: { $exists: false } }, { cost_micros: { $lt: budget_micros } }]
+});
 
 // AI usage per account and month (#149), in one collection of the tracking database shared by
 // all accounts: one document per account and UTC month. Every read and write filters on
@@ -53,6 +60,7 @@ export class AiUsageManager {
         return {
             month,
             questions: doc.questions || 0,
+            rows: doc.rows || 0,
             input_tokens: doc.input_tokens || 0,
             output_tokens: doc.output_tokens || 0,
             cost_micros: doc.cost_micros || 0
@@ -71,6 +79,54 @@ export class AiUsageManager {
         budget_micros: number
     ): Promise<boolean> {
         if (!account_id || !(limit > 0) || !(budget_micros > 0)) return false;
+        const usage = await this.ensure(account_id, month);
+        const res = await usage.updateOne(
+            { account_id, month, questions: { $lt: limit }, ...under_budget(budget_micros) },
+            { $inc: { questions: 1 } }
+        );
+        return res.modifiedCount === 1;
+    }
+
+    /**
+     * Takes `rows` generated rows of the month's `allowance` if they fit and the cost is under
+     * `budget_micros`, in one atomic update. False (and nothing taken) otherwise.
+     */
+    async reserve_rows(
+        account_id: number,
+        month: string,
+        rows: number,
+        allowance: number,
+        budget_micros: number
+    ): Promise<boolean> {
+        if (!account_id || !(rows > 0) || !(rows <= allowance) || !(budget_micros > 0)) {
+            return false;
+        }
+        const usage = await this.ensure(account_id, month);
+        const res = await usage.updateOne(
+            {
+                account_id,
+                month,
+                $and: [
+                    {
+                        $or: [{ rows: { $exists: false } }, { rows: { $lte: allowance - rows } }]
+                    },
+                    under_budget(budget_micros)
+                ]
+            },
+            { $inc: { rows } }
+        );
+        return res.modifiedCount === 1;
+    }
+
+    /** Hands back generated rows reserved but never asked of the model. */
+    async release_rows(account_id: number, month: string, rows: number) {
+        if (!account_id || !(rows > 0)) return;
+        const usage = await this.collection();
+        await usage.updateOne({ account_id, month }, { $inc: { rows: -rows } });
+    }
+
+    // The account's document for the month, made if missing
+    private async ensure(account_id: number, month: string) {
         const usage = await this.collection();
         try {
             await usage.updateOne(
@@ -82,16 +138,7 @@ export class AiUsageManager {
             // Another request made the document first
             if (ex.code !== 11000) throw ex;
         }
-        const res = await usage.updateOne(
-            {
-                account_id,
-                month,
-                questions: { $lt: limit },
-                $or: [{ cost_micros: { $exists: false } }, { cost_micros: { $lt: budget_micros } }]
-            },
-            { $inc: { questions: 1 } }
-        );
-        return res.modifiedCount === 1;
+        return usage;
     }
 
     /** Gives back a question that the model never answered. */

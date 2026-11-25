@@ -54,4 +54,55 @@ export class AiClient {
         });
         return { reply, model };
     }
+
+    /**
+     * One call whose answer is JSON in `schema` (structured outputs), for generated rows and
+     * table designs (#148). Returns the parsed answer, plus the reply's usage and model for
+     * costing it; throws an AiModelError when the model declines or its answer is cut off (the
+     * usage is on the error, since the call is paid for either way).
+     */
+    async json(request: {
+        system: string;
+        prompt: string;
+        schema: Record<string, unknown>;
+        max_tokens: number;
+    }): Promise<{ data: unknown; usage: Anthropic.Usage; model: string }> {
+        const { reply, model } = await this.create_message({
+            max_tokens: request.max_tokens,
+            system: request.system,
+            messages: [{ role: 'user', content: request.prompt }],
+            output_config: {
+                effort: 'low',
+                format: { type: 'json_schema', schema: request.schema }
+            }
+        });
+        const usage = reply.usage;
+        if (reply.stop_reason === 'refusal') {
+            throw new AiModelError('The AI declined this request', usage, model);
+        }
+        const text = (reply.content || [])
+            .map(block => (block.type === 'text' ? block.text : ''))
+            .join('');
+        try {
+            return { data: JSON.parse(text), usage, model };
+        } catch (ex) {
+            // Usually a cut-off answer (stop_reason max_tokens)
+            throw new AiModelError(
+                `The AI's answer wasn't complete (${reply.stop_reason})`,
+                usage,
+                model
+            );
+        }
+    }
+}
+
+/** A model answer that can't be used. The call still cost `usage` on `model`. */
+export class AiModelError extends Error {
+    constructor(
+        message: string,
+        readonly usage?: Anthropic.Usage,
+        readonly model?: string
+    ) {
+        super(message);
+    }
 }

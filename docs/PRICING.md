@@ -351,14 +351,14 @@ model calls, ~8k input and ~1k output tokens. Generating rows is mostly output.
 **Allowances** (per account per UTC month, verified accounts only; an unverified account gets
 none):
 
-| AI allowance                | Free    | Starter | Pro    | AI add-on (Starter or Pro) |
-| --------------------------- | ------- | ------- | ------ | -------------------------- |
-| Model                       | Haiku   | Haiku   | Haiku  | Sonnet                     |
-| Questions (#149)            | 10      | 300     | 2,000  | +200 on Sonnet             |
-| Generated rows (#148)       | 0 (off) | 1,000   | 10,000 | +2,000 on Sonnet           |
-| AI cost budget (dollars)    | $0.05   | $1      | $5     | +$7                        |
-| Worst-case cost at the caps | ~$0.02  | ~$0.50  | ~$3.30 | ~$6                        |
-| Price                       | —       | —       | —      | **$10/month** (proposed)   |
+| AI allowance                | Free   | Starter | Pro    | AI add-on (Starter or Pro) |
+| --------------------------- | ------ | ------- | ------ | -------------------------- |
+| Model                       | Haiku  | Haiku   | Haiku  | Sonnet                     |
+| Questions (#149)            | 10     | 300     | 2,000  | +200 on Sonnet             |
+| Generated rows (#148)       | 50     | 1,000   | 10,000 | +2,000 on Sonnet           |
+| AI cost budget (dollars)    | $0.05  | $1      | $5     | +$7                        |
+| Worst-case cost at the caps | ~$0.02 | ~$0.50  | ~$3.30 | ~$6                        |
+| Price                       | —      | —       | —      | **$10/month** (proposed)   |
 
 - **The model is chosen by the account, not by a server setting.** Tiers use Haiku; an account
   with the add-on uses Sonnet until its add-on allowance is used up, then falls back to Haiku

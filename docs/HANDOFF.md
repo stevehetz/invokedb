@@ -1,6 +1,6 @@
 # InvokeDB: handoff
 
-_Last updated 2026-11-25 (midday)_
+_Last updated 2026-11-25 (afternoon)_
 
 InvokeDB ("horizon") is a web app for building data tables you can query through an API, live at
 `https://invokedb.com`. This file says where things stand and what a new session must know.
@@ -19,7 +19,7 @@ Elsewhere:
   the repo stay the source of truth (agents and workflows read them).
 - Git history and closed issues/PRs: everything done so far.
 
-## Where things stand (2026-11-25, midday)
+## Where things stand (2026-11-25, afternoon)
 
 - **Overnight the cloud agent shipped ~25 PRs** (all deployed): rate limits, password rule,
   smaller entry chunk, templates, per-table API docs, `/api/v1/query` and `/count`, scoped CSS +
@@ -27,18 +27,20 @@ Elsewhere:
   columns, saved views (grid/kanban/chart), the pricing review (`docs/PRICING.md`), email
   verification (#181), six UI bug fixes (#192), a grid-lock fix (#195) and several agent-found
   bugs. Details: `gh pr list --state merged`.
-- **Open PRs, all waiting on the owner:**
-  - **#179** scoped API keys (#138): conflicts with #181 resolved by hand (one rule: no single
-    account key; a key can be made and used only once the email is verified), CodeQL alerts
-    fixed or dismissed (#13, #14). Has a migration → `needs-owner`. Check CI, then merge.
-  - **#153** Stripe (#129): parked (`hold`) until the owner decides tiers, caps and prices from
-    `docs/PRICING.md`. Out of revise rounds.
-  - **#186** AI rows (#148), **#188** ask your data (#149): parked (`hold`); need an Anthropic
-    key in production (#187) and a usage budget. #186's smoke test fails.
-- **Production E2E is red but being repaired automatically.** The new features added E2E steps
-  the agent couldn't run before merging; each failure now starts `repair.yml` (#199), which has
-  fixed `table_views` (#202) and `link_column` (#210) so far. If it's still red, look at the
-  latest `gh run list -w e2e.yml` and any open "Fix E2E" PR.
+- **Afternoon (owner session):** scoped API keys (#179) merged. **The AI features are live**:
+  "Ask your data" (#188) and "Generate rows" / "Table from a Description" (#226, which replaced
+  #186), on Haiku 5.5 with the caps of `docs/PRICING.md` 3.5 (Free: 10 questions and 50 rows a
+  month; dollar budgets per account; `HORIZON_AI_MONTHLY_BUDGET_USD=20` server-wide with
+  Telegram alerts). The key is in `prod.env` (Anthropic Console workspace "InvokeDB", with its
+  own spend limit). The Sonnet add-on is #224 (waits for Stripe). The grid's top bar now scrolls
+  instead of widening the pane (#231); the kanban E2E drag uses drag events (#232).
+- **Incident, fixed:** a stale local `prod.env` was pushed to Dropbox and the server, which
+  turned off Google/GitHub sign-in for a few minutes. Always `npm run secrets:pull` (and check
+  `secrets:status`) before editing or deploying `prod.env`.
+- **Open PRs:** only **#153** Stripe (#129): parked (`hold`) until the owner decides tiers, caps
+  and prices from `docs/PRICING.md`. Out of revise rounds.
+- **Production E2E is green** (13:39). Failures start `repair.yml`, which opens "Fix E2E" PRs;
+  it can open two for the same failure (#232/#233): close the later one.
 - **Board:** bugs first (#175, #182 are `agent`), then agent-found ideas (#169, #176, #178,
   #183, #184: no `agent` yet, the owner triages), #187 (deploy, owner), #150 workspaces (last
   for the agent), #135 (local only: `.github/`), then ideas #204–#219 (no `agent` yet).

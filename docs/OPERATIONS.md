@@ -239,7 +239,7 @@ by its own new version. Each file's top comment explains it; AGENTS.md "Hard rul
 | `deps-update.yml`  | Monthly (1st, 09:00 UTC) and by hand: updates every npm package, opens a minor/patch PR and a majors PR (`deps/*`)     | The PRs; skipped majors listed with reasons         |
 
 - **Secrets:** `CLAUDE_CODE_OAUTH_TOKEN` (also saved as a Dependabot secret, so the review runs on
-  Dependabot PRs); `PROJECTS_TOKEN` (lets the queue read the Project board's order).
+  Dependabot PRs); `PROJECTS_TOKEN` (a classic token with the `project` scope: the queue reads the board's order with it, and the agent workflows add the issues they file to the board).
 - **Dependencies:** `deps-update.yml` does routine npm updates monthly, following
   `docs/DEPENDENCY_PINS.md`. Dependabot (`.github/dependabot.yml`) only opens npm **security** PRs
   (Dependabot alerts and security updates are on in the repo settings) and weekly GitHub Actions

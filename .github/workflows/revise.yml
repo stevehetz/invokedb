@@ -278,8 +278,14 @@ jobs:
               if grep -qx "$l" <<<"$labels"; then gh issue edit "$n" -R "$R" --remove-label "$l"; fi
             done
             if [ -n "$PROJECTS_TOKEN" ]; then
-              GH_TOKEN="$PROJECTS_TOKEN" gh project item-add 1 --owner "$OWNER" \
-                --url "https://github.com/$R/issues/$n" >/dev/null || echo "Couldn't add #$n to the board"
+              # A direct GraphQL add: `gh project item-add --owner` fails with "unknown owner type" (#193)
+              add_q='mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}'
+              proj_q='query($login:String!){user(login:$login){projectV2(number:1){id}}}'
+              { proj=$(GH_TOKEN="$PROJECTS_TOKEN" gh api graphql -f query="$proj_q" -f login="$OWNER" \
+                  --jq .data.user.projectV2.id) &&
+                node=$(gh api "repos/$R/issues/$n" --jq .node_id) &&
+                GH_TOKEN="$PROJECTS_TOKEN" gh api graphql -f query="$add_q" -f p="$proj" -f c="$node" >/dev/null; } ||
+                echo "::warning::Couldn't add #$n to the board"
             fi
             echo "Filed #$n"
           done

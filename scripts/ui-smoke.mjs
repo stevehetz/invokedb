@@ -1157,9 +1157,14 @@ try {
         // Chromium may not send `dragover` to the column before mouseup, and the board only
         // accepts a drop after a dragover, so dragTo sometimes dropped nothing. Several moves,
         // then wait for the column to show it's the drop target before letting go.
-        const card_box = await column('In progress')
-            .locator('.kanban-card', { hasText: 'Write the launch post' })
-            .boundingBox();
+        // Earlier steps can leave the tab pane scrolled sideways, with the first column (Done)
+        // clipped under the sidebar, so bring both into view before measuring them.
+        const card = column('In progress').locator('.kanban-card', {
+            hasText: 'Write the launch post'
+        });
+        await column('Done').scrollIntoViewIfNeeded();
+        await card.scrollIntoViewIfNeeded();
+        const card_box = await card.boundingBox();
         const done_box = await column('Done').boundingBox();
         check(card_box && done_box, 'the card or the Done column has no box');
         const centre = b => [b.x + b.width / 2, b.y + b.height / 2];

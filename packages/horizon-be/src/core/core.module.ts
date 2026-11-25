@@ -25,7 +25,6 @@ import { UrlSyncProcessor } from './web-file/url-sync-processor';
 import { WebhookManager } from './webhook/webhook.manager';
 import { FormManager } from './form/form.manager';
 import { ViewManager } from './view/view.manager';
-import { DashboardManager } from './dashboard/dashboard.manager';
 import { AiClient } from './ai/ai-client';
 import { AiUsageManager } from './ai/ai-usage.manager';
 import { AiSpend } from './ai/ai-spend';
@@ -61,7 +60,6 @@ import { AccountExportManager } from './account-export/account-export.manager';
         WebhookManager,
         FormManager,
         ViewManager,
-        DashboardManager,
         AiClient,
         AiUsageManager,
         AiSpend,
@@ -82,7 +80,6 @@ import { AccountExportManager } from './account-export/account-export.manager';
         WebhookManager,
         FormManager,
         ViewManager,
-        DashboardManager,
         AiClient,
         AiUsageManager,
         AiSpend,

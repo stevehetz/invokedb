@@ -21,13 +21,6 @@
                     <span class="menu-text">Tables</span>
                 </el-menu-item>
                 <el-menu-item
-                    index="/app/dashboards"
-                    :class="{'is-active2': active_index === '/app/dashboards'}"
-                >
-                    <i class="menu-icon fa fa-chart-pie"></i>
-                    <span class="menu-text">Dashboards</span>
-                </el-menu-item>
-                <el-menu-item
                     index="/app/api"
                     :class="{'is-active2': active_index === '/app/api'}"
                 >
@@ -66,6 +59,16 @@
             <div class="header-text" v-if="account">
                 <span>{{ account.email }}</span>
             </div>
+            <a
+                class="header-link help-link"
+                href="/help"
+                target="_blank"
+                rel="noopener"
+                title="Help"
+                aria-label="Help"
+            >
+                <i class="header-icon fa fa-circle-question"></i>
+            </a>
             <div class="header-link" @click="contact">
                 <i class="header-icon fa fa-user-edit"></i>
             </div>

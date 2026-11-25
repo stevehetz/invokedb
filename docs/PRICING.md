@@ -282,18 +282,12 @@ than the server.
 | Webhooks                              | 1                   | 5                       | 10                        |
 | Forms                                 | 1                   | 10                      | 50                        |
 | Views per table                       | 5                   | 50                      | 50                        |
-| Dashboards (#209)                     | 1, private only     | 5, share links          | 25, share links           |
 | Idle deletion                         | After 6 months idle | Never while paid        | Never while paid          |
 
 Plus a server-wide CSV upload limit of 100 MB at the HTTP layer (multer `limits.fileSize`),
 whatever the plan, so a request can't fill the disk before the plan is checked.
 
-**Dashboards (decided 2026-11-25):** one free private dashboard shows the value; sharing a live
-read-only link is a paid feature. A Free account can't make a share link (the button offers an
-upgrade); a paid account that drops to Free keeps its dashboards readable to itself, and its
-links stop working until it upgrades again. Reads through a public link count toward the
-owner's monthly API quota, on top of `DASHBOARD_RATE_LIMITS`. Enforced with the other per-plan
-limits (#183); until then `DASHBOARD_LIMITS.max_per_account` is 20 for everyone.
+**Dashboards** (#209) were removed on 2026-11-25 (owner's decision, #264), so they have no tier limits.
 
 Why these numbers:
 

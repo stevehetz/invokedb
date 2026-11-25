@@ -1,6 +1,5 @@
 // The geometry of a chart's SVG (#146): bars, a line's points and pie slices for a list of
-// `{ label, value }` points, in a fixed viewBox. Shared by the grid's chart view and dashboard
-// chart tiles (#209), which draw the same marks with their own CSS.
+// `{ label, value }` points, in a fixed viewBox. Used by the grid's chart view.
 
 // Pie slices take the categorical slots in fixed order (bars and lines are one series, one hue)
 export const SLICE_COLORS = [

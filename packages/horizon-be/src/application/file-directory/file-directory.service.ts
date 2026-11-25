@@ -144,8 +144,11 @@ export class FileDirectoryService {
         // Every way of making a table comes through here (new, upload, template, URL import)
         if (creating_needs_verified_email(data)) assert_verified(account);
         // Holds a place under the table limit until the table is saved, so parallel creates
-        // can't pass it together (#182)
-        const release = await this.tracking_manager.add_table(account);
+        // can't pass it together (#182). Folders don't count against it (#237).
+        const is_table = data.type !== 'dir';
+        const release = is_table
+            ? await this.tracking_manager.add_table(account)
+            : async () => undefined;
         try {
             await this.validate(data);
             data.deleted = false;

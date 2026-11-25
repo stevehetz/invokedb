@@ -28,6 +28,10 @@ writes `angular/public/invokedb.config.json` (gitignored, holds the API key). Th
 Angular app each have their own `node_modules` and 2-space prettier style, so they're in
 `.prettierignore`. The Angular CLI needs Node 22.22.3+ /
 24.15+ (`.nvmrc` 22 works). Don't `npm publish` the client unless asked.
+`examples/invokedb-python` is the Python client (#218: stdlib `urllib`, typed, Python 3.9+, not on
+PyPI; don't publish unless asked). Its tests are `python3 -m unittest discover -s tests` in that
+folder: offline against a stub server, plus live ones against a backend when `INVOKEDB_TEST_BASE`
+is set (they make and delete their own table and key).
 
 Logins (local and demo data): `demo@invokedb.com` … `demo7@invokedb.com`, password `password`.
 
@@ -42,6 +46,7 @@ npm run db:setup             # create missing DBs + run pending migrations (safe
 npm run migration:create -- Name
 npm run migration:run | migration:revert
 npm run onboarding:funnel -- [--days 30] [--json]  # signup → first API call funnel (read-only)
+npm run changelog            # rebuild the site's /changelog from merged `enhancement` PRs (needs gh)
 npm run format               # prettier --write . (root prettier 3)
 npm run format:check
 npm run check                # what CI runs, minus the smoke test (scripts/check.sh)
@@ -346,16 +351,6 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `calendar-view` draws a six-week month grid; `map-view` draws the points on a
   latitude/longitude grid in SVG, with no base map or tiles (nothing is fetched from a map
   service; each point links to OpenStreetMap).
-- Dashboards (#209): `src/core/dashboard/` has the pure rules (`dashboard.ts`: tiles `chart`
-  (a chart view), `table` and `stat` (count/sum/avg/min/max), each a table id plus an optional
-  view id, never rows; the share token) and the store (`dashboard.manager.ts`,
-  `tracking:dashboard` in the shared tracking DB; filter on `account_id`, except the share
-  lookup by token). Routes are `/dashboard` (session only; `GET /dashboard/:id/data` reads every
-  tile now, a gone table or view is an `error` in its tile; `POST`/`DELETE /dashboard/:id/share`
-  replace or revoke the link) and the public `GET /public/dashboard/:token` (no ids,
-  rate-limited per IP). The frontend's page is `/app/dashboards` (`components/dashboards`); the
-  share link is `/d/:token` (`view/dashboard-page`, outside both shells); both draw tiles with
-  `components/dashboard-tiles` (scoped CSS; charts share `chart-view/chart-geometry.js`).
 - Ask your data (#149): `src/core/ai/` has the Anthropic client (`ai-client.ts`, the only
   place the SDK is used; off without `ANTHROPIC_API_KEY` and `HORIZON_AI_MONTHLY_BUDGET_USD`),
   the pure rules (`ask.ts`: the `run_query` tool built from the columns, the model's input
@@ -455,6 +450,11 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   can't scroll the header; `h-data-grid`'s `body_scrolled` moves it with the body instead.
 - `this.$bus` / `@/core/bus` is a small emitter with the old `$on`/`$off`/`$emit` names. Remove
   your handler with `$off` in `beforeUnmount`. Prefer props, emits or the store for new code.
+- Help and changelog (#219): the site's `/help/:topic` (`view/pages/help`; topics in
+  `help-topics.js`, their text in `help.html`) is linked from the site's nav and the app's header.
+  **When a feature changes, update its help topic.** `/changelog` reads `changelog.json`, written by
+  `npm run changelog` (`scripts/changelog.mjs`: merged PRs labelled `enhancement` or closing an
+  `enhancement` issue).
 
 ## Gotchas
 

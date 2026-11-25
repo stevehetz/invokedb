@@ -518,6 +518,7 @@ export class WebFileService {
     }
 
     async external_delete_rows(account, file_id, body) {
+        await this.tracking_manager.check_account_lock(account);
         await this.tracking_manager.update_req_count(account);
         await this.tracking_manager.check_table_lock(file_id);
         this.validate_external_delete_rows_body(body);
@@ -772,6 +773,8 @@ export class WebFileService {
     }
 
     async batch_delete(account, file_id, web_file_type, data) {
+        // A locked account deletes nothing, like create and update (#172)
+        await this.tracking_manager.check_account_lock(account);
         // Which rows are really there, for the webhooks that want deletes (#140)
         let deleted_ids: string[] = [];
         const is_rows = web_file_type === 'data_grid_row';

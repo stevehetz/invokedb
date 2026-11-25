@@ -187,6 +187,12 @@
                             <span>Forms</span>
                         </el-button>
                     </div>
+                    <div class="ask-data-button" v-if="ai_available">
+                        <el-button link @click="ask_btn_clicked">
+                            <i class="fa fa-comment-dots"></i>
+                            <span>Ask</span>
+                        </el-button>
+                    </div>
                 </div>
             </div>
         </div>

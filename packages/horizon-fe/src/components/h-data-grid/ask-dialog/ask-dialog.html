@@ -1,0 +1,78 @@
+<div class="ask-dialog">
+    <p class="ask-intro">
+        Ask a question about <b>{{ props.file.name }}</b> in plain English. AI
+        turns it into an API query, which only reads the table, and shows the
+        answer, the rows behind it and the API call that returns them.
+    </p>
+
+    <div class="ask-row">
+        <input
+            ref="question"
+            class="ask-question"
+            v-model="question"
+            :maxlength="max_length"
+            placeholder="e.g. Which 5 orders were the largest last month?"
+            @keyup.enter="ask"
+        />
+        <el-button
+            class="ask-button"
+            type="primary"
+            size="small"
+            :loading="asking"
+            :disabled="!can_ask || used_up"
+            @click="ask"
+            >Ask</el-button
+        >
+    </div>
+    <div class="ask-usage" v-if="usage">
+        {{ usage.used }} of {{ usage.limit }} questions used this month
+        <span v-if="used_up"
+            >. Your plan's questions are used up until next month.</span
+        >
+    </div>
+
+    <div class="ask-status" v-if="asking">Thinking...</div>
+    <div class="ask-status error" v-if="error">{{ error }}</div>
+
+    <div class="ask-result" v-if="result && !asking">
+        <div class="ask-answer">{{ result.answer }}</div>
+
+        <div v-if="result.api_call">
+            <h4>
+                Rows
+                <span class="ask-count"
+                    >{{ rows.length }} of {{ result.total }} matching</span
+                >
+            </h4>
+            <div class="ask-rows">
+                <table v-if="rows.length > 0">
+                    <thead>
+                        <tr>
+                            <th v-for="c in columns" :key="c">{{ c }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="r in rows" :key="r._id">
+                            <td v-for="c in columns" :key="c">
+                                {{ cell_text(r[c]) }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="ask-empty" v-else>No rows match.</div>
+            </div>
+
+            <h4>
+                The API call
+                <el-button class="ask-copy" link size="small" @click="copy_call"
+                    >{{ copied ? 'Copied' : 'Copy curl' }}</el-button
+                >
+            </h4>
+            <pre class="ask-call">{{ result.api_call.curl }}</pre>
+            <p class="ask-hint">
+                Set <code>INVOKEDB_API_KEY</code> to your API key (Account page)
+                to run it.
+            </p>
+        </div>
+    </div>
+</div>

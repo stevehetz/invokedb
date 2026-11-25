@@ -24,6 +24,8 @@ import GridToast from './grid-toast';
 import ApiDialog from './api-dialog';
 import WebhooksDialog from './webhooks-dialog';
 import FormsDialog from './forms-dialog';
+import AskDialog from './ask-dialog';
+import { ai_http } from '@/core/context/ai/ai-http';
 import LinkDialog from './link-dialog';
 import ViewsDialog from './views-dialog';
 import KanbanView from './kanban-view';
@@ -102,7 +104,9 @@ export default {
             current_view: null,
             // Bumped to reload the kanban board or chart
             view_version: 0,
-            view_icons: VIEW_TYPE_ICONS
+            view_icons: VIEW_TYPE_ICONS,
+            // Ask your data (#149): shown only when the server has AI set up
+            ai_available: false
         };
     },
 
@@ -160,6 +164,7 @@ export default {
     mounted() {
         this.toast = this.$refs.grid_toast;
         this.setup_websocket_handler();
+        this.load_ai_status();
     },
 
     beforeUnmount() {
@@ -1000,6 +1005,25 @@ export default {
                     file: this.file
                 },
                 component: FormsDialog
+            });
+        },
+
+        async load_ai_status() {
+            try {
+                const status = await ai_http.status();
+                this.ai_available = !!(status && status.available);
+            } catch (ex) {
+                this.ai_available = false;
+            }
+        },
+
+        ask_btn_clicked() {
+            this.$bus.$emit('container-dialog:open', {
+                title: `${this.file.name.replace(/.g/, '')}: ask your data`,
+                props: {
+                    file: this.file
+                },
+                component: AskDialog
             });
         },
         /*** End: Header controls event handlers ***/

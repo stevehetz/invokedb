@@ -313,6 +313,14 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   itself (filter model, sort, hidden columns); moving a kanban card is an ordinary row update.
   The frontend's Views menu is on the grid's top bar (`h-data-grid/views-dialog`,
   `kanban-view`, `chart-view`, SVG with no chart library).
+- Ask your data (#149): `src/core/ai/` has the Anthropic client (`ai-client.ts`, the only
+  place the SDK is used; off without `ANTHROPIC_API_KEY`), the pure rules (`ask.ts`: the
+  `run_query` tool built from the columns, the model's input checked down to read-only
+  `/api/v1/query` keys and then by `parse_row_query`, per-plan monthly question caps) and the
+  usage store (`ai-usage.manager.ts`, `tracking:ai_usage`; filter on `account_id`). Routes are
+  `GET /ai/status` and `POST /ai/ask` (session only). The model is never called in tests:
+  `smoke-env.sh` points `ANTHROPIC_BASE_URL` at a stub on `127.0.0.1:8197` that `api-smoke.mjs`
+  and `ui-smoke.mjs` start. The frontend's dialog is the grid's Ask button (`ask-dialog`).
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

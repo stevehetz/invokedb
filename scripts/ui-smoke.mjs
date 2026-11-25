@@ -4,7 +4,8 @@
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
 // render the public site's pages, log in, check the onboarding checklist, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
-// open the table's API docs and "Try it" on Get, add / test / disable / delete a webhook, read the API key from the account page and call /api/v1 with it, make a form and submit it
+// open the table's API docs and "Try it" on Get, add / test / disable / delete a webhook, ask the
+// table a question (#149, against a stub of the Anthropic API on the smoke stack), read the API key from the account page and call /api/v1 with it, make a form and submit it
 // through its public link, then close and delete it, make (and delete) a table
 // from a template (saving a grid view of it, a kanban view where a card is dragged and a
 // chart view, #146) and one from a URL (a CSV on GitHub, so it needs internet), add a link column
@@ -27,6 +28,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import http from 'node:http';
 import { chromium } from 'playwright';
 
 const args = process.argv.slice(2);
@@ -57,6 +59,53 @@ if (ARTIFACTS) fs.mkdirSync(ARTIFACTS, { recursive: true });
 const SHOT_DIR = ARTIFACTS || fs.mkdtempSync(path.join(os.tmpdir(), 'ui-smoke-'));
 
 const CSV = 'name,age,joined\nalice,30,2020-01-02\nbob,41,2021-05-06\ncarol,25,2019-12-31\n';
+
+// Ask your data (#149): on the smoke stack, a stub of the Anthropic Messages API where
+// smoke-env.sh's ANTHROPIC_BASE_URL points. Its first reply reads every row (run_query with no
+// filters), the next says how many there are.
+const AI_STUB_URL = 'http://127.0.0.1:8197';
+let ai_stub = null;
+if (env.ANTHROPIC_BASE_URL === AI_STUB_URL) {
+    ai_stub = http.createServer((req, res) => {
+        let raw = '';
+        req.on('data', c => (raw += c));
+        req.on('end', () => {
+            let body = {};
+            try {
+                body = JSON.parse(raw);
+            } catch {}
+            const last = (body.messages || []).at(-1);
+            const result = Array.isArray(last?.content)
+                ? last.content.find(c => c.type === 'tool_result')
+                : null;
+            const content = result
+                ? [
+                      {
+                          type: 'text',
+                          text: `Stub: ${JSON.parse(result.content).total_matching} rows match`
+                      }
+                  ]
+                : [{ type: 'tool_use', id: 'toolu_ui_smoke', name: 'run_query', input: {} }];
+            res.setHeader('Content-Type', 'application/json');
+            res.end(
+                JSON.stringify({
+                    id: 'msg_ui_smoke',
+                    type: 'message',
+                    role: 'assistant',
+                    model: body.model,
+                    content,
+                    stop_reason: result ? 'end_turn' : 'tool_use',
+                    stop_sequence: null,
+                    usage: { input_tokens: 50, output_tokens: 5 }
+                })
+            );
+        });
+    });
+    await new Promise((resolve, reject) => {
+        ai_stub.once('error', reject);
+        ai_stub.listen(8197, '127.0.0.1', resolve);
+    });
+}
 
 const results = { steps: {}, observed: {}, ws_events: [], page_errors: [] };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -691,6 +740,45 @@ try {
         await dialog.waitFor({ state: 'detached' });
     });
 
+    // Ask your data (#149). The Ask button shows only when the backend has AI set up. On the
+    // smoke stack (smoke-env.sh points ANTHROPIC_BASE_URL at 127.0.0.1:8197) a stub of the
+    // Anthropic API answers, so a question is asked and its answer, rows and curl are checked.
+    // Anywhere else (production) the dialog is only opened, so no real model is called.
+    await step('ask_your_data', async () => {
+        const status = await be('GET', '/ai/status', { token: be_s.token });
+        const button = grid().locator('.ask-data-button button');
+        results.observed.ai_available = !!status.available;
+        if (!status.available) {
+            check((await button.count()) === 0, 'the Ask button shows without AI set up');
+            return;
+        }
+        await button.click();
+        const dialog = page.locator('.container-dialog .ask-dialog');
+        await dialog.locator('.ask-usage').waitFor();
+        if (ai_stub) {
+            await dialog.locator('.ask-question').fill('How many people are there?');
+            await dialog.getByRole('button', { name: 'Ask', exact: true }).click();
+            const answer = dialog.locator('.ask-answer');
+            await answer.waitFor();
+            const text = (await answer.innerText()).trim();
+            const rows = await dialog.locator('.ask-rows tbody tr').count();
+            const curl = await dialog.locator('.ask-call').innerText();
+            results.observed.ai_answer = text;
+            check(text === `Stub: ${rows} rows match`, `the answer is "${text}" with ${rows} rows`);
+            check(rows > 0, 'the Ask dialog shows no rows');
+            check(
+                curl.includes(`/v1/query?table=${TABLE}`) && curl.includes('Authorization'),
+                `the API call shown is ${curl}`
+            );
+            check(
+                (await dialog.locator('.ask-usage').innerText()).includes('questions used'),
+                "the Ask dialog doesn't show the usage"
+            );
+        }
+        await page.locator('.container-dialog .el-dialog__headerbtn').click();
+        await dialog.waitFor({ state: 'detached' });
+    });
+
     await step('api_key_and_external_api', async () => {
         await page.locator('.layout .nav .el-menu-item', { hasText: 'Account' }).click();
         const key_input = page.locator('.api-key-form input');
@@ -1144,6 +1232,7 @@ try {
         if (trace) console.log(`      trace: ${trace}`);
     }
     await browser.close();
+    if (ai_stub) ai_stub.close();
     if (be_s) await be('GET', `/auth/logout?token=${be_s.token}`).catch(() => {});
     if (failed && !flag('--keep')) await delete_leftover_tables().catch(() => {});
 }

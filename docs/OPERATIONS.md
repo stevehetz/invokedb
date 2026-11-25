@@ -63,6 +63,20 @@ repo: it's public.
   the delivery log and the monthly quota (3,000 on the free plan).
 - **Details:** `deploy/README.md` "Day to day"; HANDOFF step 5, items 3 and 4.
 
+### Anthropic API (AI features)
+
+- **Does:** answers "ask your data" questions on a table (#149): Claude turns a question into a
+  read-only `/api/v1/query` body, which the backend checks and runs. Off without a key: the
+  grid's Ask button is hidden and `/ai/*` answers 503.
+- **Configured:** `ANTHROPIC_API_KEY` in the backend's env; `HORIZON_AI_MODEL` optionally
+  overrides the model (default in `packages/horizon-be/src/core/ai/ai-client.ts`). In
+  production the key also has to be passed to the api container in `deploy/compose.yaml`.
+- **Secrets:** `ANTHROPIC_API_KEY` (`prod.env`).
+- **Limits:** questions per account and UTC month by plan (`AI_QUESTION_LIMITS` in
+  `core/ai/ask.ts`); usage and tokens are in the tracking DB's `tracking:ai_usage`.
+- **Alerts:** none. Failed calls are logged (`ai ask failed`) and the user sees a 502.
+- **Check:** open a table, click Ask, ask "how many rows are there?".
+
 ### Telegram bot
 
 - **Does:** one bot posts to one chat (the owner's). The backend uses it as the fallback for

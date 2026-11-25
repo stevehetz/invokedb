@@ -31,5 +31,8 @@ HORIZON_SB_PUB_WS_URL=ws://127.0.0.1:9100
 HORIZON_SB_PRIV_WS_URL=ws://127.0.0.1:9100
 # api-smoke.mjs's webhook receiver (#140): allowed although it's on loopback
 HORIZON_WEBHOOK_TEST_HOSTS=127.0.0.1:8199
+# api-smoke.mjs's stub of the Anthropic Messages API (#149): no real model is called
+ANTHROPIC_API_KEY=smoke-anthropic-key
+ANTHROPIC_BASE_URL=http://127.0.0.1:8197
 VARS
 echo "Wrote $OUT"

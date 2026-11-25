@@ -20,6 +20,7 @@ import { WebhookService } from './webhook/webhook.service';
 import { WebhookPrcService } from './webhook/webhook-prc.service';
 import { FormService } from './form/form.service';
 import { ViewService } from './view/view.service';
+import { AskService } from './ai/ask.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -41,7 +42,8 @@ import { ViewService } from './view/view.service';
         WebhookService,
         WebhookPrcService,
         FormService,
-        ViewService
+        ViewService,
+        AskService
     ],
     exports: [
         AuthService,
@@ -58,7 +60,8 @@ import { ViewService } from './view/view.service';
         UrlImportService,
         WebhookService,
         FormService,
-        ViewService
+        ViewService,
+        AskService
     ]
 })
 export class ApplicationModule {}

@@ -16,7 +16,9 @@
 // deleted, a kanban board and a moved card, bar/pie/line charts, demo2 and API keys locked
 // out, a deleted table's views gone), checks link columns (#147: picker, grid labels, ids and
 // `expand` on /api/v1, bad links refused, deleted rows cleared from links, no links across
-// accounts), then deletes the tables. Writes every response to out.json
+// accounts), checks "ask your data" (#149: a stub of the Anthropic API on 127.0.0.1:8197, set by
+// smoke-env.sh; answer, rows and the API call, bad model queries refused, the monthly cap, demo2
+// and API keys locked out), then deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -2453,6 +2455,266 @@ await call('link_tables_delete', 'POST', '/file-directory/batch_delete', {
     token,
     body: { ids: [link_tasks, link_contacts] }
 });
+
+// Ask your data (#149). smoke-env.sh points the backend's ANTHROPIC_BASE_URL at a stub of the
+// Messages API on 127.0.0.1:8197, so no real model is called: the stub answers the first turn
+// with the run_query input the test sets, and the next with a text that says what the tool
+// returned. Checks the answer, the rows, that the API call returns the same rows, that a bad
+// query never runs, the monthly cap (demo3, free tier) and that demo2 and API keys are locked out.
+const AI_KEY = 'smoke-anthropic-key';
+const ai_requests = [];
+let ai_next_input = {};
+const ai_stub = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', c => (raw += c));
+    req.on('end', () => {
+        let body = {};
+        try {
+            body = JSON.parse(raw);
+        } catch {}
+        const bearer = String(req.headers.authorization || '').replace(/^Bearer /, '');
+        ai_requests.push({ path: req.url, key: req.headers['x-api-key'] || bearer, body });
+        const last = (body.messages || [])[body.messages.length - 1];
+        const result = Array.isArray(last?.content)
+            ? last.content.find(c => c.type === 'tool_result')
+            : null;
+        let content;
+        if (!result) {
+            content = [
+                {
+                    type: 'tool_use',
+                    id: `toolu_smoke_${ai_requests.length}`,
+                    name: 'run_query',
+                    input: ai_next_input
+                }
+            ];
+        } else if (result.is_error) {
+            content = [{ type: 'text', text: `Stub: the query failed (${result.content})` }];
+        } else {
+            const out = JSON.parse(result.content);
+            content = [{ type: 'text', text: `Stub: ${out.total_matching} rows match` }];
+        }
+        res.setHeader('Content-Type', 'application/json');
+        res.end(
+            JSON.stringify({
+                id: `msg_smoke_${ai_requests.length}`,
+                type: 'message',
+                role: 'assistant',
+                model: body.model,
+                content,
+                stop_reason: result ? 'end_turn' : 'tool_use',
+                stop_sequence: null,
+                usage: { input_tokens: 50, output_tokens: 5 }
+            })
+        );
+    });
+});
+const ai_stub_up = await new Promise(resolve => {
+    ai_stub.once('error', err => resolve(err));
+    ai_stub.listen(8197, '127.0.0.1', () => resolve(true));
+});
+check('ai_stub_listening', ai_stub_up === true, String(ai_stub_up));
+
+const ai_status = await call('ai_status', 'GET', '/ai/status', { token });
+check(
+    'ai_status_available',
+    ai_status?.available === true && ai_status?.usage?.limit > 0,
+    ai_status
+);
+const ai_used_before = ai_status?.usage?.used ?? 0;
+
+ai_next_input = {
+    filters: [{ column: 'age', op: 'gt', value: 26 }],
+    sort: [{ column: 'age', dir: 'desc' }],
+    fields: ['name', 'age']
+};
+let ai_seen = ai_requests.length;
+const ai_ask = await call('ai_ask', 'POST', '/ai/ask', {
+    token,
+    body: { table: file_id, question: 'Who is older than 26?' }
+});
+const ai_turns = ai_requests.slice(ai_seen);
+check(
+    'ai_ask_model_called',
+    ai_turns.length === 2 &&
+        ai_turns.every(r => r.path === '/v1/messages' && r.key === AI_KEY) &&
+        ai_turns[0].body.tool_choice?.name === 'run_query' &&
+        String(ai_turns[0].body.system).includes('smoke_people') &&
+        ai_turns[0].body.tools?.[0]?.input_schema?.properties?.fields?.items?.enum?.includes('age'),
+    ai_turns.map(r => ({ path: r.path, choice: r.body.tool_choice }))
+);
+const ai_ages = (ai_ask?.rows || []).map(r => r.age);
+check(
+    'ai_ask_answer_and_rows',
+    typeof ai_ask?.answer === 'string' &&
+        ai_ask.answer === `Stub: ${ai_ask.total} rows match` &&
+        ai_ages.length === Math.min(ai_ask.total, 20) &&
+        ai_ages.length > 0 &&
+        ai_ages.every(a => a > 26) &&
+        ai_ages.every((a, i) => i === 0 || ai_ages[i - 1] >= a) &&
+        JSON.stringify(ai_ask.columns) === '["name","age"]',
+    ai_ask
+);
+check(
+    'ai_ask_api_call',
+    ai_ask?.api_call?.method === 'POST' &&
+        ai_ask.api_call.url === `${BASE}/api/v1/query?table=smoke_people` &&
+        ai_ask.api_call.curl.includes('Authorization: Bearer'),
+    ai_ask?.api_call
+);
+// The API call it shows returns the same rows
+const ai_api_rows = await call('ai_ask_api_call_run', 'POST', '/api/v1/query?table=smoke_people', {
+    token: key,
+    body: ai_ask?.api_call?.body
+});
+check(
+    'ai_ask_api_call_same_rows',
+    JSON.stringify((ai_api_rows?.data || []).map(r => r._id)) ===
+        JSON.stringify((ai_ask?.rows || []).map(r => r._id)),
+    ai_api_rows
+);
+
+// Model output that isn't a valid read-only query goes back to the model as an error; nothing
+// runs and no API call is shown
+const ai_bad_inputs = {
+    operator: { filters: [{ column: 'age', op: '$where', value: 'sleep(1000)' }] },
+    unknown_column: { filters: [{ column: 'password', op: 'eq', value: 'x' }] },
+    wrong_type: { filters: [{ column: 'age', op: 'gt', value: { $gt: 0 } }] },
+    cursor: { cursor: 'x' },
+    write: { update: { name: 'pwned' } },
+    limit: { limit: 5000 }
+};
+for (const [name, input] of Object.entries(ai_bad_inputs)) {
+    ai_next_input = input;
+    ai_seen = ai_requests.length;
+    const res = await call(`ai_ask_bad_${name}`, 'POST', '/ai/ask', {
+        token,
+        body: { table: file_id, question: 'Do something' }
+    });
+    const turns = ai_requests.slice(ai_seen);
+    const tool_result = turns[1]?.body?.messages?.at(-1)?.content?.[0];
+    check(
+        `ai_ask_bad_${name}_refused`,
+        res?.api_call === null &&
+            Array.isArray(res?.rows) &&
+            res.rows.length === 0 &&
+            tool_result?.is_error === true &&
+            String(res?.answer).startsWith('Stub: the query failed'),
+        { res, tool_result }
+    );
+}
+const ai_rows_after = await call(
+    'ai_rows_after_bad',
+    'POST',
+    `/web-file/data_grid_row/${file_id}?skip=0&limit=50`,
+    { token, body: {} }
+);
+check(
+    'ai_bad_changed_nothing',
+    !(ai_rows_after?.data || []).some(r => Object.values(r).includes('pwned')),
+    ai_rows_after
+);
+const ai_status_after = await call('ai_status_after', 'GET', '/ai/status', { token });
+check(
+    'ai_usage_counted',
+    ai_status_after?.usage?.used === ai_used_before + 1 + Object.keys(ai_bad_inputs).length,
+    { before: ai_used_before, after: ai_status_after }
+);
+
+// Bad requests are 400s and don't reach the model
+ai_seen = ai_requests.length;
+const ai_bad_requests = {
+    ai_ask_no_question: { table: file_id },
+    ai_ask_blank_question: { table: file_id, question: '   ' },
+    ai_ask_long_question: { table: file_id, question: 'x'.repeat(501) },
+    ai_ask_no_table: { question: 'How many?' }
+};
+for (const [name, body] of Object.entries(ai_bad_requests)) {
+    await call(name, 'POST', '/ai/ask', { token, body, expectFail: true });
+    check(`${name}_400`, results[name]?.status === 400, results[name]);
+}
+await call('ai_ask_unknown_table', 'POST', '/ai/ask', {
+    token,
+    body: { table: 99999999, question: 'How many?' },
+    expectFail: true
+});
+// demo2 can't ask about demo's table, and an API key can't use the AI routes
+const ai_other = await call('ai_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const ai_otoken = ai_other.token;
+const ai_other_before = await call('ai_other_status', 'GET', '/ai/status', { token: ai_otoken });
+await call('ai_other_ask', 'POST', '/ai/ask', {
+    token: ai_otoken,
+    body: { table: file_id, question: 'What is in this table?' },
+    expectFail: true
+});
+const ai_other_after = await call('ai_other_status_after', 'GET', '/ai/status', {
+    token: ai_otoken
+});
+check(
+    'ai_other_usage_own',
+    ai_other_after?.usage?.used === ai_other_before?.usage?.used,
+    ai_other_after
+);
+await call('ai_other_logout', 'GET', `/auth/logout?token=${ai_otoken}`);
+await call('ai_api_key_ask', 'POST', '/ai/ask', {
+    token: key,
+    body: { table: file_id, question: 'How many?' },
+    expectFail: true
+});
+await call('ai_api_key_status', 'GET', '/ai/status', { token: key, expectFail: true });
+await call('ai_no_token_ask', 'POST', '/ai/ask', {
+    body: { table: file_id, question: 'How many?' },
+    expectFail: true
+});
+check('ai_refused_never_called_model', ai_requests.length === ai_seen, ai_requests.slice(ai_seen));
+const ai_status_end = await call('ai_status_end', 'GET', '/ai/status', { token });
+check(
+    'ai_usage_not_counted_for_refused',
+    ai_status_end?.usage?.used === ai_status_after?.usage?.used,
+    ai_status_end
+);
+
+// The monthly cap (demo3, free tier): questions until a 429, which must come at the limit.
+// Reruns in the same month start at the limit, so the next question is the 429.
+const ai_cap = await call('ai_cap_login', 'POST', '/auth/login', {
+    body: { email: 'demo3@invokedb.com', password: 'password' }
+});
+const ai_ctoken = ai_cap.token;
+const ai_cap_table = await call('ai_cap_table', 'POST', '/table-template/waitlist', {
+    token: ai_ctoken,
+    body: { name: 'smoke_ai_cap' }
+});
+const ai_cap_status = await call('ai_cap_status', 'GET', '/ai/status', { token: ai_ctoken });
+const ai_cap_limit = ai_cap_status?.usage?.limit ?? 0;
+check('ai_cap_free_tier', ai_cap_status?.usage?.tier === 'FREE' && ai_cap_limit > 0, ai_cap_status);
+ai_next_input = {};
+let ai_cap_hit = null;
+for (let i = ai_cap_status?.usage?.used ?? 0; i <= ai_cap_limit; i++) {
+    const res = await fetch(`${BASE}/ai/ask`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ai_ctoken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: ai_cap_table, question: `Question ${i}` })
+    });
+    if (res.status !== 200) {
+        ai_cap_hit = { at: i, status: res.status, body: await res.text() };
+        break;
+    }
+    await res.text();
+}
+check('ai_cap_429_at_limit', ai_cap_hit?.status === 429 && ai_cap_hit.at === ai_cap_limit, {
+    ai_cap_hit,
+    ai_cap_limit
+});
+const ai_cap_end = await call('ai_cap_status_end', 'GET', '/ai/status', { token: ai_ctoken });
+check('ai_cap_used_is_limit', ai_cap_end?.usage?.used === ai_cap_limit, ai_cap_end);
+await call('ai_cap_table_delete', 'POST', '/file-directory/batch_delete', {
+    token: ai_ctoken,
+    body: { ids: [ai_cap_table] }
+});
+await call('ai_cap_logout', 'GET', `/auth/logout?token=${ai_ctoken}`);
+ai_stub.close();
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');
 if (nameCol) {

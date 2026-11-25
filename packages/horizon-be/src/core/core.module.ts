@@ -23,6 +23,8 @@ import { UrlSyncProcessor } from './web-file/url-sync-processor';
 import { WebhookManager } from './webhook/webhook.manager';
 import { FormManager } from './form/form.manager';
 import { ViewManager } from './view/view.manager';
+import { AiClient } from './ai/ai-client';
+import { AiUsageManager } from './ai/ai-usage.manager';
 
 @Module({
     imports: [
@@ -52,6 +54,8 @@ import { ViewManager } from './view/view.manager';
         WebhookManager,
         FormManager,
         ViewManager,
+        AiClient,
+        AiUsageManager,
         WebsocketClientStore
     ],
     exports: [
@@ -68,6 +72,8 @@ import { ViewManager } from './view/view.manager';
         WebhookManager,
         FormManager,
         ViewManager,
+        AiClient,
+        AiUsageManager,
         WebsocketClientStore,
         TypeOrmModule
     ]

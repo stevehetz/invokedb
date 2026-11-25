@@ -1020,7 +1020,7 @@ export default {
 
         ask_btn_clicked() {
             this.$bus.$emit('container-dialog:open', {
-                title: `${this.file.name.replace(/.g/, '')}: ask your data`,
+                title: `${table_display_name(this.file.name)}: ask your data`,
                 props: {
                     file: this.file
                 },

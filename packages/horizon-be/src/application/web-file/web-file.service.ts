@@ -689,8 +689,8 @@ export class WebFileService {
             // Check every column before tracking or queueing anything, so a bad one is a 400.
             data.forEach(col => assert_column_update(col));
             await this.assert_link_columns(account.id, data);
-            const cols_to_be_added = data.length;
-            await this.tracking_manager.add_columns(account, { cols_to_be_added, file_id });
+            // 403 if turning on new columns would take the table past the column limit (#163)
+            await this.tracking_manager.add_columns(account, { columns: data, file_id });
             try {
                 if (!use_job) {
                     return await this.web_file_manager.batch_update_column(

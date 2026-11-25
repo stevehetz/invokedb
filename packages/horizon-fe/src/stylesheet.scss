@@ -266,6 +266,9 @@ p {
     margin: 0 10px;
     cursor: pointer;
 }
+.layout > .header a.header-link {
+    text-decoration: none;
+}
 .layout > .header .header-link:hover {
     color: #ffffff;
 }

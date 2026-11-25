@@ -46,6 +46,7 @@ npm run db:setup             # create missing DBs + run pending migrations (safe
 npm run migration:create -- Name
 npm run migration:run | migration:revert
 npm run onboarding:funnel -- [--days 30] [--json]  # signup → first API call funnel (read-only)
+npm run changelog            # rebuild the site's /changelog from merged `enhancement` PRs (needs gh)
 npm run format               # prettier --write . (root prettier 3)
 npm run format:check
 npm run check                # what CI runs, minus the smoke test (scripts/check.sh)
@@ -449,6 +450,11 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   can't scroll the header; `h-data-grid`'s `body_scrolled` moves it with the body instead.
 - `this.$bus` / `@/core/bus` is a small emitter with the old `$on`/`$off`/`$emit` names. Remove
   your handler with `$off` in `beforeUnmount`. Prefer props, emits or the store for new code.
+- Help and changelog (#219): the site's `/help/:topic` (`view/pages/help`; topics in
+  `help-topics.js`, their text in `help.html`) is linked from the site's nav and the app's header.
+  **When a feature changes, update its help topic.** `/changelog` reads `changelog.json`, written by
+  `npm run changelog` (`scripts/changelog.mjs`: merged PRs labelled `enhancement` or closing an
+  `enhancement` issue).
 
 ## Gotchas
 

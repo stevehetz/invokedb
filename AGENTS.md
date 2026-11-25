@@ -253,6 +253,8 @@ token starts no CI, and a dispatched CI run doesn't count toward a PR's required
   Check that any table/folder id in the path belongs to it (`FileDirectoryService.assert_owned`,
   `WebFileService.validate`). `req.user` is a `Session` for a login token and an `Account` for an
   API key; API keys are only for `/api/v1`.
+- Table templates (#142) are JSON files in `src/core/table-template/templates/` (one per
+  template, checked by `table-template.spec.ts`); `tsconfig.build.json` copies them into `dist/`.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

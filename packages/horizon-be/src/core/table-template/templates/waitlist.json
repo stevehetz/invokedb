@@ -1,0 +1,39 @@
+{
+    "name": "Waitlist",
+    "description": "People waiting for a launch or a spot, in sign-up order.",
+    "table_name": "waitlist",
+    "columns": [
+        { "name": "Email", "type": "string" },
+        { "name": "Name", "type": "string" },
+        { "name": "Position", "type": "number" },
+        { "name": "Referred By", "type": "string" },
+        { "name": "Status", "type": "string" },
+        { "name": "Joined", "type": "date" }
+    ],
+    "rows": [
+        {
+            "Email": "jun@example.com",
+            "Name": "Jun Park",
+            "Position": 1,
+            "Referred By": "",
+            "Status": "Invited",
+            "Joined": "2026-10-01"
+        },
+        {
+            "Email": "mira@example.com",
+            "Name": "Mira Solberg",
+            "Position": 2,
+            "Referred By": "jun@example.com",
+            "Status": "Waiting",
+            "Joined": "2026-10-03"
+        },
+        {
+            "Email": "tomas@example.com",
+            "Name": "Tomas Vidal",
+            "Position": 3,
+            "Referred By": "",
+            "Status": "Waiting",
+            "Joined": "2026-10-09"
+        }
+    ]
+}

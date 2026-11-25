@@ -13,6 +13,7 @@ import { WebFilePrcService } from './web-file/web-file-prc.service';
 import { WebFilePrcNotifyService } from './web-file/web-file-prc-notify.service';
 import { SubscriptionService } from '@app/application/subscription/subscription.service';
 import { JobService } from './job/job.service';
+import { TableTemplateService } from './table-template/table-template.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -27,7 +28,8 @@ import { JobService } from './job/job.service';
         WebFilePrcNotifyService,
         AccountService,
         SubscriptionService,
-        JobService
+        JobService,
+        TableTemplateService
     ],
     exports: [
         AuthService,
@@ -38,7 +40,8 @@ import { JobService } from './job/job.service';
         WebFilePrcNotifyService,
         AccountService,
         SubscriptionService,
-        JobService
+        JobService,
+        TableTemplateService
     ]
 })
 export class ApplicationModule {}

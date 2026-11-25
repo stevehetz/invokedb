@@ -19,6 +19,10 @@
                     <el-menu-item index="data-grid"
                         ><i class="fa fa-table"></i> Empty Table</el-menu-item
                     >
+                    <el-menu-item index="template"
+                        ><i class="fa fa-th-list"></i> Table from
+                        Template</el-menu-item
+                    >
                     <!--<el-menu-item index="dir"><i class="fa fa-folder"></i> Directory</el-menu-item>-->
                     <el-menu-item index="upload"
                         ><i class="fa fa-upload"></i> Table from
@@ -46,6 +50,16 @@
         <div class="empty-db-message" v-if="tree_items.length === 0">
             <p>Click the <i class="fa fa-plus"></i> to add</p>
             <p>a table</p>
+            <p>
+                or
+                <el-button
+                    class="start-from-template"
+                    link
+                    type="primary"
+                    @click="add_tree_item('template')"
+                    >start from a template</el-button
+                >
+            </p>
         </div>
         <div class="tree-wrapper">
             <el-tree

@@ -4443,7 +4443,9 @@ check(
     typeof tf_secret === 'string' &&
         /^[A-Z2-7]{32}$/.test(tf_secret) &&
         tf_setup.qr_code?.startsWith('data:image/svg+xml;base64,') &&
-        tf_setup.otpauth_url?.startsWith('otpauth://totp/InvokeDB:demo6%40invokedb.com?'),
+        decodeURIComponent(tf_setup.otpauth_url || '').startsWith(
+            'otpauth://totp/InvokeDB:demo6@invokedb.com?'
+        ),
     { qr: tf_setup?.qr_code?.slice(0, 30), url: tf_setup?.otpauth_url?.slice(0, 40) }
 );
 const tf_enable_step = tf_step();
@@ -4465,13 +4467,19 @@ await call('two_factor_setup_when_on', 'POST', '/two-factor/setup', {
     expectFail: true
 });
 // demo2 has its own (off) two-factor and can't turn demo6's off, even with demo6's code
-const tf_other = await call('two_factor_other_status', 'GET', '/two-factor', { token: otoken });
+// (a fresh sign-in: the first demo2 session was logged out earlier)
+const tf_other_login = await call('two_factor_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const tf_otoken = tf_other_login?.token;
+const tf_other = await call('two_factor_other_status', 'GET', '/two-factor', { token: tf_otoken });
 check('two_factor_other_is_own', tf_other?.enabled === false, tf_other);
 await call('two_factor_other_disable', 'POST', '/two-factor/disable', {
-    token: otoken,
+    token: tf_otoken,
     body: { code: tf_recovery[0] },
     expectFail: true
 });
+await call('two_factor_other_logout', 'GET', `/auth/logout?token=${tf_otoken}`);
 // The password alone no longer signs in
 const tf_login1 = await call('two_factor_login_challenge', 'POST', '/auth/login', {
     body: tf_creds

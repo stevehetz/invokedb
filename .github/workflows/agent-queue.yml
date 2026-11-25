@@ -119,9 +119,16 @@ jobs:
           # Board order when a token can read the Project; otherwise issue number
           order=$(jq -r '.[]' <<<"$candidates")
           if [ -n "$PROJECTS_TOKEN" ]; then
-            board=$(GH_TOKEN="$PROJECTS_TOKEN" gh project item-list "$PROJECT_NUMBER" \
-              --owner "$OWNER" --limit 500 --format json \
-              --jq '.items[] | select(.content.type == "Issue") | .content.number' || true)
+            # A direct query on the user's project: `gh project item-list --owner` failed with
+            # "unknown owner type" here, whatever the token (#154)
+            q='query($login:String!,$number:Int!,$endCursor:String){user(login:$login){projectV2(number:$number){
+              items(first:100,after:$endCursor){pageInfo{hasNextPage endCursor}
+              nodes{content{... on Issue{number}}}}}}}'
+            board=$(GH_TOKEN="$PROJECTS_TOKEN" gh api graphql --paginate -f query="$q" \
+              -f login="$OWNER" -F number="$PROJECT_NUMBER" \
+              --jq '.data.user.projectV2.items.nodes[].content.number // empty' 2>board.err) ||
+              { echo "::warning::Couldn't read the board ($(head -c 300 board.err)); using issue numbers"; board=''; }
+            [ -n "$board" ] && echo "Board order: $(head -20 <<<"$board" | tr '\n' ' ')"
             if [ -n "$board" ]; then
               order=$( (grep -Fxf <(jq -r '.[]' <<<"$candidates") <<<"$board" || true
                         jq -r '.[]' <<<"$candidates" | grep -vFxf <(echo "$board") || true) )

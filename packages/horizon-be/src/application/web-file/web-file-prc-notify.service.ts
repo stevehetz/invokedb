@@ -15,6 +15,18 @@ export class WebFilePrcNotifyService {
         private _ws_client_store: WebsocketClientStore
     ) {}
 
+    /** Tells the job processor a job is waiting, for a job not about a table (#215). */
+    wake_processor(client_id) {
+        try {
+            this._ws_client_store.send_direct_message(client_id, _c.HORIZON_PRC_WS_CLIENT_ID, {
+                event: 'RUN_JOB_PROCESSOR'
+            });
+        } catch (ex) {
+            // It also looks for jobs every few seconds
+            logger.error(`client_id: ${client_id} failed calling ${_c.HORIZON_PRC_WS_CLIENT_ID}`);
+        }
+    }
+
     async job_start(client_id, account_id, file_id) {
         try {
             this._ws_client_store.send_direct_message(client_id, _c.HORIZON_PRC_WS_CLIENT_ID, {

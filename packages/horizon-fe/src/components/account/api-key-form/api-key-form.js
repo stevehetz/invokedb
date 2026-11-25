@@ -1,5 +1,6 @@
 // The account's API keys (#138): each named, read-only or read-write, for every table or some,
-// and revocable. A new key is shown once, here; after that only its first characters.
+// and revocable. A new key is shown once, here; after that only its first characters. A key can
+// have its own rate limit, and its last requests show under it (#216).
 import { defineComponent } from 'vue';
 import copy from 'copy-to-clipboard';
 import { bus } from '@/core/bus';
@@ -9,6 +10,23 @@ const ACCESS_LABELS = {
     read: 'Read only',
     read_write: 'Read and write'
 };
+
+// A key's own rate limit (#216), as the backend checks it (api-key-rules.ts)
+const MIN_RATE = 0.1;
+const MAX_RATE = 1000;
+const MAX_BURST = 10000;
+
+function new_form() {
+    return {
+        name: '',
+        access: 'read',
+        all_tables: true,
+        table_ids: [],
+        limited: false,
+        per_second: 5,
+        burst: undefined
+    };
+}
 
 function error_message(ex, fallback) {
     if (ex && typeof ex.message === 'string') return ex.message;
@@ -33,7 +51,16 @@ export default defineComponent({
             revoked_here: [],
             show_new: false,
             saving: false,
-            form: { name: '', access: 'read', all_tables: true, table_ids: [] },
+            form: new_form(),
+            // The key whose recent requests are shown under it (#216), and those requests
+            open_requests: null,
+            requests: [],
+            requests_max: 0,
+            requests_loading: false,
+            requests_error: null,
+            min_rate: MIN_RATE,
+            max_rate: MAX_RATE,
+            max_burst: MAX_BURST,
             // The key just made: { key, secret }, shown until the page is left or it's dismissed
             created: null,
             show_copied_popup: false,
@@ -69,7 +96,14 @@ export default defineComponent({
 
         can_save() {
             if (this.saving || !this.form.name.trim()) return false;
+            if (this.form.limited && !(this.form.per_second > 0)) return false;
             return this.form.all_tables || this.form.table_ids.length > 0;
+        },
+
+        // What the backend gives a key with no burst set: two seconds' worth
+        default_burst() {
+            const rate = Number(this.form.per_second) || 1;
+            return Math.min(MAX_BURST, Math.max(1, Math.ceil(rate * 2)));
         }
     },
 
@@ -92,6 +126,43 @@ export default defineComponent({
             return key.tables.map(t => t.name).join(', ');
         },
 
+        limit_label(key) {
+            const limit = key.rate_limit;
+            if (!limit) return "Account's";
+            return `${limit.per_second}/s, bursts of ${limit.burst}`;
+        },
+
+        async toggle_requests(key) {
+            if (this.open_requests === key.id) {
+                this.open_requests = null;
+                return;
+            }
+            this.open_requests = key.id;
+            this.requests = [];
+            await this.load_requests(key);
+        },
+
+        async load_requests(key) {
+            this.requests_loading = true;
+            this.requests_error = null;
+            try {
+                const res = await api_key_http.requests(key.id);
+                if (this.open_requests !== key.id) return;
+                this.requests = (res && res.requests) || [];
+                this.requests_max = (res && res.max) || 0;
+            } catch (ex) {
+                if (this.open_requests !== key.id) return;
+                this.requests_error = error_message(
+                    ex,
+                    "Couldn't load the key's requests"
+                );
+            } finally {
+                if (this.open_requests === key.id) {
+                    this.requests_loading = false;
+                }
+            }
+        },
+
         time(value) {
             return value ? new Date(value).toLocaleString() : '';
         },
@@ -111,12 +182,7 @@ export default defineComponent({
         },
 
         open_new() {
-            this.form = {
-                name: '',
-                access: 'read',
-                all_tables: true,
-                table_ids: []
-            };
+            this.form = new_form();
             this.show_new = true;
         },
 
@@ -127,7 +193,17 @@ export default defineComponent({
                 this.created = await api_key_http.create({
                     name: this.form.name.trim(),
                     access: this.form.access,
-                    table_ids: this.form.all_tables ? null : this.form.table_ids
+                    table_ids: this.form.all_tables
+                        ? null
+                        : this.form.table_ids,
+                    // The key's own limit (#216); a blank burst gets the default
+                    rate_limit_per_second: this.form.limited
+                        ? this.form.per_second
+                        : null,
+                    rate_limit_burst:
+                        this.form.limited && this.form.burst
+                            ? this.form.burst
+                            : null
                 });
                 this.show_new = false;
                 await this.load();

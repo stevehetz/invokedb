@@ -926,8 +926,9 @@ try {
 
     // API keys (#138): go to the Account page through the API docs' "account" link (a router
     // link, not the nav): only Account is highlighted in the nav afterwards, not Api as well
-    // (#189). Then make a read-only key limited to the table, read it (shown once), call /api/v1
-    // with it (a read works, a write is refused), see it listed by its prefix only, revoke it and
+    // (#189). Then make a read-only key limited to the table with its own rate limit, read it
+    // (shown once), call /api/v1 with it (a read works, a write is refused), see it listed by its
+    // prefix only with its limit, see its two requests under it (#216), revoke it and
     // see it refused; then revoke the other keys this run made.
     await step('api_key_and_external_api', async () => {
         await page.locator('.layout .nav .el-menu-item', { hasText: 'Api' }).click();
@@ -944,12 +945,23 @@ try {
                 (await highlighted('is-active2')).join() === 'Account',
             `after the docs' account link the nav highlights ${JSON.stringify(results.observed.nav_active_after_docs_link)}`
         );
+        // Data export (#215) is offered on the same page. Only looked at: an export counts
+        // against the account's few a day, and this test also runs against production.
+        const export_button = page.locator('.data-export-form .data-export-request');
+        await export_button.waitFor();
+        check(
+            /^(Export my data|Export again)$/.test((await export_button.innerText()).trim()),
+            `the export button says ${await export_button.innerText()}`
+        );
         await form.locator('.api-key-new-button').click();
         await form.locator('.api-key-name input').fill('ui-smoke');
         await form.locator('.api-key-scope').getByText('Only these').click();
         await form.locator('.api-key-tables').click();
         await page.locator('.el-select-dropdown__item:visible', { hasText: TABLE }).click();
         await form.locator('.api-key-name input').click();
+        // Its own rate limit (#216): the default 5 a second, bursts of 10
+        await form.locator('.api-key-limit').getByText('Its own limit too').click();
+        await form.locator('.api-key-limit-fields').waitFor();
         await form.locator('.api-key-save').click();
         const secret = form.locator('.api-key-secret');
         await secret.waitFor();
@@ -985,6 +997,26 @@ try {
             body: JSON.stringify([{ name: 'refused' }])
         });
         check(write.status === 403, `/api/v1/create with a read-only key -> ${write.status}`);
+        check(
+            (await item.locator('.api-key-item-limit').innerText()).includes('5/s'),
+            `the key's limit is listed as ${await item.locator('.api-key-item-limit').innerText()}`
+        );
+
+        // The key's last requests (#216), under its row: the read and the refused write, with
+        // no query strings
+        await page.waitForTimeout(500);
+        await item.locator('.api-key-requests-toggle').click();
+        const requests = form.locator('.api-key-requests-row .api-key-request');
+        await requests.first().waitFor();
+        const requests_text = await form.locator('.api-key-requests-row').innerText();
+        check(
+            (await requests.count()) === 2 &&
+                requests_text.includes('/api/v1/create') &&
+                requests_text.includes('403') &&
+                !requests_text.includes(TABLE),
+            `the key's requests are listed as ${requests_text}`
+        );
+        await item.locator('.api-key-requests-toggle').click();
 
         await form.getByRole('button', { name: "I've saved it" }).click();
         await secret.waitFor({ state: 'detached' });

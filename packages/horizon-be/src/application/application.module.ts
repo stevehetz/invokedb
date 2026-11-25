@@ -25,6 +25,7 @@ import { AskService } from './ai/ask.service';
 import { AiService } from './ai/ai.service';
 import { EditService } from './ai/edit.service';
 import { TwoFactorService } from './two-factor/two-factor.service';
+import { AccountExportService } from './account-export/account-export.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -51,7 +52,8 @@ import { TwoFactorService } from './two-factor/two-factor.service';
         AskService,
         AiService,
         EditService,
-        TwoFactorService
+        TwoFactorService,
+        AccountExportService
     ],
     exports: [
         AuthService,
@@ -73,7 +75,8 @@ import { TwoFactorService } from './two-factor/two-factor.service';
         AskService,
         AiService,
         EditService,
-        TwoFactorService
+        TwoFactorService,
+        AccountExportService
     ]
 })
 export class ApplicationModule {}

@@ -1,0 +1,55 @@
+<div class="page-form data-export-form">
+    <div class="form-heading">
+        <div class="flex-2-col">
+            <div class="left">
+                <h3>Export Your Data</h3>
+            </div>
+        </div>
+    </div>
+    <div class="form-body">
+        <p class="data-export-intro">
+            Download one zip file with every table, as CSV and as JSON (its
+            columns with their types, then its rows), and the settings of your
+            forms, views and webhooks. Webhook secrets and API keys are left
+            out. The download link works for 24 hours.
+        </p>
+
+        <div class="data-export-status" v-if="!loading">
+            <p class="data-export-preparing" v-if="preparing">
+                <i class="fa fa-spinner fa-spin"></i>
+                Preparing your export. This page updates when it's ready.
+            </p>
+            <div class="data-export-ready" v-else-if="ready">
+                <p>
+                    Your export from {{ time(current.created_at) }} is ready ({{
+                    summary }}). The link works until {{
+                    time(current.expires_at) }}.
+                </p>
+                <el-button
+                    class="data-export-download"
+                    type="primary"
+                    :loading="downloading"
+                    @click="download"
+                    >Download zip</el-button
+                >
+            </div>
+            <p class="data-export-error" v-else-if="status === 'error'">
+                {{ current.error || "The export couldn't be prepared." }}
+            </p>
+            <p class="data-export-expired" v-else-if="status === 'expired'">
+                Your last export's link has expired.
+            </p>
+        </div>
+
+        <div class="el-form-item">
+            <el-button
+                class="data-export-request"
+                :type="ready ? 'default' : 'primary'"
+                :disabled="loading || preparing"
+                :loading="requesting"
+                @click="request_export"
+                >{{ current ? 'Export again' : 'Export my data' }}</el-button
+            >
+        </div>
+    </div>
+</div>

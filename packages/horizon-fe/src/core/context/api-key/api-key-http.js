@@ -11,8 +11,9 @@ export const api_key_http = {
     },
 
     /**
-     * @param {{ name: string, access: string, table_ids: number[] | null }} body
-     *   access: 'read' or 'read_write'
+     * @param {{ name: string, access: string, table_ids: number[] | null,
+     *   rate_limit_per_second?: number | null, rate_limit_burst?: number | null }} body
+     *   access: 'read' or 'read_write'; no rate limit: only the account's applies (#216)
      * @returns {Promise<{ key: any, secret: string }>}
      */
     async create(body) {
@@ -21,6 +22,18 @@ export const api_key_http = {
             store.set('new_api_key', { ...res.key, secret: res.secret });
         }
         return res;
+    },
+
+    /**
+     * The key's last requests, newest first (#216).
+     * @param {number} id
+     * @returns {Promise<{ requests: { at: number, method: string, path: string,
+     *   status: number, duration_ms: number }[], max: number }>}
+     */
+    async requests(id) {
+        return http.get(
+            http.get_url(`/api-key/${encodeURIComponent(id)}/requests`)
+        );
     },
 
     /** @param {number} id */

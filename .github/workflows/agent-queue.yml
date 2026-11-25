@@ -7,7 +7,8 @@
 # later) and stuck ones don't hold it (#156): an agent PR that's stuck (CI failed, or no activity
 # for 2 hours; review changes are revise.yml's job, which marks the PR agent-stuck itself when its
 # rounds run out) gets `agent-stuck` and one comment that mentions the owner, and the queue moves
-# on; its issue isn't started again while the PR is open. Closing an agent PR without merging
+# on; its issue isn't started again while the PR is open. With two or more stuck agent PRs open it
+# holds again, since that usually means something systemic is failing every PR. Closing an agent PR without merging
 # also marks its issue `agent-stuck`, so the agent doesn't simply redo it.
 #
 # Runs when the owner labels an issue `agent`, when a person closes or labels an agent PR,
@@ -106,6 +107,14 @@ jobs:
             done
             if [ "${#still[@]}" -gt 0 ]; then
               echo "Waiting on agent PR(s): ${still[*]}"
+              exit 0
+            fi
+            # Move past one stuck PR, not a pile of them: two or more usually means something
+            # systemic (a red main, a broken smoke job), and every new PR would fail the same way
+            stuck=$(gh pr list -R "$R" --label agent-pr --label agent-stuck --state open \
+              --json number --jq 'map("#\(.number)") | join(" ")')
+            if [ "$(wc -w <<<"$stuck")" -ge 2 ]; then
+              echo "::warning::Holding: $stuck are agent-stuck; fix or close them and the queue resumes"
               exit 0
             fi
           fi

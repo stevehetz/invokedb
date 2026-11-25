@@ -5,11 +5,13 @@ actually enforces, before Stripe comes back (#129). It has four parts: an **audi
 advertised, stored and enforced, and the gaps), a **cost model** (what a customer at each
 tier's caps costs on the current server), a **recommendation** (tiers, caps, prices and what
 happens on downgrade, lapse and idle), and a **test plan** (an automated test for every limit
-of every tier). The owner decides. Until then nothing here is final, and the code still
-enforces the old numbers.
+of every tier).
 
-Decided so far: **a permanent free tier, very limited, so people can try things out** (owner,
-2026-11-24, on #137). Free accounts need no card and no Stripe customer until they upgrade.
+**Decided (owner, 2026-11-25): the tiers, caps and prices of 3.2, the behaviour of 3.4 and no
+trial (3.3), as recommended**, plus the AI allowances of 3.5. Earlier: a permanent free tier,
+very limited, so people can try things out (2026-11-24, on #137); free accounts need no card
+and no Stripe customer until they upgrade. The code enforces them through #183 and #184; until
+those merge it still enforces the old numbers.
 
 Line numbers are as of commit `8e89efe` (2026-11-25). Paths are under `packages/horizon-be/src/`
 unless they say otherwise.
@@ -264,7 +266,7 @@ than the server.
   Stripe only maps a price id to a plan id. The `subscription` table can then go with the other
   Stripe leftovers.
 
-### 3.2 Tiers and caps
+### 3.2 Tiers and caps (decided 2026-11-25)
 
 | Cap                                   | Free                | Starter                 | Pro                       |
 | ------------------------------------- | ------------------- | ----------------------- | ------------------------- |
@@ -282,6 +284,9 @@ than the server.
 | Webhooks                              | 1                   | 5                       | 10                        |
 | Forms                                 | 1                   | 10                      | 50                        |
 | Views per table                       | 5                   | 50                      | 50                        |
+| Audit log kept (#217)                 | 7 days              | 30 days                 | 90 days                   |
+| Per-key rate limits, request logs     | —                   | Yes                     | Yes                       |
+| Two-factor sign-in, data export       | Yes                 | Yes                     | Yes                       |
 | Idle deletion                         | After 6 months idle | Never while paid        | Never while paid          |
 
 Plus a server-wide CSV upload limit of 100 MB at the HTTP layer (multer `limits.fileSize`),
@@ -313,7 +318,7 @@ Why these numbers:
 
 ### 3.3 A trial on top?
 
-Recommended: **no trial at launch.** The free tier is the trial; it avoids `trial_ends_at` and
+Decided: **no trial at launch.** The free tier is the trial; it avoids `trial_ends_at` and
 a third state to test. If conversion is low later, add a 14-day Pro trial that needs no card and
 ends back on Free (with the "over the caps" rule below).
 

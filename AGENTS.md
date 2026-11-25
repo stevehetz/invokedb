@@ -411,6 +411,17 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   the request. Not reads, CSV uploads or URL syncs. The processor role prunes old entries
   hourly. Route `GET /audit?table=&limit=&cursor=` (session only). The frontend's
   `components/audit-log` is the grid's More menu → History and the Account page's History.
+- Two-factor sign-in (#214): optional, password accounts only (Google/GitHub sign-in never asks).
+  `src/core/two-factor/` has the pure rules (`totp.ts`: RFC 6238 TOTP, recovery codes kept as
+  SHA-256, the secret AES-256-GCM-encrypted under `HORIZON_TOTP_KEY` and bound to the account id;
+  `login-challenge.ts`: the in-memory challenge between password and code, 5 minutes, 5 tries;
+  `qr.ts`: the QR code as an SVG data URI, `qrcode-generator`) and the Postgres `two_factor` table.
+  `TwoFactorService` uses each code once (a TOTP time step must be later than `last_used_step`, a
+  recovery code is removed, both in one conditional `UPDATE`) and allows 10 code attempts per
+  account per hour. With it on, `POST /auth/login` answers `{ two_factor_required, challenge }`
+  and `POST /auth/login/two-factor` (`{ challenge, code }`) the session. Routes `/two-factor`
+  (session only: `GET`, `POST setup`, `enable`, `disable`). Without `HORIZON_TOTP_KEY` (and not
+  `IS_LOCAL`) nobody can turn it on; changing the key breaks the apps already set up.
 - Data export (#215): `src/core/account-export/` has the pure rules (`account-export.ts`: zip
   paths, rows as CSV and JSON by column name, settings without webhook secrets, the 24-hour
   link, a few exports a day), a streaming zip writer (`zip-writer.ts`, `zlib` only, no ZIP64)

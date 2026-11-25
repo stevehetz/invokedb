@@ -28,7 +28,9 @@
 // migrated key still works, demo2 locked out; #216: a key's own rate limit answers 429 with
 // Retry-After, its request log has no query strings and is the owner's only) and email verification on signup (#132: the same
 // answer for a taken email, an unverified account with no API key and no tables, resend, bad
-// links), checks data export (#215: the processor's zip has every table as CSV and JSON and the
+// links), checks two-factor sign-in on demo6 (#214: setup and QR code, the login's code step,
+// replayed and reused codes refused, recovery codes, demo2 and API keys locked out, turned off
+// again), checks data export (#215: the processor's zip has every table as CSV and JSON and the
 // settings without webhook secrets; one at a time; demo2 and API keys can't download it), checks the
 // audit log (#217: app and API key changes per table and per account, paging, demo2 and API keys
 // locked out), then deletes the tables and the new account. Writes every response to out.json
@@ -4346,6 +4348,168 @@ if (temp_dir) {
     check('upload_too_big_no_temp_file', left.length === 0, left);
 } else {
     console.log('     (no HORIZON_ENV_FILE: temp folder not checked)');
+}
+
+// Two-factor sign-in (#214) on demo6: set up with a QR code and a code, then the password login
+// asks for a code; used codes (TOTP steps and recovery codes) are refused; demo2 and API keys
+// can't touch it; turned off with a recovery code. The service allows 10 code attempts per
+// account per hour, so this uses 8.
+const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function totp_at(secret, step) {
+    let bits = 0;
+    let value = 0;
+    const bytes = [];
+    for (const c of secret.toUpperCase()) {
+        value = ((value << 5) | B32.indexOf(c)) & 0xffff;
+        bits += 5;
+        if (bits >= 8) {
+            bytes.push((value >>> (bits - 8)) & 0xff);
+            bits -= 8;
+        }
+    }
+    const msg = Buffer.alloc(8);
+    msg.writeBigUInt64BE(BigInt(step));
+    const h = crypto.createHmac('sha1', Buffer.from(bytes)).update(msg).digest();
+    const o = h[h.length - 1] & 0x0f;
+    return String((h.readUInt32BE(o) & 0x7fffffff) % 1e6).padStart(6, '0');
+}
+const tf_step = () => Math.floor(Date.now() / 30000);
+const tf_creds = { email: 'demo6@invokedb.com', password: 'password' };
+const tf_session = await call('two_factor_login_off', 'POST', '/auth/login', { body: tf_creds });
+const tf_token = tf_session?.token;
+check('two_factor_off_login_is_session', !!tf_token && !tf_session.two_factor_required, tf_session);
+const tf_status0 = await call('two_factor_status', 'GET', '/two-factor', { token: tf_token });
+check(
+    'two_factor_status_off',
+    tf_status0?.available === true && tf_status0.enabled === false && tf_status0.password_account,
+    tf_status0
+);
+await call('two_factor_status_api_key', 'GET', '/two-factor', { token: key, expectFail: true });
+await call('two_factor_status_no_auth', 'GET', '/two-factor', { expectFail: true });
+const tf_setup = await call('two_factor_setup', 'POST', '/two-factor/setup', { token: tf_token });
+const tf_secret = tf_setup?.secret;
+check(
+    'two_factor_setup_qr',
+    typeof tf_secret === 'string' &&
+        /^[A-Z2-7]{32}$/.test(tf_secret) &&
+        tf_setup.qr_code?.startsWith('data:image/svg+xml;base64,') &&
+        decodeURIComponent(tf_setup.otpauth_url || '').startsWith(
+            'otpauth://totp/InvokeDB:demo6@invokedb.com?'
+        ),
+    { qr: tf_setup?.qr_code?.slice(0, 30), url: tf_setup?.otpauth_url?.slice(0, 40) }
+);
+const tf_enable_step = tf_step();
+const tf_enable_code = totp_at(tf_secret, tf_enable_step);
+const tf_enabled = await call('two_factor_enable', 'POST', '/two-factor/enable', {
+    token: tf_token,
+    body: { code: tf_enable_code }
+});
+const tf_recovery = tf_enabled?.recovery_codes || [];
+check(
+    'two_factor_enable_recovery_codes',
+    tf_enabled?.enabled === true &&
+        tf_recovery.length === 10 &&
+        tf_recovery.every(c => /^[a-z2-7]{4}(-[a-z2-7]{4}){3}$/.test(c)),
+    { enabled: tf_enabled?.enabled, count: tf_recovery.length }
+);
+await call('two_factor_setup_when_on', 'POST', '/two-factor/setup', {
+    token: tf_token,
+    expectFail: true
+});
+// demo2 has its own (off) two-factor and can't turn demo6's off, even with demo6's code
+// (a fresh sign-in: the first demo2 session was logged out earlier)
+const tf_other_login = await call('two_factor_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const tf_otoken = tf_other_login?.token;
+const tf_other = await call('two_factor_other_status', 'GET', '/two-factor', { token: tf_otoken });
+check('two_factor_other_is_own', tf_other?.enabled === false, tf_other);
+await call('two_factor_other_disable', 'POST', '/two-factor/disable', {
+    token: tf_otoken,
+    body: { code: tf_recovery[0] },
+    expectFail: true
+});
+await call('two_factor_other_logout', 'GET', `/auth/logout?token=${tf_otoken}`);
+// The password alone no longer signs in
+const tf_login1 = await call('two_factor_login_challenge', 'POST', '/auth/login', {
+    body: tf_creds
+});
+check(
+    'two_factor_login_no_session',
+    tf_login1?.two_factor_required === true && !tf_login1.token && !!tf_login1.challenge,
+    tf_login1
+);
+await call('two_factor_login_wrong_password', 'POST', '/auth/login', {
+    body: { ...tf_creds, password: 'nope' },
+    expectFail: true
+});
+await call('two_factor_login_bad_challenge', 'POST', '/auth/login/two-factor', {
+    body: { challenge: 'nope', code: tf_enable_code },
+    expectFail: true
+});
+// The code that turned it on can't be used again (replay)
+await call('two_factor_login_replay', 'POST', '/auth/login/two-factor', {
+    body: { challenge: tf_login1?.challenge, code: tf_enable_code },
+    expectFail: true
+});
+// The next step's code is within the allowed drift and hasn't been used
+const tf_next_code = totp_at(tf_secret, tf_enable_step + 1);
+const tf_signed = await call('two_factor_login_code', 'POST', '/auth/login/two-factor', {
+    body: { challenge: tf_login1?.challenge, code: tf_next_code }
+});
+const tf_me = await call(
+    'two_factor_login_authorize',
+    'GET',
+    `/auth/authorize?token=${tf_signed?.token}`
+);
+check('two_factor_login_is_demo6', tf_me?.email === 'demo6@invokedb.com', tf_me);
+await call('two_factor_login_challenge_used', 'POST', '/auth/login/two-factor', {
+    body: { challenge: tf_login1?.challenge, code: tf_next_code },
+    expectFail: true
+});
+const tf_login2 = await call('two_factor_login_challenge2', 'POST', '/auth/login', {
+    body: tf_creds
+});
+await call('two_factor_login_code_replay', 'POST', '/auth/login/two-factor', {
+    body: { challenge: tf_login2?.challenge, code: tf_next_code },
+    expectFail: true
+});
+const tf_by_recovery = await call('two_factor_login_recovery', 'POST', '/auth/login/two-factor', {
+    body: { challenge: tf_login2?.challenge, code: tf_recovery[1].toUpperCase() }
+});
+check('two_factor_login_recovery_session', !!tf_by_recovery?.token, tf_by_recovery);
+const tf_login3 = await call('two_factor_login_challenge3', 'POST', '/auth/login', {
+    body: tf_creds
+});
+await call('two_factor_login_recovery_reused', 'POST', '/auth/login/two-factor', {
+    body: { challenge: tf_login3?.challenge, code: tf_recovery[1] },
+    expectFail: true
+});
+const tf_status1 = await call('two_factor_status_on', 'GET', '/two-factor', { token: tf_token });
+check(
+    'two_factor_status_on_codes_left',
+    tf_status1?.enabled === true && tf_status1.recovery_codes_left === 9,
+    tf_status1
+);
+await call('two_factor_disable_no_code', 'POST', '/two-factor/disable', {
+    token: tf_token,
+    body: {},
+    expectFail: true
+});
+await call('two_factor_disable', 'POST', '/two-factor/disable', {
+    token: tf_token,
+    body: { code: tf_recovery[2] }
+});
+const tf_login4 = await call('two_factor_login_off_again', 'POST', '/auth/login', {
+    body: tf_creds
+});
+check(
+    'two_factor_off_again_is_session',
+    !!tf_login4?.token && !tf_login4.two_factor_required,
+    tf_login4
+);
+for (const t of [tf_token, tf_signed?.token, tf_by_recovery?.token, tf_login4?.token]) {
+    if (t) await fetch(`${BASE}/auth/logout?token=${t}`);
 }
 
 // Data export (#215): the processor writes a zip of every table (CSV and JSON) and the forms,

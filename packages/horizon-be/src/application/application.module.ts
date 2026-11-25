@@ -25,6 +25,7 @@ import { AskService } from './ai/ask.service';
 import { AiService } from './ai/ai.service';
 import { EditService } from './ai/edit.service';
 import { AuditService } from './audit/audit.service';
+import { TwoFactorService } from './two-factor/two-factor.service';
 import { AccountExportService } from './account-export/account-export.service';
 
 @Module({
@@ -53,6 +54,7 @@ import { AccountExportService } from './account-export/account-export.service';
         AiService,
         EditService,
         AuditService,
+        TwoFactorService,
         AccountExportService
     ],
     exports: [
@@ -76,6 +78,7 @@ import { AccountExportService } from './account-export/account-export.service';
         AiService,
         EditService,
         AuditService,
+        TwoFactorService,
         AccountExportService
     ]
 })

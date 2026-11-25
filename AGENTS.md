@@ -158,7 +158,8 @@ auto-merge take it from there. The next issue starts when that PR merges or is p
 (`needs-owner`, `hold`). Review changes are handled by `revise.yml` (below). If the agent
 stops without a PR, or its PR is stuck (failed CI, 2 hours idle, review changes after the last
 revision round), the item gets `agent-stuck`, the user is mentioned, and the queue
-waits (for a stuck PR) or skips the issue (until the label is removed). Closing an agent PR
+moves on to the next issue; the stuck issue isn't started again until its PR is dealt with or the
+label is removed. Closing an agent PR
 without merging also marks its issue `agent-stuck`; removing the label asks for a retry.
 
 - Only issues the user opened and labelled are worked, and the agent sees the issue body and

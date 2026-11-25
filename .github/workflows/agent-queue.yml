@@ -3,11 +3,11 @@
 # secret is set (a token that can read the owner's Project; without it, by issue number).
 #
 # It starts the next issue only when nothing is in flight: no implement run going, and no open
-# `agent-pr` PR except parked ones (`needs-owner` or `hold`, which the owner merges later). An
-# agent PR that's stuck (CI failed, or no activity for 2 hours; review changes are revise.yml's
-# job, which marks the PR agent-stuck itself when its rounds run out)
-# holds the queue; it gets `agent-stuck` and one comment that mentions the owner. The owner
-# unblocks it by merging or closing the PR, or adding `hold`. Closing an agent PR without merging
+# `agent-pr` PR that's still moving. Parked PRs (`needs-owner` or `hold`, which the owner merges
+# later) and stuck ones don't hold it (#156): an agent PR that's stuck (CI failed, or no activity
+# for 2 hours; review changes are revise.yml's job, which marks the PR agent-stuck itself when its
+# rounds run out) gets `agent-stuck` and one comment that mentions the owner, and the queue moves
+# on; its issue isn't started again while the PR is open. Closing an agent PR without merging
 # also marks its issue `agent-stuck`, so the agent doesn't simply redo it.
 #
 # Runs when the owner labels an issue `agent`, when a person closes or labels an agent PR,
@@ -81,11 +81,12 @@ jobs:
           done
           if [ "$busy" -gt 0 ]; then echo "An implement run is in flight"; exit 0; fi
 
-          # Open agent PRs that aren't parked hold the queue
+          # Open agent PRs that aren't parked or stuck hold the queue
           blocking=$(gh pr list -R "$R" --label agent-pr --state open \
             --json number,labels,headRefOid,updatedAt --jq '[.[] |
               select(.labels | map(.name) | (index("needs-owner") or index("hold")) | not)]')
           if [ "$(jq length <<<"$blocking")" -gt 0 ]; then
+            still=()
             for i in $(seq 0 $(( $(jq length <<<"$blocking") - 1 ))); do
               pr=$(jq ".[$i]" <<<"$blocking")
               n=$(jq -r .number <<<"$pr")
@@ -98,11 +99,15 @@ jobs:
               if [ -z "$reason" ] && [ "$idle" -gt 7200 ]; then reason="it has had no activity for 2 hours"; fi
               if [ -n "$reason" ]; then
                 gh pr edit "$n" -R "$R" --add-label agent-stuck
-                gh pr comment "$n" -R "$R" --body "@$OWNER the agent queue is waiting on this PR: $reason. Fix and merge it, close it, or add \`hold\` to park it, and the queue moves on."
+                gh pr comment "$n" -R "$R" --body "@$OWNER this agent PR is stuck: $reason. The queue has moved on to the next issue; fix and merge this PR, or close it, when you get to it."
+                continue
               fi
+              still+=("#$n")
             done
-            echo "Waiting on agent PR(s): $(jq -r 'map("#\(.number)") | join(", ")' <<<"$blocking")"
-            exit 0
+            if [ "${#still[@]}" -gt 0 ]; then
+              echo "Waiting on agent PR(s): ${still[*]}"
+              exit 0
+            fi
           fi
 
           # Candidates: open, labelled agent, not stuck or the owner's own task, and opened by the

@@ -7,7 +7,8 @@
 // table's generated API docs and OpenAPI spec and runs their curl, fetch and Python snippets
 // (#139; Python only if python3 is installed), checks /api/v1/query and /count (#141: filters,
 // sort, fields, cursor paging, index use, 400s), imports tables from a CSV and a JSON URL (#144:
-// refused private/loopback URLs, replace and upsert re-syncs, a failed sync, demo2 locked out;
+// refused private/loopback URLs, replace and upsert re-syncs (a replace clears links to the old
+// rows, #175), a failed sync, demo2 locked out;
 // the URLs are this repo's files on GitHub, so it needs internet), checks webhooks on row changes
 // (#140: a receiver on 127.0.0.1:8199, allowed by smoke-env.sh's HORIZON_WEBHOOK_TEST_HOSTS,
 // checks signatures; refused private URLs, a retry, demo2 locked out), checks shareable forms
@@ -16,7 +17,7 @@
 // deleted, a kanban board and a moved card, bar/pie/line charts, demo2 and API keys locked
 // out, a deleted table's views gone), checks link columns (#147: picker, grid labels, ids and
 // `expand` on /api/v1, bad links refused, deleted rows cleared from links, no links across
-// accounts), checks email verification on signup (#132: the same answer for a taken email, an
+// accounts; a deleted linked table empties the cells and makes the column a string, #175), checks email verification on signup (#132: the same answer for a taken email, an
 // unverified account with no API key and no tables, resend, bad links), then deletes the tables
 // and the new account. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
@@ -635,6 +636,61 @@ check(
     edited
 );
 
+// A link column on another table points at a row of the imported table; a replace gives every
+// row a new id, so the link is cleared and the column still links to the table (#175)
+const url_links = await call('url_links_create', 'POST', '/table-template/tasks', {
+    token,
+    body: { name: 'smoke_url_links' }
+});
+const url_link_col = await call(
+    'url_links_new_column',
+    'GET',
+    `/web-file/${url_links}/get_new_column`,
+    { token }
+);
+await call(
+    'url_links_col_create',
+    'PUT',
+    `/web-file/${url_link_col?._id}/data_grid_column/${url_links}`,
+    {
+        token,
+        body: {
+            ...url_link_col,
+            headerName: 'Todo',
+            deleted: false,
+            col_type: 'link',
+            link_table_id: url_id,
+            link_display_field: name_field
+        }
+    }
+);
+await sleep(500);
+const ul_cols = await call(
+    'url_links_cols',
+    'POST',
+    `/web-file/data_grid_column/${url_links}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const ulf = (ul_cols.data || []).find(c => c.headerName === 'Todo')?.field;
+const ul_rows = await call(
+    'url_links_rows',
+    'POST',
+    `/web-file/data_grid_row/${url_links}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const ul_row0 = ul_rows.data?.[0];
+const ul_set = await call(
+    'url_links_set',
+    'PUT',
+    `/web-file/${ul_row0?._id}/data_grid_row/${url_links}`,
+    { token, body: { ...ul_row0, [ulf]: [edited?._id] } }
+);
+check(
+    'url_links_set_ok',
+    !!ulf && JSON.stringify(ul_set?.[ulf]) === JSON.stringify([edited?._id]),
+    ul_set
+);
+
 // Replace: a row added by hand goes away
 await call('url_add_row', 'POST', `/web-file/batch_create/data_grid_row/${url_id}`, {
     token,
@@ -649,6 +705,34 @@ await call('url_sync_replace', 'POST', `/url-import/${url_id}/sync`, { token });
 url_src = await url_source_settled('url_sync_replace_source', url_id);
 check('url_sync_replace_ok', url_src?.last_status === 'OK', url_src);
 check('url_sync_replace_rows', (await row_count('url_sync_replace_count', url_id)) === todo_rows);
+const ul_after = await call(
+    'url_links_after_replace',
+    'GET',
+    '/api/v1/get?table=smoke_url_links&skip=0&limit=50',
+    { token: me.api_key }
+);
+check(
+    'url_sync_replace_cleared_links',
+    Array.isArray(ul_after?.data) &&
+        ul_after.data.length > 0 &&
+        ul_after.data.every(r => r.Todo === null || r.Todo === undefined),
+    ul_after
+);
+const ul_cols_after = await call(
+    'url_links_cols_after_replace',
+    'POST',
+    `/web-file/data_grid_column/${url_links}?skip=0&limit=50`,
+    { token, body: {} }
+);
+check(
+    'url_sync_replace_still_linked',
+    (ul_cols_after.data || []).find(c => c.field === ulf)?.link_table_id === url_id,
+    ul_cols_after
+);
+await call('url_links_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [url_links] }
+});
 
 // A sync that fails (no such key column in the source) is an error on the source, and the
 // table keeps its rows and stays usable
@@ -2463,9 +2547,56 @@ if (other_table_made) {
     });
 }
 await call('link_other_logout', 'GET', `/auth/logout?token=${ltoken2}`);
+
+// Deleting the linked table (#175) empties the cells that pointed at it, and the column
+// becomes a plain string column, so it no longer names a deleted table
+const cara = lc_rows.data?.[2];
+await call('link_set_cara', 'PUT', `/web-file/${task0?._id}/data_grid_row/${link_tasks}`, {
+    token,
+    body: { ...task0, [lf]: [cara?._id] }
+});
+await call('link_contacts_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [link_contacts] }
+});
+const after_table = await call(
+    'link_after_table_delete',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=50',
+    { token: key }
+);
+check(
+    'link_table_delete_cleared_cells',
+    Array.isArray(after_table?.data) &&
+        after_table.data.length > 0 &&
+        after_table.data.every(r => r.Contact === null || r.Contact === undefined),
+    after_table
+);
+const lt_cols_unlinked = await call(
+    'link_tasks_cols_after_table_delete',
+    'POST',
+    `/web-file/data_grid_column/${link_tasks}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const unlinked = (lt_cols_unlinked.data || []).find(c => c.field === lf);
+check(
+    'link_table_delete_column_is_string',
+    unlinked?.col_type === 'string' &&
+        unlinked.link_table_id === undefined &&
+        unlinked.link_display_field === undefined,
+    unlinked
+);
+// It takes text again
+const unlinked_set = await call(
+    'link_unlinked_column_text',
+    'PUT',
+    `/web-file/${task0?._id}/data_grid_row/${link_tasks}`,
+    { token, body: { ...task0, [lf]: 'just text' } }
+);
+check('link_unlinked_column_takes_text', unlinked_set?.[lf] === 'just text', unlinked_set);
 await call('link_tables_delete', 'POST', '/file-directory/batch_delete', {
     token,
-    body: { ids: [link_tasks, link_contacts] }
+    body: { ids: [link_tasks] }
 });
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');

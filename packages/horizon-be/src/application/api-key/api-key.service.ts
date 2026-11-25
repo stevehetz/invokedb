@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, LessThan, Repository } from 'typeorm';
 import { Account } from '@app/core/account/account.entity';
 import { ApiKey } from '@app/core/api-key/api-key.entity';
 import { FileDirectory } from '@app/core/file-directory/file-directory.entity';
@@ -9,9 +9,11 @@ import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
 import { assert_verified } from '@app/core/email-verification/email-verification';
 import {
     MAX_API_KEYS,
+    REVOKED_KEPT_DAYS,
     hash_api_key,
     key_prefix,
     parse_new_key,
+    revoked_cutoff,
     should_touch_last_used
 } from '@app/core/api-key/api-key-rules';
 
@@ -62,10 +64,15 @@ export class ApiKeyService {
     }
 
     /**
-     * `{ keys, max, tables }`: every key of the account, live ones first, newest first, and the
-     * account's tables (`{ id, name }`) a new key can be limited to.
+     * `{ keys, max, revoked_kept_days, tables }`: the account's keys, live ones first, newest
+     * first, and the account's tables (`{ id, name }`) a new key can be limited to. Keys revoked
+     * more than REVOKED_KEPT_DAYS ago are deleted first (#178).
      */
     async list(account_id: number) {
+        await this.api_key_repository.delete({
+            account_id,
+            revoked_datetime: LessThan(revoked_cutoff(new Date()))
+        });
         const keys = await this.api_key_repository.find({
             where: { account_id },
             order: { id: 'DESC' }
@@ -76,6 +83,7 @@ export class ApiKeyService {
         return {
             keys: views,
             max: MAX_API_KEYS,
+            revoked_kept_days: REVOKED_KEPT_DAYS,
             tables: [...tables].map(([id, name]) => ({ id, name }))
         };
     }

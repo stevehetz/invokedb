@@ -14,6 +14,15 @@ export const MAX_KEY_TABLES = 100;
 export const KEY_PREFIX_LENGTH = 6;
 // last_used_datetime is written at most this often per key, not on every call
 export const LAST_USED_EVERY_MS = 60 * 1000;
+// A revoked key is listed this long, then deleted (#178). It never works again either way; this
+// keeps the list short for an account that rotates keys often (the E2E test account revokes a
+// few every run).
+export const REVOKED_KEPT_DAYS = 7;
+
+/** Keys revoked before this are deleted when the account's keys are listed. */
+export function revoked_cutoff(now: Date): Date {
+    return new Date(now.getTime() - REVOKED_KEPT_DAYS * 24 * 60 * 60 * 1000);
+}
 
 /** What one key may do; set on the `Account` an /api/v1 caller resolves to. */
 export interface ApiKeyScope {

@@ -3559,6 +3559,15 @@ $page_nav_active_color: #dcb467;
     text-align: right;
     white-space: nowrap;
 }
+.account-page .api-key-form .api-key-revoked-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+.account-page .api-key-form .api-key-revoked-note {
+    color: $gray400;
+}
 .account-page .api-key-form .copied-popup {
     position: absolute;
     top: -30px;

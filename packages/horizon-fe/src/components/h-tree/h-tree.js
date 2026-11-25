@@ -14,7 +14,8 @@ export default {
         'add_tree_item',
         'remove_tree_items',
         'edit_tree_items',
-        'move_tree_item'
+        'move_tree_item',
+        'open_schema'
     ],
 
     data: () => {

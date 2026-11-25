@@ -9,7 +9,8 @@
 // through its public link, then close and delete it, make (and delete) a table
 // from a template (saving a grid view of it, a kanban view where a card is dragged and a
 // chart view, #146) and one from a URL (a CSV on GitHub, so it needs internet), add a link column
-// to a tasks table, fill a cell from its picker and open the linked table (#147), generate rows
+// to a tasks table, fill a cell from its picker and open the linked table (#147), check the
+// schema diagram draws both tables and the link and opens a table (#208), generate rows
 // and make a table from a description (#148; only against the Anthropic stub, so skipped against
 // production), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
 //
@@ -1356,6 +1357,20 @@ try {
         // Its chip opens the linked table
         await grid().locator('.link-chip', { hasText: LINKED_TASK }).first().click();
         await page.locator('.el-tabs__item.is-active', { hasText: LINK_TABLE }).waitFor();
+
+        // The schema diagram (#208) draws both tables and the link; clicking a card opens it
+        await page.locator('.h-tree .schema-diagram-button').click();
+        const diagram = page.locator('.container-dialog .schema-diagram');
+        const table_card = diagram.locator(`.schema-table[data-table-id="${file_id}"]`);
+        await table_card.waitFor();
+        await diagram.locator(`.schema-table[data-table-id="${link_table.id}"]`).waitFor();
+        check(
+            (await diagram.locator('.schema-edge:not(.suggested)').count()) >= 1,
+            'no link arrow in the schema diagram'
+        );
+        await table_card.click();
+        await diagram.waitFor({ state: 'detached' });
+        await page.locator('.el-tabs__item.is-active', { hasText: TABLE }).waitFor();
 
         await page.locator('.h-tree .tree-wrapper').getByText(LINK_TABLE, { exact: true }).click();
         await page.locator('.h-tree .manage-items.active .remove-items').click();

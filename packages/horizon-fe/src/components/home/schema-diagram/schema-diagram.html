@@ -1,0 +1,143 @@
+<div class="schema-diagram">
+    <div class="schema-status" v-if="loading">Loading the diagram...</div>
+    <div class="schema-status error" v-if="error">{{ error }}</div>
+    <div
+        class="schema-status"
+        v-if="!loading && !error && diagram && diagram.tables.length === 0"
+    >
+        No tables yet.
+    </div>
+
+    <template v-if="!loading && diagram && diagram.tables.length > 0">
+        <div class="schema-toolbar">
+            <span class="schema-legend">
+                <span class="schema-key link"></span> link column
+                <span class="schema-key suggested"></span> suggested link
+                <span class="schema-hint">Click a table to open it.</span>
+            </span>
+            <span class="schema-zoom">
+                <el-button size="small" @click="set_zoom(-1)" title="Zoom out"
+                    ><i class="fa fa-minus"></i
+                ></el-button>
+                <span class="schema-zoom-level"
+                    >{{ Math.round(zoom * 100) }}%</span
+                >
+                <el-button size="small" @click="set_zoom(1)" title="Zoom in"
+                    ><i class="fa fa-plus"></i
+                ></el-button>
+            </span>
+        </div>
+
+        <div class="schema-canvas">
+            <svg
+                class="schema-svg"
+                :width="diagram.width * zoom"
+                :height="diagram.height * zoom"
+                :viewBox="'0 0 ' + diagram.width + ' ' + diagram.height"
+                role="img"
+                aria-label="Schema diagram"
+            >
+                <defs>
+                    <marker
+                        id="schema-arrow"
+                        viewBox="0 0 10 10"
+                        refX="10"
+                        refY="5"
+                        markerWidth="7"
+                        markerHeight="7"
+                        orient="auto"
+                    >
+                        <path d="M 0 0 L 10 5 L 0 10 z"></path>
+                    </marker>
+                </defs>
+
+                <g class="schema-edges">
+                    <path
+                        v-for="e in edges"
+                        :key="e.key"
+                        :d="e.path"
+                        :class="['schema-edge', { suggested: e.suggested, active: edge_active(e) }]"
+                        marker-end="url(#schema-arrow)"
+                    >
+                        <title>
+                            {{ e.suggested ? 'Suggested link' : 'Link' }}: {{
+                            names[e.from_table_id] }} → {{ names[e.to_table_id]
+                            }}
+                        </title>
+                    </path>
+                </g>
+
+                <g
+                    v-for="t in diagram.tables"
+                    :key="t.id"
+                    :class="['schema-table', { active: hover === t.id }]"
+                    :transform="'translate(' + t.x + ',' + t.y + ')'"
+                    :data-table-id="t.id"
+                    @click="open_table(t.id)"
+                    @mouseenter="hover = t.id"
+                    @mouseleave="hover = null"
+                >
+                    <title>Open {{ t.name }}</title>
+                    <rect
+                        class="schema-card"
+                        :width="t.width"
+                        :height="t.height"
+                        rx="6"
+                    ></rect>
+                    <path
+                        class="schema-card-header"
+                        :d="'M 0 6 A 6 6 0 0 1 6 0 H ' + (t.width - 6) + ' A 6 6 0 0 1 ' + t.width + ' 6 V ' + header_height + ' H 0 Z'"
+                    ></path>
+                    <text
+                        class="schema-table-name"
+                        x="10"
+                        :y="header_height / 2 + 5"
+                    >
+                        {{ clip(t.name, 26) }}
+                    </text>
+                    <g
+                        v-for="(c, i) in t.columns"
+                        :key="c.field"
+                        :class="['schema-column', { link: c.type === 'link' }]"
+                    >
+                        <text
+                            class="schema-column-name"
+                            x="10"
+                            :y="header_height + i * row_height + row_height / 2 + 4"
+                        >
+                            {{ clip(c.name, 18) }}
+                        </text>
+                        <text
+                            class="schema-column-type"
+                            :x="t.width - 10"
+                            :y="header_height + i * row_height + row_height / 2 + 4"
+                            text-anchor="end"
+                        >
+                            {{ type_label(c) }}
+                        </text>
+                    </g>
+                    <text
+                        v-if="t.hidden_columns > 0"
+                        class="schema-more"
+                        x="10"
+                        :y="header_height + t.columns.length * row_height + row_height / 2 + 4"
+                    >
+                        +{{ t.hidden_columns }} more
+                    </text>
+                </g>
+            </svg>
+        </div>
+
+        <div class="schema-suggestions" v-if="suggestion_notes.length > 0">
+            <h4>Suggested links</h4>
+            <p>
+                These columns are named like another table's id. To draw one as
+                a link, change its column type to Link (the type menu in its
+                header) and pick the table.
+            </p>
+            <ul>
+                <li v-for="n in suggestion_notes" :key="n.key">{{ n.text }}</li>
+            </ul>
+        </div>
+    </template>
+</div>

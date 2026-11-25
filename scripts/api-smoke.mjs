@@ -17,7 +17,8 @@
 // deleted, a kanban board and a moved card, bar/pie/line charts, demo2 and API keys locked
 // out, a deleted table's views gone), checks link columns (#147: picker, grid labels, ids and
 // `expand` on /api/v1, bad links refused, deleted rows cleared from links, no links across
-// accounts; a deleted linked table empties the cells and makes the column a string, #175),
+// accounts; a deleted linked table empties the cells and makes the column a string, #175; the
+// schema diagram draws the tables and the link, #208, demo2 and API keys locked out),
 // checks "ask your data" (#149: a stub of the Anthropic API on 127.0.0.1:8197, set by
 // smoke-env.sh; answer, rows and the API call, bad model queries refused, the monthly cap, demo2
 // and API keys locked out; then AI rows and tables, #148: typed preview rows, the monthly row
@@ -2242,6 +2243,32 @@ check(
 );
 const lf = lt_contact?.field;
 
+// The schema diagram (#208): every table with its columns, laid out, and the link as an arrow
+// from the Contact column to the contacts table
+const schema = await call('schema_diagram', 'GET', '/file-directory/schema', { token });
+const schema_tasks = schema?.tables?.find(t => t.id === link_tasks);
+check(
+    'schema_diagram_tables_and_link',
+    !!schema_tasks &&
+        schema.tables.some(
+            t => t.id === link_contacts && t.columns.some(c => c.field === lc_name)
+        ) &&
+        schema_tasks.columns.some(
+            c => c.field === lf && c.type === 'link' && c.link_table_id === link_contacts
+        ) &&
+        schema.links.some(
+            l =>
+                l.from_table_id === link_tasks &&
+                l.from_field === lf &&
+                l.to_table_id === link_contacts &&
+                !l.suggested
+        ) &&
+        schema.tables.every(t => Number.isFinite(t.x) && Number.isFinite(t.y)) &&
+        schema.width > 0 &&
+        schema.height > 0,
+    schema
+);
+
 // The picker: rows of the contacts table matching the text, labelled by the Name column
 const link_options = await call(
     'link_options',
@@ -2483,6 +2510,24 @@ await call('link_api_key_targets', 'GET', `/web-file/${link_tasks}/link-targets`
     token: key,
     expectFail: true
 });
+// demo2's schema diagram has none of demo's tables; an API key can't read one (#208)
+const other_schema = await call('schema_diagram_other', 'GET', '/file-directory/schema', {
+    token: ltoken2
+});
+check(
+    'schema_diagram_other_account',
+    Array.isArray(other_schema?.tables) &&
+        !other_schema.tables.some(t => t.id === link_tasks || t.id === link_contacts) &&
+        !other_schema.links.some(
+            l => l.to_table_id === link_contacts || l.from_table_id === link_tasks
+        ),
+    other_schema
+);
+await call('schema_diagram_api_key', 'GET', '/file-directory/schema', {
+    token: key,
+    expectFail: true
+});
+await call('schema_diagram_no_token', 'GET', '/file-directory/schema', { expectFail: true });
 
 // API keys (#138), on the two linked tables: a read-only key reads but can't write, a key limited
 // to the tasks table can't reach contacts (nor expand its link to them), a revoked key works
@@ -2861,6 +2906,20 @@ check(
         unlinked.link_table_id === undefined &&
         unlinked.link_display_field === undefined,
     unlinked
+);
+// ...and the schema diagram no longer draws it (#208)
+const schema_unlinked = await call(
+    'schema_diagram_after_table_delete',
+    'GET',
+    '/file-directory/schema',
+    { token }
+);
+check(
+    'schema_diagram_link_gone',
+    Array.isArray(schema_unlinked?.tables) &&
+        !schema_unlinked.tables.some(t => t.id === link_contacts) &&
+        !schema_unlinked.links.some(l => l.from_table_id === link_tasks),
+    schema_unlinked
 );
 // It takes text again
 const unlinked_set = await call(

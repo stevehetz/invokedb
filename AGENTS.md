@@ -341,6 +341,16 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   itself (filter model, sort, hidden columns); moving a kanban card is an ordinary row update.
   The frontend's Views menu is on the grid's top bar (`h-data-grid/views-dialog`,
   `kanban-view`, `chart-view`, SVG with no chart library).
+- Dashboards (#209): `src/core/dashboard/` has the pure rules (`dashboard.ts`: tiles `chart`
+  (a chart view), `table` and `stat` (count/sum/avg/min/max), each a table id plus an optional
+  view id, never rows; the share token) and the store (`dashboard.manager.ts`,
+  `tracking:dashboard` in the shared tracking DB; filter on `account_id`, except the share
+  lookup by token). Routes are `/dashboard` (session only; `GET /dashboard/:id/data` reads every
+  tile now, a gone table or view is an `error` in its tile; `POST`/`DELETE /dashboard/:id/share`
+  replace or revoke the link) and the public `GET /public/dashboard/:token` (no ids,
+  rate-limited per IP). The frontend's page is `/app/dashboards` (`components/dashboards`); the
+  share link is `/d/:token` (`view/dashboard-page`, outside both shells); both draw tiles with
+  `components/dashboard-tiles` (scoped CSS; charts share `chart-view/chart-geometry.js`).
 - Ask your data (#149): `src/core/ai/` has the Anthropic client (`ai-client.ts`, the only
   place the SDK is used; off without `ANTHROPIC_API_KEY` and `HORIZON_AI_MONTHLY_BUDGET_USD`),
   the pure rules (`ask.ts`: the `run_query` tool built from the columns, the model's input

@@ -1174,17 +1174,25 @@ check(
     ) && audit_account?.keep_days === 90,
     (audit_account?.entries || []).slice(0, 3)
 );
+// demo2 (logged in again: its first session ended above) sees none of demo's entries
+const audit_other = await call('audit_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const audit_otoken = audit_other.token;
 await call('other_audit_table', 'GET', `/audit?table=${file_id}`, {
-    token: otoken,
+    token: audit_otoken,
     expectFail: true
 });
 check('other_audit_table_is_404', results.other_audit_table?.status === 404);
-const other_audit = await call('other_audit_account', 'GET', '/audit?limit=100', { token: otoken });
+const other_audit = await call('other_audit_account', 'GET', '/audit?limit=100', {
+    token: audit_otoken
+});
 check(
     'other_audit_account_is_own',
     Array.isArray(other_audit?.entries) && other_audit.entries.every(e => e.file_id !== file_id),
     other_audit?.entries?.slice(0, 3)
 );
+await call('audit_other_logout', 'GET', `/auth/logout?token=${audit_otoken}`);
 await call('audit_api_key', 'GET', '/audit', { token: key, expectFail: true });
 
 // Per-table API docs (#139): the docs and OpenAPI spec, then run the generated curl, fetch

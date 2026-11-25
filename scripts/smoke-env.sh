@@ -34,5 +34,6 @@ HORIZON_WEBHOOK_TEST_HOSTS=127.0.0.1:8199
 # api-smoke.mjs's stub of the Anthropic Messages API (#149): no real model is called
 ANTHROPIC_API_KEY=smoke-anthropic-key
 ANTHROPIC_BASE_URL=http://127.0.0.1:8197
+HORIZON_AI_MONTHLY_BUDGET_USD=5
 VARS
 echo "Wrote $OUT"

@@ -31,34 +31,7 @@ export const ASK_SAMPLE_ROWS = 3;
 const MAX_CELL_FOR_MODEL = 200;
 const ASK_KEYS = ['filters', 'match', 'sort', 'fields', 'limit'];
 
-// Questions per calendar month (UTC), per plan. Provisional until the pricing review (#137)
-// settles the tiers; change them here.
-export const AI_QUESTION_LIMITS: Record<string, number> = {
-    FREE: 20,
-    BASIC: 200,
-    PLUS: 1000,
-    PREMIUM: 5000
-};
-
 export class AskError extends Error {}
-
-/** The plan tier of a subscription id: SUB_FREE, SUB_TEST_PLUS, SUB_LIVE_BASIC... */
-export function tier_of(subscription_id: string | null | undefined) {
-    if (!subscription_id) return 'FREE';
-    const tier = String(subscription_id)
-        .replace(/^SUB_(TEST_|LIVE_)?/, '')
-        .toUpperCase();
-    return AI_QUESTION_LIMITS[tier] === undefined ? 'FREE' : tier;
-}
-
-export function question_limit(subscription_id: string | null | undefined) {
-    return AI_QUESTION_LIMITS[tier_of(subscription_id)];
-}
-
-/** The usage period of a moment: its UTC month, "2026-11". */
-export function usage_month(now: number) {
-    return new Date(now).toISOString().slice(0, 7);
-}
 
 export function parse_question(question: unknown): string {
     if (typeof question !== 'string' || question.trim().length === 0) {

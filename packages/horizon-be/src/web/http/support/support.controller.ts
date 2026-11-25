@@ -11,6 +11,7 @@ import env from '@app/env';
 import logger from '@app/logger';
 import { EmailManager } from '@app/email/email.manager';
 import { RateLimitGuard } from '@app/web/http/_rate-limit/rate-limit';
+import { send_telegram, telegram_configured } from '@app/core/telegram/telegram';
 
 // Telegram rejects messages over 4096 characters.
 const MAX_FIELD_LENGTH = 3000;
@@ -42,7 +43,7 @@ export class SupportController {
         const text = `New support request\n\nEmail: ${email}\nSubject: ${subject}\n\n${message}`;
 
         const can_email = Boolean(env.SUPPORT_EMAIL && this.email_manager.is_configured);
-        const can_telegram = Boolean(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID);
+        const can_telegram = telegram_configured();
 
         if (!can_email && !can_telegram) {
             // Neither is configured (e.g. local dev): log the request instead.
@@ -66,7 +67,7 @@ export class SupportController {
 
         if (can_telegram) {
             try {
-                await this.send_telegram(text);
+                await send_telegram(text);
                 return res.status(HttpStatus.OK).send('success');
             } catch (err) {
                 logger.error(`support request: Telegram failed: ${err.message}`);
@@ -75,20 +76,5 @@ export class SupportController {
 
         logger.error(`support request could not be sent\n${text}`);
         throw new HttpException('Support request could not be sent', HttpStatus.BAD_GATEWAY);
-    }
-
-    // Telegram Bot API: https://core.telegram.org/bots/api#sendmessage
-    // Sent as plain text (no parse_mode), so user input can't inject formatting.
-    private async send_telegram(text: string) {
-        const url = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text }),
-            signal: AbortSignal.timeout(15000)
-        });
-        if (!res.ok) {
-            throw new Error(`Telegram responded ${res.status}: ${await res.text()}`);
-        }
     }
 }

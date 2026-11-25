@@ -1,6 +1,7 @@
 import {
     BadGatewayException,
     BadRequestException,
+    ForbiddenException,
     HttpException,
     HttpStatus,
     Injectable,
@@ -26,12 +27,11 @@ import {
     ask_tool,
     parse_ask_input,
     parse_question,
-    question_limit,
     reply_text,
-    tier_of,
-    tool_result_content,
-    usage_month
+    tool_result_content
 } from '@app/core/ai/ask';
+import { ai_allowance, call_cost_micros, crossed_alerts, usage_month } from '@app/core/ai/ai-plan';
+import { send_telegram, telegram_configured } from '@app/core/telegram/telegram';
 import logger from '@app/logger';
 
 // A run_query call that ran: its body and what it returned
@@ -43,12 +43,17 @@ interface RanQuery {
 }
 
 export const AI_OFF_MESSAGE = 'AI features are not set up on this server';
+export const AI_PAUSED_MESSAGE = 'AI features are paused until next month';
+export const AI_UNVERIFIED_MESSAGE = 'Verify your email address to use the AI features';
+// Tells the model to read the table when its first reply didn't
+const QUERY_FIRST = 'Call run_query to read the rows before you answer.';
 
 // "Ask your data" (#149): a question about one of the account's tables is answered by Claude,
 // which reads the table only through run_query, a read-only /api/v1/query body that is checked
 // against the table's columns before it runs (core/ai/ask.ts). The reply has the answer, the
 // rows behind it and the API call that returns them. Questions are counted per account and
-// month and capped by the plan.
+// month and capped by the plan, by count and by cost, and the whole server has a monthly
+// budget (docs/PRICING.md 3.5).
 @Injectable()
 export class AskService {
     constructor(
@@ -71,21 +76,38 @@ export class AskService {
         return account;
     }
 
+    /**
+     * `{ month, used, limit, tier, verified, budget_used }`: budget_used is the share (0 to 1)
+     * of the account's monthly AI budget already spent.
+     */
     private async usage(account) {
         const month = usage_month(this.now());
         const used = await this.ai_usage.get(account.id, month);
+        const allowance = ai_allowance(account);
         return {
             month,
             used: used.questions,
-            limit: question_limit(account.subscription_id),
-            tier: tier_of(account.subscription_id)
+            limit: allowance.questions,
+            tier: allowance.tier,
+            verified: allowance.verified,
+            budget_used:
+                allowance.budget_micros > 0
+                    ? Math.min(1, used.cost_micros / allowance.budget_micros)
+                    : 1
         };
     }
 
-    /** `{ available, usage: { month, used, limit, tier } }` */
+    // The server has spent its monthly AI budget
+    private async server_paused(month: string) {
+        return (await this.ai_usage.server_cost(month)) >= this.ai_client.budget_micros();
+    }
+
+    /** `{ available, usage }`. Not available without a key and budget, or once it's spent. */
     async status(acct_id: number) {
         const account = await this.account(acct_id);
-        return { available: this.ai_client.available(), usage: await this.usage(account) };
+        const available =
+            this.ai_client.available() && !(await this.server_paused(usage_month(this.now())));
+        return { available, usage: await this.usage(account) };
     }
 
     // A table of the account's that hasn't been deleted
@@ -139,6 +161,8 @@ export class AskService {
         await this.tracking_manager.check_account_lock(account);
         const file = await this.owned_table(acct_id, b.table);
         if (!this.ai_client.available()) throw new ServiceUnavailableException(AI_OFF_MESSAGE);
+        const allowance = ai_allowance(account);
+        if (!allowance.verified) throw new ForbiddenException(AI_UNVERIFIED_MESSAGE);
         let question: string;
         try {
             question = parse_question(b.question);
@@ -154,10 +178,16 @@ export class AskService {
         const samples = await this.samples(acct_id, file.id, columns);
 
         const month = usage_month(this.now());
-        const limit = question_limit(account.subscription_id);
-        if (!(await this.ai_usage.reserve(acct_id, month, limit))) {
+        if (await this.server_paused(month)) {
+            throw new ServiceUnavailableException(AI_PAUSED_MESSAGE);
+        }
+        const limit = allowance.questions;
+        if (!(await this.ai_usage.reserve(acct_id, month, limit, allowance.budget_micros))) {
+            const used = await this.ai_usage.get(acct_id, month);
             throw new HttpException(
-                `You've asked all ${limit} questions your plan has this month`,
+                used.questions >= limit
+                    ? `You've asked all ${limit} questions your plan has this month`
+                    : "You've used your plan's AI allowance for this month",
                 HttpStatus.TOO_MANY_REQUESTS
             );
         }
@@ -174,18 +204,17 @@ export class AskService {
         let answer = '';
         let input_tokens = 0;
         let output_tokens = 0;
+        let cost_micros = 0;
         let answered = false;
         try {
             for (let turn = 0; turn < ASK_MAX_TURNS; turn++) {
-                // The first turn must query; the last one must answer
+                // The last turn must answer. Forcing the first one to call the tool isn't
+                // possible (current models refuse a forced tool_choice), so the prompt asks for
+                // it, and a first reply without a query gets one reminder.
                 const tool_choice =
-                    turn === 0
-                        ? { type: 'tool', name: ASK_TOOL_NAME }
-                        : turn === ASK_MAX_TURNS - 1
-                          ? { type: 'none' }
-                          : { type: 'auto' };
-                const reply: any = await this.ai_client.create_message({
-                    max_tokens: 1024,
+                    turn === ASK_MAX_TURNS - 1 ? { type: 'none' } : { type: 'auto' };
+                const { reply, model }: any = await this.ai_client.create_message({
+                    max_tokens: 2048,
                     system,
                     tools: [tool as any],
                     tool_choice: tool_choice as any,
@@ -194,8 +223,14 @@ export class AskService {
                 answered = true;
                 input_tokens += (reply.usage && reply.usage.input_tokens) || 0;
                 output_tokens += (reply.usage && reply.usage.output_tokens) || 0;
+                cost_micros += call_cost_micros(model, reply.usage);
                 const calls = (reply.content || []).filter(c => c && c.type === 'tool_use');
                 if (calls.length === 0) {
+                    if (turn === 0 && ASK_MAX_TURNS > 2) {
+                        messages.push({ role: 'assistant', content: reply.content });
+                        messages.push({ role: 'user', content: QUERY_FIRST });
+                        continue;
+                    }
                     answer = reply_text(reply.content);
                     break;
                 }
@@ -215,8 +250,15 @@ export class AskService {
             if (!answered) await this.ai_usage.release(acct_id, month);
             throw new BadGatewayException("The AI service didn't answer. Please try again.");
         } finally {
-            if (input_tokens || output_tokens) {
-                await this.ai_usage.add_tokens(acct_id, month, input_tokens, output_tokens);
+            if (input_tokens || output_tokens || cost_micros) {
+                await this.ai_usage.add_usage(
+                    acct_id,
+                    month,
+                    input_tokens,
+                    output_tokens,
+                    cost_micros
+                );
+                await this.add_server_cost(month, cost_micros);
             }
         }
 
@@ -233,6 +275,27 @@ export class AskService {
             api_call: last ? api_call(base_url, file.name, last.body) : null,
             usage: await this.usage(account)
         };
+    }
+
+    // Adds to the server's monthly cost and tells the owner when it passes 50%, 80% and 100%
+    // of the budget
+    private async add_server_cost(month: string, cost_micros: number) {
+        if (!(cost_micros > 0)) return;
+        const budget = this.ai_client.budget_micros();
+        const { before, after } = await this.ai_usage.add_server_cost(month, cost_micros);
+        for (const level of crossed_alerts(before, after, budget)) {
+            const text =
+                `InvokeDB: AI spending for ${month} reached ${Math.round(level * 100)}% of the ` +
+                `$${(budget / 1e6).toFixed(2)} budget ($${(after / 1e6).toFixed(2)} so far).` +
+                (level >= 1 ? ' AI features are paused until the 1st (UTC).' : '');
+            logger.warn(text);
+            if (!telegram_configured()) continue;
+            try {
+                await send_telegram(text);
+            } catch (ex) {
+                logger.error(`ai budget alert: Telegram failed: ${ex && ex.message}`);
+            }
+        }
     }
 
     // Runs one run_query call of the model's, or tells it what was wrong with the input

@@ -2873,6 +2873,8 @@ await call('link_tables_delete', 'POST', '/file-directory/batch_delete', {
 const AI_KEY = 'smoke-anthropic-key';
 const ai_requests = [];
 let ai_next_input = {};
+// What the stub says each call used (a big number tests the cost cap)
+let ai_next_usage = { input_tokens: 50, output_tokens: 5 };
 const ai_stub = http.createServer((req, res) => {
     let raw = '';
     req.on('data', c => (raw += c));
@@ -2913,7 +2915,7 @@ const ai_stub = http.createServer((req, res) => {
                 content,
                 stop_reason: result ? 'end_turn' : 'tool_use',
                 stop_sequence: null,
-                usage: { input_tokens: 50, output_tokens: 5 }
+                usage: ai_next_usage
             })
         );
     });
@@ -2947,10 +2949,18 @@ check(
     'ai_ask_model_called',
     ai_turns.length === 2 &&
         ai_turns.every(r => r.path === '/v1/messages' && r.key === AI_KEY) &&
-        ai_turns[0].body.tool_choice?.name === 'run_query' &&
+        // Haiku at low effort, no forced tool call (docs/PRICING.md 3.5)
+        ai_turns[0].body.model === 'claude-haiku-5-5' &&
+        ai_turns[0].body.output_config?.effort === 'low' &&
+        ai_turns[0].body.tool_choice?.type === 'auto' &&
         String(ai_turns[0].body.system).includes('smoke_people') &&
         ai_turns[0].body.tools?.[0]?.input_schema?.properties?.fields?.items?.enum?.includes('age'),
-    ai_turns.map(r => ({ path: r.path, choice: r.body.tool_choice }))
+    ai_turns.map(r => ({
+        path: r.path,
+        model: r.body.model,
+        effort: r.body.output_config?.effort,
+        choice: r.body.tool_choice
+    }))
 );
 const ai_ages = (ai_ask?.rows || []).map(r => r.age);
 check(
@@ -3123,6 +3133,49 @@ await call('ai_cap_table_delete', 'POST', '/file-directory/batch_delete', {
     body: { ids: [ai_cap_table] }
 });
 await call('ai_cap_logout', 'GET', `/auth/logout?token=${ai_ctoken}`);
+
+// The monthly cost cap (demo4, free tier, $0.05): the stub says each call read 600k tokens
+// ($0.06 on Haiku), so after one question the next is a 429 for the allowance, well under the
+// question count. Reruns in the same month are over the budget from the start.
+const ai_cost = await call('ai_cost_login', 'POST', '/auth/login', {
+    body: { email: 'demo4@invokedb.com', password: 'password' }
+});
+const ai_cost_token = ai_cost.token;
+const ai_cost_table = await call('ai_cost_table', 'POST', '/table-template/waitlist', {
+    token: ai_cost_token,
+    body: { name: 'smoke_ai_cost' }
+});
+ai_next_input = {};
+ai_next_usage = { input_tokens: 600000, output_tokens: 0 };
+let ai_cost_hit = null;
+for (let i = 0; i < 3; i++) {
+    const res = await fetch(`${BASE}/ai/ask`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${ai_cost_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: ai_cost_table, question: `Costly question ${i}` })
+    });
+    if (res.status !== 200) {
+        ai_cost_hit = { at: i, status: res.status, body: await res.text() };
+        break;
+    }
+    await res.text();
+}
+ai_next_usage = { input_tokens: 50, output_tokens: 5 };
+const ai_cost_end = await call('ai_cost_status', 'GET', '/ai/status', { token: ai_cost_token });
+check(
+    'ai_cost_cap_429',
+    ai_cost_hit?.status === 429 &&
+        ai_cost_hit.at <= 1 &&
+        ai_cost_hit.body.includes('AI allowance') &&
+        ai_cost_end?.usage?.used < ai_cost_end?.usage?.limit &&
+        ai_cost_end?.usage?.budget_used === 1,
+    { ai_cost_hit, usage: ai_cost_end?.usage }
+);
+await call('ai_cost_table_delete', 'POST', '/file-directory/batch_delete', {
+    token: ai_cost_token,
+    body: { ids: [ai_cost_table] }
+});
+await call('ai_cost_logout', 'GET', `/auth/logout?token=${ai_cost_token}`);
 ai_stub.close();
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');

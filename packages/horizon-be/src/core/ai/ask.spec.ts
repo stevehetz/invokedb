@@ -1,5 +1,4 @@
 import {
-    AI_QUESTION_LIMITS,
     ASK_DEFAULT_ROWS,
     ASK_MAX_ROWS,
     ASK_TOOL_NAME,
@@ -11,12 +10,9 @@ import {
     ask_tool,
     parse_ask_input,
     parse_question,
-    question_limit,
     reply_text,
     rows_for_model,
-    tier_of,
-    tool_result_content,
-    usage_month
+    tool_result_content
 } from './ask';
 
 const COL_DEFS = [
@@ -167,24 +163,5 @@ describe('questions and usage', () => {
         expect(() => parse_question('   ')).toThrow(AskError);
         expect(() => parse_question(42)).toThrow(AskError);
         expect(() => parse_question('x'.repeat(MAX_QUESTION_LENGTH + 1))).toThrow(AskError);
-    });
-
-    it('maps subscriptions to tiers and limits', () => {
-        expect(tier_of(null)).toBe('FREE');
-        expect(tier_of('SUB_FREE')).toBe('FREE');
-        expect(tier_of('SUB_TEST_BASIC')).toBe('BASIC');
-        expect(tier_of('SUB_LIVE_PLUS')).toBe('PLUS');
-        expect(tier_of('SUB_LIVE_PREMIUM')).toBe('PREMIUM');
-        expect(tier_of('SUB_SOMETHING_ELSE')).toBe('FREE');
-        expect(question_limit(undefined)).toBe(AI_QUESTION_LIMITS.FREE);
-        expect(question_limit('SUB_LIVE_PLUS')).toBe(AI_QUESTION_LIMITS.PLUS);
-        expect(AI_QUESTION_LIMITS.FREE).toBeLessThan(AI_QUESTION_LIMITS.BASIC);
-        expect(AI_QUESTION_LIMITS.BASIC).toBeLessThan(AI_QUESTION_LIMITS.PLUS);
-        expect(AI_QUESTION_LIMITS.PLUS).toBeLessThan(AI_QUESTION_LIMITS.PREMIUM);
-    });
-
-    it('counts by UTC month', () => {
-        expect(usage_month(Date.UTC(2026, 10, 30, 23, 59))).toBe('2026-11');
-        expect(usage_month(Date.UTC(2026, 11, 1, 0, 0))).toBe('2026-12');
     });
 });

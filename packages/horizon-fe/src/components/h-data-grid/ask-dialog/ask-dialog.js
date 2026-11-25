@@ -65,7 +65,17 @@ export default defineComponent({
 
         /** @returns {boolean} */
         used_up() {
-            return !!this.usage && this.usage.used >= this.usage.limit;
+            return (
+                !!this.usage &&
+                this.usage.verified !== false &&
+                (this.usage.used >= this.usage.limit ||
+                    this.usage.budget_used >= 1)
+            );
+        },
+
+        /** @returns {boolean} */
+        unverified() {
+            return !!this.usage && this.usage.verified === false;
         }
     },
 

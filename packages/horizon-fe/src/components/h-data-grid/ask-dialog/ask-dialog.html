@@ -19,15 +19,18 @@
             type="primary"
             size="small"
             :loading="asking"
-            :disabled="!can_ask || used_up"
+            :disabled="!can_ask || used_up || unverified"
             @click="ask"
             >Ask</el-button
         >
     </div>
-    <div class="ask-usage" v-if="usage">
+    <div class="ask-usage" v-if="usage && unverified">
+        Verify your email address to ask questions about your data.
+    </div>
+    <div class="ask-usage" v-else-if="usage">
         {{ usage.used }} of {{ usage.limit }} questions used this month
         <span v-if="used_up"
-            >. Your plan's questions are used up until next month.</span
+            >. Your plan's AI allowance is used up until next month.</span
         >
     </div>
 

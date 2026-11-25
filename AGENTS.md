@@ -325,10 +325,14 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   The frontend's Views menu is on the grid's top bar (`h-data-grid/views-dialog`,
   `kanban-view`, `chart-view`, SVG with no chart library).
 - Ask your data (#149): `src/core/ai/` has the Anthropic client (`ai-client.ts`, the only
-  place the SDK is used; off without `ANTHROPIC_API_KEY`), the pure rules (`ask.ts`: the
-  `run_query` tool built from the columns, the model's input checked down to read-only
-  `/api/v1/query` keys and then by `parse_row_query`, per-plan monthly question caps) and the
-  usage store (`ai-usage.manager.ts`, `tracking:ai_usage`; filter on `account_id`). Routes are
+  place the SDK is used; off without `ANTHROPIC_API_KEY` and `HORIZON_AI_MONTHLY_BUDGET_USD`),
+  the pure rules (`ask.ts`: the `run_query` tool built from the columns, the model's input
+  checked down to read-only `/api/v1/query` keys and then by `parse_row_query`), the cost rules
+  (`ai-plan.ts`, `docs/PRICING.md` 3.5: Haiku 5.5 by default, per-tier monthly allowances by
+  count and by dollars, model prices, the server-wide budget and its Telegram alerts; unverified
+  accounts get none) and the usage store (`ai-usage.manager.ts`, `tracking:ai_usage` per account,
+  filter on `account_id`; `tracking:ai_server_usage` per month). Current models refuse a forced
+  `tool_choice`, so the first turn is `auto` and the prompt asks for the query. Routes are
   `GET /ai/status` and `POST /ai/ask` (session only). The model is never called in tests:
   `smoke-env.sh` points `ANTHROPIC_BASE_URL` at a stub on `127.0.0.1:8197` that `api-smoke.mjs`
   and `ui-smoke.mjs` start. The frontend's dialog is the grid's Ask button (`ask-dialog`).

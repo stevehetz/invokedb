@@ -66,15 +66,22 @@ repo: it's public.
 ### Anthropic API (AI features)
 
 - **Does:** answers "ask your data" questions on a table (#149): Claude turns a question into a
-  read-only `/api/v1/query` body, which the backend checks and runs. Off without a key: the
-  grid's Ask button is hidden and `/ai/*` answers 503.
-- **Configured:** `ANTHROPIC_API_KEY` in the backend's env; `HORIZON_AI_MODEL` optionally
-  overrides the model (default in `packages/horizon-be/src/core/ai/ai-client.ts`). In
-  production the key also has to be passed to the api container in `deploy/compose.yaml`.
+  read-only `/api/v1/query` body, which the backend checks and runs. Off without a key and a
+  budget: the grid's Ask button is hidden and `/ai/*` answers 503.
+- **Configured:** `ANTHROPIC_API_KEY` and `HORIZON_AI_MONTHLY_BUDGET_USD` (what the whole
+  server may spend per UTC month) in the backend's env; `HORIZON_AI_MODEL` optionally overrides
+  the model (default `claude-haiku-5-5`, in `packages/horizon-be/src/core/ai/ai-plan.ts`). In
+  production they also have to be passed to the backend in `deploy/compose.yaml` (#187).
+- **Account:** the Anthropic Console, workspace `InvokeDB`; its monthly spend limit is the
+  last backstop, so keep it a little above `HORIZON_AI_MONTHLY_BUDGET_USD`.
 - **Secrets:** `ANTHROPIC_API_KEY` (`prod.env`).
-- **Limits:** questions per account and UTC month by plan (`AI_QUESTION_LIMITS` in
-  `core/ai/ask.ts`); usage and tokens are in the tracking DB's `tracking:ai_usage`.
-- **Alerts:** none. Failed calls are logged (`ai ask failed`) and the user sees a 502.
+- **Limits** (`docs/PRICING.md` 3.5, `core/ai/ai-plan.ts`): per account and UTC month, a count
+  of questions and a dollar budget by tier (nothing for unverified accounts), and the
+  server-wide budget. Usage, tokens and cost are in the tracking DB's `tracking:ai_usage` (per
+  account) and `tracking:ai_server_usage` (per month).
+- **Alerts:** Telegram when the month's spending passes 50%, 80% and 100% of the server budget;
+  at 100% the AI features pause until the 1st (UTC). Failed calls are logged (`ai ask failed`)
+  and the user sees a 502.
 - **Check:** open a table, click Ask, ask "how many rows are there?".
 
 ### Telegram bot

@@ -255,6 +255,10 @@ token starts no CI, and a dispatched CI run doesn't count toward a PR's required
   API key; API keys are only for `/api/v1`.
 - Table templates (#142) are JSON files in `src/core/table-template/templates/` (one per
   template, checked by `table-template.spec.ts`); `tsconfig.build.json` copies them into `dist/`.
+- Per-table API docs (#139): `src/core/table-docs/` builds a table's endpoints, examples,
+  snippets (curl, fetch, `invokedb` client, Python) and OpenAPI spec from its columns
+  (`GET /web-file/:id/api-docs`, `/web-file/:id/openapi.json`, `/api/v1/openapi?table=`).
+  `api-smoke.mjs` runs the curl, fetch and Python snippets, so a snippet change must still run.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

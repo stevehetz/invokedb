@@ -13,6 +13,7 @@ import { AccountService } from '@app/application/account/account.service';
 import { FileDirectoryService } from '@app/application/file-directory/file-directory.service';
 import { AuthGuard } from '@nestjs/passport';
 import { api_key_account } from '@app/web/http/_auth/request-account';
+import { public_api_base_url } from '@app/web/http/public-api-url';
 
 @Controller('api/v1')
 @UseGuards(AuthGuard('bearer'))
@@ -83,6 +84,18 @@ export class ExternalV1Controller {
             file_id,
             req.body,
             format
+        );
+    }
+
+    // An OpenAPI 3 spec for one table (#139)
+    @Get('openapi')
+    async table_openapi(@Request() req) {
+        const account = api_key_account(req.user);
+        const file_id = await this.get_file_id(req.user, req.query.table);
+        return await this.web_file_service.table_openapi(
+            account.id,
+            file_id,
+            public_api_base_url(req)
         );
     }
 

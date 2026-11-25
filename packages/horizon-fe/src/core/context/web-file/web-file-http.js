@@ -33,6 +33,16 @@ export const web_file_http = {
         return http.get(http.get_url(`/web-file/${id}/link-options?${query}`));
     },
 
+    /**
+     * The table's file-directory record (its `status` is PENDING while a job runs on it),
+     * or null if it's gone.
+     * @param {number} id
+     */
+    async get_file(id) {
+        const files = await http.get(http.get_url('/file-directory'));
+        return (files || []).find(f => Number(f.id) === Number(id)) || null;
+    },
+
     async get_by_id(id, type, page_params) {
         type = type.replace('-', '_');
 

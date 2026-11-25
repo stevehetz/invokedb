@@ -826,6 +826,16 @@ $nav_active_color: #ffffff;
     border-bottom: solid 1px #c3c3c3;
     width: 100%;
     height: 35px;
+    // When its buttons don't fit (a narrow window, or more AI buttons), the bar scrolls on its
+    // own instead of widening the table pane, which pushed the grid and kanban board sideways
+    // (#226). Its dropdown menus are teleported, so they aren't clipped.
+    flex-shrink: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+}
+.h-data-grid .top::-webkit-scrollbar {
+    display: none;
 }
 .h-data-grid .top .middle {
     flex-shrink: 1;

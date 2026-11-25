@@ -1,0 +1,783 @@
+<div class="page help-page">
+    <div class="main-content">
+        <div class="main-heading">
+            <div class="flex-row">
+                <div class="col col-25">
+                    <router-link class="title-link" to="/">
+                        <img
+                            class="heading-logo-title"
+                            src="@/assets/logo-title.svg"
+                        />
+                        <img
+                            class="heading-logo-icon"
+                            src="@/assets/logo.svg"
+                        />
+                    </router-link>
+                </div>
+                <div class="col col-75 pull-right">
+                    <router-link to="/help" class="active">Help</router-link>
+                    <router-link to="/contact">Contact</router-link>
+                    <router-link to="/pricing">Pricing</router-link>
+                    <router-link to="/create-account" v-if="!account"
+                        >Sign Up</router-link
+                    >
+                    <router-link to="/login" class="sign-in" v-if="!account">
+                        <span>Sign In</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                    <router-link to="/app" class="sign-in" v-if="account">
+                        <span>Database</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                </div>
+            </div>
+        </div>
+        <div class="help-container">
+            <nav class="help-nav" aria-label="Help topics">
+                <router-link
+                    v-for="t in topics"
+                    :key="t.id"
+                    :to="'/help/' + t.id"
+                    :class="{ active: t.id === topic.id }"
+                >
+                    <i :class="t.icon"></i>
+                    <span>{{ t.title }}</span>
+                </router-link>
+                <router-link to="/changelog" class="help-nav-changelog">
+                    <i class="fa fa-clock-rotate-left"></i>
+                    <span>Changelog</span>
+                </router-link>
+            </nav>
+            <article class="help-body">
+                <!-- Getting started -->
+                <section v-if="topic.id === 'getting-started'">
+                    <h1>Getting started</h1>
+                    <p>
+                        InvokeDB gives you data tables you edit like a
+                        spreadsheet and read and write from your own code
+                        through an HTTP API. There's no server or database for
+                        you to run.
+                    </p>
+                    <h2>1. Make an account</h2>
+                    <p>
+                        <router-link to="/create-account">Sign up</router-link>
+                        with an email and password, or with Google or GitHub.
+                        With an email, confirm it with the link we send you:
+                        until then you can look around, but you can't create
+                        tables or use an API key.
+                    </p>
+                    <h2>2. Make a table</h2>
+                    <p>
+                        On the <b>Tables</b> page, click <b>+</b> and pick how
+                        to start: an empty table, a template with sample data, a
+                        CSV file, a URL or Google Sheet, or (with AI) a
+                        description. See
+                        <router-link to="/help/tables"
+                            >Tables and columns</router-link
+                        >
+                        and
+                        <router-link to="/help/import"
+                            >Importing data</router-link
+                        >.
+                    </p>
+                    <h2>3. Make an API key</h2>
+                    <p>
+                        On the <b>Account</b> page, under <b>API Keys</b>, click
+                        <b>New key</b>. Copy it: it's shown only once. See
+                        <router-link to="/help/api-keys">API keys</router-link>.
+                    </p>
+                    <h2>4. Call the API</h2>
+                    <p>
+                        Read the first rows of a table called
+                        <code>people</code>:
+                    </p>
+                    <pre><code>curl -H "Authorization: Bearer YOUR_API_KEY" \
+  "https://api.invokedb.com/v1/get?table=people&amp;skip=0&amp;limit=10"</code></pre>
+                    <p>
+                        Each table's <b>API</b> button (on the grid's top bar)
+                        shows ready-made examples for that table, in curl,
+                        JavaScript and Python. See
+                        <router-link to="/help/api">The API</router-link>.
+                    </p>
+                    <h2>The onboarding checklist</h2>
+                    <p>
+                        A new account sees a checklist on the Tables page that
+                        walks through these steps, ending with a command you can
+                        run. It ticks itself off as you go, and you can dismiss
+                        it at any time.
+                    </p>
+                </section>
+
+                <!-- Tables and columns -->
+                <section v-if="topic.id === 'tables'">
+                    <h1>Tables and columns</h1>
+                    <h2>Making a table</h2>
+                    <p>On the Tables page, click <b>+</b> and choose:</p>
+                    <ul>
+                        <li>
+                            <b>Empty Table</b>: three columns and three rows to
+                            start from.
+                        </li>
+                        <li>
+                            <b>Table from Template</b>: a ready-made table (a
+                            CRM, a task list, an inventory...) with sample rows
+                            you can keep or delete.
+                        </li>
+                        <li>
+                            <b>Table from CSV</b> and
+                            <b>Table from URL or Google Sheet</b>: see
+                            <router-link to="/help/import"
+                                >Importing data</router-link
+                            >.
+                        </li>
+                        <li>
+                            <b>Table from a Description (AI)</b>: describe the
+                            table and the AI suggests its columns and some rows;
+                            you check them before the table is made. See
+                            <router-link to="/help/ai">Ask AI</router-link>.
+                        </li>
+                    </ul>
+                    <p>
+                        Tables are listed on the left. Select some with their
+                        checkboxes to rename or delete them. A table's name is
+                        what the API calls it, so renaming a table changes the
+                        <code>table</code> your code sends.
+                    </p>
+                    <h2>Editing</h2>
+                    <p>
+                        Click a cell to edit it. <b>Add Row</b> on the grid's
+                        top bar adds rows, which are saved when you click the
+                        save button. Type in the filter row under the headers to
+                        filter, and click a header to sort. <b>Refresh</b>
+                        reloads the rows.
+                    </p>
+                    <h2>Columns</h2>
+                    <p>
+                        Click <b>Edit Columns</b> to add, rename, delete and
+                        retype columns, then save. In this mode each header has
+                        a type badge to pick the column's type, and an
+                        <i class="fa fa-info"></i> button that turns on an
+                        index, so API queries that filter on that column stay
+                        fast on big tables. The type decides how a column is
+                        filtered, sorted and checked:
+                    </p>
+                    <ul>
+                        <li><b>Text</b> (" "): any text.</li>
+                        <li><b>Number</b> (#): numbers only.</li>
+                        <li><b>True/false</b> (T/F): yes or no.</li>
+                        <li>
+                            <b>Date</b>: a date, written like
+                            <code>2026-01-15</code>.
+                        </li>
+                        <li>
+                            <b>Link</b>: rows of another table. See
+                            <router-link to="/help/links"
+                                >Link columns</router-link
+                            >.
+                        </li>
+                    </ul>
+                    <h2>Schema diagram</h2>
+                    <p>
+                        The diagram button next to <b>+</b> draws every table as
+                        a card with its columns, with arrows for link columns.
+                        It also suggests links it can guess from column names (a
+                        column called <code>customer id</code> next to a
+                        <code>customer</code> table).
+                    </p>
+                </section>
+
+                <!-- Importing data -->
+                <section v-if="topic.id === 'import'">
+                    <h1>Importing data</h1>
+                    <h2>From a CSV file</h2>
+                    <p>
+                        Click <b>+</b>, then <b>Table from CSV</b>, and choose
+                        the file. The first line is the column names. The table
+                        is filled in the background; the grid says when it's
+                        done. You can also <b>Upload</b> a CSV into an open
+                        table.
+                    </p>
+                    <h2>From a URL or a Google Sheet</h2>
+                    <p>
+                        Click <b>+</b>, then
+                        <b>Table from URL or Google Sheet</b>, and paste a link
+                        to:
+                    </p>
+                    <ul>
+                        <li>
+                            a Google Sheet shared as "Anyone with the link can
+                            view" (the first sheet is imported, or the one the
+                            link points at), or
+                        </li>
+                        <li>
+                            any public URL that answers CSV, or JSON (an array
+                            of objects, which become rows).
+                        </li>
+                    </ul>
+                    <p>
+                        The download can be up to 10 MB and must finish within
+                        30 seconds. Links to private or local addresses are
+                        refused.
+                    </p>
+                    <h2>Keeping it in sync</h2>
+                    <p>
+                        A table imported from a URL has a <b>Sync</b> button.
+                        Sync it by hand or every hour or day, in one of two
+                        ways:
+                    </p>
+                    <ul>
+                        <li>
+                            <b>Replace</b>: the table becomes exactly what the
+                            URL holds now.
+                        </li>
+                        <li>
+                            <b>Upsert</b> on a key column: rows whose key
+                            matches are updated, new keys are added, and rows
+                            the source no longer has are kept.
+                        </li>
+                    </ul>
+                    <p>
+                        A sync checks everything before it writes anything, so a
+                        bad download leaves the table as it was.
+                    </p>
+                </section>
+
+                <!-- Link columns -->
+                <section v-if="topic.id === 'links'">
+                    <h1>Link columns</h1>
+                    <p>
+                        A link column points at rows of another of your tables,
+                        like the customer of an order. Change a column's type to
+                        <b>Link</b>, pick the table it links to and the column
+                        to show for each linked row.
+                    </p>
+                    <p>
+                        Click a link cell to pick rows. A cell can link to
+                        several rows. In the API the cell is an array of the
+                        linked rows' <code>_id</code> values (or
+                        <code>null</code>); add
+                        <code>expand=&lt;column&gt;</code> to a Get, Search or
+                        Query call to get the linked rows themselves.
+                    </p>
+                    <h2>When rows or tables are deleted</h2>
+                    <ul>
+                        <li>
+                            Deleting rows removes them from every link that
+                            pointed at them.
+                        </li>
+                        <li>
+                            Deleting the linked table empties those cells and
+                            turns the link columns into text columns.
+                        </li>
+                    </ul>
+                    <p>
+                        Link columns are left out of
+                        <router-link to="/help/forms">forms</router-link>.
+                    </p>
+                </section>
+
+                <!-- The API -->
+                <section v-if="topic.id === 'api'">
+                    <h1>The API</h1>
+                    <p>
+                        Every table can be read and written at
+                        <code>https://api.invokedb.com/v1</code>. Send your
+                        <router-link to="/help/api-keys">API key</router-link>
+                        as <code>Authorization: Bearer YOUR_API_KEY</code>, and
+                        name the table with <code>?table=</code> (its name, any
+                        case).
+                    </p>
+                    <table class="help-table">
+                        <thead>
+                            <tr>
+                                <th>Call</th>
+                                <th>What it does</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>GET /get</code></td>
+                                <td>
+                                    Rows, paged with <code>skip</code> and
+                                    <code>limit</code>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>POST /search</code></td>
+                                <td>Rows matching simple column filters</td>
+                            </tr>
+                            <tr>
+                                <td><code>POST /query</code></td>
+                                <td>
+                                    Rows with filters (eq, ne, gt, gte, lt, lte,
+                                    contains, in, empty), sort, chosen fields
+                                    and cursor paging
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>POST /count</code></td>
+                                <td>How many rows match the same filters</td>
+                            </tr>
+                            <tr>
+                                <td><code>POST /create</code></td>
+                                <td>Add rows (an array of objects)</td>
+                            </tr>
+                            <tr>
+                                <td><code>PUT /update</code></td>
+                                <td>
+                                    Change rows, each with its <code>_id</code>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>POST /delete</code></td>
+                                <td>
+                                    Delete rows (an array of <code>_id</code>s)
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><code>GET /openapi</code></td>
+                                <td>The table's OpenAPI 3 spec</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <h2>An example query</h2>
+                    <pre><code>curl -X POST -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "https://api.invokedb.com/v1/query?table=people" \
+  -d '{"filters": [{"column": "age", "op": "gte", "value": 21}],
+       "sort": ["-age"], "limit": 50}'</code></pre>
+                    <p>
+                        The answer is
+                        <code>{ "data": [...], "next_cursor": "..." }</code>.
+                        Send the same body with <code>cursor</code> set to
+                        <code>next_cursor</code> for the next page;
+                        <code>next_cursor</code> is null on the last one.
+                    </p>
+                    <h2>Docs for each table</h2>
+                    <p>
+                        In the app, a table's <b>API</b> button shows its own
+                        endpoints, its columns and their types, examples in
+                        curl, JavaScript (<code>fetch</code> and the
+                        <code>invokedb</code> npm client) and Python, a
+                        <b>Try it</b> button, and its OpenAPI spec for tools
+                        like Postman. The <b>Api</b> page in the app's menu
+                        documents every call in full.
+                    </p>
+                    <h2>Errors</h2>
+                    <p>
+                        A bad request is answered with a 4xx status and a
+                        message saying what's wrong (a missing table, an unknown
+                        column, a value of the wrong type). A 403 means the key
+                        can't do that, or a
+                        <router-link to="/help/limits">limit</router-link> was
+                        reached.
+                    </p>
+                </section>
+
+                <!-- API keys -->
+                <section v-if="topic.id === 'api-keys'">
+                    <h1>API keys</h1>
+                    <p>
+                        A key lets code use your tables through the API. Make
+                        them on the <b>Account</b> page under <b>API Keys</b>.
+                        You can have up to 20 live keys, for example one per app
+                        or integration.
+                    </p>
+                    <h2>Making a key</h2>
+                    <ul>
+                        <li><b>Name</b>: to tell your keys apart.</li>
+                        <li>
+                            <b>Access</b>: <b>Read only</b> (get, search, query,
+                            count) or <b>Read and write</b> (also create, update
+                            and delete).
+                        </li>
+                        <li>
+                            <b>Tables</b>: every table, or only the ones you
+                            pick. Calls on other tables are refused.
+                        </li>
+                    </ul>
+                    <p>
+                        The key is shown once, when you make it. We only keep a
+                        fingerprint of it, so we can't show it again: if you
+                        lose it, make a new one.
+                    </p>
+                    <h2>Keeping keys safe</h2>
+                    <p>
+                        Treat a key like a password. Don't put a read-and-write
+                        key in a web page or a mobile app, where anyone can read
+                        it; use a read-only key limited to the tables the page
+                        needs, or call the API from your server.
+                    </p>
+                    <h2>Revoking</h2>
+                    <p>
+                        <b>Revoke</b> stops a key at once. Revoked keys are
+                        hidden behind a toggle and removed after 7 days.
+                    </p>
+                </section>
+
+                <!-- Webhooks -->
+                <section v-if="topic.id === 'webhooks'">
+                    <h1>Webhooks</h1>
+                    <p>
+                        A webhook tells your server when rows change. Open a
+                        table, click <b>Webhooks</b>, give the URL to call and
+                        pick the events: <code>row.created</code>,
+                        <code>row.updated</code> and <code>row.deleted</code>.
+                        Changes made in the app, by the API and by forms are
+                        sent; CSV uploads and URL syncs aren't.
+                    </p>
+                    <h2>What's sent</h2>
+                    <p>A <code>POST</code> with a JSON body:</p>
+                    <pre><code>{
+  "id": "whd_...",
+  "event": "row.created",
+  "created_at": "2026-11-25T10:00:00.000Z",
+  "webhook_id": "wh_...",
+  "table": { "id": 11, "name": "people" },
+  "rows": [{ "_id": "...", "name": "Ada", "age": 36 }]
+}</code></pre>
+                    <p>
+                        A change to more than 100 rows is sent as several
+                        deliveries. <b>Send test event</b> sends a
+                        <code>ping</code> event with no rows.
+                    </p>
+                    <h2>Checking the signature</h2>
+                    <p>
+                        Each delivery has an
+                        <code
+                            >InvokeDB-Signature: t=&lt;unix
+                            time&gt;,v1=&lt;hex&gt;</code
+                        >
+                        header. <code>v1</code> is the HMAC-SHA256, with the
+                        webhook's secret (<code>whsec_...</code>, shown in the
+                        dialog), of <code>&lt;t&gt;.&lt;raw body&gt;</code>.
+                        Compute it, compare, and reject deliveries whose
+                        <code>t</code> is more than 5 minutes off.
+                    </p>
+                    <pre><code>const crypto = require('crypto');
+
+function verify(secret, raw_body, header) {
+  const parts = Object.fromEntries(header.split(',').map(p => p.split('=')));
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(`${parts.t}.${raw_body}`)
+    .digest('hex');
+  const fresh = Math.abs(Date.now() / 1000 - Number(parts.t)) &lt; 300;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(parts.v1 || '');
+  return fresh &amp;&amp; a.length === b.length &amp;&amp; crypto.timingSafeEqual(a, b);
+}</code></pre>
+                    <h2>Retries and the log</h2>
+                    <p>
+                        Answer with any 2xx status within 10 seconds. Otherwise
+                        the delivery is tried again after 5 s, 30 s, 2 min, 10
+                        min, 1 hour and 6 hours (7 tries), then marked failed.
+                        The dialog shows each webhook's last 50 deliveries, kept
+                        for 7 days. Webhooks can't call private or local
+                        addresses, and redirects aren't followed.
+                    </p>
+                </section>
+
+                <!-- Forms -->
+                <section v-if="topic.id === 'forms'">
+                    <h1>Forms</h1>
+                    <p>
+                        A form is a public page that adds a row to a table each
+                        time someone fills it in, with no account needed. Open a
+                        table and click <b>Forms</b>.
+                    </p>
+                    <h2>Setting it up</h2>
+                    <ul>
+                        <li>
+                            A title, a description, and the columns to ask for,
+                            each with its own label, a line of help and whether
+                            it's required.
+                        </li>
+                        <li>
+                            The submit button's text, and a thank-you message or
+                            a URL to send people to afterwards.
+                        </li>
+                        <li>
+                            Open or closed: a closed form says so and takes no
+                            answers.
+                        </li>
+                    </ul>
+                    <p>
+                        Answers are checked against the column types (a number
+                        for a Number column, a date for a Date column). Link
+                        columns aren't asked for.
+                    </p>
+                    <h2>Sharing</h2>
+                    <p>
+                        Each form has a link (<code>/f/...</code>) to share, and
+                        code to embed it in your own site in an
+                        <code>iframe</code>. Deleting the form or its table
+                        turns the link off.
+                    </p>
+                    <h2>Spam</h2>
+                    <p>
+                        Forms have a hidden field that bots fill in and people
+                        don't, and limit how often one visitor, and everyone
+                        together, can submit. Submissions count against the
+                        table's row limit and trigger its
+                        <router-link to="/help/webhooks">webhooks</router-link>.
+                    </p>
+                </section>
+
+                <!-- Views -->
+                <section v-if="topic.id === 'views'">
+                    <h1>Views</h1>
+                    <p>
+                        A view is a saved way of looking at a table. Open the
+                        <b>Views</b> menu on the grid's top bar, then
+                        <b>Save or manage views...</b>. <b>All rows</b> goes
+                        back to the plain grid. A table can have up to 50 views.
+                    </p>
+                    <ul>
+                        <li>
+                            <b>Grid</b>: the grid's current filters, sort and
+                            hidden columns, saved under a name.
+                        </li>
+                        <li>
+                            <b>Kanban</b>: a card per row, in a column per value
+                            of a text or number column (a status, say). Drag a
+                            card to another column to change that value.
+                        </li>
+                        <li>
+                            <b>Chart</b>: a bar, line or pie chart that counts
+                            rows, or sums a number column, per value of a
+                            column.
+                        </li>
+                        <li>
+                            <b>Calendar</b>: rows on a month calendar by a date
+                            column.
+                        </li>
+                        <li>
+                            <b>Map</b>: rows as points, from a latitude and a
+                            longitude number column. Each point links to
+                            OpenStreetMap; rows without a position are counted
+                            but not drawn.
+                        </li>
+                    </ul>
+                    <p>
+                        Every view can have filters of its own. Charts can also
+                        be put on
+                        <router-link to="/help/dashboards"
+                            >dashboards</router-link
+                        >.
+                    </p>
+                </section>
+
+                <!-- Dashboards -->
+                <section v-if="topic.id === 'dashboards'">
+                    <h1>Dashboards</h1>
+                    <p>
+                        A dashboard puts numbers, charts and tables from any of
+                        your tables on one page. Open <b>Dashboards</b> in the
+                        app's menu and make one, then add tiles:
+                    </p>
+                    <ul>
+                        <li>
+                            <b>Stat</b>: one number from a table or a view:
+                            count, sum, average, min or max of a column.
+                        </li>
+                        <li><b>Chart</b>: a chart view.</li>
+                        <li>
+                            <b>Table</b>: the first rows of a table or a view.
+                        </li>
+                    </ul>
+                    <p>
+                        Tiles read the data each time the dashboard is opened,
+                        so they're always current. A tile whose table or view
+                        was deleted shows an error instead.
+                    </p>
+                    <h2>Sharing</h2>
+                    <p>
+                        <b>Share by link</b> makes a read-only link
+                        (<code>/d/...</code>) that anyone can open without an
+                        account. <b>New link</b> replaces it and turns the old
+                        one off, and you can turn sharing off at any time.
+                    </p>
+                </section>
+
+                <!-- Ask AI -->
+                <section v-if="topic.id === 'ai'">
+                    <h1>Ask AI</h1>
+                    <p>
+                        Open a table and click <b>Ask AI</b> to work with it in
+                        plain English. The AI reads your columns and, only when
+                        it needs them, some rows. It can:
+                    </p>
+                    <ul>
+                        <li>
+                            <b>Answer questions</b>: "How many orders over $100
+                            came from Paris?" It runs a query and shows it, so
+                            you can check its answer.
+                        </li>
+                        <li>
+                            <b>Propose rows</b>: "Add 20 sample customers." The
+                            rows appear in the grid as new rows; nothing is
+                            saved until you click Save.
+                        </li>
+                        <li>
+                            <b>Edit rows</b>: "Capitalise the city names" or
+                            "Set status to done where due is before today." You
+                            see every row before and after first, and can undo
+                            the last edit.
+                        </li>
+                    </ul>
+                    <p>
+                        <b>Table from a Description (AI)</b>, under <b>+</b> on
+                        the Tables page, designs a new table, with columns and
+                        sample rows, from a sentence.
+                    </p>
+                    <h2>Allowance</h2>
+                    <p>
+                        Each plan includes a number of AI questions and AI rows
+                        a month (the Free plan: 10 questions and 50 rows). The
+                        dialog shows what's left. AI needs a confirmed email
+                        address. AI can make mistakes: check its answers and
+                        edits before you rely on them.
+                    </p>
+                </section>
+
+                <!-- Your account -->
+                <section v-if="topic.id === 'account'">
+                    <h1>Your account</h1>
+                    <h2>Signing in</h2>
+                    <p>
+                        Sign in with your email and password, or with Google or
+                        GitHub. Forgot your password?
+                        <router-link to="/forgot-password"
+                            >Reset it</router-link
+                        >
+                        by email.
+                    </p>
+                    <h2>Confirming your email</h2>
+                    <p>
+                        After signing up with an email we send a link to confirm
+                        it (it works for 24 hours). Until then a banner in the
+                        app offers to send it again, and you can't create tables
+                        or use API keys. Accounts made with Google or GitHub are
+                        confirmed already.
+                    </p>
+                    <h2>The Account page</h2>
+                    <p>
+                        In the app, <b>Account</b> shows your plan, your
+                        <router-link to="/help/api-keys">API keys</router-link>
+                        and your details, and lets you change your password or
+                        delete the account. Deleting it removes every table and
+                        row and can't be undone.
+                    </p>
+                    <h2>Getting help</h2>
+                    <p>
+                        Use the
+                        <router-link to="/contact">contact form</router-link>
+                        (the <i class="fa fa-user-edit"></i> button in the app's
+                        header opens it too).
+                    </p>
+                </section>
+
+                <!-- Limits -->
+                <section v-if="topic.id === 'limits'">
+                    <h1>Limits</h1>
+                    <p>
+                        How many tables you can have, how many rows each can
+                        hold and how many API calls you can make depend on your
+                        plan: see
+                        <router-link to="/pricing">Pricing</router-link>. A call
+                        that would go over a limit is refused with a 403 and a
+                        message saying which.
+                    </p>
+                    <h2>The same on every plan</h2>
+                    <table class="help-table">
+                        <tbody>
+                            <tr>
+                                <td>Columns per table</td>
+                                <td>52</td>
+                            </tr>
+                            <tr>
+                                <td>Characters per cell</td>
+                                <td>2,000</td>
+                            </tr>
+                            <tr>
+                                <td>Rows per API create, update or delete</td>
+                                <td>100</td>
+                            </tr>
+                            <tr>
+                                <td>Rows per API query page</td>
+                                <td>1,000 (100 if you don't say)</td>
+                            </tr>
+                            <tr>
+                                <td>API keys</td>
+                                <td>20 live keys</td>
+                            </tr>
+                            <tr>
+                                <td>Views per table</td>
+                                <td>50</td>
+                            </tr>
+                            <tr>
+                                <td>Forms</td>
+                                <td>50</td>
+                            </tr>
+                            <tr>
+                                <td>Webhooks</td>
+                                <td>10</td>
+                            </tr>
+                            <tr>
+                                <td>Dashboards</td>
+                                <td>20, with up to 24 tiles each</td>
+                            </tr>
+                            <tr>
+                                <td>Import from a URL</td>
+                                <td>10 MB, within 30 seconds</td>
+                            </tr>
+                            <tr>
+                                <td>AI</td>
+                                <td>
+                                    A monthly allowance per plan (Free: 10
+                                    questions and 50 rows)
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>
+                        Hitting the row limit stops new rows being added; the
+                        rows you have stay. If a table ends up over its limit
+                        (after a plan change, say), it's locked: you can still
+                        see it in the app, but it can't be edited or used
+                        through the API until it's back under the limit.
+                    </p>
+                </section>
+
+                <div class="help-pager">
+                    <router-link
+                        v-if="previous"
+                        :to="'/help/' + previous.id"
+                        class="help-pager-prev"
+                    >
+                        <i class="fa fa-arrow-left"></i> {{ previous.title }}
+                    </router-link>
+                    <span v-else></span>
+                    <router-link
+                        v-if="next"
+                        :to="'/help/' + next.id"
+                        class="help-pager-next"
+                    >
+                        {{ next.title }} <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                </div>
+            </article>
+        </div>
+        <div class="footer">
+            <div class="flex-row">
+                <div class="col">
+                    <span>© InvokeDB, LLC</span>•
+                    <router-link to="/changelog">Changelog</router-link>•
+                    <router-link to="/tos">Terms</router-link>•
+                    <router-link to="/privacy">Privacy</router-link>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

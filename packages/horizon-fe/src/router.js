@@ -24,6 +24,8 @@ const Pricing = () => import('@/view/pages/pricing');
 const Contact = () => import('@/view/pages/contact');
 const Tos = () => import('@/view/pages/tos');
 const Privacy = () => import('@/view/pages/privacy');
+const Help = () => import('@/view/pages/help');
+const Changelog = () => import('@/view/pages/changelog');
 
 // The public site and the app were separate apps with separate global stylesheets that clash
 // (.page, .home-page, .flex-*, Element theme colours). Each area's shell imports its own CSS
@@ -122,6 +124,9 @@ const router = createRouter({
                 { path: 'contact', name: 'contact', component: Contact },
                 { path: 'tos', name: 'tos', component: Tos },
                 { path: 'privacy', name: 'privacy', component: Privacy },
+                // Help pages, one per topic (#219); the app's header links here too
+                { path: 'help/:topic?', name: 'help', component: Help },
+                { path: 'changelog', name: 'changelog', component: Changelog },
                 { path: ':pathMatch(.*)*', redirect: { name: 'site-home' } }
             ]
         }

@@ -112,8 +112,9 @@ export default {
             }
         },
 
-        async contact() {
-            window.open('/contact', '_blank');
+        // Help and Contact are pages of the site area: opened in place, through the router
+        contact() {
+            this.$router.push('/contact');
         },
 
         /** An item of the account menu. @param {string} command */

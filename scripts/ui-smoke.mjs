@@ -656,6 +656,9 @@ try {
             .locator('.webhooks-status', { hasText: 'Loading' })
             .waitFor({ state: 'detached' });
         check((await dialog.locator('.webhook').count()) === 0, 'the table already has webhooks');
+        // The intro names the table as the title does, without the file's `.g` (#189)
+        const intro_name = (await dialog.locator('.webhooks-intro b').first().innerText()).trim();
+        check(intro_name === TABLE, `the webhooks intro names the table "${intro_name}"`);
         const url_input = dialog.locator('.webhooks-url');
         const add = dialog.getByRole('button', { name: 'Add webhook' });
         await url_input.fill('http://127.0.0.1/hook');
@@ -719,12 +722,26 @@ try {
         await dialog.waitFor({ state: 'detached' });
     });
 
-    // API keys (#138): make a read-only key limited to the table on the account page, read it
-    // (shown once), call /api/v1 with it (a read works, a write is refused), see it listed by its
-    // prefix only, revoke it and see it refused; then revoke the other keys this run made.
+    // API keys (#138): go to the Account page through the API docs' "account" link (a router
+    // link, not the nav): only Account is highlighted in the nav afterwards, not Api as well
+    // (#189). Then make a read-only key limited to the table, read it (shown once), call /api/v1
+    // with it (a read works, a write is refused), see it listed by its prefix only, revoke it and
+    // see it refused; then revoke the other keys this run made.
     await step('api_key_and_external_api', async () => {
-        await page.locator('.layout .nav .el-menu-item', { hasText: 'Account' }).click();
+        await page.locator('.layout .nav .el-menu-item', { hasText: 'Api' }).click();
+        await page.locator('.api-key-message a', { hasText: 'account' }).click();
         const form = page.locator('.api-key-form');
+        await form.locator('.api-key-new-button').waitFor();
+        const highlighted = async cls =>
+            (await page.locator(`.layout .nav .el-menu-item.${cls}`).allInnerTexts()).map(t =>
+                t.trim()
+            );
+        results.observed.nav_active_after_docs_link = await highlighted('is-active');
+        check(
+            results.observed.nav_active_after_docs_link.join() === 'Account' &&
+                (await highlighted('is-active2')).join() === 'Account',
+            `after the docs' account link the nav highlights ${JSON.stringify(results.observed.nav_active_after_docs_link)}`
+        );
         await form.locator('.api-key-new-button').click();
         await form.locator('.api-key-name input').fill('ui-smoke');
         await form.locator('.api-key-scope').getByText('Only these').click();

@@ -1,9 +1,9 @@
 <div class="forms-dialog">
     <p class="forms-intro">
         Share a link (or embed it on your site) to a form that adds a row to
-        <b>{{ props.file.name }}</b>: sign-ups, surveys, contact lists. Anyone
-        with the link can answer it. Answers are checked against the column
-        types, and each response counts towards your plan's row limit.
+        <b>{{ table_name }}</b>: sign-ups, surveys, contact lists. Anyone with
+        the link can answer it. Answers are checked against the column types,
+        and each response counts towards your plan's row limit.
     </p>
 
     <div class="forms-status" v-if="loading">Loading forms...</div>

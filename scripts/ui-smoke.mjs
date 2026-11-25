@@ -1153,9 +1153,27 @@ try {
             results.observed.kanban_columns.join() === 'Done,In progress,To do',
             `the board's columns are ${results.observed.kanban_columns}`
         );
-        await column('In progress')
+        // By hand rather than dragTo: its single move after mousedown starts the drag, but
+        // Chromium may not send `dragover` to the column before mouseup, and the board only
+        // accepts a drop after a dragover, so dragTo sometimes dropped nothing. Several moves,
+        // then wait for the column to show it's the drop target before letting go.
+        const card_box = await column('In progress')
             .locator('.kanban-card', { hasText: 'Write the launch post' })
-            .dragTo(column('Done'));
+            .boundingBox();
+        const done_box = await column('Done').boundingBox();
+        check(card_box && done_box, 'the card or the Done column has no box');
+        const centre = b => [b.x + b.width / 2, b.y + b.height / 2];
+        await page.mouse.move(...centre(card_box));
+        await page.mouse.down();
+        await page.mouse.move(card_box.x + card_box.width / 2 + 10, card_box.y + 10, {
+            steps: 2
+        });
+        await page.mouse.move(...centre(done_box), { steps: 5 });
+        await page.mouse.move(done_box.x + done_box.width / 2 + 5, done_box.y + 20, {
+            steps: 2
+        });
+        await grid().locator('.kanban-column.drop-target[data-value="Done"]').waitFor();
+        await page.mouse.up();
         await column('Done')
             .locator('.kanban-card', { hasText: 'Write the launch post' })
             .waitFor();

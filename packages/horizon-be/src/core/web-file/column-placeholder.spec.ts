@@ -1,5 +1,9 @@
 import { ObjectId } from 'mongodb';
-import { is_unused_placeholder } from './column-placeholder';
+import {
+    is_unused_placeholder,
+    parse_pending_ids,
+    reusable_placeholder
+} from './column-placeholder';
 import { WebFileManager } from './web-file.manager';
 
 // A column collection in memory: `find({}).toArray()` in insertion order, and `insertOne`
@@ -32,6 +36,32 @@ describe('is_unused_placeholder', () => {
         [{ headerName: 'Name' }, false],
         [null, false]
     ])('%p -> %p', (col, expected) => expect(is_unused_placeholder(col)).toBe(expected));
+});
+
+describe('parse_pending_ids', () => {
+    const a = '0123456789abcdef01234567';
+    const b = 'ABCDEF0123456789ABCDEF01';
+    it.each([
+        [undefined, []],
+        ['', []],
+        [a, [a]],
+        [`${a}, ${b}`, [a, b.toLowerCase()]],
+        [
+            [a, b],
+            [a, b.toLowerCase()]
+        ],
+        [`${a},nope,{"$ne":1}`, [a]],
+        [{ $ne: 1 }, []]
+    ])('%p -> %p', (raw, expected) => expect([...parse_pending_ids(raw)]).toEqual(expected));
+});
+
+describe('reusable_placeholder', () => {
+    const col = { _id: new ObjectId(), deleted: true, headerName: '' };
+    it('reuses an unused placeholder the caller does not hold', () => {
+        expect(reusable_placeholder(col)).toBe(col);
+        expect(reusable_placeholder(col, new Set([String(col._id)]))).toBeNull();
+        expect(reusable_placeholder({ ...col, headerName: 'x' })).toBeNull();
+    });
 });
 
 describe('WebFileManager.get_new_column', () => {
@@ -75,6 +105,28 @@ describe('WebFileManager.get_new_column', () => {
         const next = await mgr.get_new_column(1, '7');
         expect(next).toMatchObject({ field: 'c', col_index: 3, deleted: true });
         expect(coll.docs).toHaveLength(3);
+    });
+
+    it('gives a second add in the same edit a new placeholder (pending ids)', async () => {
+        const coll = fake_columns([
+            { _id: new ObjectId(), field: 'a', headerName: 'Name', col_index: 1 }
+        ]);
+        const mgr = manager_with(coll);
+        const first = await mgr.get_new_column(1, '7');
+        const second = await mgr.get_new_column(1, '7', new Set([String(first._id)]));
+        expect(second).toMatchObject({ field: 'c', col_index: 3, deleted: true });
+        expect(String(second._id)).not.toBe(String(first._id));
+        const third = await mgr.get_new_column(
+            1,
+            '7',
+            new Set([String(first._id), String(second._id)])
+        );
+        expect(third).toMatchObject({ field: 'd', col_index: 4 });
+        expect(coll.docs).toHaveLength(4);
+        // A later edit holding none of them gets the last one back
+        const later = await mgr.get_new_column(1, '7');
+        expect(String(later._id)).toBe(String(third._id));
+        expect(coll.docs).toHaveLength(4);
     });
 
     it("doesn't reuse a deleted column that had a name", async () => {

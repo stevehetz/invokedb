@@ -16,6 +16,24 @@ import logger from '@app/logger';
 import env from '@app/env';
 import { validate_email } from '@app/core/helpers/validators';
 import { SsoError, SsoIdentity } from './sso/sso-identity';
+import { randomUUID } from 'crypto';
+import { EmailVerification } from '@app/core/email-verification/email-verification.entity';
+import {
+    SIGNUP_ANSWER,
+    VERIFY_LINK_HOURS,
+    is_verified,
+    verify_email_url
+} from '@app/core/email-verification/email-verification';
+import { verify_email_tmpl } from '@app/email/verify-email.template';
+import { signup_attempt_tmpl } from '@app/email/signup-attempt.template';
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const invalid_link = () =>
+    new HttpException(
+        'This link is invalid or has expired. Sign in to send a new one.',
+        HttpStatus.BAD_REQUEST
+    );
 
 @Injectable()
 export class AuthService {
@@ -29,6 +47,8 @@ export class AuthService {
     private readonly reset_password_repository: Repository<ResetPassword>,
     @InjectRepository(AccountIdentity)
     private readonly identity_repository: Repository<AccountIdentity>,
+    @InjectRepository(EmailVerification)
+    private readonly email_verification_repository: Repository<EmailVerification>,
     private account_manager: AccountManager,
     private session_manager: SessionManager,
     private email_manager: EmailManager,
@@ -71,7 +91,8 @@ export class AuthService {
                 last_name: account.last_name,
                 token: session.token,
                 locked: account.locked,
-                locked_reason: account.locked_reason
+                locked_reason: account.locked_reason,
+                email_verified: is_verified(account)
             };
 
             if (account.subscription_id) {
@@ -87,24 +108,91 @@ export class AuthService {
         }
     }
 
+    /**
+     * Password signup (#132). The answer is the same whether or not the email already has an
+     * account, so signup doesn't reveal which emails do (login and reset don't either). A new
+     * account starts unverified and gets a verification link; an existing one gets a "someone
+     * tried to sign up" email instead (none for a deleted account). The password is hashed on
+     * both paths, so the time taken doesn't tell them apart either; emails are sent in the
+     * background.
+     */
     async create_account(account_dto: any) {
-        await this.account_manager.check_if_exists(account_dto.email);
+        const email = account_dto?.email;
+        if (!email || typeof email !== 'string') {
+            throw new HttpException('Email is required', HttpStatus.BAD_REQUEST);
+        }
 
         this.account_manager.validate_account_info(account_dto);
 
         const password_hash = await this.account_manager.hash_password(account_dto.password);
 
-        // No API key yet: the account makes its keys on the Account page (#138)
+        const existing = await this.account_manager.find_by_email_any_case(email);
+        if (existing) {
+            logger.info(`Signup for an email that already has an account (ID ${existing.id}).`);
+            if (!existing.deleted) this.send_signup_attempt(existing.email);
+            return SIGNUP_ANSWER;
+        }
+
+        // No API key yet: once the email is verified (#132), the account makes its keys on the
+        // Account page (#138)
         const account = await this.account_repository.save({
-            email: account_dto.email,
-            password_hash
+            email,
+            password_hash,
+            email_verified: false
         });
 
         logger.info(`Account created. ID: ${account.id}, Email: ${account.email}.`);
 
-        this.send_welcome(account);
+        await this.send_verification(account);
 
-        return 'success';
+        return SIGNUP_ANSWER;
+    }
+
+    /** The link in the verification email. Answers 400 for an unknown or expired link. */
+    async verify_email(token: unknown) {
+        // The column is a uuid: anything else would make Postgres throw
+        if (typeof token !== 'string' || !UUID.test(token)) throw invalid_link();
+
+        const verification = await this.email_verification_repository.findOneBy({ token });
+        if (!verification || is_expired(verification.expired_datetime)) throw invalid_link();
+
+        const account_id = verification.account_id;
+        await this.account_repository.update({ id: account_id }, { email_verified: true });
+        await this.email_verification_repository.delete({ account_id });
+        logger.info(`Email verified for account ${account_id}.`);
+
+        return { email_verified: true };
+    }
+
+    /** The app's "Resend" banner: a new link for the signed-in account, if it isn't verified. */
+    async resend_verification(account_id: number) {
+        const account = await this.account_repository.findOneBy({ id: account_id });
+        if (!account || account.deleted) throw new HttpException('Not found', HttpStatus.NOT_FOUND);
+        if (is_verified(account)) return { email_verified: true };
+
+        await this.send_verification(account);
+        return { email_verified: false, sent: true };
+    }
+
+    // One live link per account: a new one replaces any sent before
+    private async send_verification(account: { id: number; email: string }) {
+        await this.email_verification_repository.delete({ account_id: account.id });
+        const token = randomUUID();
+        // expired_datetime is filled in by the column default (24 hours)
+        await this.email_verification_repository.save({ token, account_id: account.id });
+
+        const site = env.HORIZON_FE_PUB_HTTP_URL;
+        const { subject, body } = verify_email_tmpl(
+            site,
+            verify_email_url(site, token),
+            VERIFY_LINK_HOURS
+        );
+        this.email_manager.send_html(account.email, subject, body);
+    }
+
+    private send_signup_attempt(email: string) {
+        const { subject, body } = signup_attempt_tmpl(env.HORIZON_FE_PUB_HTTP_URL);
+        this.email_manager.send_html(email, subject, body);
     }
 
     private send_welcome(account: { email: string }) {
@@ -126,8 +214,9 @@ export class AuthService {
      * 2. Otherwise it links to the account with the same email, but only when the provider says
      *    the email is verified (`identity.email` is null when it isn't). Anyone can put any
      *    address on a GitHub account, so an unverified one must never reach an existing account.
-     *    It never links to an account that has a password: password signup doesn't verify the
-     *    email, so whoever set that password may not own the mailbox, and linking would put the
+     *    It never links to an account that has a password: accounts from before #132 never
+     *    verified their email (and #132 left linking out), so whoever set that password may not
+     *    own the mailbox, and linking would put the
      *    owner in an account someone else can still enter (and whose API key they have seen).
      *    Such an account signs in with its password (or resets it through the mailbox).
      * 3. Otherwise a new account is created, with no password (it can set one through "Forgot
@@ -183,7 +272,9 @@ export class AuthService {
             email: identity.email,
             password_hash: null,
             first_name: identity.first_name,
-            last_name: identity.last_name
+            last_name: identity.last_name,
+            // The provider verified the email (identity.email is null otherwise)
+            email_verified: true
         });
 
         logger.info(
@@ -242,7 +333,12 @@ export class AuthService {
 
             const password_hash = await this.account_manager.hash_password(password);
 
-            await this.account_repository.update({ id: account.id }, { password_hash });
+            // The reset link was opened from the account's mailbox, which proves the email too
+            await this.account_repository.update(
+                { id: account.id },
+                { password_hash, email_verified: true }
+            );
+            await this.email_verification_repository.delete({ account_id: account.id });
 
             await this.reset_password_repository.remove(reset_pass);
             await this.session_repository.delete({ account_id: account.id });

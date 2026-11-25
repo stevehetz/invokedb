@@ -6,6 +6,7 @@ import { ApiKey } from '@app/core/api-key/api-key.entity';
 import { FileDirectory } from '@app/core/file-directory/file-directory.entity';
 import { generate_api_key } from '@app/core/account/api-key';
 import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
+import { assert_verified } from '@app/core/email-verification/email-verification';
 import {
     MAX_API_KEYS,
     hash_api_key,
@@ -81,6 +82,8 @@ export class ApiKeyService {
 
     /** `{ key, secret }`: `secret` is the key itself, shown this once and never stored. */
     async create(account_id: number, body: unknown) {
+        // Keys need a verified email, like tables (#132)
+        assert_verified(await this.account_repository.findOneBy({ id: account_id }));
         const input = parse_new_key(body);
         const live = await this.api_key_repository.countBy({
             account_id,

@@ -44,4 +44,9 @@ export class Account {
     // Not a column: set by the bearer strategy on the account an /api/v1 key belongs to, with
     // what that key may do (#138). The keys themselves are in `api_key` (ApiKey).
     key_scope?: ApiKeyScope;
+
+    // False for a password account until its owner clicks the link in the verification email
+    // (#132). Google and GitHub accounts, and accounts from before #132, are verified.
+    @Column({ type: 'boolean', default: false })
+    email_verified: boolean;
 }

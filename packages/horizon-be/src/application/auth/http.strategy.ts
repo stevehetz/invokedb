@@ -6,6 +6,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Session } from '@app/core/session/session.entity';
 import { ApiKeyService } from '../api-key/api-key.service';
 import { is_expired } from '@app/core/helpers/is-expired';
+import { is_verified } from '@app/core/email-verification/email-verification';
 
 @Injectable()
 export class HttpStrategy extends PassportStrategy(Strategy) {
@@ -28,7 +29,8 @@ export class HttpStrategy extends PassportStrategy(Strategy) {
                 }
             } else {
                 const account = await this.api_key_service.account_from_key(key_or_token);
-                if (account) {
+                // An API key works once the account's email is verified (#132)
+                if (account && is_verified(account)) {
                     return account;
                 }
             }

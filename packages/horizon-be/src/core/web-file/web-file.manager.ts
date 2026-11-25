@@ -23,6 +23,7 @@ import {
     new_link_ids,
     normalize_link_value
 } from './link';
+import { is_unused_placeholder } from './column-placeholder';
 
 const MAX_FIELD_VALUE_LENGTH = 2000;
 const MAX_COLUMN_VALUE_LENGTH = 100;
@@ -40,6 +41,8 @@ export class WebFileManager {
         const c = await this._collections.get_dg_col(acct_id, file_id);
         const data = await c.find({}).toArray();
         const last_col = data.length > 0 ? data[data.length - 1] : null;
+        // The last column is an earlier placeholder that was never used: hand it out again (#236)
+        if (is_unused_placeholder(last_col)) return last_col;
         const new_key = last_col ? this.get_next_column_key(last_col.field) : 'a';
 
         const new_col = {

@@ -4,7 +4,7 @@
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
 // render the public site's pages, log in, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
-// read the API key from the account page and call /api/v1 with it, make (and delete) a table
+// open the table's API docs and "Try it" on Get, read the API key from the account page and call /api/v1 with it, make (and delete) a table
 // from a template, then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
 //
 // URLs come from the same env vars the apps use, so load an env file first. Best run against
@@ -464,6 +464,37 @@ try {
         )
             .split(' ')
             .filter(c => c !== 'grid-header-type');
+    });
+
+    // The table's own API docs (#139): its endpoints, snippets with its name, and "Try it" on
+    // Get, which sends a real (read-only) request with the account's key
+    await step('table_api_docs', async () => {
+        await grid().locator('.api-button button').click();
+        const dialog = page.locator('.container-dialog .api-dialog');
+        const tabs = dialog.locator('.api-dialog-tab');
+        await tabs.first().waitFor();
+        results.observed.api_docs_tabs = await tabs.allInnerTexts();
+        check(results.observed.api_docs_tabs.length === 5, 'the API dialog has no 5 endpoint tabs');
+        const snippet = await dialog.locator('.api-dialog-snippet pre').innerText();
+        check(snippet.includes(`table=${TABLE}`), `the curl snippet doesn't name ${TABLE}`);
+        await dialog.getByRole('button', { name: 'Send request' }).click();
+        const status = dialog.locator('.try-response .try-status');
+        await status.waitFor();
+        results.observed.api_docs_try_status = (await status.innerText()).trim();
+        check(
+            results.observed.api_docs_try_status === '200',
+            `Try it on Get answered ${results.observed.api_docs_try_status}`
+        );
+        const body = JSON.parse(await dialog.locator('.try-response pre').innerText());
+        check(body.count === 3, `Try it on Get returned count ${body.count}`);
+        // Writes are off by default
+        await tabs.filter({ hasText: 'Delete rows' }).click();
+        check(
+            await dialog.getByRole('button', { name: 'Send request' }).isDisabled(),
+            'Try it on Delete is enabled without "Allow requests that change data"'
+        );
+        await page.locator('.container-dialog .el-dialog__headerbtn').click();
+        await dialog.waitFor({ state: 'detached' });
     });
 
     await step('api_key_and_external_api', async () => {

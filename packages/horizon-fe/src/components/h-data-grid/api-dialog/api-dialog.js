@@ -1,54 +1,206 @@
-// @ts-nocheck: not type-checked yet
+// The table's own API docs (#139): its endpoints with examples and snippets built from its
+// columns by the backend (GET /web-file/:id/api-docs), and "Try it", which sends a real request
+// to the public API with the account's key. Requests that change data are off by default.
+import { defineComponent } from 'vue';
 import copy from 'copy-to-clipboard';
 import { store } from '@/store';
+import { bus } from '@/core/bus';
+import { web_file_http } from '@/core/context/web-file/web-file-http';
 
-export default {
+const LANGUAGES = [
+    { id: 'curl', label: 'curl' },
+    { id: 'fetch', label: 'JavaScript (fetch)' },
+    { id: 'client', label: 'JavaScript (invokedb)' },
+    { id: 'python', label: 'Python' }
+];
+
+const METHOD_CLASS = { GET: 'get', POST: 'post', PUT: 'put' };
+
+function pretty(value) {
+    return JSON.stringify(value, null, 2);
+}
+
+export default defineComponent({
     props: ['props'],
 
     data() {
         return {
-            table_name: null,
-            get_url: null,
-            search_url: null,
-            create_url: null,
-            update_url: null,
-            delete_url: null,
-            show_copied_popup: {}
+            docs: null,
+            loading: true,
+            load_error: null,
+            active: 'get',
+            lang: 'curl',
+            languages: LANGUAGES,
+            copied: null,
+            copied_timer: null,
+            key_id: 'account',
+            allow_writes: false,
+            try_url: '',
+            try_body: '',
+            try_response: null,
+            running: false
         };
     },
 
-    mounted() {
-        const file = this.props.file;
-        this.table_name = file.name.replace(/.g/g, '');
-        const table_name_lower = this.table_name.toLowerCase();
-        const env = store.get('env');
-        const base_url = env.HORIZON_API_PUB_HTTP_URL + '/v1';
+    computed: {
+        endpoint() {
+            if (!this.docs) return null;
+            return this.docs.endpoints.find(e => e.id === this.active);
+        },
 
-        this.get_url = `${base_url}/get?table=${table_name_lower}&skip=0&limit=10`;
-        this.search_url = `${base_url}/search?table=${table_name_lower}&skip=0&limit=10`;
-        this.create_url = `${base_url}/create?table=${table_name_lower}`;
-        this.update_url = `${base_url}/update?table=${table_name_lower}`;
-        this.delete_url = `${base_url}/delete?table=${table_name_lower}`;
+        method_class() {
+            if (!this.endpoint) return '';
+            // Delete is a POST, but shown in the delete colour as before
+            if (this.endpoint.id === 'delete') return 'delete';
+            return METHOD_CLASS[this.endpoint.method];
+        },
+
+        snippet() {
+            return this.endpoint ? this.endpoint.snippets[this.lang] : '';
+        },
+
+        // One key per account for now; scoped (read-only) keys are #138
+        keys() {
+            const account = store.get('account') || {};
+            return [
+                {
+                    id: 'account',
+                    label: 'Account API key (full access)',
+                    value: account.api_key
+                }
+            ];
+        },
+
+        api_key() {
+            const key = this.keys.find(k => k.id === this.key_id);
+            return key ? key.value : null;
+        },
+
+        export_line() {
+            if (!this.docs) return '';
+            return `export ${this.docs.api_key_env}=${this.api_key || ''}`;
+        },
+
+        export_line_masked() {
+            if (!this.docs) return '';
+            return `export ${this.docs.api_key_env}=${'•'.repeat(12)}`;
+        },
+
+        can_try() {
+            if (!this.endpoint || !this.api_key || this.running) return false;
+            return this.endpoint.read_only || this.allow_writes;
+        }
+    },
+
+    async mounted() {
+        try {
+            this.docs = await web_file_http.get_api_docs(this.props.file.id);
+            this.reset_try();
+        } catch (ex) {
+            this.load_error =
+                (ex && ex.message) || 'Could not load the API docs';
+        }
+        this.loading = false;
+    },
+
+    beforeUnmount() {
+        window.clearTimeout(this.copied_timer);
     },
 
     methods: {
-        copy_to_clipboard(section, text) {
+        pretty,
+
+        select_endpoint(id) {
+            this.active = id;
+            this.reset_try();
+        },
+
+        reset_try() {
+            const e = this.endpoint;
+            this.try_url = e ? e.url : '';
+            this.try_body = e && e.body !== undefined ? pretty(e.body) : '';
+            this.try_response = null;
+        },
+
+        copy_to_clipboard(what, text) {
             copy(text);
-            this.show_copied_popup = Object.assign({
-                [section]: true
-            });
-            window.setTimeout(
-                () =>
-                    (this.show_copied_popup = Object.assign({
-                        [section]: false
-                    })),
+            this.copied = what;
+            window.clearTimeout(this.copied_timer);
+            this.copied_timer = window.setTimeout(
+                () => (this.copied = null),
                 1500
             );
         },
 
+        async try_it() {
+            const e = this.endpoint;
+            if (!this.can_try) return;
+
+            /** @type {RequestInit} */
+            const options = {
+                method: e.method,
+                headers: { Authorization: `Bearer ${this.api_key}` }
+            };
+            if (e.body !== undefined) {
+                try {
+                    JSON.parse(this.try_body);
+                } catch (ex) {
+                    this.try_response = {
+                        ok: false,
+                        status: 'Not sent',
+                        ms: 0,
+                        body: `The body isn't valid JSON: ${ex.message}`
+                    };
+                    return;
+                }
+                options.headers['Content-Type'] = 'application/json';
+                options.body = this.try_body;
+            }
+
+            this.running = true;
+            const start = Date.now();
+            try {
+                const res = await fetch(this.try_url, options);
+                const text = await res.text();
+                let body = text || '(no body)';
+                try {
+                    body = pretty(JSON.parse(text));
+                } catch (ex) {
+                    // not JSON: show the text
+                }
+                this.try_response = {
+                    ok: res.ok,
+                    status: res.status,
+                    ms: Date.now() - start,
+                    body
+                };
+            } catch (ex) {
+                this.try_response = {
+                    ok: false,
+                    status: 'Failed',
+                    ms: Date.now() - start,
+                    body: `The request failed: ${ex.message}`
+                };
+            }
+            this.running = false;
+        },
+
+        async download_openapi() {
+            const spec = await web_file_http.get_openapi(this.props.file.id);
+            const blob = new Blob([JSON.stringify(spec, null, 2)], {
+                type: 'application/json'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${this.docs.table}.openapi.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        },
+
         go_to_doc_link(hash) {
-            this.$bus.$emit('container-dialog:close');
+            bus.$emit('container-dialog:close');
             this.$router.push(`/app/api#${hash}`);
         }
     }
-};
+});

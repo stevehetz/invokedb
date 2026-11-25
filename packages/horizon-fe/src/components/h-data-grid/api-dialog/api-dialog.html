@@ -1,99 +1,189 @@
 <div class="api-dialog">
-    <div class="api-dialog-section">
-        <h3 class="api-dialog-section-title no-highlight">Get</h3>
-        <div class="url-block">
-            <span class="method get no-highlight">GET</span>
-            <input class="url" :value="get_url" readonly />
-            <span
-                class="copy no-highlight"
-                @click="copy_to_clipboard('get', get_url)"
-                ><i class="fa fa-copy"></i
-            ></span>
-            <div class="copied-popup" v-if="show_copied_popup.get">copied!</div>
-        </div>
-        <span class="go-to-doc-link" @click="go_to_doc_link('get')">
-            Full <span class="keyword get">Get</span> Documentation
-            <i class="fa fa-arrow-right"></i>
-        </span>
+    <div class="api-dialog-status" v-if="loading">Loading the API docs...</div>
+    <div class="api-dialog-status error" v-else-if="load_error">
+        {{ load_error }}
     </div>
-    <div class="api-dialog-section">
-        <h3 class="api-dialog-section-title no-highlight">Search</h3>
-        <div class="copied-popup" v-if="show_copied_popup.search">copied!</div>
-        <div class="url-block">
-            <span class="method post no-highlight">POST</span>
-            <input class="url" :value="search_url" readonly />
-            <span
-                class="copy no-highlight"
-                @click="copy_to_clipboard('search', search_url)"
-                ><i class="fa fa-copy"></i
-            ></span>
+    <template v-else-if="docs">
+        <div class="api-dialog-intro">
+            <p>
+                The API for <b>{{ docs.table }}</b>, built from its columns.
+                Snippets read your API key from the
+                <code>{{ docs.api_key_env }}</code> environment variable:
+            </p>
+            <div class="url-block">
+                <input class="url" :value="export_line_masked" readonly />
+                <span
+                    class="copy no-highlight"
+                    title="Copy (with your key)"
+                    @click="copy_to_clipboard('export', export_line)"
+                    ><i class="fa fa-copy"></i
+                ></span>
+                <div class="copied-popup" v-if="copied === 'export'">
+                    copied!
+                </div>
+            </div>
+            <div class="api-dialog-links">
+                <span
+                    class="go-to-doc-link"
+                    :title="'Also at GET ' + docs.openapi_url + ' with your key'"
+                    @click="download_openapi"
+                >
+                    <i class="fa fa-download"></i> OpenAPI spec
+                </span>
+                <span class="go-to-doc-link" @click="go_to_doc_link(active)">
+                    Full documentation <i class="fa fa-arrow-right"></i>
+                </span>
+            </div>
         </div>
-        <span
-            class="go-to-doc-link no-highlight"
-            @click="go_to_doc_link('search')"
-        >
-            Full <span class="keyword post">Search</span> Documentation
-            <i class="fa fa-arrow-right"></i>
-        </span>
-    </div>
-    <div class="api-dialog-section">
-        <h3 class="api-dialog-section-title no-highlight">Create</h3>
-        <div class="copied-popup" v-if="show_copied_popup.create">copied!</div>
-        <div class="url-block">
-            <span class="method post no-highlight">POST</span>
-            <input class="url" :value="create_url" readonly />
+
+        <div class="api-dialog-tabs no-highlight">
             <span
-                class="copy no-highlight"
-                @click="copy_to_clipboard('create', create_url)"
-                ><i class="fa fa-copy"></i
-            ></span>
+                v-for="e in docs.endpoints"
+                :key="e.id"
+                :class="['api-dialog-tab', e.id, { active: e.id === active }]"
+                @click="select_endpoint(e.id)"
+                >{{ e.title }}</span
+            >
         </div>
-        <span
-            class="go-to-doc-link no-highlight"
-            @click="go_to_doc_link('create')"
-        >
-            Full <span class="keyword post">Create</span> Documentation
-            <i class="fa fa-arrow-right"></i>
-        </span>
-    </div>
-    <div class="api-dialog-section">
-        <h3 class="api-dialog-section-title no-highlight">Update</h3>
-        <div class="copied-popup" v-if="show_copied_popup.update">copied!</div>
-        <div class="url-block">
-            <span class="method put no-highlight">PUT</span>
-            <input class="url" :value="update_url" readonly />
-            <span
-                class="copy no-highlight"
-                @click="copy_to_clipboard('update', update_url)"
-                ><i class="fa fa-copy"></i
-            ></span>
+
+        <div class="api-dialog-section" v-if="endpoint">
+            <div class="url-block">
+                <span :class="['method', 'no-highlight', method_class]"
+                    >{{ endpoint.method }}</span
+                >
+                <input class="url" :value="endpoint.url" readonly />
+                <span
+                    class="copy no-highlight"
+                    @click="copy_to_clipboard('url', endpoint.url)"
+                    ><i class="fa fa-copy"></i
+                ></span>
+                <div class="copied-popup" v-if="copied === 'url'">copied!</div>
+            </div>
+            <p class="api-dialog-description">{{ endpoint.description }}</p>
+            <table class="api-dialog-params">
+                <tr v-for="p in endpoint.params" :key="p.name">
+                    <td>
+                        <code>{{ p.name }}</code>
+                    </td>
+                    <td class="param-in">{{ p.in }}</td>
+                    <td>{{ p.description }}</td>
+                </tr>
+            </table>
+
+            <div class="api-dialog-examples">
+                <div v-if="endpoint.body !== undefined">
+                    <h4>Example request body</h4>
+                    <pre class="api-dialog-code">
+{{ pretty(endpoint.body) }}</pre>
+                </div>
+                <div>
+                    <h4>Example response ({{ endpoint.response.status }})</h4>
+                    <pre class="api-dialog-code">
+{{
+                        endpoint.response.body === ''
+                            ? '(no body)'
+                            : pretty(endpoint.response.body)
+                    }}</pre>
+                </div>
+            </div>
+
+            <h4>Code</h4>
+            <div class="api-dialog-langs no-highlight">
+                <span
+                    v-for="l in languages"
+                    :key="l.id"
+                    :class="['api-dialog-lang', { active: l.id === lang }]"
+                    @click="lang = l.id"
+                    >{{ l.label }}</span
+                >
+            </div>
+            <div class="api-dialog-snippet">
+                <pre class="api-dialog-code">{{ snippet }}</pre>
+                <span
+                    class="copy-snippet no-highlight"
+                    @click="copy_to_clipboard('snippet', snippet)"
+                    ><i class="fa fa-copy"></i> Copy</span
+                >
+                <div class="copied-popup" v-if="copied === 'snippet'">
+                    copied!
+                </div>
+            </div>
+            <p class="api-dialog-hint" v-if="lang === 'client'">
+                <code>npm install invokedb</code>. Run it as an ES module (Node
+                18+).
+            </p>
+            <p class="api-dialog-hint" v-else-if="lang === 'fetch'">
+                Node 18+, as an ES module (<code>.mjs</code>).
+            </p>
+            <p class="api-dialog-hint" v-else-if="lang === 'python'">
+                Python 3, standard library only.
+            </p>
+
+            <div class="api-dialog-try">
+                <h4>Try it</h4>
+                <div class="try-row">
+                    <label>Key</label>
+                    <select class="try-key" v-model="key_id">
+                        <option v-for="k in keys" :key="k.id" :value="k.id">
+                            {{ k.label }}
+                        </option>
+                    </select>
+                    <label class="try-writes">
+                        <input type="checkbox" v-model="allow_writes" />
+                        Allow requests that change data
+                    </label>
+                </div>
+                <div class="try-row">
+                    <label>URL</label>
+                    <input class="try-url" v-model="try_url" />
+                </div>
+                <div class="try-row" v-if="endpoint.body !== undefined">
+                    <label>Body</label>
+                    <textarea
+                        class="try-body"
+                        v-model="try_body"
+                        rows="6"
+                        spellcheck="false"
+                    ></textarea>
+                </div>
+                <p
+                    class="api-dialog-hint"
+                    v-if="!endpoint.read_only && !allow_writes"
+                >
+                    This request changes the table. Tick "Allow requests that
+                    change data" to run it.
+                </p>
+                <p
+                    class="api-dialog-hint"
+                    v-else-if="try_body.includes(docs.row_id_placeholder)"
+                >
+                    Replace {{ docs.row_id_placeholder }} with a row's _id (Get
+                    rows shows them).
+                </p>
+                <el-button
+                    class="try-button"
+                    type="primary"
+                    size="small"
+                    :loading="running"
+                    :disabled="!can_try"
+                    @click="try_it"
+                    >Send request</el-button
+                >
+                <div class="try-response" v-if="try_response">
+                    <h4>
+                        Response:
+                        <span
+                            :class="[
+                                'try-status',
+                                try_response.ok ? 'ok' : 'fail'
+                            ]"
+                            >{{ try_response.status }}</span
+                        >
+                        <span class="try-time">{{ try_response.ms }} ms</span>
+                    </h4>
+                    <pre class="api-dialog-code">{{ try_response.body }}</pre>
+                </div>
+            </div>
         </div>
-        <span
-            class="go-to-doc-link no-highlight"
-            @click="go_to_doc_link('update')"
-        >
-            Full <span class="keyword put">Update</span> Documentation
-            <i class="fa fa-arrow-right"></i>
-        </span>
-    </div>
-    <div class="api-dialog-section">
-        <h3 class="api-dialog-section-title no-highlight">Delete</h3>
-        <div class="copied-popup" v-if="show_copied_popup.delete">copied!</div>
-        <div class="url-block">
-            <span class="method post no-highlight">POST</span>
-            <input class="url" :value="delete_url" readonly />
-            <span
-                class="copy no-highlight"
-                @click="copy_to_clipboard('delete', delete_url)"
-                ><i class="fa fa-copy"></i
-            ></span>
-        </div>
-        <span
-            class="go-to-doc-link no-highlight"
-            @click="go_to_doc_link('delete')"
-        >
-            Full <span class="keyword delete">Delete</span> Documentation
-            <i class="fa fa-arrow-right"></i>
-        </span>
-    </div>
+    </template>
 </div>

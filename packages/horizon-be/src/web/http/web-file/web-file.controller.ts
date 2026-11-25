@@ -23,6 +23,7 @@ import env from '@app/env';
 import logger from '@app/logger';
 import _c from '@app/constants';
 import { session_account_id } from '@app/web/http/_auth/request-account';
+import { public_api_base_url } from '@app/web/http/public-api-url';
 
 @Controller('web-file')
 @UseGuards(AuthGuard('bearer'))
@@ -40,6 +41,29 @@ export class WebFileController {
         const file_id = req.params.file_directory_id;
         const res = await this.web_file_service.get_new_column(acct_id, file_id);
         return res;
+    }
+
+    // Per-table API docs (#139): endpoints, examples and snippets built from the table's columns
+    @Get(':file_directory_id/api-docs')
+    async web_file_api_docs(@Request() req) {
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        return await this.web_file_service.table_api_docs(
+            acct_id,
+            req.params.file_directory_id,
+            public_api_base_url(req)
+        );
+    }
+
+    @Get(':file_directory_id/openapi.json')
+    async web_file_openapi(@Request() req) {
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        return await this.web_file_service.table_openapi(
+            acct_id,
+            req.params.file_directory_id,
+            public_api_base_url(req)
+        );
     }
 
     @Post('batch_create/:web_file_type/:file_directory_id')

@@ -1,0 +1,183 @@
+<div class="forms-dialog">
+    <p class="forms-intro">
+        Share a link (or embed it on your site) to a form that adds a row to
+        <b>{{ props.file.name }}</b>: sign-ups, surveys, contact lists. Anyone
+        with the link can answer it. Answers are checked against the column
+        types, and each response counts towards your plan's row limit.
+    </p>
+
+    <div class="forms-status" v-if="loading">Loading forms...</div>
+    <div class="forms-status error" v-if="error">{{ error }}</div>
+
+    <div class="form-editor" v-if="draft">
+        <h4>{{ draft.id ? 'Edit form' : 'New form' }}</h4>
+        <div class="form-editor-row">
+            <label>Title</label>
+            <input class="form-editor-title" v-model="draft.title" />
+        </div>
+        <div class="form-editor-row">
+            <label>Description</label>
+            <textarea
+                class="form-editor-description"
+                v-model="draft.description"
+                rows="2"
+                placeholder="Optional: shown under the title"
+            ></textarea>
+        </div>
+
+        <label class="form-editor-label">Questions</label>
+        <table class="form-editor-columns">
+            <tr>
+                <th>Ask</th>
+                <th>Column</th>
+                <th>Label (optional)</th>
+                <th>Required</th>
+                <th></th>
+            </tr>
+            <tr
+                v-for="(c, i) in draft.columns"
+                :key="c.field"
+                :class="['form-editor-column', { off: !c.ask }]"
+            >
+                <td>
+                    <input
+                        type="checkbox"
+                        class="form-editor-ask"
+                        v-model="c.ask"
+                    />
+                </td>
+                <td>
+                    {{ c.name }}
+                    <span class="form-editor-type">{{ c.type }}</span>
+                </td>
+                <td>
+                    <input
+                        class="form-editor-field-label"
+                        v-model="c.label"
+                        :placeholder="c.name"
+                        :disabled="!c.ask"
+                    />
+                </td>
+                <td>
+                    <input
+                        type="checkbox"
+                        class="form-editor-required"
+                        v-model="c.required"
+                        :disabled="!c.ask"
+                    />
+                </td>
+                <td class="form-editor-move">
+                    <span class="no-highlight" @click="move(i, -1)"
+                        ><i class="fa fa-arrow-up"></i
+                    ></span>
+                    <span class="no-highlight" @click="move(i, 1)"
+                        ><i class="fa fa-arrow-down"></i
+                    ></span>
+                </td>
+            </tr>
+        </table>
+
+        <div class="form-editor-row">
+            <label>Button</label>
+            <input v-model="draft.submit_label" placeholder="Submit" />
+        </div>
+        <div class="form-editor-row">
+            <label>Thank-you message</label>
+            <textarea
+                class="form-editor-thank-you"
+                v-model="draft.thank_you"
+                rows="2"
+                placeholder="Thanks! Your response has been recorded."
+            ></textarea>
+        </div>
+        <div class="form-editor-row">
+            <label>Redirect to</label>
+            <input
+                class="form-editor-redirect"
+                v-model="draft.redirect_url"
+                placeholder="Optional: https://example.com/thanks (instead of the message)"
+            />
+        </div>
+        <div class="form-editor-actions">
+            <el-button
+                type="primary"
+                size="small"
+                :loading="saving"
+                :disabled="!can_save"
+                @click="save"
+                >{{ draft.id ? 'Save form' : 'Create form' }}</el-button
+            >
+            <el-button size="small" @click="cancel">Cancel</el-button>
+        </div>
+    </div>
+
+    <div class="forms-add" v-else-if="!loading">
+        <el-button
+            class="forms-new-button"
+            type="primary"
+            size="small"
+            :disabled="columns.length === 0"
+            @click="new_form"
+            >New form</el-button
+        >
+    </div>
+
+    <div class="forms-empty" v-if="!loading && forms.length === 0 && !draft">
+        No forms for this table yet.
+    </div>
+
+    <div
+        v-for="form in forms"
+        :key="form.id"
+        :class="['form-item', { closed: !form.open }]"
+    >
+        <div class="form-item-head">
+            <span class="form-item-title">{{ form.title }}</span>
+            <span :class="['form-item-state', form.open ? 'open' : 'closed']"
+                >{{ form.open ? 'open' : 'closed' }}</span
+            >
+            <span class="form-item-count"
+                >{{ form.submissions }} response{{ form.submissions === 1 ? '' :
+                's' }}<template v-if="form.last_submission_at">
+                    (last {{ format_time(form.last_submission_at) }})</template
+                ></span
+            >
+        </div>
+        <div class="form-item-link">
+            <label>Link</label>
+            <input readonly :value="link(form.id)" />
+            <span
+                class="form-item-action no-highlight"
+                @click="copy_text(form.id + ':link', link(form.id))"
+                ><i class="fa fa-copy"></i> {{ copied === form.id + ':link' ?
+                'copied!' : 'Copy' }}</span
+            >
+            <a
+                class="form-item-action"
+                :href="link(form.id)"
+                target="_blank"
+                rel="noopener"
+                ><i class="fa fa-external-link-alt"></i> Open</a
+            >
+        </div>
+        <div class="form-item-embed">
+            <label>Embed</label>
+            <input readonly :value="embed(form.id)" />
+            <span
+                class="form-item-action no-highlight"
+                @click="copy_text(form.id + ':embed', embed(form.id))"
+                ><i class="fa fa-copy"></i> {{ copied === form.id + ':embed' ?
+                'copied!' : 'Copy' }}</span
+            >
+        </div>
+        <div class="form-item-actions">
+            <el-button size="small" @click="edit(form)">Edit</el-button>
+            <el-button size="small" @click="toggle_open(form)"
+                >{{ form.open ? 'Close form' : 'Reopen form' }}</el-button
+            >
+            <el-button size="small" type="danger" plain @click="remove(form)"
+                >Delete</el-button
+            >
+        </div>
+    </div>
+</div>

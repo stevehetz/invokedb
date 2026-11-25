@@ -288,6 +288,15 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   (not CSV uploads or URL syncs); `WebhookPrcService` sends them in the processor role. Routes
   are `/webhook` (session only). `HORIZON_WEBHOOK_TEST_HOSTS` (set only by `smoke-env.sh`) lets
   `api-smoke.mjs`'s receiver on `127.0.0.1:8199` through; never set it in production.
+- Shareable forms (#145): `src/core/form/` has the pure rules (`form.ts`: settings, the public
+  view, submissions checked against the column types, the `website` honeypot) and the store
+  (`form.manager.ts`, `tracking:form` in the shared tracking DB; filter on `account_id`, except
+  the public lookup by id). Owner routes are `/form` (session only); the public link is
+  `/public/form/:id` (GET; `POST .../submit`, rate-limited per IP and per form by
+  `web/http/form/form-rate-limit.ts`, in memory). A submission is a row made through
+  `WebFileService.batch_create_internal` (row limit, locks, webhooks). 404 for a deleted form or
+  table, 410 for a closed one. The frontend's public page is `/f/:id` (`view/form-page`, outside
+  both shells, scoped CSS; `?embed=1` for iframes); the owner's dialog is the grid's Forms button.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

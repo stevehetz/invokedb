@@ -18,6 +18,7 @@ import { OnboardingService } from './onboarding/onboarding.service';
 import { UrlImportService } from './url-import/url-import.service';
 import { WebhookService } from './webhook/webhook.service';
 import { WebhookPrcService } from './webhook/webhook-prc.service';
+import { FormService } from './form/form.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -37,7 +38,8 @@ import { WebhookPrcService } from './webhook/webhook-prc.service';
         OnboardingService,
         UrlImportService,
         WebhookService,
-        WebhookPrcService
+        WebhookPrcService,
+        FormService
     ],
     exports: [
         AuthService,
@@ -52,7 +54,8 @@ import { WebhookPrcService } from './webhook/webhook-prc.service';
         TableTemplateService,
         OnboardingService,
         UrlImportService,
-        WebhookService
+        WebhookService,
+        FormService
     ]
 })
 export class ApplicationModule {}

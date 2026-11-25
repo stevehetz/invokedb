@@ -5,6 +5,9 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 compose() { docker compose --env-file /opt/invokedb/prod.env "$@"; }
 
+# A new stamp each time, so the web image fetches the published changelog again (#259)
+CHANGELOG_STAMP=$(date +%s)
+export CHANGELOG_STAMP
 compose build
 compose run --rm migrate
 compose up -d --remove-orphans

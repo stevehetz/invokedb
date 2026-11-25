@@ -28,6 +28,10 @@ writes `angular/public/invokedb.config.json` (gitignored, holds the API key). Th
 Angular app each have their own `node_modules` and 2-space prettier style, so they're in
 `.prettierignore`. The Angular CLI needs Node 22.22.3+ /
 24.15+ (`.nvmrc` 22 works). Don't `npm publish` the client unless asked.
+`examples/invokedb-python` is the Python client (#218: stdlib `urllib`, typed, Python 3.9+, not on
+PyPI; don't publish unless asked). Its tests are `python3 -m unittest discover -s tests` in that
+folder: offline against a stub server, plus live ones against a backend when `INVOKEDB_TEST_BASE`
+is set (they make and delete their own table and key).
 
 Logins (local and demo data): `demo@invokedb.com` … `demo7@invokedb.com`, password `password`.
 

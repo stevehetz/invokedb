@@ -6,6 +6,16 @@ export const web_file_http = {
         return http.get(url);
     },
 
+    // The table's generated API docs and snippets (#139)
+    async get_api_docs(id) {
+        return http.get(http.get_url(`/web-file/${id}/api-docs`));
+    },
+
+    // The table's OpenAPI 3 spec
+    async get_openapi(id) {
+        return http.get(http.get_url(`/web-file/${id}/openapi.json`));
+    },
+
     async get_by_id(id, type, page_params) {
         type = type.replace('-', '_');
 

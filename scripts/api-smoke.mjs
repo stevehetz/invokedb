@@ -2,11 +2,13 @@
 // Exits non-zero if any call or check fails (CI runs it: .github/workflows/ci.yml, `smoke`).
 // Logs in as demo@invokedb.com, uploads a small CSV as table "smoke_people", exercises the
 // grid + external /api/v1 endpoints, checks that demo2@invokedb.com can't reach demo's tables
-// or account, makes tables from templates (and checks demo2's free-tier table limit), then
-// deletes the tables. Writes every response to out.json
+// or account, makes tables from templates (and checks demo2's free-tier table limit), reads the
+// table's generated API docs and OpenAPI spec and runs their curl, fetch and Python snippets
+// (#139; Python only if python3 is installed), then deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8001';
 const OUT = process.argv[3];
@@ -319,6 +321,28 @@ await call('other_ext_template_table', 'GET', '/api/v1/get?table=smoke_crm&skip=
     token: other_me.api_key,
     expectFail: true
 });
+// Per-table API docs (#139): demo2 can't read the docs or OpenAPI spec of demo's table
+await call('other_api_docs', 'GET', `/web-file/${file_id}/api-docs`, {
+    token: otoken,
+    expectFail: true
+});
+await call('other_openapi', 'GET', `/web-file/${file_id}/openapi.json`, {
+    token: otoken,
+    expectFail: true
+});
+await call('other_ext_openapi', 'GET', '/api/v1/openapi?table=smoke_people', {
+    token: other_me.api_key,
+    expectFail: true
+});
+await call('api_docs_unauth', 'GET', `/web-file/${file_id}/api-docs`, { expectFail: true });
+await call('api_docs_api_key', 'GET', `/web-file/${file_id}/api-docs`, {
+    token: me.api_key,
+    expectFail: true
+});
+await call('ext_openapi_session_token', 'GET', '/api/v1/openapi?table=smoke_people', {
+    token,
+    expectFail: true
+});
 await call('other_delete_template_table', 'POST', '/file-directory/batch_delete', {
     token: otoken,
     body: { ids: [tpl_id] },
@@ -411,6 +435,125 @@ await call('ext_bad_key', 'GET', `/api/v1/get?table=smoke_people&skip=0&limit=1`
     token: 'not-a-key',
     expectFail: true
 });
+
+// Per-table API docs (#139): the docs and OpenAPI spec, then run the generated curl, fetch
+// and (if python3 is installed) Python snippets against this backend
+const docs = await call('api_docs', 'GET', `/web-file/${file_id}/api-docs`, { token });
+const doc_ids = (docs.endpoints || []).map(e => e.id).join(',');
+check('api_docs_endpoints', doc_ids === 'get,search,create,update,delete', docs);
+check(
+    'api_docs_columns',
+    docs.table === 'smoke_people' &&
+        JSON.stringify((docs.columns || []).map(c => c.name).sort()) ===
+            JSON.stringify((cols.data || []).map(c => c.headerName).sort()) &&
+        docs.columns.find(c => c.name === 'age')?.type === 'number',
+    docs
+);
+const spec = await call('openapi', 'GET', `/web-file/${file_id}/openapi.json`, { token });
+const ext_spec = await call('ext_openapi', 'GET', '/api/v1/openapi?table=smoke_people', {
+    token: key
+});
+check(
+    'openapi_spec',
+    spec.openapi === '3.0.3' &&
+        JSON.stringify(spec) === JSON.stringify(ext_spec) &&
+        Object.keys(spec.paths || {}).length === 5 &&
+        'age' in (spec.components?.schemas?.Row?.properties || {}),
+    spec
+);
+
+// Snippets point at the public API URL; run them against this backend instead
+function snippet(id, lang, row_id) {
+    const e = (docs.endpoints || []).find(x => x.id === id);
+    let code = e ? e.snippets[lang] : '';
+    code = code.split(docs.base_url).join(`${BASE}/api/v1`);
+    if (row_id) code = code.split(docs.row_id_placeholder).join(row_id);
+    return code;
+}
+const RUNNERS = {
+    curl: ['bash', ['-s']],
+    fetch: [process.execPath, ['--input-type=module']],
+    python: ['python3', ['-']]
+};
+function run_snippet(name, lang, code, ok) {
+    let out;
+    try {
+        const [cmd, args] = RUNNERS[lang];
+        out = execFileSync(cmd, args, {
+            input: code,
+            encoding: 'utf8',
+            timeout: 30000,
+            env: { ...process.env, [docs.api_key_env || 'INVOKEDB_API_KEY']: key }
+        }).trim();
+    } catch (ex) {
+        out = `error: ${ex.stderr || ex.message}`;
+    }
+    results[name] = out;
+    check(name, !!code && ok(out), { code, out });
+    return out;
+}
+const json_after = (out, prefix = '') => {
+    try {
+        return JSON.parse(out.slice(prefix.length));
+    } catch {
+        return null;
+    }
+};
+const ext_count = async name =>
+    (await call(name, 'GET', '/api/v1/get?table=smoke_people&skip=0&limit=100', { token: key }))
+        .data || [];
+
+const before_snippets = await ext_count('snippet_rows_before');
+run_snippet('snippet_get_curl', 'curl', snippet('get', 'curl'), out => {
+    const res = json_after(out);
+    return res?.count === before_snippets.length && Array.isArray(res.data);
+});
+run_snippet('snippet_search_fetch', 'fetch', snippet('search', 'fetch'), out => {
+    const res = json_after(out, '201 ');
+    return out.startsWith('201 ') && res?.count >= 1;
+});
+// create answers 201 with no body (curl prints only the body; an error would be JSON)
+run_snippet(
+    'snippet_create_curl',
+    'curl',
+    snippet('create', 'curl'),
+    out => !out.startsWith('error') && !out.includes('"status"')
+);
+const after_create = await ext_count('snippet_rows_after_create');
+const new_row = after_create.find(r => !before_snippets.some(b => b._id === r._id));
+check('snippet_create_added_row', after_create.length === before_snippets.length + 1 && !!new_row);
+if (new_row) {
+    run_snippet(
+        'snippet_update_fetch',
+        'fetch',
+        snippet('update', 'fetch', new_row._id),
+        out => out === '200 1'
+    );
+    run_snippet(
+        'snippet_delete_curl',
+        'curl',
+        snippet('delete', 'curl', new_row._id),
+        out => out === '1'
+    );
+}
+const after_delete = await ext_count('snippet_rows_after_delete');
+check('snippet_delete_removed_row', after_delete.length === before_snippets.length);
+let has_python = false;
+try {
+    execFileSync('python3', ['--version'], { stdio: 'ignore' });
+    has_python = true;
+} catch {
+    console.log('skip --- python3 not installed: Python snippets not run');
+}
+if (has_python) {
+    run_snippet('snippet_get_python', 'python', snippet('get', 'python'), out => {
+        const res = json_after(out, '200 ');
+        return out.startsWith('200 ') && res?.count === before_snippets.length;
+    });
+    run_snippet('snippet_search_python', 'python', snippet('search', 'python'), out =>
+        out.startsWith('201 ')
+    );
+}
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');
 if (nameCol) {

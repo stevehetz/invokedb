@@ -17,6 +17,7 @@ import _c from '@app/constants';
 import logger from '@app/logger';
 import { assert_array_body } from '@app/core/helpers/array-body';
 import { assert_column_update } from '@app/core/helpers/column-update';
+import { build_openapi, build_table_docs, TableDocsInput } from '@app/core/table-docs/table-docs';
 
 const fs = require('fs');
 
@@ -373,6 +374,43 @@ export class WebFileService {
                 }
             });
         return new_filters;
+    }
+
+    // What the per-table API docs (#139) are built from: the table's name, its columns and one
+    // row for example values. The caller has checked that the table is the account's.
+    private async table_docs_input(account_id, file_id, base_url): Promise<TableDocsInput> {
+        const file = await this.file_directory_svc.get_by_id(Number(file_id));
+        if (!file || file.type !== 'file' || file.deleted) throw new NotFoundException();
+        const columns = await this.web_file_manager.get_all(
+            account_id,
+            file.id,
+            'data_grid_column'
+        );
+        const col_defs = (columns && columns.data) || [];
+        const rows = await this.web_file_manager.get_all(account_id, file.id, 'data_grid_row', {
+            skip: '0',
+            limit: '1'
+        });
+        const row = rows && rows.data && rows.data[0];
+        let sample_row;
+        if (row) {
+            sample_row = { _id: String(row._id) };
+            col_defs.forEach(c => (sample_row[c.headerName] = row[c.field]));
+        }
+        return {
+            table: file.name,
+            base_url,
+            columns: col_defs.map(c => ({ name: c.headerName, type: c.col_type })),
+            sample_row
+        };
+    }
+
+    async table_api_docs(account_id, file_id, base_url) {
+        return build_table_docs(await this.table_docs_input(account_id, file_id, base_url));
+    }
+
+    async table_openapi(account_id, file_id, base_url) {
+        return build_openapi(await this.table_docs_input(account_id, file_id, base_url));
     }
 
     get_key_from_column_name(columnName, format) {

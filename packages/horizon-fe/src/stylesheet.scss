@@ -1425,27 +1425,180 @@ $nav_active_color: #ffffff;
     color: #40af77;
 }
 
-.api-dialog .api-dialog-section {
-    position: relative;
-    margin-bottom: 10px;
-    padding-bottom: 20px;
-    border-bottom: solid 1px #cacaca;
+.api-dialog {
+    color: $gray500;
 }
-.api-dialog .api-dialog-section .copied-popup {
+.api-dialog h4 {
+    margin: 18px 0 6px;
+    color: $gray600;
+}
+.api-dialog code {
+    font-family: monospace;
+    background-color: #ececec;
+    padding: 0 4px;
+    border-radius: 3px;
+}
+.api-dialog .api-dialog-status {
+    padding: 20px 0;
+}
+.api-dialog .api-dialog-status.error {
+    color: #a03e3e;
+}
+.api-dialog .api-dialog-intro p {
+    margin: 0 0 8px;
+}
+.api-dialog .api-dialog-links {
+    display: flex;
+    gap: 25px;
+}
+.api-dialog .copied-popup {
     position: absolute;
-    top: 0;
+    top: -22px;
     right: 0;
     background-color: $gray400;
     color: #e9e9e9;
     padding: 1px 7px;
     border-radius: 3px;
 }
-.api-dialog .api-dialog-section-title {
-    margin: 0 0 7px;
-    cursor: default;
+.api-dialog .api-dialog-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 20px 0 12px;
+    border-bottom: solid 1px #cacaca;
+}
+.api-dialog .api-dialog-tab,
+.api-dialog .api-dialog-lang {
+    padding: 6px 12px;
+    cursor: pointer;
+    color: $gray300;
+    border-bottom: solid 3px transparent;
+}
+.api-dialog .api-dialog-tab:hover,
+.api-dialog .api-dialog-lang:hover {
     color: $gray600;
 }
+.api-dialog .api-dialog-tab.active,
+.api-dialog .api-dialog-lang.active {
+    color: $gray600;
+    font-weight: bold;
+    border-bottom-color: $blue300;
+}
+.api-dialog .api-dialog-langs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+.api-dialog .api-dialog-description {
+    margin: 10px 0;
+}
+.api-dialog .api-dialog-params {
+    border-collapse: collapse;
+    font-size: 14px;
+}
+.api-dialog .api-dialog-params td {
+    padding: 3px 12px 3px 0;
+    vertical-align: top;
+}
+.api-dialog .api-dialog-params .param-in {
+    color: $gray200;
+}
+.api-dialog .api-dialog-examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 20px;
+}
+.api-dialog .api-dialog-examples > div {
+    flex: 1;
+    min-width: 260px;
+}
+.api-dialog .api-dialog-code {
+    margin: 0;
+    padding: 10px 12px;
+    max-height: 320px;
+    overflow: auto;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    white-space: pre;
+    color: #e9e9e9;
+    background-color: $gray500;
+    border-radius: 5px;
+}
+.api-dialog .api-dialog-snippet {
+    position: relative;
+}
+.api-dialog .api-dialog-snippet .copy-snippet {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    padding: 2px 8px;
+    font-size: 13px;
+    color: #e9e9e9;
+    background-color: $gray300;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.api-dialog .api-dialog-snippet .copied-popup {
+    top: 6px;
+    right: 80px;
+}
+.api-dialog .api-dialog-hint {
+    margin: 6px 0;
+    font-size: 13px;
+    color: $gray300;
+}
+.api-dialog .api-dialog-try {
+    margin-top: 20px;
+    padding-top: 5px;
+    border-top: solid 1px #cacaca;
+}
+.api-dialog .try-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.api-dialog .try-row > label:first-child {
+    flex-shrink: 0;
+    width: 40px;
+    padding-top: 4px;
+    font-weight: bold;
+}
+.api-dialog .try-row .try-writes {
+    padding-top: 4px;
+    cursor: pointer;
+}
+.api-dialog .try-key,
+.api-dialog .try-url,
+.api-dialog .try-body {
+    padding: 4px 6px;
+    font-size: 14px;
+    border: solid 1px #b7b7b7;
+    border-radius: 3px;
+}
+.api-dialog .try-url,
+.api-dialog .try-body {
+    flex: 1;
+    font-family: monospace;
+}
+.api-dialog .try-button {
+    margin-top: 4px;
+}
+.api-dialog .try-status.ok {
+    color: #2d8e58;
+}
+.api-dialog .try-status.fail {
+    color: #a03e3e;
+}
+.api-dialog .try-time {
+    margin-left: 8px;
+    font-weight: normal;
+    color: $gray200;
+}
 .api-dialog .url-block {
+    position: relative;
     display: flex;
     align-items: center;
     height: 35px;
@@ -1507,18 +1660,12 @@ $nav_active_color: #ffffff;
 }
 .api-dialog .go-to-doc-link {
     display: inline-block;
-    margin-top: 15px;
-    color: #505050;
+    margin-top: 10px;
+    color: $blue300;
     font-weight: bold;
     cursor: pointer;
 }
-.api-dialog .go-to-doc-link .keyword {
-    color: $blue300;
-}
 .api-dialog .go-to-doc-link:hover {
-    color: #1d1d1d;
-}
-.api-dialog .go-to-doc-link:hover .keyword {
     color: $blue500;
 }
 

@@ -22,7 +22,8 @@
         "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
         "migration:create": "bash -c 'typeorm-ts-node-commonjs migration:create src/database/migration/$0'",
         "migration:run": "npm run typeorm migration:run",
-        "migration:revert": "npm run typeorm migration:revert"
+        "migration:revert": "npm run typeorm migration:revert",
+        "onboarding:funnel": "ts-node src/cli/onboarding-funnel.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^1.14.0",

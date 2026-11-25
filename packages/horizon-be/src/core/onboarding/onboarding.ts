@@ -11,8 +11,13 @@ export type StepId = (typeof STEP_IDS)[number];
 export const MARKABLE_STEPS = ['view_api_key', 'copy_command'] as const;
 export type MarkableStep = (typeof MARKABLE_STEPS)[number];
 
-// Times are epoch ms
+// Times are epoch ms. The first three are only for the funnel (#169, onboarding-funnel.ts); the
+// checklist reads "create a table" from the account's tables. Accounts made before #169 have no
+// signed_up_at.
 export interface OnboardingState {
+    signed_up_at?: number;
+    email_verified_at?: number;
+    table_created_at?: number;
     key_viewed_at?: number;
     command_copied_at?: number;
     api_called_at?: number;

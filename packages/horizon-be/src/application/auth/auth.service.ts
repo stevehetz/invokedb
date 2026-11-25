@@ -26,6 +26,7 @@ import {
 } from '@app/core/email-verification/email-verification';
 import { verify_email_tmpl } from '@app/email/verify-email.template';
 import { signup_attempt_tmpl } from '@app/email/signup-attempt.template';
+import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -52,7 +53,8 @@ export class AuthService {
     private account_manager: AccountManager,
     private session_manager: SessionManager,
     private email_manager: EmailManager,
-    private subscription_service: SubscriptionService
+    private subscription_service: SubscriptionService,
+    private onboarding_manager: OnboardingManager
   ) {}
 
     async login(account_dto: any) {
@@ -142,6 +144,8 @@ export class AuthService {
         });
 
         logger.info(`Account created. ID: ${account.id}, Email: ${account.email}.`);
+        // The onboarding funnel starts here (#169)
+        await this.onboarding_manager.record_signup(account.id);
 
         await this.send_verification(account);
 
@@ -160,6 +164,7 @@ export class AuthService {
         await this.account_repository.update({ id: account_id }, { email_verified: true });
         await this.email_verification_repository.delete({ account_id });
         logger.info(`Email verified for account ${account_id}.`);
+        await this.onboarding_manager.record_email_verified(account_id);
 
         return { email_verified: true };
     }
@@ -280,6 +285,9 @@ export class AuthService {
         logger.info(
             `Account created through ${identity.provider} sign-in. ID: ${account.id}, Email: ${account.email}.`
         );
+        // Signed up and verified at once (#169)
+        await this.onboarding_manager.record_signup(account.id);
+        await this.onboarding_manager.record_email_verified(account.id);
         this.send_welcome(account);
 
         return account;

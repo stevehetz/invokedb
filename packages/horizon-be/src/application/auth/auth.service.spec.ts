@@ -35,6 +35,12 @@ function setup(opts: { existing?: any; verification?: any; account?: any } = {})
         })
     };
 
+    // The funnel's times (#169)
+    const onboarding_manager = {
+        record_signup: jest.fn(async () => {}),
+        record_email_verified: jest.fn(async () => {})
+    };
+
     const service = new AuthService(
         {} as any,
         account_repository as any,
@@ -44,9 +50,17 @@ function setup(opts: { existing?: any; verification?: any; account?: any } = {})
         account_manager,
         {} as any,
         email_manager as any,
-        {} as any
+        {} as any,
+        onboarding_manager as any
     );
-    return { service, account_repository, email_verification_repository, account_manager, sent };
+    return {
+        service,
+        account_repository,
+        email_verification_repository,
+        account_manager,
+        onboarding_manager,
+        sent
+    };
 }
 
 async function status_of(promise: Promise<unknown>) {
@@ -72,6 +86,8 @@ describe('AuthService.create_account', () => {
         expect(t.sent[0].to).toBe('new@x.com');
         expect(t.sent[0].body).toContain(`/verify-email?token=${verification.token}`);
         expect(answer).toBe('success');
+        expect(t.onboarding_manager.record_signup).toHaveBeenCalledWith(41);
+        expect(t.onboarding_manager.record_email_verified).not.toHaveBeenCalled();
     });
 
     it('answers the same for an email that already has an account, and creates nothing', async () => {
@@ -84,6 +100,7 @@ describe('AuthService.create_account', () => {
 
         expect(answer).toEqual(fresh);
         expect(t.account_repository.save).not.toHaveBeenCalled();
+        expect(t.onboarding_manager.record_signup).not.toHaveBeenCalled();
         expect(t.email_verification_repository.save).not.toHaveBeenCalled();
         // The password is still hashed, so both paths take about as long
         expect(t.account_manager.hash_password).toHaveBeenCalled();
@@ -128,6 +145,7 @@ describe('AuthService.verify_email', () => {
             { email_verified: true }
         );
         expect(t.email_verification_repository.delete).toHaveBeenCalledWith({ account_id: 9 });
+        expect(t.onboarding_manager.record_email_verified).toHaveBeenCalledWith(9);
     });
 
     it('refuses an expired link', async () => {
@@ -140,6 +158,7 @@ describe('AuthService.verify_email', () => {
         });
         expect(await status_of(t.service.verify_email(TOKEN))).toBe(HttpStatus.BAD_REQUEST);
         expect(t.account_repository.update).not.toHaveBeenCalled();
+        expect(t.onboarding_manager.record_email_verified).not.toHaveBeenCalled();
     });
 
     it('refuses an unknown link, and anything that is not a uuid without a query', async () => {

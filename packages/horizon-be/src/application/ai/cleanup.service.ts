@@ -15,7 +15,6 @@ import { AiClient } from '@app/core/ai/ai-client';
 import { AiSpend } from '@app/core/ai/ai-spend';
 import { AI_OFF_MESSAGE, AI_UNVERIFIED_MESSAGE, ai_allowance } from '@app/core/ai/ai-plan';
 import { AskError, ask_columns } from '@app/core/ai/ask';
-import { row_unchanged_since } from '@app/core/ai/edit';
 import {
     CLEANUP_MAX_ROWS,
     CLEANUP_SYSTEM,
@@ -27,6 +26,7 @@ import {
     cleanup_answer,
     parse_delete_body,
     parse_restore_body,
+    row_still_holds,
     scan_rules,
     sees_whole_rows
 } from '@app/core/ai/cleanup';
@@ -165,7 +165,7 @@ export class CleanupService {
         rows.forEach(r => {
             const doc = docs.get(r._id);
             const current = doc ? this.edit_service.rows_by_field([doc], columns)[0] : null;
-            if (current && row_unchanged_since(current, r.before, columns)) deleted.push(r._id);
+            if (current && row_still_holds(current, r.before)) deleted.push(r._id);
             else skipped.push(r._id);
         });
         if (deleted.length > 0) {

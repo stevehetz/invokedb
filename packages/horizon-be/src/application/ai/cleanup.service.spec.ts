@@ -237,6 +237,28 @@ describe('CleanupService.delete_rows and restore_rows', () => {
         expect([account.id, file_id, type, data]).toEqual([ACCT, 11, 'data_grid_row', [before]]);
     });
 
+    it('deletes and restores duplicates holding values not of their column type', async () => {
+        const t = setup();
+        // As /api/v1 can store them: true and a number in text columns, text in a number one
+        t.add({ a: true, b: 12345, c: 'n/a' });
+        t.add({ a: true, b: 12345, c: 'n/a' });
+        const scan = await t.svc.scan(ACCT, '11');
+        const dupes = scan.problems.find(p => p.kind === 'duplicate').delete.rows;
+        expect(dupes).toHaveLength(1);
+        const { _id, before } = dupes[0];
+        expect(before).toEqual({ a: true, b: 12345, c: 'n/a' });
+        // Through JSON, as the app sends it back
+        const body = JSON.parse(JSON.stringify({ rows: [{ _id, before }] }));
+        expect(await t.svc.delete_rows(ACCT, '11', body)).toEqual({ deleted: [_id], skipped: [] });
+        // Exact values: '12345' isn't what was scanned
+        const other = t.add({ a: true, b: '12345', c: 'n/a' });
+        expect(await t.svc.delete_rows(ACCT, '11', { rows: [{ _id: other, before }] })).toEqual({
+            deleted: [],
+            skipped: [other]
+        });
+        expect(await t.svc.restore_rows(ACCT, '11', { rows: [before] })).toEqual({ restored: 1 });
+    });
+
     it('refuses to delete rows of a table with link columns', async () => {
         const t = setup();
         t.web_file_manager.get_columns.mockResolvedValue([

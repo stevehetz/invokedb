@@ -15,7 +15,7 @@
 // the last one's `after`.
 import { QueryColumn } from '../web-file/row-query';
 import { AskError } from './ask';
-import { EditedRow, EditRow, cell_value, same_value } from './edit';
+import { EditedRow, EditRow, same_value } from './edit';
 
 export const CLEANUP_MAX_ROWS = 500;
 // Examples shown per problem
@@ -538,6 +538,16 @@ function row_key(row: Row, columns: QueryColumn[]) {
     return JSON.stringify(cells);
 }
 
+/** A cell as any column can hold it: text, a number, true/false or null. */
+export function is_scalar(value: unknown) {
+    return (
+        value === null ||
+        typeof value === 'string' ||
+        typeof value === 'boolean' ||
+        (typeof value === 'number' && isFinite(value))
+    );
+}
+
 /** The row's cells as stored, keyed by field (missing cells null). */
 export function stored_cells(row: Row, columns: QueryColumn[]) {
     const cells: Record<string, unknown> = {};
@@ -573,6 +583,9 @@ function duplicate_problem(
     columns: QueryColumn[],
     dupes: { i: number; of: number; reason?: string }[]
 ): CleanupProblem | null {
+    // A row with an object or array in a cell couldn't be sent back to delete-rows (or
+    // restored by Undo) as it is, so it isn't offered
+    dupes = dupes.filter(d => Object.values(stored_cells(rows[d.i], columns)).every(is_scalar));
     if (dupes.length === 0) return null;
     const ai = kind === 'near_duplicate';
     return {
@@ -943,7 +956,11 @@ function is_object(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-/** A row's cells keyed by field, every one a column of the table with a value of its type. */
+/**
+ * A row's cells keyed by field, every one a column of the table. The values are the cells as
+ * stored, which needn't be of the column's type (`/api/v1` writes `true` to a text column as
+ * it is), so any scalar is taken; only objects and arrays are refused.
+ */
 function parse_cells(raw: unknown, by_field: Map<string, QueryColumn>, where: string) {
     if (!is_object(raw)) throw new AskError(`${where} must be an object of cells`);
     const fields = Object.keys(raw);
@@ -952,9 +969,26 @@ function parse_cells(raw: unknown, by_field: Map<string, QueryColumn>, where: st
     fields.forEach(f => {
         const col = by_field.get(f);
         if (!col) throw new AskError(`${where}: unknown column ${JSON.stringify(f.slice(0, 50))}`);
-        cells[f] = cell_value(col, raw[f], where);
+        if (!is_scalar(raw[f])) {
+            throw new AskError(`${where}: ${col.name} takes text, a number, true/false or null`);
+        }
+        cells[f] = raw[f];
     });
     return cells;
+}
+
+/**
+ * Whether a row (cells keyed by field, as stored) still holds `before` exactly: the same value
+ * of the same type, empty text and a missing cell counting as null. Not compared by column
+ * type like an edit's `before`, since these cells needn't be of it.
+ */
+export function row_still_holds(row: Record<string, unknown>, before: Record<string, unknown>) {
+    return Object.keys(before).every(f => {
+        const a = row[f];
+        const b = before[f];
+        if (is_empty(a) || is_empty(b)) return is_empty(a) && is_empty(b);
+        return a === b;
+    });
 }
 
 function rows_of(body: unknown, shape: string) {

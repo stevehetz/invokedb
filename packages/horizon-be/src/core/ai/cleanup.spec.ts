@@ -12,6 +12,7 @@ import {
     is_phone,
     parse_delete_body,
     parse_restore_body,
+    row_still_holds,
     plain_number,
     read_date,
     scan_rules,
@@ -304,12 +305,18 @@ describe('cleanup: deleting and restoring rows', () => {
         expect(
             parse_delete_body({ rows: [{ _id: rid, before: { a: 'Ada', b: 36 } }] }, cols)
         ).toEqual([{ _id: rid, before: { a: 'Ada', b: 36 } }]);
+        // Stored values needn't be of the column's type (/api/v1 doesn't convert them)
+        expect(
+            parse_delete_body({ rows: [{ _id: rid, before: { a: false, b: 'n/a' } }] }, cols)
+        ).toEqual([{ _id: rid, before: { a: false, b: 'n/a' } }]);
         const bad = [
             undefined,
             { rows: [] },
             { rows: [{ _id: 'x', before: { a: 'Ada' } }] },
             { rows: [{ _id: rid, before: { zz: 1 } }] },
-            { rows: [{ _id: rid, before: { b: 'old' } }] },
+            { rows: [{ _id: rid, before: { b: { x: 1 } } }] },
+            { rows: [{ _id: rid, before: { a: ['x'] } }] },
+            { rows: [{ _id: rid, before: { b: Infinity } }] },
             { rows: [{ _id: rid, before: {} }] },
             {
                 rows: [
@@ -326,8 +333,29 @@ describe('cleanup: deleting and restoring rows', () => {
         expect(parse_restore_body({ rows: [{ a: 'Ada', b: null }] }, cols)).toEqual([
             { a: 'Ada', b: null }
         ]);
-        expect(() => parse_restore_body({ rows: [{ a: 1 }] }, cols)).toThrow(AskError);
+        // Cells as stored, of any scalar type
+        expect(parse_restore_body({ rows: [{ a: true, b: 'n/a' }] }, cols)).toEqual([
+            { a: true, b: 'n/a' }
+        ]);
+        expect(() => parse_restore_body({ rows: [{ a: { x: 1 } }] }, cols)).toThrow(AskError);
         expect(() => parse_restore_body({ rows: [{ _id: rid }] }, cols)).toThrow(AskError);
         expect(() => parse_restore_body({ rows: ['x'] }, cols)).toThrow(AskError);
+    });
+
+    it('compares a row with before exactly, empty and missing cells as null', () => {
+        expect(row_still_holds({ a: true, b: 1 }, { a: true, b: 1 })).toBe(true);
+        expect(row_still_holds({ a: 'true', b: 1 }, { a: true })).toBe(false);
+        expect(row_still_holds({ b: '1' }, { b: 1 })).toBe(false);
+        expect(row_still_holds({ a: '' }, { a: null, b: null })).toBe(true);
+        expect(row_still_holds({ a: 'x' }, { a: null })).toBe(false);
+    });
+
+    it('offers no duplicate row holding an object or array', () => {
+        const rows = [
+            { _id: id(), a: 'Ada', b: { x: 1 } },
+            { _id: id(), a: 'Ada', b: { x: 1 } }
+        ];
+        const { problems } = scan_rules(rows as any, cols);
+        expect(problems.find(p => p.kind === 'duplicate')).toBeUndefined();
     });
 });

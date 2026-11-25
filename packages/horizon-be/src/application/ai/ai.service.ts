@@ -37,6 +37,7 @@ import {
     usage_month
 } from '@app/core/ai/ai';
 import { validate_template } from '@app/core/table-template/table-template';
+import { assert_verified, is_verified } from '@app/core/email-verification/email-verification';
 import logger from '@app/logger';
 
 export const AI_OFF = "AI features aren't set up on this server.";
@@ -81,6 +82,13 @@ export class AiService {
     private async account(acct_id: number) {
         const account = await this.account_svc.get(acct_id);
         if (!account) throw new NotFoundException();
+        return account;
+    }
+
+    /** The caller's account, refused (403) until its email is verified (#132): calls cost money. */
+    private async verified_account(acct_id: number) {
+        const account = await this.account(acct_id);
+        assert_verified(account);
         return account;
     }
 
@@ -171,8 +179,11 @@ export class AiService {
     /** Whether the AI features are on, this month's usage and the limits, for the app. */
     async status(acct_id: number) {
         const account = await this.account(acct_id);
+        const verified = is_verified(account);
         return {
-            enabled: !!this.model,
+            // Off for an unverified account too, so the app hides the buttons it can't use yet
+            enabled: !!this.model && verified,
+            verified,
             // "stub" in the smoke tests, which only then try the AI in the UI
             model: this.model ? this.model.name : null,
             usage: await this.usage(account),
@@ -191,7 +202,7 @@ export class AiService {
     async generate_rows(acct_id: number, file_id: unknown, body: any) {
         this.assert_enabled();
         const request = this.checked(() => parse_rows_request(body));
-        const account = await this.account(acct_id);
+        const account = await this.verified_account(acct_id);
         await this.tracking_manager.check_account_lock(account);
         const file = await this.file_directory_svc.assert_owned(acct_id, file_id);
         if (file.type !== 'file' || file.deleted) throw new NotFoundException('Table not found');
@@ -229,7 +240,7 @@ export class AiService {
     async preview_table(acct_id: number, body: any) {
         this.assert_enabled();
         const request = this.checked(() => parse_table_request(body));
-        const account = await this.account(acct_id);
+        const account = await this.verified_account(acct_id);
         await this.tracking_manager.check_account_lock(account);
 
         const cost = Math.max(1, request.row_count);
@@ -274,6 +285,7 @@ export class AiService {
      */
     async create_table(acct_id: number, body: any) {
         this.assert_enabled();
+        await this.verified_account(acct_id);
         const b = body && typeof body === 'object' ? body : {};
         let template;
         try {

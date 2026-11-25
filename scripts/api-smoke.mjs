@@ -2707,6 +2707,15 @@ await call('unverified_url_import', 'POST', '/url-import', {
     },
     expectFail: true
 });
+// ...nor spend AI calls (they cost money): the buttons are off and the routes answer 403
+const unv_ai = await call('unverified_ai_status', 'GET', '/ai/status', { token: unv_token });
+check('unverified_ai_off', unv_ai && unv_ai.enabled === false && unv_ai.verified === false, unv_ai);
+await call('unverified_ai_preview', 'POST', '/ai/table/preview', {
+    token: unv_token,
+    body: { description: 'a list of books', row_count: 3 },
+    expectFail: true
+});
+check('unverified_ai_preview_403', results.unverified_ai_preview.status === 403);
 const unv_dir = await call('unverified_create_folder', 'POST', '/file-directory', {
     token: unv_token,
     body: { account_id: unv_me?.id, name: 'smoke_unv_dir', type: 'dir' }

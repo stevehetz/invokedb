@@ -21,6 +21,7 @@ jest.mock('../table-template/table-template.service', () => ({}));
 
 const ACCT = 7;
 const OTHER = 8;
+const UNVERIFIED = 9;
 const NOW = Date.UTC(2026, 10, 25);
 
 function setup() {
@@ -30,8 +31,9 @@ function setup() {
         13: { id: 13, account_id: ACCT, type: 'file', deleted: true }
     };
     const accounts = {
-        [ACCT]: { id: ACCT, subscription_id: 'SUB_FREE' },
-        [OTHER]: { id: OTHER, subscription_id: 'SUB_LIVE_PLUS' }
+        [ACCT]: { id: ACCT, subscription_id: 'SUB_FREE', email_verified: true },
+        [OTHER]: { id: OTHER, subscription_id: 'SUB_LIVE_PLUS', email_verified: true },
+        [UNVERIFIED]: { id: UNVERIFIED, subscription_id: 'SUB_FREE', email_verified: false }
     };
     const usage = new Map<string, number>();
     const file_directory_svc = {
@@ -116,6 +118,27 @@ describe('AiService', () => {
             allowance: AI_MONTHLY_ROWS.free
         });
         expect(status.limits.max_rows_per_request).toBe(AI_LIMITS.max_rows_per_request);
+    });
+
+    it('refuses an unverified account on every route, before any model call', async () => {
+        const { svc, model, used, table_template_svc } = setup();
+        expect(await status_of(svc.generate_rows(UNVERIFIED, 11, { prompt: 'x' }))).toBe(403);
+        expect(await status_of(svc.preview_table(UNVERIFIED, { description: 'x' }))).toBe(403);
+        expect(
+            await status_of(
+                svc.create_table(UNVERIFIED, {
+                    table_name: 'T',
+                    columns: [{ name: 'A', type: 'string' }]
+                })
+            )
+        ).toBe(403);
+        expect(model.json).not.toHaveBeenCalled();
+        expect(table_template_svc.create_from).not.toHaveBeenCalled();
+        expect(used(UNVERIFIED)).toBe(0);
+        const status = await svc.status(UNVERIFIED);
+        expect(status.enabled).toBe(false);
+        expect(status.verified).toBe(false);
+        expect((await svc.status(ACCT)).enabled).toBe(true);
     });
 
     it('generates rows of the column types, not links, and counts them', async () => {

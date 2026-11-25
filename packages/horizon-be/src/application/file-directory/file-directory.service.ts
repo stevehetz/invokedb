@@ -199,6 +199,11 @@ export class FileDirectoryService {
                     logger.error(`delete_dg failed for file ${file_directory.id}: ${ex.message}`);
                 }
                 try {
+                    await this.clear_links_to_table(account.id, file_directory.id, true);
+                } catch (ex) {
+                    logger.error(`Links to file ${file_directory.id} not cleared: ${ex.message}`);
+                }
+                try {
                     await this.url_import_manager.remove(account.id, file_directory.id);
                 } catch (ex) {
                     logger.error(
@@ -227,5 +232,18 @@ export class FileDirectoryService {
         }
         await this.tracking_manager.deleted_table(account);
         return 'done';
+    }
+
+    /**
+     * Every row of this table is gone (#175): empties the link cells of the account's other
+     * tables that point at it. `deleted` (the table itself was deleted) also turns those
+     * columns into string columns; after a replace re-sync they stay links.
+     */
+    async clear_links_to_table(account_id: number, file_id: number, deleted: boolean) {
+        const tables = (await this.get_by_account_id(account_id)) || [];
+        for (const table of tables.filter(t => t.type === 'file')) {
+            if (deleted && table.id === file_id) continue;
+            await this.web_file_manager.clear_all_links(account_id, table.id, file_id, deleted);
+        }
     }
 }

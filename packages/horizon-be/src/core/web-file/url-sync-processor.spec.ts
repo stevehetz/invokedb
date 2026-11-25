@@ -182,6 +182,24 @@ describe('UrlSyncProcessor', () => {
         expect(JSON.stringify([rows.docs, cols.docs])).toBe(before);
     });
 
+    it('tells the caller when a replace removed the old rows, and only then (#175)', async () => {
+        const { rows, processor } = setup();
+        let calls = 0;
+        const on_replaced = async () => {
+            // Called after the new rows are in
+            expect(rows.docs.map(r => r.a)).toEqual(['cy@x.com']);
+            calls++;
+        };
+        await processor.sync(account, FILE_ID, csv_file('email\ncy@x.com\n'), replace, on_replaced);
+        expect(calls).toBe(1);
+        // An upsert removes no rows, and a refused sync writes nothing
+        await processor.sync(account, FILE_ID, csv_file('email\ndi@x.com\n'), upsert, on_replaced);
+        await expect(
+            processor.sync(account, FILE_ID, csv_file('name,name\na,b\n'), replace, on_replaced)
+        ).rejects.toThrow(/Duplicate column/);
+        expect(calls).toBe(1);
+    });
+
     it('stops when the table is deleted', async () => {
         const { processor } = setup();
         const lines = ['email'];

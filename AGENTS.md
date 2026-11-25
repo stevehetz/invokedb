@@ -305,7 +305,9 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   count goes up. Grid row pages carry `link_labels`; `/web-file/:id/link-targets` and
   `/link-options` feed the settings dialog and picker (`h-data-grid/link-dialog`). `/api/v1`
   returns ids, or rows with `expand=<column>[,<column>]`. Deleting rows clears them from every
-  link to them (owner's decision); link columns are left out of forms.
+  link to them (owner's decision); so does a replace URL re-sync (every row of the table). Deleting
+  the linked table empties those cells and turns the link columns into string columns (#175,
+  `FileDirectoryService.clear_links_to_table`). Link columns are left out of forms.
 - API keys (#138): Postgres `api_key` (entity `core/api-key/api-key.entity.ts`, pure rules in
   `api-key-rules.ts`): several per account, each `read` or `read_write`, for every table
   (`table_ids` null) or some, revocable. Only a SHA-256 and a 6-character prefix are stored; the

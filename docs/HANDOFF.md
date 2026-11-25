@@ -1,6 +1,6 @@
 # InvokeDB: handoff
 
-_Last updated 2026-11-24_
+_Last updated 2026-11-25 (midday)_
 
 InvokeDB ("horizon") is a web app for building data tables you can query through an API, live at
 `https://invokedb.com`. This file says where things stand and what a new session must know.
@@ -19,21 +19,56 @@ Elsewhere:
   the repo stay the source of truth (agents and workflows read them).
 - Git history and closed issues/PRs: everything done so far.
 
-## Where things stand (2026-11-24)
+## Where things stand (2026-11-25, midday)
 
-- **Board:** ideas filed 2026-11-24 (#128–#137): the pricing review (#137) and Stripe (#129)
-  lead; `main` is deployed, no open PRs or security alerts.
+- **Overnight the cloud agent shipped ~25 PRs** (all deployed): rate limits, password rule,
+  smaller entry chunk, templates, per-table API docs, `/api/v1/query` and `/count`, scoped CSS +
+  router between areas, onboarding checklist, URL/Google Sheet import, webhooks, forms, link
+  columns, saved views (grid/kanban/chart), the pricing review (`docs/PRICING.md`), email
+  verification (#181), six UI bug fixes (#192), a grid-lock fix (#195) and several agent-found
+  bugs. Details: `gh pr list --state merged`.
+- **Open PRs, all waiting on the owner:**
+  - **#179** scoped API keys (#138): conflicts with #181 resolved by hand (one rule: no single
+    account key; a key can be made and used only once the email is verified), CodeQL alerts
+    fixed or dismissed (#13, #14). Has a migration → `needs-owner`. Check CI, then merge.
+  - **#153** Stripe (#129): parked (`hold`) until the owner decides tiers, caps and prices from
+    `docs/PRICING.md`. Out of revise rounds.
+  - **#186** AI rows (#148), **#188** ask your data (#149): parked (`hold`); need an Anthropic
+    key in production (#187) and a usage budget. #186's smoke test fails.
+- **Production E2E is red but being repaired automatically.** The new features added E2E steps
+  the agent couldn't run before merging; each failure now starts `repair.yml` (#199), which has
+  fixed `table_views` (#202) and `link_column` (#210) so far. If it's still red, look at the
+  latest `gh run list -w e2e.yml` and any open "Fix E2E" PR.
+- **Board:** bugs first (#175, #182 are `agent`), then agent-found ideas (#169, #176, #178,
+  #183, #184: no `agent` yet, the owner triages), #187 (deploy, owner), #150 workspaces (last
+  for the agent), #135 (local only: `.github/`), then ideas #204–#219 (no `agent` yet).
 - **Production:** one DigitalOcean droplet running `docker compose` (Caddy, API, CSV processor,
   Postgres 17, Mongo 8). Nightly encrypted off-site backups, UptimeRobot, Healthchecks, Mailgun
   email, Cloudflare DNS and Email Routing, Google and GitHub sign-in (checked by hand).
 - **Delivery:** every change goes through a PR: CI, a Claude review, auto-merge for safe PRs,
-  deploy on merge. Claude workflows also repair failed CI/CD, revise after review, resolve
-  conflicts, work `agent`-labelled issues, fix or dismiss CodeQL alerts every 3 hours and update
-  npm packages monthly. Merged branches are deleted automatically.
-- **Tests:** backend unit tests (Jest, ~109) and the API smoke test (~54 checks) on every PR;
-  the UI test (`scripts/ui-smoke.mjs`, 12 steps) runs **against production** only
-  (`e2e.yml`: nightly 06:00 UTC and after each deploy, as `e2e@invokedb.com`; a failure sends
-  Telegram and keeps a masked screenshot). The frontend has no tests of its own.
+  deploy on merge, then E2E. Claude workflows also repair failed CI/CD/E2E, revise after review,
+  resolve conflicts, work `agent`-labelled issues in board order, fix or dismiss CodeQL alerts
+  every 3 hours and update npm packages monthly. Merged branches are deleted automatically.
+- **Tests:** backend unit tests (Jest, ~390) and the API smoke test on every PR; the UI test
+  (`scripts/ui-smoke.mjs`) runs **against production** only (`e2e.yml`: nightly 06:00 UTC and
+  after each deploy, as `e2e@invokedb.com`; a failure sends Telegram, keeps a masked screenshot
+  and starts repair). The frontend has no tests of its own.
+
+## The cloud agent's queue (fixed 2026-11-25)
+
+- It reads the **board order** with a direct GraphQL query (#155); `gh project ... --owner`
+  fails with "unknown owner type" for this user project, so never use it in workflows (#154,
+  #193). `PROJECTS_TOKEN` is a **classic** token with the `project` scope (read the order, add
+  issues to the board).
+- A stuck agent PR (failed CI, idle, out of review rounds) gets `agent-stuck` and the queue
+  **moves on** (#157), but it **holds once two agent PRs are stuck** (#159). To unblock: park
+  them with `hold` (and remove `agent-stuck`), merge, or close.
+- Agent-found **bugs** (not `security`) get `agent` from the workflow and are queued by
+  themselves (#197); other agent-found issues wait for the owner's `agent` label.
+- One issue at a time, ~10 minutes for an easy one. It can't edit `.github/workflows/` and can't
+  ask questions: put decisions in the issue body before labelling.
+- Watch it: `gh run list -w agent-queue.yml` (log line "Board order: …" then "Started
+  implement.yml on #N"), `gh pr list --label agent-pr`.
 
 ## Decisions to respect
 
@@ -48,6 +83,11 @@ Elsewhere:
 - **Production API keys from the old `Math.random()` generator aren't rotated** (not now).
 - **The agent may merge its own PR for fixes to the automation** once CI passes, including
   `.github/` changes; say what was merged.
+- **Local permission carve-outs** (2026-11-25, `.claude/settings.local.json`, gitignored): the
+  agent may run `gh pr merge`, `gh pr edit`, `gh issue edit` and `gh run cancel` without a
+  prompt. Merge only what the owner asked for or automation fixes, and say what was merged.
+- **Docs stay in the repo** (2026-11-25): agents and workflows read them; the wiki only has an
+  overview page with the diagrams. `OPERATIONS.md` stays in the repo too.
 - Dev-only Dependabot alerts that can't reach production may be dismissed as tolerable risk
   (alert #2, `minimatch` via jest/nodemon).
 

@@ -189,6 +189,8 @@ export default {
         async add_tree_item(type, parent_id) {
             if (type === 'upload') {
                 this.upload_file(parent_id);
+            } else if (type === 'template') {
+                this.add_from_template(parent_id);
             } else {
                 this.add_web_file(type, parent_id);
             }
@@ -234,6 +236,41 @@ export default {
                 );
                 this.$bus.$emit('input-dialog:processing', false);
             }
+        },
+
+        async add_from_template(parent_id) {
+            let templates;
+            try {
+                templates = await tree_manager.get_templates();
+            } catch (ex) {
+                this.$bus.$emit(
+                    'notify:error',
+                    ex.message || 'Could not load the templates'
+                );
+                return;
+            }
+            this.$bus.$emit('template-dialog:open', {
+                templates,
+                callback: async (template_id, name) => {
+                    try {
+                        const fid = await tree_manager.add_from_template(
+                            template_id,
+                            { name, parent_id }
+                        );
+                        await this.setup_tree();
+                        this.create_tab_from_tree_id(fid);
+                        this.select_and_manage_tree_item_by_id(fid);
+                        this.$bus.$emit('template-dialog:close');
+                    } catch (ex) {
+                        const r_msg = err_mgr.first_rule_msg('name', ex.rules);
+                        this.$bus.$emit(
+                            'notify:error',
+                            r_msg || ex.message || 'Table create error'
+                        );
+                        this.$bus.$emit('template-dialog:processing', false);
+                    }
+                }
+            });
         },
 
         upload_file(parent_id) {

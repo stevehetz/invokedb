@@ -4,8 +4,8 @@
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
 // render the public site's pages, log in, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
-// read the API key from the account page and call /api/v1 with it, then delete the table
-// through the UI and log out. Stops at the first failing step and saves a screenshot.
+// read the API key from the account page and call /api/v1 with it, make (and delete) a table
+// from a template, then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
 //
 // URLs come from the same env vars the apps use, so load an env file first. Best run against
 // the throwaway stack described in .agents/skills/verify-frontend/SKILL.md, not your own data:
@@ -40,6 +40,7 @@ const WS_URL = env.HORIZON_SB_PUB_WS_URL || 'ws://127.0.0.1:9000';
 const EMAIL = env.SMOKE_EMAIL || 'demo@invokedb.com';
 const PASSWORD = env.SMOKE_PASSWORD || 'password';
 const TABLE = 'ui_smoke_people';
+const TEMPLATE_TABLE = 'ui_smoke_tasks';
 const OUT = opt('--out');
 const ARTIFACTS = opt('--artifacts');
 if (ARTIFACTS) fs.mkdirSync(ARTIFACTS, { recursive: true });
@@ -82,16 +83,18 @@ async function be_session() {
     return { token: session.token, account_id: me.id };
 }
 
-async function find_tables(s) {
+async function find_tables(s, name = TABLE) {
     const dirs = await be('GET', `/file-directory?account_id=${s.account_id}`, { token: s.token });
-    return dirs.filter(d => d.name === TABLE);
+    return dirs.filter(d => d.name === name);
 }
 
 async function delete_leftover_tables() {
     const s = await be_session();
-    const ids = (await find_tables(s)).map(d => d.id);
+    const ids = [...(await find_tables(s)), ...(await find_tables(s, TEMPLATE_TABLE))].map(
+        d => d.id
+    );
     if (ids.length) {
-        console.log(`     removing ${ids.length} leftover "${TABLE}" table(s)`);
+        console.log(`     removing ${ids.length} leftover "${TABLE}"/"${TEMPLATE_TABLE}" table(s)`);
         await be('POST', '/file-directory/batch_delete', { token: s.token, body: { ids } });
     }
     await be('GET', `/auth/logout?token=${s.token}`);
@@ -483,6 +486,48 @@ try {
         });
         check(rows.length === 3, `/api/v1/get returned ${rows.length} rows`);
         await page.locator('.layout .nav .el-menu-item', { hasText: 'Tables' }).click();
+    });
+
+    await step('table_from_template', async () => {
+        await page.locator('.h-tree-controls .title-icon').click();
+        await page.locator('.h-tree-menu-popper').getByText('Table from Template').click();
+        const dlg = page.locator('.template-dialog .el-dialog');
+        await dlg.locator('.template-item[data-template-id="tasks"]').click();
+        await dlg.locator('.new-name input').fill(TEMPLATE_TABLE);
+        await dlg.getByRole('button', { name: 'Create' }).click();
+        await page.locator('.el-tabs__item', { hasText: TEMPLATE_TABLE }).waitFor();
+        await wait_rows(r => r.length === 4, 'four sample rows');
+        results.observed.template_headers = await headers();
+        const tables = await find_tables(be_s, TEMPLATE_TABLE);
+        check(tables.length === 1, `expected 1 "${TEMPLATE_TABLE}" table, found ${tables.length}`);
+        const saved = await be_table(be_s, tables[0].id);
+        results.observed.template_columns = saved.columns;
+        check(
+            saved.columns.map(c => `${c.name}:${c.type}`).join() ===
+                'Task:string,Owner:string,Priority:string,Status:string,Estimate Hours:number,Due:date',
+            `template columns are ${JSON.stringify(saved.columns)}`
+        );
+        check(
+            results.observed.template_headers.join() === saved.columns.map(c => c.name).join(),
+            `grid headers are ${results.observed.template_headers}`
+        );
+        // Delete it through the UI, like the uploaded table below
+        await page
+            .locator('.h-tree .tree-wrapper')
+            .getByText(TEMPLATE_TABLE, { exact: true })
+            .click();
+        await page.locator('.h-tree .manage-items.active .remove-items').click();
+        await page
+            .locator('.confirm-dialog .el-dialog')
+            .getByRole('button', { name: 'Confirm' })
+            .click();
+        await page
+            .locator('.el-tabs__item', { hasText: TEMPLATE_TABLE })
+            .waitFor({ state: 'detached' });
+        check(
+            (await find_tables(be_s, TEMPLATE_TABLE)).length === 0,
+            'template table still exists in the backend'
+        );
     });
 
     await step('delete_table', async () => {

@@ -45,6 +45,21 @@ export const tree_manager = {
         );
     },
 
+    async get_templates() {
+        return await http.get(http.get_url(`/table-template`));
+    },
+
+    /** Creates a table from a template; answers the new table's id. */
+    async add_from_template(template_id, data) {
+        const url = http.get_url(
+            `/table-template/${encodeURIComponent(template_id)}`
+        );
+        return await http.post(url, {
+            name: data.name,
+            parent_id: data.parent_id
+        });
+    },
+
     async update_item(tree_item) {
         let account = store.get('account');
         tree_item.account_id = account.id;

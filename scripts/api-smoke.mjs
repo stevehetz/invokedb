@@ -2,7 +2,8 @@
 // Exits non-zero if any call or check fails (CI runs it: .github/workflows/ci.yml, `smoke`).
 // Logs in as demo@invokedb.com, uploads a small CSV as table "smoke_people", exercises the
 // grid + external /api/v1 endpoints, checks that demo2@invokedb.com can't reach demo's tables
-// or account, then deletes the table. Writes every response to out.json
+// or account, makes tables from templates (and checks demo2's free-tier table limit), then
+// deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -237,6 +238,144 @@ await call('other_delete_own_dir', 'POST', '/file-directory/batch_delete', {
     token: otoken,
     body: { ids: [other_dir] }
 });
+
+// Table templates (#142): demo makes a table from one; demo2 can't see or use it
+const templates = await call('template_list', 'GET', '/table-template', { token });
+check(
+    'template_list_has_four',
+    Array.isArray(templates) && templates.length >= 4 && templates.some(t => t.id === 'crm'),
+    templates
+);
+await call('template_list_unauth', 'GET', '/table-template', { expectFail: true });
+await call('template_list_api_key', 'GET', '/table-template', {
+    token: me.api_key,
+    expectFail: true
+});
+const tpl_id = await call('template_create', 'POST', '/table-template/crm', {
+    token,
+    body: { name: 'smoke_crm' }
+});
+const crm = templates.find?.(t => t.id === 'crm');
+const tpl_cols = await call(
+    'template_cols',
+    'POST',
+    `/web-file/data_grid_column/${tpl_id}?skip=0&limit=50`,
+    { token, body: {} }
+);
+check(
+    'template_cols_match',
+    !!crm &&
+        JSON.stringify((tpl_cols.data || []).map(c => [c.headerName, c.col_type])) ===
+            JSON.stringify(crm.columns.map(c => [c.name, c.type])),
+    tpl_cols
+);
+const tpl_rows = await call(
+    'template_rows',
+    'POST',
+    `/web-file/data_grid_row/${tpl_id}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const value_col = (tpl_cols.data || []).find(c => c.headerName === 'Deal Value');
+check(
+    'template_rows_typed',
+    !!crm &&
+        tpl_rows.count === crm.row_count &&
+        !!value_col &&
+        tpl_rows.data.every(r => typeof r[value_col.field] === 'number'),
+    tpl_rows
+);
+await call('template_create_name_in_use', 'POST', '/table-template/crm', {
+    token,
+    body: { name: 'smoke_crm' },
+    expectFail: true
+});
+await call('template_create_bad_name', 'POST', '/table-template/crm', {
+    token,
+    body: { name: 'bad name' },
+    expectFail: true
+});
+await call('template_unknown', 'POST', '/table-template/no-such-template', {
+    token,
+    body: { name: 'smoke_none' },
+    expectFail: true
+});
+await call('template_in_other_folder', 'POST', '/table-template/tasks', {
+    token,
+    body: { name: 'smoke_tasks_x', parent_id: other_dir },
+    expectFail: true
+});
+await call('template_api_key', 'POST', '/table-template/tasks', {
+    token: me.api_key,
+    body: { name: 'smoke_tasks_key' },
+    expectFail: true
+});
+await call('other_template_rows', 'POST', `/web-file/data_grid_row/${tpl_id}?skip=0&limit=10`, {
+    token: otoken,
+    body: {},
+    expectFail: true
+});
+const other_me = await call('other_authorize', 'GET', `/auth/authorize?token=${otoken}`);
+await call('other_ext_template_table', 'GET', '/api/v1/get?table=smoke_crm&skip=0&limit=1', {
+    token: other_me.api_key,
+    expectFail: true
+});
+await call('other_delete_template_table', 'POST', '/file-directory/batch_delete', {
+    token: otoken,
+    body: { ids: [tpl_id] },
+    expectFail: true
+});
+
+// demo2 is on the free tier: a template table counts against its table limit (3 tables)
+const other_files = await call('other_list_before_templates', 'GET', '/file-directory', {
+    token: otoken
+});
+const free_max_tables = 3;
+const other_tpl_ids = [];
+const other_file_count = Array.isArray(other_files)
+    ? other_files.filter(d => d.type === 'file').length
+    : 0;
+for (let i = other_file_count; i < free_max_tables; i++) {
+    other_tpl_ids.push(
+        await call(`other_template_create_${i}`, 'POST', '/table-template/waitlist', {
+            token: otoken,
+            body: { name: `smoke_waitlist_${i}` }
+        })
+    );
+}
+await call('other_template_over_limit', 'POST', '/table-template/waitlist', {
+    token: otoken,
+    body: { name: 'smoke_waitlist_over' },
+    expectFail: true
+});
+check(
+    'other_template_over_limit_forbidden',
+    results.other_template_over_limit.status === 403,
+    results.other_template_over_limit
+);
+const own_list_tpl = await call('own_list_after_templates', 'GET', '/file-directory', { token });
+check(
+    'other_templates_not_in_own_account',
+    Array.isArray(own_list_tpl) && !own_list_tpl.some(d => other_tpl_ids.includes(d.id)),
+    own_list_tpl
+);
+const other_files_after = await call('other_list_after_templates', 'GET', '/file-directory', {
+    token: otoken
+});
+check(
+    'other_template_over_limit_made_nothing',
+    Array.isArray(other_files_after) &&
+        !other_files_after.some(d => d.name === 'smoke_waitlist_over'),
+    other_files_after
+);
+await call('other_template_cleanup', 'POST', '/file-directory/batch_delete', {
+    token: otoken,
+    body: { ids: other_tpl_ids }
+});
+await call('template_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [tpl_id] }
+});
+
 await call('other_logout', 'GET', `/auth/logout?token=${otoken}`);
 const me_after = await call('authorize_after_other', 'GET', `/auth/authorize?token=${token}`);
 check('own_account_unchanged', me_after.first_name === me.first_name, me_after);

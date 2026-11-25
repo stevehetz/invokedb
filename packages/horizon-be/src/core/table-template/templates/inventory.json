@@ -1,0 +1,52 @@
+{
+    "name": "Inventory",
+    "description": "Products with SKU, stock on hand, reorder level and price.",
+    "table_name": "inventory",
+    "columns": [
+        { "name": "SKU", "type": "string" },
+        { "name": "Product", "type": "string" },
+        { "name": "Category", "type": "string" },
+        { "name": "In Stock", "type": "number" },
+        { "name": "Reorder Level", "type": "number" },
+        { "name": "Unit Price", "type": "number" },
+        { "name": "Last Restocked", "type": "date" }
+    ],
+    "rows": [
+        {
+            "SKU": "MUG-001",
+            "Product": "Ceramic mug",
+            "Category": "Kitchen",
+            "In Stock": 140,
+            "Reorder Level": 50,
+            "Unit Price": 9.5,
+            "Last Restocked": "2026-10-20"
+        },
+        {
+            "SKU": "TEE-014",
+            "Product": "Cotton t-shirt",
+            "Category": "Apparel",
+            "In Stock": 32,
+            "Reorder Level": 40,
+            "Unit Price": 18,
+            "Last Restocked": "2026-09-05"
+        },
+        {
+            "SKU": "BAG-007",
+            "Product": "Canvas tote",
+            "Category": "Accessories",
+            "In Stock": 75,
+            "Reorder Level": 25,
+            "Unit Price": 14.25,
+            "Last Restocked": "2026-10-11"
+        },
+        {
+            "SKU": "PEN-120",
+            "Product": "Gel pen, black",
+            "Category": "Stationery",
+            "In Stock": 600,
+            "Reorder Level": 200,
+            "Unit Price": 1.2,
+            "Last Restocked": "2026-08-30"
+        }
+    ]
+}

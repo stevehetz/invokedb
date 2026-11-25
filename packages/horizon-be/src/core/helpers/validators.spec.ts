@@ -16,11 +16,27 @@ describe('validate_password', () => {
     });
 
     it.each([
+        'My-pass-2024',
+        'hello_World.9',
+        'Smoke-test-1A',
+        'Pass word 1',
+        'Abcdef1~',
+        'Abcdef1/',
+        'Abcdef1"',
+        'Abcdéf12'
+    ])('accepts any non-alphanumeric character as the symbol: "%s"', p =>
+        expect(validate_password(p)).toBe(true)
+    );
+
+    it.each([
         ['too short', 'Abcde1!'],
         ['no upper case', 'abcdef1!'],
         ['no lower case', 'ABCDEF1!'],
         ['no digit', 'Abcdefg!'],
-        ['no symbol', 'Abcdefg1']
+        ['no symbol', 'Abcdefg1'],
+        ['only letters and digits', 'MyPass2024abc'],
+        ['an empty value', ''],
+        ['a missing value', undefined]
     ])('rejects a password with %s', (_why, p) => expect(validate_password(p)).toBe(false));
 });
 

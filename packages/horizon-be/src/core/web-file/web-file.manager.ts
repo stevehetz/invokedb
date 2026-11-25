@@ -423,12 +423,16 @@ export class WebFileManager {
         if (web_file_type === 'data-grid') {
             const new_rows = [this.new_row(file_id), this.new_row(file_id), this.new_row(file_id)];
             const account = await this.account_repository.findOneBy({ id: acct_id });
-            await this._tracking_manager.add_rows(account, {
+            const release = await this._tracking_manager.add_rows(account, {
                 rows_to_be_added: new_rows.length,
                 file_id
             });
-            const row_coll = await this._collections.get_dg_row(acct_id, file_id);
-            await row_coll.insertMany(new_rows);
+            try {
+                const row_coll = await this._collections.get_dg_row(acct_id, file_id);
+                await row_coll.insertMany(new_rows);
+            } finally {
+                await release();
+            }
             const col_coll = await this._collections.get_dg_col(acct_id, file_id);
             const new_cols = [
                 {

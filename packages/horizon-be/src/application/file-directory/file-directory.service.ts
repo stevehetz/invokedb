@@ -129,13 +129,21 @@ export class FileDirectoryService {
         const account = await this.account_service.get(acct_id);
         // Every way of making a table comes through here (new, upload, template, URL import)
         if (creating_needs_verified_email(data)) assert_verified(account);
-        await this.tracking_manager.add_table(account);
-        await this.validate(data);
-        data.deleted = false;
-        const create_dto = data;
-        const res = (await this.file_directory_repository.save(create_dto)) as any;
-        if (!no_file) await this.web_file_manager.create_new(acct_id, res.id, data.web_file_type);
-        return res;
+        // Holds a place under the table limit until the table is saved, so parallel creates
+        // can't pass it together (#182)
+        const release = await this.tracking_manager.add_table(account);
+        try {
+            await this.validate(data);
+            data.deleted = false;
+            const create_dto = data;
+            const res = (await this.file_directory_repository.save(create_dto)) as any;
+            if (!no_file) {
+                await this.web_file_manager.create_new(acct_id, res.id, data.web_file_type);
+            }
+            return res;
+        } finally {
+            await release();
+        }
     }
 
     /** Internal: no ownership check. Routes must use `update_owned`. */

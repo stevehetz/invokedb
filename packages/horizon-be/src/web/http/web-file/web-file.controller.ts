@@ -25,6 +25,10 @@ import _c from '@app/constants';
 import { session_account_id } from '@app/web/http/_auth/request-account';
 import { public_api_base_url } from '@app/web/http/public-api-url';
 
+// The largest CSV an upload takes, for every plan (#182). Past it multer stops reading, deletes
+// the partial temp file and Nest answers 413, before the handler makes a table.
+export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+
 @Controller('web-file')
 @UseGuards(AuthGuard('bearer'))
 export class WebFileController {
@@ -38,8 +42,9 @@ export class WebFileController {
     async web_file_new_col(@Request() req) {
         const acct_id = session_account_id(req.user);
         await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        const account = await this.account_service.get(acct_id);
         const file_id = req.params.file_directory_id;
-        const res = await this.web_file_service.get_new_column(acct_id, file_id);
+        const res = await this.web_file_service.get_new_column(account, file_id);
         return res;
     }
 
@@ -175,6 +180,7 @@ export class WebFileController {
     @Post('file_upload')
     @UseInterceptors(
         FileInterceptor('file', {
+            limits: { fileSize: MAX_UPLOAD_BYTES },
             storage: diskStorage({
                 destination: `${env.HORIZON_FILE_SHARE}/temp`,
                 filename: (req, file, cb) => {

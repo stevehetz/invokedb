@@ -3596,6 +3596,197 @@ if (unv_me?.id) {
 }
 await call('unverified_logout', 'GET', `/auth/logout?token=${unv_token}`);
 
+// Limits (#182). Columns: 52 per table on every route that turns a column on (batch create,
+// single save, batch save), and saving all the columns of a full table still works.
+const col_table = await call('col_limit_table', 'POST', '/file-directory', {
+    token,
+    body: { account_id: me.id, name: 'smoke_col_limit', type: 'file', web_file_type: 'data-grid' }
+});
+const active_cols = async name =>
+    (
+        (
+            await call(name, 'POST', `/web-file/data_grid_column/${col_table}?skip=0&limit=200`, {
+                token,
+                body: {}
+            })
+        )?.data || []
+    ).filter(c => !c.deleted);
+const new_cols = (from, n) =>
+    Array.from({ length: n }, (_, i) => ({
+        file_directory_id: col_table,
+        col_index: from + i,
+        order: from + i,
+        field: `x${from + i}`,
+        headerName: `col${from + i}`,
+        width: 120
+    }));
+await call('col_limit_create_49', 'POST', `/web-file/batch_create/data_grid_column/${col_table}`, {
+    token,
+    body: new_cols(4, 49)
+});
+const full_cols = await active_cols('col_limit_full');
+check('col_limit_full_52', full_cols.length === 52, full_cols.length);
+await call(
+    'col_limit_create_53rd',
+    'POST',
+    `/web-file/batch_create/data_grid_column/${col_table}`,
+    { token, body: new_cols(53, 1), expectFail: true }
+);
+const placeholder = await call(
+    'col_limit_placeholder',
+    'GET',
+    `/web-file/${col_table}/get_new_column`,
+    {
+        token
+    }
+);
+await call(
+    'col_limit_save_53rd',
+    'PUT',
+    `/web-file/${placeholder?._id}/data_grid_column/${col_table}`,
+    { token, body: { ...placeholder, headerName: 'col53', deleted: false }, expectFail: true }
+);
+await call('col_limit_batch_53rd', 'PUT', `/web-file/batch_update/data_grid_column/${col_table}`, {
+    token,
+    body: [...full_cols, { ...placeholder, headerName: 'col53', deleted: false }],
+    expectFail: true
+});
+await call('col_limit_save_all', 'PUT', `/web-file/batch_update/data_grid_column/${col_table}`, {
+    token,
+    body: full_cols.map(c => ({ ...c, width: 150 }))
+});
+check(
+    'col_limit_refused_403',
+    ['col_limit_create_53rd', 'col_limit_save_53rd', 'col_limit_batch_53rd'].every(
+        n => results[n]?.status === 403
+    ),
+    ['col_limit_create_53rd', 'col_limit_save_53rd', 'col_limit_batch_53rd'].map(
+        n => results[n]?.status
+    )
+);
+const after_cols = await active_cols('col_limit_after');
+check(
+    'col_limit_nothing_saved',
+    after_cols.length === 52 && after_cols.every(c => c.width === 150),
+    after_cols.length
+);
+await call('col_limit_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [col_table] }
+});
+
+// The /api/v1 limit is per minute and atomic: a burst of parallel calls from a Free account
+// (50 a minute) gets 429s with Retry-After. Allows for the burst straddling two minutes.
+const rl_session = await call('rate_limit_login', 'POST', '/auth/login', {
+    body: { email: 'demo5@invokedb.com', password: 'password' }
+});
+const rl_token = rl_session?.token;
+const rl_me = await call('rate_limit_authorize', 'GET', `/auth/authorize?token=${rl_token}`);
+const rl_key = await call('rate_limit_key', 'POST', '/api-key', {
+    token: rl_token,
+    body: { name: 'smoke_rate', access: 'read' }
+});
+const rl_table = await call('rate_limit_table', 'POST', '/file-directory', {
+    token: rl_token,
+    body: { account_id: rl_me?.id, name: 'smoke_rate', type: 'file', web_file_type: 'data-grid' }
+});
+const rl_burst = await Promise.all(
+    Array.from({ length: 120 }, () =>
+        fetch(`${BASE}/api/v1/get?table=smoke_rate&skip=0&limit=1`, {
+            headers: { Authorization: `Bearer ${rl_key?.secret}` }
+        }).then(async r => {
+            await r.text();
+            return { status: r.status, retry_after: r.headers.get('retry-after') };
+        })
+    )
+);
+const rl_ok = rl_burst.filter(r => r.status === 200).length;
+const rl_429 = rl_burst.filter(r => r.status === 429);
+results.rate_limit_burst = { ok: rl_ok, limited: rl_429.length };
+check(
+    'rate_limit_429_retry_after',
+    rl_ok > 0 &&
+        rl_ok <= 100 &&
+        rl_ok + rl_429.length === rl_burst.length &&
+        rl_429.length >= 20 &&
+        rl_429.every(
+            r => /^\d+$/.test(r.retry_after || '') && +r.retry_after >= 1 && +r.retry_after <= 60
+        ),
+    {
+        ok: rl_ok,
+        statuses: [...new Set(rl_burst.map(r => r.status))],
+        retry: rl_429[0]?.retry_after
+    }
+);
+if (rl_table) {
+    await call('rate_limit_table_delete', 'POST', '/file-directory/batch_delete', {
+        token: rl_token,
+        body: { ids: [rl_table] }
+    });
+}
+if (rl_key?.key?.id) {
+    await call('rate_limit_key_delete', 'DELETE', `/api-key/${rl_key.key.id}`, { token: rl_token });
+}
+await call('rate_limit_logout', 'GET', `/auth/logout?token=${rl_token}`);
+
+// Uploads over 100 MB answer 413 and leave no table and no temp file. The temp folder is read
+// from the smoke env file (HORIZON_ENV_FILE) when there is one.
+function upload_temp_dir() {
+    const env_file = process.env.HORIZON_ENV_FILE;
+    if (!env_file || !fs.existsSync(env_file)) return null;
+    const line = fs
+        .readFileSync(env_file, 'utf8')
+        .split('\n')
+        .filter(l => l.startsWith('HORIZON_FILE_SHARE='))
+        .pop();
+    if (!line) return null;
+    const root = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
+    const share = line
+        .slice('HORIZON_FILE_SHARE='.length)
+        .trim()
+        .replace(/^["']|["']$/g, '')
+        .replace('${HORIZON_ROOT}', root);
+    return `${share}/temp`;
+}
+const temp_dir = upload_temp_dir();
+const temp_files = () =>
+    temp_dir && fs.existsSync(temp_dir)
+        ? fs.readdirSync(temp_dir).filter(f => f.startsWith(`acct-${me.id}_`))
+        : [];
+const temp_before = temp_files();
+const big_form = new FormData();
+big_form.append('new_name', 'smoke_too_big');
+big_form.append(
+    'file',
+    new Blob([new Uint8Array(100 * 1024 * 1024 + 1).fill(97)], { type: 'text/csv' }),
+    'big.csv'
+);
+let big_status = null;
+try {
+    const big_res = await fetch(`${BASE}/web-file/file_upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: big_form
+    });
+    await big_res.text();
+    big_status = big_res.status;
+} catch (ex) {
+    big_status = `error: ${ex.message}`;
+}
+check('upload_too_big_413', big_status === 413, big_status);
+const after_big = await call('upload_too_big_list', 'GET', '/file-directory', { token });
+check(
+    'upload_too_big_no_table',
+    Array.isArray(after_big) && !after_big.some(d => d.name === 'smoke_too_big'),
+    after_big
+);
+if (temp_dir) {
+    const left = temp_files().filter(f => !temp_before.includes(f));
+    check('upload_too_big_no_temp_file', left.length === 0, left);
+} else {
+    console.log('     (no HORIZON_ENV_FILE: temp folder not checked)');
+}
+
 await call('support', 'POST', '/support/request', {
     token,
     body: { email: 'x@y.z', message: 'smoke' }

@@ -1,8 +1,16 @@
 import { http } from '@/core/http';
 
 export const web_file_http = {
-    async get_new_column(id) {
+    /**
+     * A placeholder column to add. `pending` are the ids of new columns the grid already holds
+     * unsaved, so the server doesn't hand the same one out again (#236).
+     * @param {number} id @param {string[]} [pending]
+     */
+    async get_new_column(id, pending = []) {
         let url = http.get_url(`/web-file/${id}/get_new_column`);
+        if (pending.length > 0) {
+            url += `?${new URLSearchParams({ pending: pending.join(',') })}`;
+        }
         return http.get(url);
     },
 

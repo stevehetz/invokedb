@@ -11,7 +11,6 @@ const Home = () => import('@/components/home');
 const Account = () => import('@/components/account');
 const Docs = () => import('@/components/docs');
 const Guide = () => import('@/components/guide');
-const Dashboards = () => import('@/components/dashboards');
 
 // Public site (marketing, login, signup)
 const SiteHome = () => import('@/view/pages/home');
@@ -24,6 +23,8 @@ const Pricing = () => import('@/view/pages/pricing');
 const Contact = () => import('@/view/pages/contact');
 const Tos = () => import('@/view/pages/tos');
 const Privacy = () => import('@/view/pages/privacy');
+const Help = () => import('@/view/pages/help');
+const Changelog = () => import('@/view/pages/changelog');
 
 // The public site and the app were separate apps with separate global stylesheets that clash
 // (.page, .home-page, .flex-*, Element theme colours). Each area's shell imports its own CSS
@@ -35,8 +36,6 @@ const Site = () => import(/* webpackChunkName: "site" */ '@/view/site.vue');
 // A shareable form's public page (#145), also shown in other sites' iframes. It's in neither
 // shell (no site nav, no app), so it carries its own scoped CSS.
 const FormPage = () => import('@/view/form-page');
-// A dashboard's read-only share link (#209), likewise outside both shells
-const DashboardPage = () => import('@/view/dashboard-page');
 const App = () =>
     import(/* webpackChunkName: "signed-in" */ '@/components/app.vue');
 
@@ -69,13 +68,6 @@ const router = createRouter({
                             }
                         },
                         {
-                            path: 'dashboards',
-                            name: 'dashboards',
-                            components: {
-                                page_overlay: Dashboards
-                            }
-                        },
-                        {
                             path: 'guide',
                             name: 'guide',
                             components: {
@@ -91,7 +83,6 @@ const router = createRouter({
             ]
         },
         { path: '/f/:id', name: 'form', component: FormPage },
-        { path: '/d/:token', name: 'dashboard', component: DashboardPage },
         {
             path: '/',
             component: Site,
@@ -122,6 +113,9 @@ const router = createRouter({
                 { path: 'contact', name: 'contact', component: Contact },
                 { path: 'tos', name: 'tos', component: Tos },
                 { path: 'privacy', name: 'privacy', component: Privacy },
+                // Help pages, one per topic (#219); the app's header links here too
+                { path: 'help/:topic?', name: 'help', component: Help },
+                { path: 'changelog', name: 'changelog', component: Changelog },
                 { path: ':pathMatch(.*)*', redirect: { name: 'site-home' } }
             ]
         }

@@ -51,10 +51,10 @@ export class WebFileService {
         private webhook_svc: WebhookService
     ) {}
 
-    async get_new_column(account, file_id) {
+    async get_new_column(account, file_id, pending?: Set<string>) {
         // A locked account makes no placeholders either (#182)
         await this.tracking_manager.check_account_lock(account);
-        return await this.web_file_manager.get_new_column(account.id, file_id);
+        return await this.web_file_manager.get_new_column(account.id, file_id, pending);
     }
 
     async validate(account_id, file_directory_id) {

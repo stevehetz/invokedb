@@ -287,6 +287,8 @@ than the server.
 Plus a server-wide CSV upload limit of 100 MB at the HTTP layer (multer `limits.fileSize`),
 whatever the plan, so a request can't fill the disk before the plan is checked.
 
+**Dashboards** (#209) were removed on 2026-11-25 (owner's decision, #264), so they have no tier limits.
+
 Why these numbers:
 
 - **Free** is enough to build a small app against the API (a few tables, a form, a webhook)

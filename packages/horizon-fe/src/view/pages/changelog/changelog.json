@@ -1,0 +1,102 @@
+[
+    {
+        "date": "2026-11-25",
+        "number": 258,
+        "title": "Add the Python client (examples/invokedb-python)"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 246,
+        "title": "Add calendar and map views of a table"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 243,
+        "title": "Edit rows with natural language in Ask AI, with a preview and undo"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 241,
+        "title": "Schema diagram of tables and their links"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 240,
+        "title": "Delete revoked API keys after 7 days and hide them on the Account page"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 235,
+        "title": "One AI dialog: Ask AI answers questions and proposes rows"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 226,
+        "title": "AI rows and tables on the shared AI caps"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 188,
+        "title": "Ask your data: plain-English questions about a table"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 181,
+        "title": "Verify email addresses on signup"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 180,
+        "title": "Add saved views: grid, kanban and chart views"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 179,
+        "title": "Several scoped, revocable API keys per account"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 177,
+        "title": "Add link columns that point to rows in another table"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 174,
+        "title": "Add shareable forms that add rows to a table"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 173,
+        "title": "Webhooks on row changes: signed, retried, logged"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 171,
+        "title": "Import a table from a Google Sheet or a CSV/JSON URL, with re-sync"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 170,
+        "title": "Onboarding checklist: from a new account to a first API call"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 167,
+        "title": "Add /api/v1/query and /count: filters, sort, fields, cursor paging"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 166,
+        "title": "Per-table API docs with snippets, Try it and an OpenAPI spec"
+    },
+    {
+        "date": "2026-11-25",
+        "number": 164,
+        "title": "Table templates with sample data"
+    },
+    {
+        "date": "2026-11-24",
+        "number": 54,
+        "title": "Add Google and GitHub sign-in"
+    }
+]

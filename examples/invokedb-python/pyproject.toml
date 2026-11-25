@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "invokedb"
+version = "0.1.0"
+description = "InvokeDB Python client (standard library only)"
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Steve Hetzel" }]
+requires-python = ">=3.9"
+dependencies = []
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/stevehetz/invokedb/tree/main/examples/invokedb-python#readme"
+Issues = "https://github.com/stevehetz/invokedb/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+invokedb = ["py.typed"]

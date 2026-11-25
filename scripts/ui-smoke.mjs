@@ -753,7 +753,11 @@ try {
         await secret.waitFor();
         const key = await secret.inputValue();
         check(key.length === 32, 'the new API key is not shown');
-        const item = form.locator('.api-key-item', { hasText: 'ui-smoke' }).first();
+        // Find the row by the key's prefix and its exact name: "ui-smoke docs" (made in
+        // table_api_docs) and revoked keys from earlier runs contain "ui-smoke" too
+        const item = form
+            .locator('.api-key-item', { hasText: key.slice(0, 6) })
+            .filter({ has: page.locator('.api-key-item-name', { hasText: /^ui-smoke$/ }) });
         await item.waitFor();
         const item_text = await item.innerText();
         check(
@@ -787,7 +791,7 @@ try {
             .locator('.confirm-dialog .el-dialog')
             .getByRole('button', { name: 'Confirm' })
             .click();
-        await form.locator('.api-key-item.revoked', { hasText: 'ui-smoke' }).first().waitFor();
+        await form.locator('.api-key-item.revoked', { hasText: key.slice(0, 6) }).waitFor();
         const after = await fetch(`${API_URL}/v1/get?table=${TABLE}&skip=0&limit=1`, {
             headers: { Authorization: `Bearer ${key}` }
         });

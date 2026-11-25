@@ -15,7 +15,16 @@ export class ApiKeyController {
         return await this.api_key_service.list(session_account_id(req.user));
     }
 
-    /** Body: `{ name, access: 'read' | 'read_write', table_ids? }`. Answers `{ key, secret }`. */
+    /** `{ requests, max }`: the key's last requests, newest first (#216). */
+    @Get(':id/requests')
+    async requests(@Param('id') id: string, @Request() req) {
+        return await this.api_key_service.requests(session_account_id(req.user), id);
+    }
+
+    /**
+     * Body: `{ name, access: 'read' | 'read_write', table_ids?, rate_limit_per_second?,
+     * rate_limit_burst? }`. Answers `{ key, secret }`.
+     */
     @Post()
     async create(@Body() body, @Request() req) {
         return await this.api_key_service.create(session_account_id(req.user), body);

@@ -338,6 +338,13 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `get_file_id` (writes: create/update/delete) and for `expand`. There's no `account.api_key`
   any more: the smoke tests and `examples/setup.mjs` make their own keys, and the onboarding
   command has a `YOUR_API_KEY` placeholder the app fills with a key made in the same visit.
+- Per-key limits and request logs (#216): a key may have its own rate limit, set when it's made
+  (`rate_limit_per_second`, `rate_limit_burst`; none means only the account's per-minute limit).
+  `ApiKeyUsageGuard` (after the bearer guard on `/api/v1`) applies it with an in-memory token
+  bucket (`core/api-key/key-rate-limit.ts`; 429 + `Retry-After`) and logs every key call on
+  `finish` (time, method, path without query, status, duration) into `tracking:api_key_request`,
+  one document per key capped at 100 by `$push`/`$slice` (`key-request-log.manager.ts`; filter on
+  `account_id`). `GET /api-key/:id/requests` (session only); the Account page shows it under a key.
 - Saved views (#146): `src/core/view/` has the pure rules (`view.ts`: settings checked against
   the columns, filters kept in the grid's own format `{ field, type, value }` and turned into a
   Mongo filter, the kanban and chart aggregations) and the store (`view.manager.ts`,
@@ -404,6 +411,16 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   the request. Not reads, CSV uploads or URL syncs. The processor role prunes old entries
   hourly. Route `GET /audit?table=&limit=&cursor=` (session only). The frontend's
   `components/audit-log` is the grid's More menu → History and the Account page's History.
+- Data export (#215): `src/core/account-export/` has the pure rules (`account-export.ts`: zip
+  paths, rows as CSV and JSON by column name, settings without webhook secrets, the 24-hour
+  link, a few exports a day), a streaming zip writer (`zip-writer.ts`, `zlib` only, no ZIP64)
+  and the store (`account-export.manager.ts`, `tracking:account_export`, filter on
+  `account_id`). `POST /account-export` queues an `ACCOUNT_EXPORT` job (Postgres `job`, no
+  `file_id`); `AccountExportService.run` in the processor streams every table from Mongo
+  into `$HORIZON_FILE_SHARE/exports/<id>.zip` and removes expired zips every 15 minutes.
+  `GET /account-export/:id/download` needs the owner's session (the app fetches it as a blob).
+  Deleting data isn't part of it. A local `api-smoke.mjs` run asks for an export, so more than
+  five runs a day on the same DBs hit the 429.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

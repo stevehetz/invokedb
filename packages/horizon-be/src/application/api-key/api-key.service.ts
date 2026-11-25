@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, LessThan, Repository } from 'typeorm';
+import { In, IsNull, LessThan, Repository } from 'typeorm';
 import { Account } from '@app/core/account/account.entity';
 import { ApiKey } from '@app/core/api-key/api-key.entity';
 import { FileDirectory } from '@app/core/file-directory/file-directory.entity';
@@ -14,10 +14,13 @@ import {
     REVOKED_KEPT_DAYS,
     hash_api_key,
     key_prefix,
+    key_rate_limit,
     parse_new_key,
     revoked_cutoff,
     should_touch_last_used
 } from '@app/core/api-key/api-key-rules';
+import { KeyRequestLogManager } from '@app/core/api-key/key-request-log.manager';
+import { MAX_LOGGED_REQUESTS } from '@app/core/api-key/key-request-log';
 
 // An account's API keys (#138): made, listed and revoked from the app (/api-key, session only),
 // and looked up by the bearer strategy for /api/v1.
@@ -31,7 +34,8 @@ export class ApiKeyService {
         @InjectRepository(FileDirectory)
         private readonly file_directory_repository: Repository<FileDirectory>,
         private readonly onboarding_manager: OnboardingManager,
-        private readonly audit_svc: AuditService
+        private readonly audit_svc: AuditService,
+        private readonly request_log: KeyRequestLogManager
     ) {}
 
     // The audit log (#217): keys are account-wide changes, on no table
@@ -69,9 +73,22 @@ export class ApiKeyService {
             access: api_key.access,
             table_ids: api_key.table_ids,
             name: api_key.name,
-            prefix: api_key.prefix
+            prefix: api_key.prefix,
+            rate_limit: key_rate_limit(api_key.rate_limit_per_second, api_key.rate_limit_burst)
         };
         return account;
+    }
+
+    /**
+     * `{ requests, max }`: one of the account's keys' last requests (#216), newest first, each
+     * `{ at, method, path, status, duration_ms }`. 404 for a key of another account.
+     */
+    async requests(account_id: number, id: unknown) {
+        const key = await this.owned(account_id, id);
+        return {
+            requests: await this.request_log.list(account_id, key.id),
+            max: MAX_LOGGED_REQUESTS
+        };
     }
 
     /**
@@ -80,10 +97,18 @@ export class ApiKeyService {
      * more than REVOKED_KEPT_DAYS ago are deleted first (#178).
      */
     async list(account_id: number) {
-        await this.api_key_repository.delete({
+        const expired = await this.api_key_repository.findBy({
             account_id,
             revoked_datetime: LessThan(revoked_cutoff(new Date()))
         });
+        if (expired.length > 0) {
+            const ids = expired.map(k => k.id);
+            await this.api_key_repository.delete({ account_id, id: In(ids) });
+            // Their request logs go with them (#216)
+            await this.request_log.remove(account_id, ids).catch(err => {
+                console.error('api-key: could not delete request logs', err);
+            });
+        }
         const keys = await this.api_key_repository.find({
             where: { account_id },
             order: { id: 'DESC' }
@@ -130,6 +155,8 @@ export class ApiKeyService {
                     name: input.name,
                     access: input.access,
                     table_ids: input.table_ids,
+                    rate_limit_per_second: input.rate_limit?.per_second ?? null,
+                    rate_limit_burst: input.rate_limit?.burst ?? null,
                     prefix: key_prefix(secret),
                     key_hash
                 })
@@ -191,6 +218,8 @@ export class ApiKeyService {
                       .filter(id => tables.has(id))
                       .map(id => ({ id, name: tables.get(id) }))
                 : null,
+            // null: no limit of the key's own (#216)
+            rate_limit: key_rate_limit(key.rate_limit_per_second, key.rate_limit_burst),
             created_datetime: key.created_datetime,
             last_used_datetime: key.last_used_datetime,
             revoked_datetime: key.revoked_datetime

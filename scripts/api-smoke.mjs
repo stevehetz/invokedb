@@ -25,15 +25,19 @@
 // and API keys locked out; then AI rows and tables, #148: typed preview rows, the monthly row
 // allowance, demo2 locked out), checks API keys (#138: made for each account and revoked at the end;
 // read-only and table-scoped keys refused, revoked keys refused, only hashes listed, demo's
-// migrated key still works, demo2 locked out) and email verification on signup (#132: the same
+// migrated key still works, demo2 locked out; #216: a key's own rate limit answers 429 with
+// Retry-After, its request log has no query strings and is the owner's only) and email verification on signup (#132: the same
 // answer for a taken email, an unverified account with no API key and no tables, resend, bad
-// links), checks the audit log (#217: app and API key changes per table and per account, paging,
-// demo2 and API keys locked out), then deletes the tables and the new account. Writes every response to out.json
+// links), checks data export (#215: the processor's zip has every table as CSV and JSON and the
+// settings without webhook secrets; one at a time; demo2 and API keys can't download it), checks the
+// audit log (#217: app and API key changes per table and per account, paging, demo2 and API keys
+// locked out), then deletes the tables and the new account. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
 import http from 'node:http';
 import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { execFileSync } from 'node:child_process';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8001';
@@ -3016,6 +3020,99 @@ check(
 await call('api_key_revoke_unknown', 'DELETE', '/api-key/999999999', { token, expectFail: true });
 await call('api_key_revoke_bad_id', 'DELETE', '/api-key/abc', { token, expectFail: true });
 await call('api_key_other_keys_unaffected', 'GET', TASKS, { token: scoped?.secret });
+
+// A key's own rate limit and its request log (#216): a key allowed bursts of 2 that refill
+// slowly answers its third quick call with 429 and Retry-After; its last requests (no query
+// strings) are listed for its owner only.
+await call('api_key_create_bad_rate', 'POST', '/api-key', {
+    token,
+    body: { name: 'x', access: 'read', rate_limit_per_second: 0 },
+    expectFail: true
+});
+status_is('api_key_create_bad_rate', 400);
+await call('api_key_create_burst_no_rate', 'POST', '/api-key', {
+    token,
+    body: { name: 'x', access: 'read', rate_limit_burst: 3 },
+    expectFail: true
+});
+const limited = await make_key('api_key_create_limited', token, {
+    name: 'smoke limited',
+    access: 'read',
+    rate_limit_per_second: 0.1,
+    rate_limit_burst: 2
+});
+check(
+    'api_key_limited_shape',
+    limited?.key?.rate_limit?.per_second === 0.1 && limited?.key?.rate_limit?.burst === 2,
+    limited?.key
+);
+check('api_key_unlimited_shape', scoped?.key?.rate_limit === null, scoped?.key);
+await call('api_key_limited_1', 'GET', TASKS, { token: limited?.secret });
+await call('api_key_limited_2', 'GET', TASKS, { token: limited?.secret });
+{
+    const res = await fetch(BASE + TASKS, {
+        headers: { Authorization: `Bearer ${limited?.secret}` }
+    });
+    const body = await res.json().catch(() => null);
+    results.api_key_limited_3 = { status: res.status, data: body };
+    const retry_after = Number(res.headers.get('retry-after'));
+    check(
+        'api_key_limited_429_retry_after',
+        res.status === 429 && Number.isInteger(retry_after) && retry_after >= 1,
+        { status: res.status, retry_after: res.headers.get('retry-after'), body }
+    );
+}
+// Another key of the same account isn't held back by it
+await call('api_key_limit_is_per_key', 'GET', TASKS, { token: scoped?.secret });
+
+// The log is written once each response is sent, so give it a moment
+let limited_log;
+for (let i = 0; i < 20; i++) {
+    limited_log = await call('api_key_requests', 'GET', `/api-key/${limited?.key?.id}/requests`, {
+        token
+    });
+    if ((limited_log?.requests || []).length >= 3) break;
+    await sleep(250);
+}
+const logged = limited_log?.requests || [];
+check(
+    'api_key_requests_logged',
+    logged.length === 3 &&
+        JSON.stringify(logged.map(r => r.status)) === JSON.stringify([429, 200, 200]) &&
+        logged.every(
+            r =>
+                r.method === 'GET' &&
+                r.path === '/api/v1/get' &&
+                typeof r.at === 'number' &&
+                typeof r.duration_ms === 'number'
+        ) &&
+        logged[0].at >= logged[2].at &&
+        limited_log?.max === 100,
+    limited_log
+);
+check(
+    'api_key_requests_no_query',
+    !JSON.stringify(limited_log).includes('smoke_link_tasks') &&
+        !JSON.stringify(limited_log).includes('limit='),
+    limited_log
+);
+await call('api_key_requests_other_account', 'GET', `/api-key/${limited?.key?.id}/requests`, {
+    token: ltoken2,
+    expectFail: true
+});
+status_is('api_key_requests_other_account', 404);
+await call('api_key_requests_with_key', 'GET', `/api-key/${limited?.key?.id}/requests`, {
+    token: limited?.secret,
+    expectFail: true
+});
+await call('api_key_requests_no_token', 'GET', `/api-key/${limited?.key?.id}/requests`, {
+    expectFail: true
+});
+await call('api_key_requests_unknown', 'GET', '/api-key/999999999/requests', {
+    token,
+    expectFail: true
+});
+status_is('api_key_requests_unknown', 404);
 // demo2 needs a table of its own: a new one if it's under the free tier's limit
 const other_link_files = await call('link_other_list', 'GET', '/file-directory', {
     token: ltoken2
@@ -4242,6 +4339,177 @@ if (temp_dir) {
 } else {
     console.log('     (no HORIZON_ENV_FILE: temp folder not checked)');
 }
+
+// Data export (#215): the processor writes a zip of every table (CSV and JSON) and the forms,
+// views and webhooks settings (no webhook secrets); only demo can download it; demo2 and API
+// keys are locked out. A webhook with a secret is made first, to check it's left out.
+const exp_hook = await call('export_webhook_create', 'POST', '/webhook', {
+    token,
+    body: { url: `http://${HOOK_HOST}/export`, events: ['row.created'], file_id }
+});
+await call('export_api_key', 'POST', '/account-export', { token: key, expectFail: true });
+const exp_req = await call('export_request', 'POST', '/account-export', { token });
+const exp_id = exp_req?.export?.id;
+check('export_request_pending', exp_req?.export?.status === 'pending' && !!exp_id, exp_req);
+await call('export_request_again', 'POST', '/account-export', { token, expectFail: true });
+check('export_request_again_409', results.export_request_again?.status === 409);
+const exp_other = await call('export_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const exp_otoken = exp_other?.token;
+const exp_other_status = await call('export_other_status', 'GET', '/account-export', {
+    token: exp_otoken
+});
+check('export_other_status_not_demos', exp_other_status?.export?.id !== exp_id, exp_other_status);
+let exp_status = null;
+for (let i = 0; i < 60; i++) {
+    const res = await fetch(`${BASE}/account-export`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    exp_status = (await res.json())?.export;
+    if (exp_status && !['pending', 'running'].includes(exp_status.status)) break;
+    await sleep(1000);
+}
+results.export_status = exp_status;
+check(
+    'export_ready',
+    exp_status?.id === exp_id &&
+        exp_status?.status === 'ready' &&
+        exp_status?.expires_at - exp_status?.finished_at === 24 * 3600 * 1000 &&
+        exp_status?.size > 0 &&
+        exp_status?.tables >= 1,
+    exp_status
+);
+await call('export_other_download', 'GET', `/account-export/${exp_id}/download`, {
+    token: exp_otoken,
+    expectFail: true
+});
+check('export_other_download_404', results.export_other_download?.status === 404);
+await call('export_api_key_download', 'GET', `/account-export/${exp_id}/download`, {
+    token: key,
+    expectFail: true
+});
+await call('export_unknown_download', 'GET', `/account-export/${crypto.randomUUID()}/download`, {
+    token,
+    expectFail: true
+});
+await call('export_bad_id_download', 'GET', '/account-export/..%2F..%2Fx/download', {
+    token,
+    expectFail: true
+});
+await call('export_other_logout', 'GET', `/auth/logout?token=${exp_otoken}`);
+
+// Reads a zip: the end record, the central directory, then each entry's deflated data
+function read_zip(buf) {
+    const eocd = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+    if (eocd < 0) throw new Error('no end of central directory');
+    const count = buf.readUInt16LE(eocd + 10);
+    let p = buf.readUInt32LE(eocd + 16);
+    const entries = {};
+    for (let i = 0; i < count; i++) {
+        if (buf.readUInt32LE(p) !== 0x02014b50) throw new Error('bad central directory');
+        const crc = buf.readUInt32LE(p + 16);
+        const csize = buf.readUInt32LE(p + 20);
+        const name_len = buf.readUInt16LE(p + 28);
+        const skip = name_len + buf.readUInt16LE(p + 30) + buf.readUInt16LE(p + 32);
+        const offset = buf.readUInt32LE(p + 42);
+        const name = buf.subarray(p + 46, p + 46 + name_len).toString('utf8');
+        const start = offset + 30 + buf.readUInt16LE(offset + 26) + buf.readUInt16LE(offset + 28);
+        const data = zlib.inflateRawSync(buf.subarray(start, start + csize));
+        if (zlib.crc32(data) !== crc) throw new Error(`bad CRC for ${name}`);
+        entries[name] = data.toString('utf8');
+        p += 46 + skip;
+    }
+    return entries;
+}
+let exp_zip = null;
+try {
+    const res = await fetch(`${BASE}/account-export/${exp_id}/download`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    const buf = Buffer.from(await res.arrayBuffer());
+    results.export_download = {
+        status: res.status,
+        type: res.headers.get('content-type'),
+        disposition: res.headers.get('content-disposition'),
+        bytes: buf.length
+    };
+    if (res.ok) exp_zip = read_zip(buf);
+} catch (ex) {
+    results.export_download = { error: ex.message };
+}
+check(
+    'export_download',
+    results.export_download?.status === 200 &&
+        results.export_download?.type === 'application/zip' &&
+        /attachment; filename="invokedb-export-\d{4}-\d{2}-\d{2}\.zip"/.test(
+            results.export_download?.disposition || ''
+        ) &&
+        results.export_download?.bytes === exp_status?.size,
+    results.export_download
+);
+const exp_files = Object.keys(exp_zip || {});
+results.export_zip_files = exp_files;
+const exp_manifest = exp_zip?.['manifest.json'] ? JSON.parse(exp_zip['manifest.json']) : null;
+const exp_people = exp_manifest?.tables?.find(t => t.id === file_id);
+check(
+    'export_zip_has_every_table',
+    !!exp_manifest &&
+        exp_manifest.tables.length === exp_status?.tables &&
+        exp_manifest.tables.every(t => exp_files.includes(t.csv) && exp_files.includes(t.json)) &&
+        ['forms.json', 'views.json', 'webhooks.json'].every(f => exp_files.includes(f)),
+    { exp_files, exp_manifest }
+);
+// smoke_people as it is now: every row, through the API
+const exp_count = await call('export_people_count', 'POST', COUNT, { token: key, body: {} });
+const exp_api_rows = await call(
+    'export_people_rows',
+    'GET',
+    `/api/v1/get?table=smoke_people&skip=0&limit=${exp_count?.count || 1}`,
+    { token: key }
+);
+const exp_csv = exp_people ? exp_zip[exp_people.csv] : '';
+const exp_csv_lines = exp_csv.split('\r\n').filter(Boolean);
+const exp_json = exp_people ? JSON.parse(exp_zip[exp_people.json]) : null;
+check(
+    'export_table_csv',
+    exp_people?.name === 'smoke_people' &&
+        exp_people?.rows === exp_count?.count &&
+        exp_csv_lines[0]?.startsWith('_id,') &&
+        exp_csv_lines[0]?.split(',').includes('age') &&
+        exp_csv_lines.length === exp_count?.count + 1,
+    { exp_count, csv: exp_csv.slice(0, 300) }
+);
+const exp_ages = rows_ =>
+    (rows_ || [])
+        .map(r => `${r._id}:${r.age}`)
+        .sort()
+        .join(',');
+check(
+    'export_table_json',
+    exp_json?.name === 'smoke_people' &&
+        exp_json?.columns?.find(c => c.name === 'age')?.type === 'number' &&
+        exp_json?.rows?.length === exp_count?.count &&
+        exp_json?.rows?.every(r => typeof r._id === 'string' && 'age' in r) &&
+        exp_ages(exp_json?.rows) === exp_ages(exp_api_rows?.data),
+    exp_json && { columns: exp_json.columns, rows: exp_json.rows?.slice(0, 3) }
+);
+const exp_hooks = exp_zip?.['webhooks.json'] ? JSON.parse(exp_zip['webhooks.json']) : [];
+check(
+    'export_webhooks_without_secrets',
+    exp_hooks.some(h => h.id === exp_hook?.id && h.table === 'smoke_people') &&
+        !exp_zip['webhooks.json'].includes('whsec_') &&
+        exp_hooks.every(h => !('secret' in h) && !('account_id' in h)),
+    exp_hooks
+);
+check(
+    'export_no_secrets_anywhere',
+    !!exp_zip &&
+        Object.values(exp_zip).every(
+            text => !text.includes('whsec_') && !(key && text.includes(key))
+        )
+);
+await call('export_webhook_delete', 'DELETE', `/webhook/${exp_hook?.id}`, { token });
 
 await call('support', 'POST', '/support/request', {
     token,

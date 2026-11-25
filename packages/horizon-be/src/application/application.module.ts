@@ -25,6 +25,7 @@ import { AskService } from './ai/ask.service';
 import { AiService } from './ai/ai.service';
 import { EditService } from './ai/edit.service';
 import { AuditService } from './audit/audit.service';
+import { AccountExportService } from './account-export/account-export.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -51,7 +52,8 @@ import { AuditService } from './audit/audit.service';
         AskService,
         AiService,
         EditService,
-        AuditService
+        AuditService,
+        AccountExportService
     ],
     exports: [
         AuthService,
@@ -73,7 +75,8 @@ import { AuditService } from './audit/audit.service';
         AskService,
         AiService,
         EditService,
-        AuditService
+        AuditService,
+        AccountExportService
     ]
 })
 export class ApplicationModule {}

@@ -5,9 +5,14 @@ import {
     MAX_KEY_NAME,
     MAX_KEY_TABLES,
     REVOKED_KEPT_DAYS,
+    MAX_KEY_BURST,
+    MAX_KEY_RATE,
+    MIN_KEY_RATE,
     assert_key_allows,
+    default_burst,
     hash_api_key,
     key_prefix,
+    key_rate_limit,
     key_refusal,
     parse_new_key,
     revoked_cutoff,
@@ -19,6 +24,7 @@ const scope = (over: Partial<ApiKeyScope> = {}): ApiKeyScope => ({
     key_id: 1,
     access: 'read_write',
     table_ids: null,
+    rate_limit: null,
     ...over
 });
 
@@ -45,7 +51,8 @@ describe('parse_new_key', () => {
         expect(parse_new_key({ name: '  Website ', access: 'read' })).toEqual({
             name: 'Website',
             access: 'read',
-            table_ids: null
+            table_ids: null,
+            rate_limit: null
         });
         expect(parse_new_key({ name: 'x', access: 'read_write', table_ids: null }).table_ids).toBe(
             null
@@ -80,6 +87,66 @@ describe('parse_new_key', () => {
         ]
     ])('refuses %j', body => {
         expect(() => parse_new_key(body)).toThrow(BadRequestException);
+    });
+});
+
+describe('parse_new_key: rate limit (#216)', () => {
+    const base = { name: 'x', access: 'read' };
+
+    it('has none by default, or when both fields are blank', () => {
+        expect(parse_new_key(base).rate_limit).toBeNull();
+        expect(
+            parse_new_key({ ...base, rate_limit_per_second: null, rate_limit_burst: '' }).rate_limit
+        ).toBeNull();
+    });
+
+    it('takes a rate and a burst', () => {
+        expect(
+            parse_new_key({ ...base, rate_limit_per_second: 5, rate_limit_burst: 20 }).rate_limit
+        ).toEqual({ per_second: 5, burst: 20 });
+        expect(
+            parse_new_key({ ...base, rate_limit_per_second: '0.5', rate_limit_burst: '1' })
+                .rate_limit
+        ).toEqual({ per_second: 0.5, burst: 1 });
+    });
+
+    it('gives two seconds of burst when none is given, at least one', () => {
+        expect(parse_new_key({ ...base, rate_limit_per_second: 5 }).rate_limit).toEqual({
+            per_second: 5,
+            burst: 10
+        });
+        expect(parse_new_key({ ...base, rate_limit_per_second: 0.1 }).rate_limit?.burst).toBe(1);
+        expect(default_burst(MAX_KEY_RATE)).toBeLessThanOrEqual(MAX_KEY_BURST);
+    });
+
+    it.each([
+        [{ rate_limit_per_second: 0 }],
+        [{ rate_limit_per_second: -1 }],
+        [{ rate_limit_per_second: MIN_KEY_RATE / 2 }],
+        [{ rate_limit_per_second: MAX_KEY_RATE + 1 }],
+        [{ rate_limit_per_second: 'fast' }],
+        [{ rate_limit_per_second: true }],
+        [{ rate_limit_per_second: Infinity }],
+        [{ rate_limit_burst: 5 }],
+        [{ rate_limit_per_second: 1, rate_limit_burst: 0 }],
+        [{ rate_limit_per_second: 1, rate_limit_burst: 1.5 }],
+        [{ rate_limit_per_second: 1, rate_limit_burst: MAX_KEY_BURST + 1 }],
+        [{ rate_limit_per_second: 1, rate_limit_burst: true }]
+    ])('refuses %j', over => {
+        expect(() => parse_new_key({ ...base, ...over })).toThrow(BadRequestException);
+    });
+});
+
+describe('key_rate_limit', () => {
+    it('is null without a rate', () => {
+        expect(key_rate_limit(null, null)).toBeNull();
+        expect(key_rate_limit(undefined, 5)).toBeNull();
+        expect(key_rate_limit(0, 5)).toBeNull();
+    });
+
+    it('reads the stored columns, with the default burst when it is missing', () => {
+        expect(key_rate_limit(2, 7)).toEqual({ per_second: 2, burst: 7 });
+        expect(key_rate_limit('2', null)).toEqual({ per_second: 2, burst: 4 });
     });
 });
 

@@ -47,12 +47,25 @@ export default {
     unmounted() {
         this.dom_remove_bindings();
         bus.$off('websocket:message', this.websocket_message);
+        bus.$off('table:open', this.open_table);
     },
 
     methods: {
         /*** Start: Websocket handler ***/
         setup_websocket_handler() {
             bus.$on('websocket:message', this.websocket_message);
+            // A link cell's chip opens the table it links to (#147)
+            bus.$on('table:open', this.open_table);
+        },
+
+        open_table(id) {
+            const tree_item = this.file_tree_item_by_id(id);
+            if (!tree_item || tree_item.type === 'dir') {
+                this.$bus.$emit('notify:error', 'The linked table is gone');
+                return;
+            }
+            this.tree_item_selected(tree_item);
+            if (this.$refs.h_tree) this.$refs.h_tree.select_tree_item_by_id(id);
         },
 
         websocket_message(data) {

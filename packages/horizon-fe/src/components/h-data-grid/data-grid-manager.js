@@ -95,7 +95,13 @@ export const data_grid_manager = {
     /*** End: Row data ***/
 
     /*** Start: Column data ***/
-    async get_columns(file_directory_id, grid_api, row_index_column) {
+    // `link_cell_renderer` draws the cells of link columns (#147)
+    async get_columns(
+        file_directory_id,
+        grid_api,
+        row_index_column,
+        link_cell_renderer
+    ) {
         const { data, count } = await web_file_http.get_by_id(
             file_directory_id,
             'data_grid_column'
@@ -111,6 +117,13 @@ export const data_grid_manager = {
                 caseSensitive: true
             };
             d.floatingFilterComponent = 'GridFilter';
+            if (d.col_type === 'link') {
+                // Rows are picked in a dialog, not typed; ids don't sort or filter usefully
+                d.editable = false;
+                d.sortable = false;
+                d.filter = false;
+                d.cellRenderer = link_cell_renderer;
+            }
         });
 
         let columns = [row_index_column].concat(data);
@@ -152,7 +165,10 @@ export const data_grid_manager = {
                     order: col_def.order,
                     col_type: col_def.col_type,
                     deleted: false,
-                    indexed: col_def.indexed
+                    indexed: col_def.indexed,
+                    // A link column's table and display column (#147)
+                    link_table_id: col_def.link_table_id,
+                    link_display_field: col_def.link_display_field
                 }))
             );
             return res;

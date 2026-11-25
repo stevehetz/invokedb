@@ -6,7 +6,8 @@
 // columns, change a column type (a background job whose progress arrives over the websocket),
 // open the table's API docs and "Try it" on Get, add / test / disable / delete a webhook, read the API key from the account page and call /api/v1 with it, make a form and submit it
 // through its public link, then close and delete it, make (and delete) a table
-// from a template and one from a URL (a CSV on GitHub, so it needs internet), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
+// from a template and one from a URL (a CSV on GitHub, so it needs internet), add a link column
+// to a tasks table, fill a cell from its picker and open the linked table (#147), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
 //
 // URLs come from the same env vars the apps use, so load an env file first. Best run against
 // the throwaway stack described in .agents/skills/verify-frontend/SKILL.md, not your own data:
@@ -43,6 +44,9 @@ const PASSWORD = env.SMOKE_PASSWORD || 'password';
 const TABLE = 'ui_smoke_people';
 const TEMPLATE_TABLE = 'ui_smoke_tasks';
 const URL_TABLE = 'ui_smoke_todo';
+// The table a link column (#147) points to, made from the tasks template
+const LINK_TABLE = 'ui_smoke_link_tasks';
+const LINKED_TASK = 'Write the launch post';
 // A public CSV for "Table from URL" (#144): this repo's own example data on GitHub
 const URL_SOURCE =
     'https://raw.githubusercontent.com/stevehetz/invokedb/main/examples/data/todo.csv';
@@ -98,11 +102,12 @@ async function delete_leftover_tables() {
     const ids = [
         ...(await find_tables(s)),
         ...(await find_tables(s, TEMPLATE_TABLE)),
-        ...(await find_tables(s, URL_TABLE))
+        ...(await find_tables(s, URL_TABLE)),
+        ...(await find_tables(s, LINK_TABLE))
     ].map(d => d.id);
     if (ids.length) {
         console.log(
-            `     removing ${ids.length} leftover "${TABLE}"/"${TEMPLATE_TABLE}"/"${URL_TABLE}" table(s)`
+            `     removing ${ids.length} leftover "${TABLE}"/"${TEMPLATE_TABLE}"/"${URL_TABLE}"/"${LINK_TABLE}" table(s)`
         );
         await be('POST', '/file-directory/batch_delete', { token: s.token, body: { ids } });
     }
@@ -877,6 +882,83 @@ try {
             .click();
         await page.locator('.el-tabs__item', { hasText: URL_TABLE }).waitFor({ state: 'detached' });
         check((await find_tables(be_s, URL_TABLE)).length === 0, 'URL table still exists');
+    });
+
+    // A link column (#147): the uploaded table gets a "task" column linking to a tasks table,
+    // one cell is filled from the picker and shows the task's name, and its chip opens the
+    // tasks table. The tasks table is then deleted through the UI.
+    await step('link_column', async () => {
+        await page.locator('.h-tree-controls .title-icon').click();
+        await page.locator('.h-tree-menu-popper').getByText('Table from Template').click();
+        const tpl = page.locator('.template-dialog .el-dialog');
+        await tpl.locator('.template-item[data-template-id="tasks"]').click();
+        await tpl.locator('.new-name input').fill(LINK_TABLE);
+        await tpl.getByRole('button', { name: 'Create' }).click();
+        await page.locator('.el-tabs__item', { hasText: LINK_TABLE }).waitFor();
+        await wait_rows(r => r.length === 4, 'the tasks table rows');
+
+        // Back to the uploaded table, and add the link column
+        await page.locator('.h-tree .tree-wrapper').getByText(TABLE, { exact: true }).click();
+        await page.locator('.el-tabs__item.is-active', { hasText: TABLE }).waitFor();
+        await grid().getByRole('button', { name: 'Edit Columns' }).click();
+        const inputs = grid().locator('.ag-header-row .grid-header.edit .grid-header-input input');
+        await inputs.first().waitFor();
+        const before = await inputs.count();
+        await grid().getByRole('button', { name: 'Add Column' }).click();
+        await inputs.nth(before).waitFor();
+        await inputs.nth(before).pressSequentially('task');
+        const header = await edit_header('task');
+        await header.locator('.active-column-type').click();
+        await page.locator('.grid-header-type__menu:visible .menu__item.link').click();
+        const settings = page.locator('.link-dialog');
+        await settings.locator('.link-table-select').click();
+        await page.locator('.el-select-dropdown__item:visible', { hasText: LINK_TABLE }).click();
+        await settings.locator('.link-save').click();
+        await settings.waitFor({ state: 'detached' });
+        await grid().locator('.commit-controls .blue').click();
+        await wait_idle();
+        await page.waitForFunction(() => !document.querySelector('.h-data-grid.edit-column-mode'));
+        const hend = Date.now() + 10000;
+        while (Date.now() < hend && !(await headers()).includes('task')) await sleep(250);
+        const link_table = (await find_tables(be_s, LINK_TABLE))[0];
+        check(!!link_table, `no "${LINK_TABLE}" table in the backend`);
+        let saved = await be_table(be_s, file_id);
+        const task_col = saved.columns.find(c => c.name === 'task');
+        check(task_col && task_col.type === 'link', `task column is ${JSON.stringify(task_col)}`);
+
+        // Fill one cell from the picker
+        const task_id = await col_id('task');
+        await grid().locator(`.ag-row[row-index="0"] .ag-cell[col-id="${task_id}"]`).dblclick();
+        const picker = page.locator('.link-dialog');
+        await picker.locator('.link-row-select').click();
+        await picker.locator('.link-row-select input').fill('launch');
+        await page.locator('.el-select-dropdown__item:visible', { hasText: LINKED_TASK }).click();
+        // A multiple select stays open; a click outside it closes it before Save
+        await picker.locator('.link-intro').click();
+        await picker.locator('.link-save').click();
+        await picker.waitFor({ state: 'detached' });
+        results.observed.link_rows = await wait_rows(
+            r => r.some(row => row.task === LINKED_TASK),
+            'the linked task in the grid'
+        );
+        saved = await be_table(be_s, file_id);
+        const linked = saved.rows.filter(r => Array.isArray(r.task) && r.task.length === 1);
+        check(linked.length === 1, `rows with a link: ${JSON.stringify(saved.rows)}`);
+
+        // Its chip opens the linked table
+        await grid().locator('.link-chip', { hasText: LINKED_TASK }).first().click();
+        await page.locator('.el-tabs__item.is-active', { hasText: LINK_TABLE }).waitFor();
+
+        await page.locator('.h-tree .tree-wrapper').getByText(LINK_TABLE, { exact: true }).click();
+        await page.locator('.h-tree .manage-items.active .remove-items').click();
+        await page
+            .locator('.confirm-dialog .el-dialog')
+            .getByRole('button', { name: 'Confirm' })
+            .click();
+        await page
+            .locator('.el-tabs__item', { hasText: LINK_TABLE })
+            .waitFor({ state: 'detached' });
+        check((await find_tables(be_s, LINK_TABLE)).length === 0, 'link table still exists');
     });
 
     await step('delete_table', async () => {

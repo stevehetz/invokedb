@@ -27,6 +27,14 @@ import {
     parse_row_query
 } from '@app/core/web-file/row-query';
 import { WebhookService } from '../webhook/webhook.service';
+import {
+    LINK_TYPE,
+    assert_link_settings,
+    collect_link_ids,
+    expand_link_value,
+    link_display_column,
+    parse_expand
+} from '@app/core/web-file/link';
 
 const fs = require('fs');
 
@@ -65,7 +73,134 @@ export class WebFileService {
                 filters[key].case = filters[key].case || 'insensitive';
             });
         }
-        return await this.web_file_manager.get_all(account.id, file_id, web_file_type, page_params);
+        const res: any = await this.web_file_manager.get_all(
+            account.id,
+            file_id,
+            web_file_type,
+            page_params
+        );
+        // The grid shows a link cell as its rows' display values (#147)
+        const grouped = page_params && page_params.filters && page_params.filters.$group;
+        if (web_file_type === 'data_grid_row' && res && Array.isArray(res.data) && !grouped) {
+            res.link_labels = await this.web_file_manager.link_labels(
+                account.id,
+                file_id,
+                res.data
+            );
+        }
+        return res;
+    }
+
+    /**
+     * Checks the link settings of columns about to be saved (#147): a link column's table must
+     * be one of the account's own tables. Puts the settings in their stored form.
+     */
+    private async assert_link_columns(account_id, cols: any[]) {
+        for (const col of cols) {
+            if (!col || col.col_type !== LINK_TYPE) continue;
+            const { table_id, display_field } = assert_link_settings(col);
+            const table = await this.file_directory_svc.assert_owned(account_id, table_id);
+            if (table.type !== 'file' || table.deleted) {
+                throw new HttpException(
+                    'A link column must link to a table',
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+            col.link_table_id = table_id;
+            if (display_field) {
+                col.link_display_field = display_field;
+            } else {
+                const target_cols = await this.web_file_manager.get_columns(account_id, table_id);
+                const display = link_display_column(target_cols, '');
+                col.link_display_field = display ? display.field : null;
+            }
+        }
+    }
+
+    /** The account's tables a link column can point to, with their columns (#147). */
+    async link_targets(account_id) {
+        const files = await this.file_directory_svc.get_by_account_id(account_id);
+        const tables = (files || [])
+            .filter(f => f.type === 'file')
+            .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        const out = [];
+        for (const table of tables) {
+            const cols = await this.web_file_manager.get_columns(account_id, table.id);
+            out.push({
+                id: table.id,
+                name: table.name,
+                columns: cols
+                    .filter(c => typeof c.headerName === 'string' && c.headerName !== '')
+                    .sort((a, b) => (a.order ?? a.col_index ?? 0) - (b.order ?? b.col_index ?? 0))
+                    .map(c => ({
+                        field: c.field,
+                        headerName: c.headerName,
+                        col_type: c.col_type || 'string'
+                    }))
+            });
+        }
+        return out;
+    }
+
+    /** Rows the grid's picker offers for a link cell (#147). */
+    async link_options(account, file_id, field, q) {
+        await this.tracking_manager.check_account_lock(account);
+        if (typeof field !== 'string' || field === '') {
+            throw new HttpException(
+                `The 'field' query parameter is required`,
+                HttpStatus.BAD_REQUEST
+            );
+        }
+        return await this.web_file_manager.link_options(account.id, file_id, field, q);
+    }
+
+    /**
+     * `expand` on /api/v1 (#147): each named link column's ids become the linked rows, as the
+     * API returns rows (`_id` and the columns by name, in the same format). Rows that are gone
+     * are left out.
+     */
+    private async expand_links(account_id, rows: any[], columns: any[], expand, format) {
+        const named = columns.map(c => ({
+            name: this.get_key_from_column_name(c.headerName, format),
+            col: c
+        }));
+        const to_expand = parse_expand(expand, named);
+        for (const { name, col } of to_expand) {
+            const ids = collect_link_ids(rows.map(r => r[name]));
+            if (ids.length === 0 || !col.link_table_id) continue;
+            const target_cols = (
+                await this.web_file_manager.get_columns(account_id, col.link_table_id)
+            ).filter(c => typeof c.headerName === 'string' && c.headerName !== '');
+            const found = await this.web_file_manager.rows_by_ids(
+                account_id,
+                col.link_table_id,
+                ids
+            );
+            const by_id = new Map<string, any>();
+            found.forEach((doc, id) => {
+                const linked: any = { _id: doc._id };
+                target_cols.forEach(tc => {
+                    const value = doc[tc.field] === undefined ? null : doc[tc.field];
+                    linked[this.get_key_from_column_name(tc.headerName, format)] =
+                        tc.col_type === 'date' && value
+                            ? this.web_file_manager.format_date_field(value)
+                            : value;
+                });
+                by_id.set(id, linked);
+            });
+            rows.forEach(r => {
+                if (name in r) r[name] = expand_link_value(r[name], by_id);
+            });
+        }
+    }
+
+    /** Drops deleted rows from every link cell of the account that points at them (#147). */
+    private async clear_links_to(account_id, file_id, ids: string[]) {
+        if (!Array.isArray(ids) || ids.length === 0) return;
+        const files = await this.file_directory_svc.get_by_account_id(account_id);
+        for (const table of (files || []).filter(f => f.type === 'file')) {
+            await this.web_file_manager.clear_links(account_id, table.id, file_id, ids);
+        }
     }
 
     transform_filters(filters) {
@@ -148,6 +283,17 @@ export class WebFileService {
             'data_grid_column'
         );
 
+        const expand = page_params.expand;
+        delete page_params.expand;
+        // Checked before the query, so a bad `expand` is a 400 whatever the rows
+        parse_expand(
+            expand,
+            columns.data.map(c => ({
+                name: this.get_key_from_column_name(c.headerName, format),
+                col: c
+            }))
+        );
+
         this.transform_filters(page_params.filters);
 
         this.validate_external_get_rows_filters(page_params.filters);
@@ -183,6 +329,9 @@ export class WebFileService {
             })
         };
 
+        if (!(page_params.filters && page_params.filters.$group)) {
+            await this.expand_links(account.id, response.data, columns.data, expand, format);
+        }
         return response;
     }
 
@@ -210,9 +359,23 @@ export class WebFileService {
     }
 
     // POST /api/v1/query (#141): filters, sort, fields and cursor paging
-    async external_query_rows(account, file_id, body, format) {
+    async external_query_rows(account, file_id, body, format, expand?) {
         await this.check_external_request(account, file_id);
         const columns = await this.query_columns(account, file_id, format);
+        // Only read again when there's something to expand (#147); a bad `expand` is a 400
+        const has_expand = expand !== undefined && expand !== null && expand !== '';
+        const col_defs = has_expand
+            ? (await this.web_file_manager.get_columns(account.id, file_id)).filter(
+                  c => typeof c.headerName === 'string' && c.headerName.length > 0
+              )
+            : [];
+        parse_expand(
+            expand,
+            col_defs.map(c => ({
+                name: this.get_key_from_column_name(c.headerName, format),
+                col: c
+            }))
+        );
         const query = parse_row_query(body, columns, max_query_limit());
         const res = await this.web_file_manager.query_rows(account.id, file_id, query);
         if (query.explain) {
@@ -221,18 +384,22 @@ export class WebFileService {
         const docs = res.docs.slice(0, query.limit);
         const has_more = res.docs.length > query.limit;
         const last = docs[docs.length - 1];
+        const data = docs.map(doc => {
+            const row: any = { _id: doc._id };
+            query.fields.forEach(c => {
+                const value = doc[c.field] === undefined ? null : doc[c.field];
+                row[c.name] =
+                    c.type === 'date' && value
+                        ? this.web_file_manager.format_date_field(value)
+                        : value;
+            });
+            return row;
+        });
+        if (col_defs.length > 0) {
+            await this.expand_links(account.id, data, col_defs, expand, format);
+        }
         return {
-            data: docs.map(doc => {
-                const row: any = { _id: doc._id };
-                query.fields.forEach(c => {
-                    const value = doc[c.field] === undefined ? null : doc[c.field];
-                    row[c.name] =
-                        c.type === 'date' && value
-                            ? this.web_file_manager.format_date_field(value)
-                            : value;
-                });
-                return row;
-            }),
+            data,
             next_cursor: has_more && last ? encode_cursor(last, query.sort, query.signature) : null
         };
     }
@@ -497,6 +664,9 @@ export class WebFileService {
         await this.tracking_manager.check_table_lock(file_id);
         if (web_file_type === 'data_grid_column') {
             data = assert_column_update(data);
+            await this.assert_link_columns(account.id, [data]);
+        } else if (web_file_type === 'data_grid_row') {
+            await this.web_file_manager.resolve_links(account.id, file_id, [data]);
         }
         const res = await this.web_file_manager.update(account.id, file_id, web_file_type, data);
         if (web_file_type === 'data_grid_row' && res) {
@@ -518,6 +688,7 @@ export class WebFileService {
         if (web_file_type === 'data_grid_column') {
             // Check every column before tracking or queueing anything, so a bad one is a 400.
             data.forEach(col => assert_column_update(col));
+            await this.assert_link_columns(account.id, data);
             const cols_to_be_added = data.length;
             await this.tracking_manager.add_columns(account, { cols_to_be_added, file_id });
             try {
@@ -551,6 +722,9 @@ export class WebFileService {
                 throw new HttpException('Error updating columns', HttpStatus.INTERNAL_SERVER_ERROR);
             }
         } else {
+            if (web_file_type === 'data_grid_row') {
+                await this.web_file_manager.resolve_links(account.id, file_id, data);
+            }
             const updated = [];
             const res = await this.web_file_manager.batch_update_row(
                 account.id,
@@ -572,7 +746,12 @@ export class WebFileService {
 
     private async batch_create(account, file_id, web_file_type, data) {
         data = assert_array_body(data);
+        if (web_file_type === 'data_grid_column') {
+            await this.assert_link_columns(account.id, data);
+        }
         if (web_file_type === 'data_grid_row') {
+            // Before the row count goes up, so a bad link adds nothing (#147)
+            await this.web_file_manager.resolve_links(account.id, file_id, data);
             await this.tracking_manager.add_rows(account, {
                 rows_to_be_added: data.length,
                 file_id
@@ -613,6 +792,13 @@ export class WebFileService {
             data
         );
         if (is_rows) {
+            if (typeof removed_rows_count === 'number' && removed_rows_count > 0) {
+                await this.clear_links_to(
+                    account.id,
+                    file_id,
+                    data.filter(d => typeof d === 'string')
+                );
+            }
             await this.tracking_manager.deleted_rows(account, {
                 file_id
             });

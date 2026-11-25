@@ -16,6 +16,23 @@ export const web_file_http = {
         return http.get(http.get_url(`/web-file/${id}/openapi.json`));
     },
 
+    /**
+     * The account's tables a link column (#147) can point to, with their columns.
+     * @param {number} id the table the link column is on
+     */
+    async get_link_targets(id) {
+        return http.get(http.get_url(`/web-file/${id}/link-targets`));
+    },
+
+    /**
+     * Rows of a link column's table matching `q`, for the picker: `{ table_id, options }`.
+     * @param {number} id @param {string} field @param {string} [q]
+     */
+    async get_link_options(id, field, q) {
+        const query = new URLSearchParams({ field, q: q || '' });
+        return http.get(http.get_url(`/web-file/${id}/link-options?${query}`));
+    },
+
     async get_by_id(id, type, page_params) {
         type = type.replace('-', '_');
 

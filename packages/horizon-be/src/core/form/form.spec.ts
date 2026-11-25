@@ -73,6 +73,14 @@ describe('form_columns', () => {
         expect(cols).toEqual([...COLUMNS, { field: 'd', name: 'odd', type: 'string' }]);
     });
 
+    it('leaves out link columns (#147), which hold row ids', () => {
+        const cols = form_columns([
+            { field: 'a', headerName: 'name', order: 1 },
+            { field: 'e', headerName: 'Contact', col_type: 'link', link_table_id: 2, order: 2 }
+        ]);
+        expect(cols).toEqual([COLUMNS[0]]);
+    });
+
     it('copes with a missing list', () => {
         expect(form_columns(undefined)).toEqual([]);
     });

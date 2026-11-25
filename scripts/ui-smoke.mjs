@@ -1073,8 +1073,9 @@ try {
         await page.locator('.el-tabs__item', { hasText: LINK_TABLE }).waitFor();
         await wait_rows(r => r.length === 4, 'the tasks table rows');
 
-        // Back to the uploaded table, and add the link column
-        await page.locator('.h-tree .tree-wrapper').getByText(TABLE, { exact: true }).click();
+        // Back to the uploaded table (still open in its tab; a single click on a tree item
+        // only highlights it), and add the link column
+        await page.locator('.el-tabs__item', { hasText: TABLE }).click();
         await page.locator('.el-tabs__item.is-active', { hasText: TABLE }).waitFor();
         await grid().getByRole('button', { name: 'Edit Columns' }).click();
         const inputs = grid().locator('.ag-header-row .grid-header.edit .grid-header-input input');

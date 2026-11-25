@@ -3116,7 +3116,7 @@ for (let i = ai_cap_status?.usage?.used ?? 0; i <= ai_cap_limit; i++) {
         headers: { Authorization: `Bearer ${ai_ctoken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ table: ai_cap_table, question: `Question ${i}` })
     });
-    if (res.status !== 200) {
+    if (!res.ok) {
         ai_cap_hit = { at: i, status: res.status, body: await res.text() };
         break;
     }
@@ -3154,7 +3154,7 @@ for (let i = 0; i < 3; i++) {
         headers: { Authorization: `Bearer ${ai_cost_token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ table: ai_cost_table, question: `Costly question ${i}` })
     });
-    if (res.status !== 200) {
+    if (!res.ok) {
         ai_cost_hit = { at: i, status: res.status, body: await res.text() };
         break;
     }

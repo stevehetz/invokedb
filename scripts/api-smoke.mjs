@@ -25,7 +25,8 @@
 // and API keys locked out; then AI rows and tables, #148: typed preview rows, the monthly row
 // allowance, demo2 locked out), checks API keys (#138: made for each account and revoked at the end;
 // read-only and table-scoped keys refused, revoked keys refused, only hashes listed, demo's
-// migrated key still works, demo2 locked out) and email verification on signup (#132: the same
+// migrated key still works, demo2 locked out; #216: a key's own rate limit answers 429 with
+// Retry-After, its request log has no query strings and is the owner's only) and email verification on signup (#132: the same
 // answer for a taken email, an unverified account with no API key and no tables, resend, bad
 // links), checks data export (#215: the processor's zip has every table as CSV and JSON and the
 // settings without webhook secrets; one at a time; demo2 and API keys can't download it), then
@@ -2921,6 +2922,99 @@ await call('api_key_revoke_again', 'DELETE', `/api-key/${ro?.key?.id}`, { token 
 await call('api_key_revoke_unknown', 'DELETE', '/api-key/999999999', { token, expectFail: true });
 await call('api_key_revoke_bad_id', 'DELETE', '/api-key/abc', { token, expectFail: true });
 await call('api_key_other_keys_unaffected', 'GET', TASKS, { token: scoped?.secret });
+
+// A key's own rate limit and its request log (#216): a key allowed bursts of 2 that refill
+// slowly answers its third quick call with 429 and Retry-After; its last requests (no query
+// strings) are listed for its owner only.
+await call('api_key_create_bad_rate', 'POST', '/api-key', {
+    token,
+    body: { name: 'x', access: 'read', rate_limit_per_second: 0 },
+    expectFail: true
+});
+status_is('api_key_create_bad_rate', 400);
+await call('api_key_create_burst_no_rate', 'POST', '/api-key', {
+    token,
+    body: { name: 'x', access: 'read', rate_limit_burst: 3 },
+    expectFail: true
+});
+const limited = await make_key('api_key_create_limited', token, {
+    name: 'smoke limited',
+    access: 'read',
+    rate_limit_per_second: 0.1,
+    rate_limit_burst: 2
+});
+check(
+    'api_key_limited_shape',
+    limited?.key?.rate_limit?.per_second === 0.1 && limited?.key?.rate_limit?.burst === 2,
+    limited?.key
+);
+check('api_key_unlimited_shape', scoped?.key?.rate_limit === null, scoped?.key);
+await call('api_key_limited_1', 'GET', TASKS, { token: limited?.secret });
+await call('api_key_limited_2', 'GET', TASKS, { token: limited?.secret });
+{
+    const res = await fetch(BASE + TASKS, {
+        headers: { Authorization: `Bearer ${limited?.secret}` }
+    });
+    const body = await res.json().catch(() => null);
+    results.api_key_limited_3 = { status: res.status, data: body };
+    const retry_after = Number(res.headers.get('retry-after'));
+    check(
+        'api_key_limited_429_retry_after',
+        res.status === 429 && Number.isInteger(retry_after) && retry_after >= 1,
+        { status: res.status, retry_after: res.headers.get('retry-after'), body }
+    );
+}
+// Another key of the same account isn't held back by it
+await call('api_key_limit_is_per_key', 'GET', TASKS, { token: scoped?.secret });
+
+// The log is written once each response is sent, so give it a moment
+let limited_log;
+for (let i = 0; i < 20; i++) {
+    limited_log = await call('api_key_requests', 'GET', `/api-key/${limited?.key?.id}/requests`, {
+        token
+    });
+    if ((limited_log?.requests || []).length >= 3) break;
+    await sleep(250);
+}
+const logged = limited_log?.requests || [];
+check(
+    'api_key_requests_logged',
+    logged.length === 3 &&
+        JSON.stringify(logged.map(r => r.status)) === JSON.stringify([429, 200, 200]) &&
+        logged.every(
+            r =>
+                r.method === 'GET' &&
+                r.path === '/api/v1/get' &&
+                typeof r.at === 'number' &&
+                typeof r.duration_ms === 'number'
+        ) &&
+        logged[0].at >= logged[2].at &&
+        limited_log?.max === 100,
+    limited_log
+);
+check(
+    'api_key_requests_no_query',
+    !JSON.stringify(limited_log).includes('smoke_link_tasks') &&
+        !JSON.stringify(limited_log).includes('limit='),
+    limited_log
+);
+await call('api_key_requests_other_account', 'GET', `/api-key/${limited?.key?.id}/requests`, {
+    token: ltoken2,
+    expectFail: true
+});
+status_is('api_key_requests_other_account', 404);
+await call('api_key_requests_with_key', 'GET', `/api-key/${limited?.key?.id}/requests`, {
+    token: limited?.secret,
+    expectFail: true
+});
+await call('api_key_requests_no_token', 'GET', `/api-key/${limited?.key?.id}/requests`, {
+    expectFail: true
+});
+await call('api_key_requests_unknown', 'GET', '/api-key/999999999/requests', {
+    token,
+    expectFail: true
+});
+status_is('api_key_requests_unknown', 404);
 // demo2 needs a table of its own: a new one if it's under the free tier's limit
 const other_link_files = await call('link_other_list', 'GET', '/file-directory', {
     token: ltoken2

@@ -3894,6 +3894,40 @@ $page_nav_active_color: #dcb467;
     text-align: right;
     white-space: nowrap;
 }
+.account-page .api-key-form .api-key-limit-fields {
+    gap: 8px;
+}
+.account-page .api-key-form .api-key-limit-fields .el-input-number {
+    width: 110px;
+}
+.account-page .api-key-form .api-key-limit-unit {
+    color: $gray400;
+}
+.account-page .api-key-form .api-key-requests-toggle {
+    margin-right: 12px;
+}
+.account-page .api-key-form .api-key-requests {
+    padding: 4px 0 8px 15px;
+    max-height: 360px;
+    overflow: auto;
+}
+.account-page .api-key-form .api-key-requests-note {
+    color: $gray400;
+    margin-bottom: 6px;
+}
+.account-page .api-key-form .api-key-requests-list {
+    border-collapse: collapse;
+    width: 100%;
+}
+.account-page .api-key-form .api-key-requests-list th,
+.account-page .api-key-form .api-key-requests-list td {
+    padding: 3px 10px 3px 0;
+    border-bottom: solid 1px $gray50;
+    font-size: 0.9em;
+}
+.account-page .api-key-form .api-key-requests-list .request-failed {
+    color: #e44949;
+}
 .account-page .api-key-form .api-key-revoked-toggle {
     display: flex;
     align-items: center;

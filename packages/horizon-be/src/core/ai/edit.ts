@@ -615,6 +615,8 @@ export interface ApplyRow {
     after: Record<string, unknown>;
 }
 
+// No length cap here: a stored cell can be longer than MAX_VALUE_LENGTH (uploads, imports and
+// row writes don't cap text), and it shows up as `before`, or as `after` when undoing.
 function cell_value(col: QueryColumn, value: unknown, where: string) {
     if (value === null) return null;
     if (col.type === 'number') {
@@ -623,7 +625,7 @@ function cell_value(col: QueryColumn, value: unknown, where: string) {
         }
         return value;
     }
-    if (typeof value !== 'string' || value.length > MAX_VALUE_LENGTH) {
+    if (typeof value !== 'string') {
         throw new AskError(`${where}: ${col.name} takes text or null`);
     }
     if (col.type === 'date' && value !== '' && !date_text(value)) {

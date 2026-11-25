@@ -254,6 +254,15 @@ describe('parse_apply_body', () => {
         expect(parse_apply_body({ rows: [ok] }, COLUMNS)).toEqual([ok]);
     });
 
+    it('accepts long text, which stored cells can hold (and undo writes back)', () => {
+        const long = 'x'.repeat(5000);
+        const rows = [
+            { _id: ID, before: { a: long }, after: { a: null } },
+            { _id: '0123456789abcdef0123456f', before: { a: null }, after: { a: long } }
+        ];
+        expect(parse_apply_body({ rows }, COLUMNS)).toEqual(rows);
+    });
+
     it('refuses anything else', () => {
         const bad = [
             undefined,

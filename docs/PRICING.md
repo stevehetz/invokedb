@@ -331,6 +331,57 @@ ends back on Free (with the "over the caps" rule below).
 "Read-only" needs its own flag (a plan state on the account), separate from the existing
 `locked` flag, so lifting one doesn't lift the other (1.2, "Locks").
 
+### 3.5 AI features (decided 2026-11-25)
+
+"Ask your data" (#149, PR #188) and AI rows and tables (#148, PR #186) call the Anthropic API,
+so each use costs real money. **Decided (owner, 2026-11-25):** the AI features are capped per
+tier so that an account using its whole allowance costs at most ~10% of its plan's price, and
+the better model (Sonnet) is a **separate paid add-on**, not part of any tier.
+
+**What a use costs** (estimates from how #188 builds a request; check them against
+`tracking:ai_usage`, which records tokens, before changing a cap). A question is about two
+model calls, ~8k input and ~1k output tokens. Generating rows is mostly output.
+
+| Model                        | $/M tokens (in / out) | Per question | Per 100 generated rows |
+| ---------------------------- | --------------------- | ------------ | ---------------------- |
+| `claude-haiku-5-5` (default) | $0.10 / $0.50         | ~$0.0015     | ~$0.003                |
+| `claude-sonnet-5-5` (add-on) | $2 / $10              | ~$0.025      | ~$0.05                 |
+| `claude-opus-5-5` (not used) | $4 / $20              | ~$0.05       | ~$0.10                 |
+
+**Allowances** (per account per UTC month, verified accounts only; an unverified account gets
+none):
+
+| AI allowance                | Free    | Starter | Pro    | AI add-on (Starter or Pro) |
+| --------------------------- | ------- | ------- | ------ | -------------------------- |
+| Model                       | Haiku   | Haiku   | Haiku  | Sonnet                     |
+| Questions (#149)            | 10      | 300     | 2,000  | +200 on Sonnet             |
+| Generated rows (#148)       | 0 (off) | 1,000   | 10,000 | +2,000 on Sonnet           |
+| AI cost budget (dollars)    | $0.05   | $1      | $5     | +$7                        |
+| Worst-case cost at the caps | ~$0.02  | ~$0.50  | ~$3.30 | ~$6                        |
+| Price                       | —       | —       | —      | **$10/month** (proposed)   |
+
+- **The model is chosen by the account, not by a server setting.** Tiers use Haiku; an account
+  with the add-on uses Sonnet until its add-on allowance is used up, then falls back to Haiku
+  from its tier's allowance. `HORIZON_AI_MODEL` stays as the server default (Haiku), and
+  `HORIZON_AI_PREMIUM_MODEL` names the add-on's model (Sonnet), so a model change is an env
+  change, not a deploy.
+- **Two caps per account:** the count (what the app shows: "7 of 10 questions") and the cost
+  budget, worked out from the tokens each call used and the model's price. Whichever is hit
+  first refuses the next use (429 with a code, like the API quota). The cost budget stops long
+  prompts or a model change from breaking the maths.
+- **A server-wide monthly AI budget** (`HORIZON_AI_MONTHLY_BUDGET_USD`, $20 to start): Telegram
+  at 50%, 80% and 100%; at 100% the AI features answer 503 for everyone until the 1st (UTC),
+  and the app hides the AI buttons. The Anthropic Console spend limit on the key is the last
+  backstop, set below what the owner is willing to lose in a month.
+- **Per request:** `max_tokens` capped, low effort, a fixed maximum of turns, at most 3 sample
+  rows in the prompt, the schema prompt cached. Rows per generate request stay capped (#186's
+  `AI_LIMITS`).
+- **The add-on in Stripe** (#129) is a second subscription item on the same customer; the
+  webhook sets an `ai_addon` flag on the account. Cancelling it ends it at the period end, like
+  a plan. Free accounts can't buy it.
+- The PRs' tier names (FREE, BASIC, PLUS, PREMIUM) become Free, Starter and Pro, and the caps
+  live in the one plan constant from #183.
+
 ## 4. Test plan
 
 Every limit of every tier gets automated tests. Two kinds:
@@ -361,6 +412,7 @@ Every limit of every tier gets automated tests. Two kinds:
 | Downgrade                           | a downgraded account over the caps is read-only; under them it isn't                                                        | Pro → Free with too many rows: reads, export and delete work; create, update, column change, upload refused; deleting down to the cap restores writes |
 | Lapse                               | grace period end → Free state; the `locked` flag is untouched                                                               | an account past its grace period behaves as a downgraded one                                                                                          |
 | Idle free accounts                  | who's idle (last sign-in, last API call), warning dates, paid accounts never                                                | (a job test with a fake clock in unit tests; no smoke check deletes data)                                                                             |
+| AI allowances (3.5)                 | count and cost caps per tier and with the add-on; Sonnet then Haiku fallback; server-wide budget; unverified gets none      | with the Anthropic stub: each tier refused at its count cap and at its cost cap; generate rows refused on Free; global budget reached → 503           |
 | Free tier                           | every cap above at Free's values                                                                                            | the smoke's Free account hits each tiny cap above                                                                                                     |
 
 ## 5. Changes needed

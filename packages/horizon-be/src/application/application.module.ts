@@ -14,6 +14,7 @@ import { WebFilePrcNotifyService } from './web-file/web-file-prc-notify.service'
 import { BillingService } from '@app/application/billing/billing.service';
 import { stripe_client_provider } from '@app/application/billing/stripe-client';
 import { JobService } from './job/job.service';
+import { TableTemplateService } from './table-template/table-template.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -29,7 +30,8 @@ import { JobService } from './job/job.service';
         AccountService,
         BillingService,
         stripe_client_provider,
-        JobService
+        JobService,
+        TableTemplateService
     ],
     exports: [
         AuthService,
@@ -40,7 +42,8 @@ import { JobService } from './job/job.service';
         WebFilePrcNotifyService,
         AccountService,
         BillingService,
-        JobService
+        JobService,
+        TableTemplateService
     ]
 })
 export class ApplicationModule {}

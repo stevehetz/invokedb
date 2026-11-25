@@ -1,0 +1,52 @@
+<div class="dialog template-dialog">
+    <el-dialog
+        title="New table from a template"
+        v-model="dialog_visible"
+        width="600px"
+    >
+        <div class="template-list">
+            <div
+                v-for="template in templates"
+                :key="template.id"
+                class="template-item"
+                :class="{ selected: selected_id === template.id }"
+                :data-template-id="template.id"
+                @click="select(template)"
+            >
+                <div class="template-name">{{ template.name }}</div>
+                <div class="template-description">
+                    {{ template.description }}
+                </div>
+                <div class="template-columns">
+                    {{ template.columns.map(c => c.name).join(', ') }}
+                    <span class="template-rows"
+                        >· {{ template.row_count }} sample rows</span
+                    >
+                </div>
+            </div>
+        </div>
+        <div class="new-name-box">
+            <label> Name: </label>
+            <el-input
+                class="new-name"
+                ref="name_input"
+                v-model="name"
+                placeholder="Table name"
+                :disabled="!selected_id"
+                @keyup.enter="confirm_handler"
+            >
+            </el-input>
+        </div>
+        <template #footer
+            ><span class="dialog-footer">
+                <el-button @click="close_dialog">Cancel</el-button>
+                <el-button
+                    type="primary"
+                    :disabled="processing || !selected_id"
+                    @click="confirm_handler"
+                    >Create</el-button
+                >
+            </span></template
+        >
+    </el-dialog>
+</div>

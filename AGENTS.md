@@ -158,7 +158,9 @@ auto-merge take it from there. The next issue starts when that PR merges or is p
 (`needs-owner`, `hold`). Review changes are handled by `revise.yml` (below). If the agent
 stops without a PR, or its PR is stuck (failed CI, 2 hours idle, review changes after the last
 revision round), the item gets `agent-stuck`, the user is mentioned, and the queue
-waits (for a stuck PR) or skips the issue (until the label is removed). Closing an agent PR
+moves on to the next issue (but holds once two agent PRs are stuck, which usually means something
+systemic is failing); the stuck issue isn't started again until its PR is dealt with or the label
+is removed. Closing an agent PR
 without merging also marks its issue `agent-stuck`; removing the label asks for a retry.
 
 - Only issues the user opened and labelled are worked, and the agent sees the issue body and
@@ -251,6 +253,8 @@ token starts no CI, and a dispatched CI run doesn't count toward a PR's required
   Check that any table/folder id in the path belongs to it (`FileDirectoryService.assert_owned`,
   `WebFileService.validate`). `req.user` is a `Session` for a login token and an `Account` for an
   API key; API keys are only for `/api/v1`.
+- Table templates (#142) are JSON files in `src/core/table-template/templates/` (one per
+  template, checked by `table-template.spec.ts`); `tsconfig.build.json` copies them into `dist/`.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

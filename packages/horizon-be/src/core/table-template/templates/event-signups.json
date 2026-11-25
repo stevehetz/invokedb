@@ -1,0 +1,43 @@
+{
+    "name": "Event sign-ups",
+    "description": "Registrations for an event: ticket type, party size and check-in.",
+    "table_name": "event_signups",
+    "columns": [
+        { "name": "Name", "type": "string" },
+        { "name": "Email", "type": "string" },
+        { "name": "Ticket", "type": "string" },
+        { "name": "Guests", "type": "number" },
+        { "name": "Dietary Needs", "type": "string" },
+        { "name": "Checked In", "type": "string" },
+        { "name": "Registered", "type": "date" }
+    ],
+    "rows": [
+        {
+            "Name": "Lena Hart",
+            "Email": "lena@example.com",
+            "Ticket": "General",
+            "Guests": 1,
+            "Dietary Needs": "Vegetarian",
+            "Checked In": "No",
+            "Registered": "2026-11-02"
+        },
+        {
+            "Name": "Omar Haddad",
+            "Email": "omar@example.com",
+            "Ticket": "VIP",
+            "Guests": 2,
+            "Dietary Needs": "",
+            "Checked In": "No",
+            "Registered": "2026-11-04"
+        },
+        {
+            "Name": "Priya Nair",
+            "Email": "priya@example.com",
+            "Ticket": "Speaker",
+            "Guests": 0,
+            "Dietary Needs": "Gluten-free",
+            "Checked In": "Yes",
+            "Registered": "2026-10-28"
+        }
+    ]
+}

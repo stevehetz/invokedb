@@ -1,0 +1,47 @@
+{
+    "name": "CRM",
+    "description": "Contacts and companies, with deal stage and value.",
+    "table_name": "crm_contacts",
+    "columns": [
+        { "name": "Name", "type": "string" },
+        { "name": "Email", "type": "string" },
+        { "name": "Company", "type": "string" },
+        { "name": "Stage", "type": "string" },
+        { "name": "Deal Value", "type": "number" },
+        { "name": "Last Contacted", "type": "date" }
+    ],
+    "rows": [
+        {
+            "Name": "Ada Fernsby",
+            "Email": "ada@example.com",
+            "Company": "Fernsby Labs",
+            "Stage": "Lead",
+            "Deal Value": 1200,
+            "Last Contacted": "2026-10-02"
+        },
+        {
+            "Name": "Bram Okoro",
+            "Email": "bram@example.com",
+            "Company": "Okoro & Sons",
+            "Stage": "Proposal",
+            "Deal Value": 8500,
+            "Last Contacted": "2026-10-14"
+        },
+        {
+            "Name": "Chiara Lund",
+            "Email": "chiara@example.com",
+            "Company": "Lund Outdoor",
+            "Stage": "Won",
+            "Deal Value": 15000,
+            "Last Contacted": "2026-09-28"
+        },
+        {
+            "Name": "Dev Ramani",
+            "Email": "dev@example.com",
+            "Company": "Ramani Freight",
+            "Stage": "Lost",
+            "Deal Value": 4300,
+            "Last Contacted": "2026-08-19"
+        }
+    ]
+}

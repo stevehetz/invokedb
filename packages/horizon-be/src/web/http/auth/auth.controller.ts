@@ -1,5 +1,8 @@
-import { Controller, Get, Post, Request } from '@nestjs/common';
+import { Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from '@app/application/auth/auth.service';
+import { RateLimitGuard } from '@app/web/http/_rate-limit/rate-limit';
+
+const HOUR = 60 * 60 * 1000;
 
 @Controller('auth')
 export class AuthController {
@@ -20,12 +23,19 @@ export class AuthController {
         return await this.auth_service.authorize(req.query.token);
     }
 
+    // Both send an email, so they're rate-limited by IP and by email (#133)
     @Post('create-account')
+    @UseGuards(
+        new RateLimitGuard({ name: 'create-account', per_ip: 10, per_email: 3, window_ms: HOUR })
+    )
     async create_account(@Request() req) {
         return await this.auth_service.create_account(req.body);
     }
 
     @Get('reset-password')
+    @UseGuards(
+        new RateLimitGuard({ name: 'reset-password', per_ip: 10, per_email: 3, window_ms: HOUR })
+    )
     async reset_password(@Request() req) {
         return await this.auth_service.reset_password(req.query.email);
     }

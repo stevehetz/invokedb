@@ -20,6 +20,10 @@ async function bootstrap() {
     });
     // Express 5 defaults to the "simple" query parser; keep qs-style nesting (sort[a]=desc)
     app.set('query parser', 'extended');
+    // In production Caddy is the one proxy in front (the API port isn't published), so trust one
+    // hop: req.ip is then the client's address from X-Forwarded-For, not Caddy's. The rate limits
+    // on the email-sending routes key on it (#133).
+    app.set('trust proxy', 1);
     app.useGlobalPipes(
         new ValidationPipe({
             transform: true,

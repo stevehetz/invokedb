@@ -1,7 +1,16 @@
-import { Controller, Post, Request, HttpStatus, Response, HttpException } from '@nestjs/common';
+import {
+    Controller,
+    Post,
+    Request,
+    HttpStatus,
+    Response,
+    HttpException,
+    UseGuards
+} from '@nestjs/common';
 import env from '@app/env';
 import logger from '@app/logger';
 import { EmailManager } from '@app/email/email.manager';
+import { RateLimitGuard } from '@app/web/http/_rate-limit/rate-limit';
 
 // Telegram rejects messages over 4096 characters.
 const MAX_FIELD_LENGTH = 3000;
@@ -22,6 +31,10 @@ export class SupportController {
     constructor(private email_manager: EmailManager) {}
 
     @Post('/request')
+    // By IP and by the sender's email (#133)
+    @UseGuards(
+        new RateLimitGuard({ name: 'support', per_ip: 5, per_email: 5, window_ms: 60 * 60 * 1000 })
+    )
     async request(@Request() req, @Response() res) {
         const email = one_line(field(req.body?.email));
         const subject = one_line(field(req.body?.subject));

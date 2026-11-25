@@ -5,8 +5,9 @@ export function validate_email(email) {
 }
 
 export function validate_password(password) {
-    const re = new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})');
-    return re.test(password);
+    // Any character that isn't an ASCII letter or digit counts as the special character.
+    const re = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9])(?=.{8,})/s;
+    return typeof password === 'string' && re.test(password);
 }
 
 export function validate_file_dir_name(value) {

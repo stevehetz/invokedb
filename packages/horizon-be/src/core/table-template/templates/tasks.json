@@ -1,0 +1,47 @@
+{
+    "name": "Task list",
+    "description": "To-dos with an owner, priority, status and due date.",
+    "table_name": "tasks",
+    "columns": [
+        { "name": "Task", "type": "string" },
+        { "name": "Owner", "type": "string" },
+        { "name": "Priority", "type": "string" },
+        { "name": "Status", "type": "string" },
+        { "name": "Estimate Hours", "type": "number" },
+        { "name": "Due", "type": "date" }
+    ],
+    "rows": [
+        {
+            "Task": "Write the launch post",
+            "Owner": "Sam",
+            "Priority": "High",
+            "Status": "In progress",
+            "Estimate Hours": 4,
+            "Due": "2026-12-01"
+        },
+        {
+            "Task": "Update the pricing page",
+            "Owner": "Ana",
+            "Priority": "Medium",
+            "Status": "To do",
+            "Estimate Hours": 2,
+            "Due": "2026-12-05"
+        },
+        {
+            "Task": "Fix the signup email typo",
+            "Owner": "Sam",
+            "Priority": "Low",
+            "Status": "Done",
+            "Estimate Hours": 0.5,
+            "Due": "2026-11-20"
+        },
+        {
+            "Task": "Plan the next sprint",
+            "Owner": "Kai",
+            "Priority": "Medium",
+            "Status": "To do",
+            "Estimate Hours": 1,
+            "Due": "2026-12-08"
+        }
+    ]
+}

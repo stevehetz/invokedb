@@ -58,7 +58,7 @@ export class AccountManager {
             throw new HttpException('Email format is invalid', HttpStatus.BAD_REQUEST);
         if (!validate_password(account.password))
             throw new HttpException(
-                'A password must be at least 8 characters long and contain: 1 lowercase letter, 1 uppercase letter, 1 number and 1 special character',
+                'A password must be at least 8 characters long and contain: 1 lowercase letter, 1 uppercase letter, 1 number and 1 special character (anything other than a letter or number)',
                 HttpStatus.BAD_REQUEST
             );
     }
@@ -66,7 +66,7 @@ export class AccountManager {
     validate_password(password) {
         if (!validate_password(password))
             throw new HttpException(
-                'A password must be at least 8 characters long and contain: 1 lowercase letter, 1 uppercase letter, 1 number and 1 special character',
+                'A password must be at least 8 characters long and contain: 1 lowercase letter, 1 uppercase letter, 1 number and 1 special character (anything other than a letter or number)',
                 HttpStatus.BAD_REQUEST
             );
     }

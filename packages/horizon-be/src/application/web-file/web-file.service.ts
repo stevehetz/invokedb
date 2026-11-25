@@ -26,6 +26,7 @@ import {
     parse_count_query,
     parse_row_query
 } from '@app/core/web-file/row-query';
+import { WebhookService } from '../webhook/webhook.service';
 
 const fs = require('fs');
 
@@ -36,7 +37,8 @@ export class WebFileService {
         private web_file_prc_notify_svc: WebFilePrcNotifyService,
         private web_file_manager: WebFileManager,
         private tracking_manager: TrackingManager,
-        private job_manager: JobManager
+        private job_manager: JobManager,
+        private webhook_svc: WebhookService
     ) {}
 
     async get_new_column(acct_id, file_id) {
@@ -496,7 +498,11 @@ export class WebFileService {
         if (web_file_type === 'data_grid_column') {
             data = assert_column_update(data);
         }
-        return await this.web_file_manager.update(account.id, file_id, web_file_type, data);
+        const res = await this.web_file_manager.update(account.id, file_id, web_file_type, data);
+        if (web_file_type === 'data_grid_row' && res) {
+            await this.webhook_svc.emit(account.id, file_id, 'row.updated', [res]);
+        }
+        return res;
     }
 
     async batch_update_internal(account, file_id, web_file_type, data, use_job = false) {
@@ -545,12 +551,16 @@ export class WebFileService {
                 throw new HttpException('Error updating columns', HttpStatus.INTERNAL_SERVER_ERROR);
             }
         } else {
-            return await this.web_file_manager.batch_update_row(
+            const updated = [];
+            const res = await this.web_file_manager.batch_update_row(
                 account.id,
                 file_id,
                 web_file_type,
-                data
+                data,
+                updated
             );
+            await this.webhook_svc.emit(account.id, file_id, 'row.updated', updated);
+            return res;
         }
     }
 
@@ -568,20 +578,45 @@ export class WebFileService {
                 file_id
             });
         }
-        return await this.web_file_manager.batch_create(account.id, file_id, web_file_type, data);
+        const inserted = [];
+        const res = await this.web_file_manager.batch_create(
+            account.id,
+            file_id,
+            web_file_type,
+            data,
+            inserted
+        );
+        if (web_file_type === 'data_grid_row') {
+            await this.webhook_svc.emit(account.id, file_id, 'row.created', inserted);
+        }
+        return res;
     }
 
     async batch_delete(account, file_id, web_file_type, data) {
+        // Which rows are really there, for the webhooks that want deletes (#140)
+        let deleted_ids: string[] = [];
+        const is_rows = web_file_type === 'data_grid_row';
+        if (is_rows && Array.isArray(data)) {
+            if (await this.webhook_svc.wants(account.id, file_id, 'row.deleted')) {
+                const ids = data.filter(d => typeof d === 'string');
+                deleted_ids = await this.web_file_manager.existing_row_ids(
+                    account.id,
+                    file_id,
+                    ids
+                );
+            }
+        }
         const removed_rows_count = await this.web_file_manager.batch_delete(
             account.id,
             file_id,
             web_file_type,
             data
         );
-        if (web_file_type === 'data_grid_row') {
+        if (is_rows) {
             await this.tracking_manager.deleted_rows(account, {
                 file_id
             });
+            await this.webhook_svc.emit(account.id, file_id, 'row.deleted', deleted_ids);
         }
         return removed_rows_count;
     }

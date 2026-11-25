@@ -118,6 +118,16 @@
                             <span>API</span>
                         </el-button>
                     </div>
+                    <div class="webhooks-button">
+                        <el-button
+                            link
+                            @click="webhooks_btn_clicked"
+                            :disabled="table_lock"
+                        >
+                            <i class="fa fa-bolt"></i>
+                            <span>Webhooks</span>
+                        </el-button>
+                    </div>
                 </div>
             </div>
         </div>

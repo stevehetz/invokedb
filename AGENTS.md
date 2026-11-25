@@ -279,6 +279,15 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `web-file/url-sync-processor.ts` (replace, or upsert on a key column; everything is checked
   before anything is written). The API and UI smoke tests import this repo's files from
   raw.githubusercontent.com, so they need internet.
+- Webhooks on row changes (#140): `src/core/webhook/` has the pure rules (`webhook.ts`: allowed
+  URLs, events, HMAC signature `InvokeDB-Signature: t=<unix>,v1=<hex of "<t>.<body>">`, retry
+  delays, payload rows), the sender (`webhook-send.ts`: private addresses refused on the address
+  connected to, no redirects, 10 s) and the store (`webhook.manager.ts`: `tracking:webhook` and
+  `tracking:webhook_delivery` in the shared tracking DB, so always filter on `account_id`).
+  `WebFileService` queues deliveries for row create/update/delete from the app and `/api/v1`
+  (not CSV uploads or URL syncs); `WebhookPrcService` sends them in the processor role. Routes
+  are `/webhook` (session only). `HORIZON_WEBHOOK_TEST_HOSTS` (set only by `smoke-env.sh`) lets
+  `api-smoke.mjs`'s receiver on `127.0.0.1:8199` through; never set it in production.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

@@ -458,7 +458,8 @@ export class WebFileManager {
         };
     }
 
-    async batch_create(acct_id, file_id, web_file_type, data) {
+    // `inserted`, if given, gets the new rows as stored (with their _id), for webhooks (#140)
+    async batch_create(acct_id, file_id, web_file_type, data, inserted?: any[]) {
         data = assert_array_body(data);
         data.forEach(row => this.validate_row(row));
         file_id = parseInt(file_id, 10);
@@ -476,6 +477,7 @@ export class WebFileManager {
             });
             const row_coll = await this._collections.get_dg_row(acct_id, file_id);
             await row_coll.insertMany(formatted_data);
+            if (inserted) inserted.push(...formatted_data);
         } else if (web_file_type === _c.MongoDbCollections.data_grid_column) {
             const col_coll = await this._collections.get_dg_col(acct_id, file_id);
             await col_coll.insertMany(data);
@@ -522,14 +524,27 @@ export class WebFileManager {
         return 'done';
     }
 
-    async batch_update_row(acct_id, file_id, collection, data) {
+    // `updated`, if given, gets each row as it is after the update, for webhooks (#140)
+    async batch_update_row(acct_id, file_id, collection, data, updated?: any[]) {
         const res = [];
         if (data && Array.isArray(data)) {
             for (const row of data) {
                 res.push(await this.update(acct_id, file_id, collection, row));
             }
         }
+        if (updated) updated.push(...res.filter(Boolean));
         return res.length;
+    }
+
+    /** Which of these row ids exist in the table (as strings). */
+    async existing_row_ids(acct_id, file_id, ids: string[]) {
+        const object_ids = ids.filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+        if (object_ids.length === 0) return [];
+        const row_coll = await this._collections.get_dg_row(acct_id, file_id);
+        const docs = await row_coll
+            .find({ _id: { $in: object_ids } }, { projection: { _id: 1 } })
+            .toArray();
+        return docs.map(d => String(d._id));
     }
 
     async update(acct_id, file_id, collection, data) {

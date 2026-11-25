@@ -29,5 +29,7 @@ HORIZON_PRC_PUB_HTTP_URL=http://127.0.0.1:8101
 HORIZON_FS_PUB_HTTP_URL=http://127.0.0.1:8101
 HORIZON_SB_PUB_WS_URL=ws://127.0.0.1:9100
 HORIZON_SB_PRIV_WS_URL=ws://127.0.0.1:9100
+# api-smoke.mjs's webhook receiver (#140): allowed although it's on loopback
+HORIZON_WEBHOOK_TEST_HOSTS=127.0.0.1:8199
 VARS
 echo "Wrote $OUT"

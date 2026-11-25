@@ -16,6 +16,8 @@ import { JobService } from './job/job.service';
 import { TableTemplateService } from './table-template/table-template.service';
 import { OnboardingService } from './onboarding/onboarding.service';
 import { UrlImportService } from './url-import/url-import.service';
+import { WebhookService } from './webhook/webhook.service';
+import { WebhookPrcService } from './webhook/webhook-prc.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -33,7 +35,9 @@ import { UrlImportService } from './url-import/url-import.service';
         JobService,
         TableTemplateService,
         OnboardingService,
-        UrlImportService
+        UrlImportService,
+        WebhookService,
+        WebhookPrcService
     ],
     exports: [
         AuthService,
@@ -47,7 +51,8 @@ import { UrlImportService } from './url-import/url-import.service';
         JobService,
         TableTemplateService,
         OnboardingService,
-        UrlImportService
+        UrlImportService,
+        WebhookService
     ]
 })
 export class ApplicationModule {}

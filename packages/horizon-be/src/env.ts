@@ -50,7 +50,10 @@ const env = {
     HORIZON_MONGO_TRACKING_URI: process.env.HORIZON_MONGO_TRACKING_URI,
     HORIZON_MONGO_TRACKING_DB: process.env.HORIZON_MONGO_TRACKING_DB,
     MAILGUN_API_KEY: process.env.MAILGUN_API_KEY,
-    MAILGUN_DN: process.env.MAILGUN_DN
+    MAILGUN_DN: process.env.MAILGUN_DN,
+    // Test only (scripts/smoke-env.sh sets it): webhook receivers ("127.0.0.1:8199,...") that are
+    // allowed although they're private addresses (#140). Never set it in production.
+    HORIZON_WEBHOOK_TEST_HOSTS: process.env.HORIZON_WEBHOOK_TEST_HOSTS
 };
 
 export default env;

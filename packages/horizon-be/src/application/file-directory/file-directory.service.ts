@@ -15,6 +15,7 @@ import { TrackingManager } from '@app/core/tracking/tracking.manager';
 import { plainToClass } from 'class-transformer';
 import { WebFilePrcNotifyService } from '../web-file/web-file-prc-notify.service';
 import { UrlImportManager } from '@app/core/url-import/url-import.manager';
+import { WebhookManager } from '@app/core/webhook/webhook.manager';
 import _c from '@app/constants';
 import logger from '@app/logger';
 
@@ -27,7 +28,8 @@ export class FileDirectoryService {
         private web_file_manager: WebFileManager,
         private tracking_manager: TrackingManager,
         private web_file_prc_notify_svc: WebFilePrcNotifyService,
-        private url_import_manager: UrlImportManager
+        private url_import_manager: UrlImportManager,
+        private webhook_manager: WebhookManager
     ) {}
 
     async get_by_id(file_directory_id: number) {
@@ -191,6 +193,13 @@ export class FileDirectoryService {
                 } catch (ex) {
                     logger.error(
                         `URL source of file ${file_directory.id} not removed: ${ex.message}`
+                    );
+                }
+                try {
+                    await this.webhook_manager.remove_for_table(account.id, file_directory.id);
+                } catch (ex) {
+                    logger.error(
+                        `Webhooks of file ${file_directory.id} not removed: ${ex.message}`
                     );
                 }
             }

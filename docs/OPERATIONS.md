@@ -212,6 +212,9 @@ repo: it's public.
 - **Secrets:** repo secrets `E2E_EMAIL`, `E2E_PASSWORD` (the test account, `e2e@invokedb.com`;
   its mail lands in the support Gmail), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (the
   contact-form bot).
+- **Repair:** a failure on `main` also starts `repair.yml` with the run's id, unless an open
+  "Fix E2E" PR or "E2E failed" issue already covers it; Claude decides whether the app or the
+  test is wrong and opens a fix PR (which auto-merges like any other) or an issue (#198).
 - **Alerts:** a failure sends a Telegram message naming the trigger (and the commit, after a
   deploy) and keeps the failing step's screenshot (password and API key masked) as the run's `e2e`
   artifact (14 days). No trace: artifacts on this public repo can be downloaded by anyone, and a

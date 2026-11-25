@@ -34,31 +34,9 @@
                     <i class="menu-icon fa fa-file-alt"></i>
                     <span class="menu-text">Guide</span>
                 </el-menu-item>
-                <el-menu-item
-                    index="/app/account"
-                    :class="{'is-active2': active_index === '/app/account'}"
-                >
-                    <i class="menu-icon fa fa-user"></i>
-                    <span class="menu-text">Account</span>
-                </el-menu-item>
             </el-menu>
         </div>
         <div class="right">
-            <!-- <el-menu class="nav"
-                     ref="nav2"
-                     mode="horizontal"
-                     @select="nav_selected">
-                <el-menu-item index="/app/account"
-                              class="account-menu-item"
-                              :class="{'is-active2': active_index === '/app/account'}"
-                              v-if="account">
-                    <i class="el-icon-user"></i>
-                    <span class="menu-text">{{ account.email }}</span>
-                </el-menu-item>
-            </el-menu> -->
-            <div class="header-text" v-if="account">
-                <span>{{ account.email }}</span>
-            </div>
             <a
                 class="header-link help-link"
                 href="/help"
@@ -69,12 +47,68 @@
             >
                 <i class="header-icon fa fa-circle-question"></i>
             </a>
-            <div class="header-link" @click="contact">
-                <i class="header-icon fa fa-user-edit"></i>
-            </div>
-            <div class="header-link" @click="logout">
-                <i class="header-icon fa fa-sign-out-alt"></i>
-            </div>
+            <!-- The account menu: everything about the account, at the top right -->
+            <el-dropdown
+                class="account-menu"
+                trigger="click"
+                placement="bottom-end"
+                popper-class="account-menu-popper"
+                @command="account_command"
+                v-if="account"
+            >
+                <button
+                    type="button"
+                    :class="['account-menu-button', { active: active_index === '/app/account' }]"
+                    aria-label="Account menu"
+                >
+                    <span class="account-avatar">{{ initial }}</span>
+                    <span class="account-email">{{ account.email }}</span>
+                    <i class="fa fa-caret-down account-caret"></i>
+                </button>
+                <template #dropdown>
+                    <div class="account-menu-head">
+                        <div class="account-menu-email">
+                            {{ account.email }}
+                        </div>
+                        <div class="account-menu-plan">{{ plan_name }}</div>
+                    </div>
+                    <el-dropdown-menu>
+                        <el-dropdown-item
+                            class="account-menu-settings"
+                            command="settings"
+                            divided
+                        >
+                            <i class="fa fa-cog"></i> Account settings
+                        </el-dropdown-item>
+                        <el-dropdown-item
+                            class="account-menu-api-keys"
+                            command="api-keys"
+                        >
+                            <i class="fa fa-key"></i> API keys
+                        </el-dropdown-item>
+                        <el-dropdown-item
+                            class="account-menu-contact"
+                            command="contact"
+                        >
+                            <i class="fa fa-envelope"></i> Contact support
+                        </el-dropdown-item>
+                        <el-dropdown-item
+                            class="account-menu-help"
+                            command="help"
+                        >
+                            <i class="fa fa-circle-question"></i> Help &amp;
+                            docs
+                        </el-dropdown-item>
+                        <el-dropdown-item
+                            class="account-menu-signout"
+                            command="logout"
+                            divided
+                        >
+                            <i class="fa fa-sign-out-alt"></i> Sign out
+                        </el-dropdown-item>
+                    </el-dropdown-menu>
+                </template>
+            </el-dropdown>
         </div>
     </div>
     <div

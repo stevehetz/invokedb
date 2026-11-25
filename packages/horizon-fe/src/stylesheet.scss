@@ -240,23 +240,6 @@ p {
 .layout > .header .right {
     display: flex;
 }
-.layout > .header .header-text {
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 0 10px;
-    color: #a7a7a7;
-}
-.layout > .header .header-text span {
-    display: inline-block;
-    text-overflow: ellipsis;
-    max-width: 200px;
-    overflow: hidden;
-}
-.layout > .header .header-text i {
-    margin-right: 10px;
-}
 .layout > .header .header-link {
     color: #a7a7a7;
     height: 100%;

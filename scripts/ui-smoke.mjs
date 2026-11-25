@@ -496,7 +496,9 @@ try {
         await page.evaluate(() => (window.__ui_smoke_same_page = true));
         await page.locator('.login-button').click();
         await page.waitForURL(u => u.href.startsWith(APP_URL), { timeout: 30000 });
-        await page.locator('.layout .header-text', { hasText: EMAIL }).waitFor();
+        await page
+            .locator('.layout .account-menu-button .account-email', { hasText: EMAIL })
+            .waitFor();
         results.observed.token_in_url = page.url().includes('token');
         check(!results.observed.token_in_url, `session token is in the URL: ${page.url()}`);
         results.observed.login_same_page = await page.evaluate(

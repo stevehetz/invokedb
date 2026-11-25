@@ -115,7 +115,17 @@ function setup(opts: { verified?: boolean; available?: boolean } = {}) {
         ask_service as any,
         edit_service
     );
-    return { svc, rows, add, ai_client, ai_spend, ask_service, web_file_svc, tracking_manager };
+    return {
+        svc,
+        rows,
+        add,
+        ai_client,
+        ai_spend,
+        ask_service,
+        web_file_svc,
+        web_file_manager,
+        tracking_manager
+    };
 }
 
 describe('CleanupService.scan', () => {
@@ -225,6 +235,24 @@ describe('CleanupService.delete_rows and restore_rows', () => {
         expect(t.rows.size).toBe(3);
         const [account, file_id, type, data] = t.web_file_svc.batch_create_internal.mock.calls[0];
         expect([account.id, file_id, type, data]).toEqual([ACCT, 11, 'data_grid_row', [before]]);
+    });
+
+    it('refuses to delete rows of a table with link columns', async () => {
+        const t = setup();
+        t.web_file_manager.get_columns.mockResolvedValue([
+            { field: 'a', headerName: 'Name' },
+            { field: 'l', headerName: 'Orders', col_type: 'link' }
+        ]);
+        t.add({ a: 'Ada', l: [] });
+        const dup = t.add({ a: 'Ada', l: [] });
+        await expect(
+            t.svc.delete_rows(ACCT, '11', { rows: [{ _id: dup, before: { a: 'Ada' } }] })
+        ).rejects.toBeInstanceOf(BadRequestException);
+        expect(t.web_file_svc.batch_delete).not.toHaveBeenCalled();
+
+        const res = await t.svc.scan(ACCT, '11');
+        expect(res.problems.find(p => p.kind === 'duplicate')).toBeUndefined();
+        expect(res.answer).toContain("Duplicate rows weren't checked");
     });
 
     it("refuses another account's table and bad bodies", async () => {

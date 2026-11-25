@@ -605,6 +605,17 @@ function duplicate_problem(
     };
 }
 
+/**
+ * Whether every column of the table (`col_defs`, as stored) is among `columns`. Link columns
+ * and a second column with the same name aren't (see ask_columns), so on such a table two rows
+ * can look the same while their hidden cells differ, and deleting one (which Undo can't put
+ * back whole) would lose them: no duplicate checks there.
+ */
+export function sees_whole_rows(col_defs: any[], columns: QueryColumn[]) {
+    const fields = new Set(columns.map(c => c.field));
+    return (col_defs || []).every(c => !c || c.field === undefined || fields.has(c.field));
+}
+
 // --- The checks in code ---
 
 export interface RuleScan {
@@ -614,14 +625,16 @@ export interface RuleScan {
     duplicates: Set<number>;
     // Columns holding emails, phone numbers, numbers or dates (not sent for spellings)
     structured: Set<string>;
+    // Whether rows were checked for duplicates (exact here, near ones by the model)
+    duplicates_checked: boolean;
 }
 
 /**
  * The checks in code, on rows in API form keyed by field (dates as the grid shows them), in the
  * order their fixes build on each other: spaces, emails, phones, numbers, dates, capitals; then
- * exact duplicates (on the rows as stored).
+ * exact duplicates (on the rows as stored), unless `whole_rows` is false (sees_whole_rows).
  */
-export function scan_rules(rows: Row[], columns: QueryColumn[]): RuleScan {
+export function scan_rules(rows: Row[], columns: QueryColumn[], whole_rows = true): RuleScan {
     const working = new Working(rows);
     const problems: CleanupProblem[] = [];
     const structured = new Set<string>();
@@ -651,9 +664,15 @@ export function scan_rules(rows: Row[], columns: QueryColumn[]): RuleScan {
         }
     });
     text_cols.forEach(c => add(check_case(working, c)));
-    const dupes = find_duplicates(rows, columns);
+    const dupes = whole_rows ? find_duplicates(rows, columns) : [];
     add(duplicate_problem('duplicate', rows, columns, dupes));
-    return { problems, working, duplicates: new Set(dupes.map(d => d.i)), structured };
+    return {
+        problems,
+        working,
+        duplicates: new Set(dupes.map(d => d.i)),
+        structured,
+        duplicates_checked: whole_rows
+    };
 }
 
 // --- What the model judges ---
@@ -723,6 +742,7 @@ export function ai_request(
                         }))
                 });
             } else if (
+                scan.duplicates_checked &&
                 distinct > values.length * 0.5 &&
                 duplicate_columns.length < L.duplicate_columns
             ) {
@@ -896,7 +916,8 @@ export function cleanup_answer(
     problems: CleanupProblem[],
     scanned: number,
     total: number,
-    ai: 'checked' | 'none' | 'failed'
+    ai: 'checked' | 'none' | 'failed',
+    duplicates_checked = true
 ) {
     const of = total > scanned ? `the first ${scanned} of ${total} rows` : rows_text(scanned);
     const lead =
@@ -909,7 +930,11 @@ export function cleanup_answer(
             ? " The AI part of the scan (spellings, near-duplicates) didn't answer; try again " +
               'later for those.'
             : '';
-    return lead + tail;
+    const dupes = duplicates_checked
+        ? ''
+        : " Duplicate rows weren't checked: this table has link columns (or two columns with " +
+          "the same name) the scan can't compare.";
+    return lead + tail + dupes;
 }
 
 // --- Deleting duplicates (and putting them back) ---

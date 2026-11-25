@@ -27,7 +27,8 @@ import {
     cleanup_answer,
     parse_delete_body,
     parse_restore_body,
-    scan_rules
+    scan_rules,
+    sees_whole_rows
 } from '@app/core/ai/cleanup';
 import { AskService } from './ask.service';
 import { EditService } from './edit.service';
@@ -58,7 +59,9 @@ export class CleanupService {
     }
 
     private async columns(acct_id: number, file_id: number) {
-        return ask_columns(await this.web_file_manager.get_columns(acct_id, file_id));
+        const col_defs = await this.web_file_manager.get_columns(acct_id, file_id);
+        const columns = ask_columns(col_defs);
+        return { columns, whole_rows: sees_whole_rows(col_defs, columns) };
     }
 
     private checked<T>(fn: () => T): T {
@@ -82,7 +85,7 @@ export class CleanupService {
         const file = await this.ask_service.owned_table(acct_id, file_id);
         if (!this.ai_client.available()) throw new ServiceUnavailableException(AI_OFF_MESSAGE);
         if (!ai_allowance(account).verified) throw new ForbiddenException(AI_UNVERIFIED_MESSAGE);
-        const columns = await this.columns(acct_id, file.id);
+        const { columns, whole_rows } = await this.columns(acct_id, file.id);
         if (columns.length === 0) throw new BadRequestException('This table has no columns yet');
 
         // Read before the question is reserved, so a failed read doesn't use one up
@@ -96,7 +99,7 @@ export class CleanupService {
         );
 
         const month = await this.ask_service.reserve_question(account);
-        const scan = scan_rules(rows, columns);
+        const scan = scan_rules(rows, columns, whole_rows);
         const problems: CleanupProblem[] = [...scan.problems];
         const request = ai_request(rows, columns, scan);
         let ai: 'checked' | 'none' | 'failed' = 'none';
@@ -123,7 +126,7 @@ export class CleanupService {
             }
         }
         return {
-            answer: cleanup_answer(problems, rows.length, total, ai),
+            answer: cleanup_answer(problems, rows.length, total, ai, whole_rows),
             problems,
             scanned: rows.length,
             total,
@@ -140,7 +143,15 @@ export class CleanupService {
     async delete_rows(acct_id: number, file_id: unknown, body: unknown) {
         const account = await this.account(acct_id);
         const file = await this.ask_service.owned_table(acct_id, file_id);
-        const columns = await this.columns(acct_id, file.id);
+        const { columns, whole_rows } = await this.columns(acct_id, file.id);
+        // The staleness check (and Undo) only cover these columns, so cells they can't see
+        // would be lost: refused, as the scan offers no duplicates on such a table
+        if (!whole_rows) {
+            throw new BadRequestException(
+                "Rows of a table with link columns (or two columns with the same name) can't be " +
+                    'deleted as duplicates'
+            );
+        }
         const rows = this.checked(() => parse_delete_body(body, columns));
         await this.tracking_manager.check_account_lock(account);
         await this.tracking_manager.check_table_lock(file.id);
@@ -170,7 +181,7 @@ export class CleanupService {
     async restore_rows(acct_id: number, file_id: unknown, body: unknown) {
         const account = await this.account(acct_id);
         const file = await this.ask_service.owned_table(acct_id, file_id);
-        const columns = await this.columns(acct_id, file.id);
+        const { columns } = await this.columns(acct_id, file.id);
         const rows = this.checked(() => parse_restore_body(body, columns));
         await this.web_file_svc.batch_create_internal(account, file.id, 'data_grid_row', rows);
         return { restored: rows.length };

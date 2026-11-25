@@ -15,6 +15,7 @@ import {
     plain_number,
     read_date,
     scan_rules,
+    sees_whole_rows,
     write_date
 } from './cleanup';
 
@@ -175,6 +176,34 @@ describe('cleanup: the checks in code', () => {
             { _id: rows[1]._id, before: { a: 'Ada', b: 36 }, duplicate_of: rows[0]._id },
             { _id: rows[5]._id, before: { a: 'Ada', b: 36 }, duplicate_of: rows[0]._id }
         ]);
+    });
+
+    it("checks no duplicates when the table has columns the scan doesn't see", () => {
+        const cols = [col('a', 'Name'), col('b', 'Age', 'number')];
+        const defs = [
+            { field: 'a', headerName: 'Name' },
+            { field: 'b', headerName: 'Age', col_type: 'number' }
+        ];
+        expect(sees_whole_rows(defs, cols)).toBe(true);
+        expect(sees_whole_rows([...defs, { field: 'c', col_type: 'link' }], cols)).toBe(false);
+        expect(sees_whole_rows([...defs, { field: 'd', headerName: 'Name' }], cols)).toBe(false);
+
+        // Same Name and Age, different (unseen) link cells
+        const rows = [
+            { _id: id(), a: 'Ada', b: 36, c: [id()] },
+            { _id: id(), a: 'Ada', b: 36, c: [id()] },
+            { _id: id(), a: 'Bob', b: 40, c: null }
+        ];
+        const scan = scan_rules(rows, cols, false);
+        expect(find(scan.problems, 'duplicate')).toBeUndefined();
+        expect(scan.duplicates_checked).toBe(false);
+        expect(find(scan_rules(rows, cols).problems, 'duplicate')).toBeDefined();
+        // Nor are rows sent to the model for near-duplicates
+        const names = ['Ada', 'Ada Lovelace', 'Bob', 'Cy'].map(a => ({ _id: id(), a }));
+        const name_only = [col('a', 'Name')];
+        expect(ai_request(names, name_only, scan_rules(names, name_only)).rows).toHaveLength(4);
+        expect(ai_request(names, name_only, scan_rules(names, name_only, false))).toBeNull();
+        expect(cleanup_answer([], 3, 3, 'none', false)).toContain("Duplicate rows weren't checked");
     });
 
     it('finds nothing in a clean table', () => {

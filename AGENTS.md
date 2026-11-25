@@ -401,7 +401,9 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   call judges only spellings (repeated values of plain text columns) and near-duplicates
   (mostly-distinct text columns); its answer is kept only where it names what it was sent. Edits
   apply through `apply-edit`; duplicates through `delete-rows` (only rows still holding
-  `before`), and Undo re-creates them with `restore-rows` (new ids). Frontend:
+  `before`), and Undo re-creates them with `restore-rows` (new ids). A table with columns the scan
+  can't see (link columns, a second column of the same name; `sees_whole_rows`) gets no
+  duplicate checks, and `delete-rows` refuses it. Frontend:
   `h-data-grid/cleanup-panel`, inside `ask-dialog`.
 - Email verification (#132): `account.email_verified` (migration marks every older account
   verified; Google/GitHub accounts are created verified). `src/core/email-verification/` has the

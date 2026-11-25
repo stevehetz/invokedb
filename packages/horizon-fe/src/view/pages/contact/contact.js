@@ -28,11 +28,6 @@ export default {
     },
 
     methods: {
-        go_to_database(e) {
-            e.preventDefault();
-            window.location.href = '/app';
-        },
-
         back(e) {
             e.preventDefault();
             this.success = false;

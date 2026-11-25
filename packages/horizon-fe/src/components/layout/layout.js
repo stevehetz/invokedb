@@ -73,7 +73,9 @@ export default {
 
         async logout() {
             await account_manager.logout();
-            window.location.href = '/'; // the public site: a full page load
+            // A full page load on purpose (not the router): it drops everything the app holds
+            // in memory for this account and closes the websocket
+            window.location.href = '/';
         },
 
         async nav_selected(e) {

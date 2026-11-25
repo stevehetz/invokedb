@@ -2,6 +2,7 @@ import { auth_http } from '@/core/context/account/auth-http';
 import cookies from 'js-cookie';
 import SsoButtons from '@/view/sso/sso-buttons.vue';
 import { sso_finish } from '@/view/sso/sso';
+import { APP_PATH } from '@/router';
 
 export default {
     name: 'Login',
@@ -25,7 +26,7 @@ export default {
         if (sso?.token) {
             this.processing = true;
             cookies.set('token', sso.token);
-            window.location.href = '/app'; // the app: a full page load
+            this.$router.replace(APP_PATH);
         } else if (sso?.error) {
             this.error.message = sso.error;
         }
@@ -47,7 +48,7 @@ export default {
                     password: this.password
                 });
                 cookies.set('token', session.token);
-                window.location.href = '/app'; // the app: a full page load
+                this.$router.push(APP_PATH);
             } catch (ex) {
                 this.error.message = ex.message || 'Server error';
                 this.processing = false;

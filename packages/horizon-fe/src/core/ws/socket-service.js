@@ -4,9 +4,20 @@ import { logger } from '@/core/logger/logger';
 import SocketManager from '@/core/ws/socket-manager';
 import { store } from '@/store';
 const socket_manager = new SocketManager('horizon-fe|multi');
+let started_token = null;
 
 export const socket_service = {
     start_websocket(token) {
+        // The app's shell calls this each time it mounts, and it can mount again after a
+        // visit to the public site through the router: keep the connection it has.
+        if (started_token === token) return;
+        if (started_token) {
+            // Signed in as someone else on that visit (logging out is a full page load, so
+            // this is rare): start clean rather than keep the old account's connection and data
+            window.location.reload();
+            return;
+        }
+        started_token = token;
         socket_manager.on('close', () =>
             logger.info('websocket connection closed')
         );

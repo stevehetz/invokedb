@@ -1,7 +1,8 @@
-// The signed-in app's Element Plus theme: the whole theme-chalk SCSS, compiled with the app's
-// primary and success colours ($purple300 and $green500 in stylesheet.scss).
-// Imported only by components/app.vue; the public site uses the default theme CSS.
-@forward 'element-plus/theme-chalk/src/common/var.scss' with (
+// The signed-in app's Element Plus colours: primary $purple300 and success $green500 (see
+// stylesheet.scss). Both areas load Element's default theme CSS (main.js); compiling the theme
+// with these colours changes nothing but the :root colour variables, so the app area only
+// overrides those. `:root.app-area` beats the default theme's `:root`.
+@use 'element-plus/theme-chalk/src/common/var.scss' as var with (
     $colors: (
         'primary': (
             'base': #6858ab
@@ -11,4 +12,11 @@
         )
     )
 );
-@use 'element-plus/theme-chalk/src/index.scss' as *;
+@use 'element-plus/theme-chalk/src/mixins/var.scss' as *;
+
+:root.app-area {
+    @each $type in (primary, success) {
+        @include set-css-color-rgb($type);
+        @include set-css-color-type(var.$colors, $type);
+    }
+}

@@ -273,21 +273,27 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
 - **Two areas, one app.** The public site (marketing, login, signup, pricing: `src/view/`,
   `src/network/`) is served at `/`, and the signed-in app (`src/components/`, `src/core/`) at
   `/app`. They were separate apps until 2026-11, and their global stylesheets clash. So each
-  area's shell (`src/view/site.vue`, `src/components/app.vue`) imports its own CSS and is
-  lazy-loaded, and **moving between the areas is a full page load** (`window.location` or a
-  plain `<a href>`), never `router.push` or `<router-link>`. Within an area, use the router as
-  normal. Don't import global CSS anywhere else (the one exception: `main.js` imports Font
-  Awesome and the highlight.js theme, which only style their own classes). Route pages are
-  lazy-loaded in `router.js`; `vite.config.js` gives ag-grid, Element Plus and Vue their own
-  chunks. The UI smoke test checks this.
+  area's shell (`src/view/site.vue`, `src/components/app.vue`) is lazy-loaded and imports its
+  own CSS, scoped to a class on `<html>` that `router.js` sets (`site-area`, `app-area`):
+  `view/site-area.scss` and `app-area.scss` load the unchanged `stylesheet.scss` files inside
+  `:where(html.<area>)`, which adds no specificity (#130). Both can be on the page, so links
+  between the areas use the router like any other. Logging out (and deleting the account) is
+  still a full page load, on purpose: it drops the account's in-memory data and the websocket.
+  New area-wide CSS goes in the area's `stylesheet.scss`; don't import global CSS anywhere else
+  (the exceptions: `main.js` imports Font Awesome and the highlight.js theme, which only style
+  their own classes, and Element Plus's default theme). Route pages are lazy-loaded in
+  `router.js`; `vite.config.js` gives ag-grid, Element Plus and Vue their own chunks. The UI
+  smoke test checks the scoping and that signing in doesn't reload the page.
 - Built with **Vite 6** (`vite.config.js`, `index.html` at the package root). Use the npm
   scripts (`start`, `build`, `preview`, `lint`), which `env.sh` feeds the env. Static assets in
   templates are plain `src="@/assets/x.png"`. `lodash` is imported explicitly (no globals).
   There is no jQuery: use the DOM API. Lint is ESLint 10 with a flat config
   (`eslint.config.mjs`, `vue/flat/essential`).
-- **Element Plus.** The app area compiles its theme from `src/element-theme.scss` (the app's
-  colours), so don't also import `element-plus/dist/index.css` there (see the comment in
-  `components/app.vue`); the site uses the default CSS. The app's CSS restyles the inner
+- **Element Plus.** `main.js` loads the default theme (`element-plus/dist/index.css`) for both
+  areas, in the entry chunk so it comes before the areas' CSS (a theme in a shared lazy chunk
+  once loaded after the app's styles in production and overrode its nav). The app's colours are
+  only `:root` variables, so `src/element-theme.scss` overrides just those on
+  `:root.app-area`. Don't import a theme anywhere else. The app's CSS restyles the inner
   elements Element UI used to have, so Element Plus's extra wrappers are flattened in
   `stylesheet.scss` (`.el-input__wrapper`, the `.el-dialog` padding). Horizontal `el-menu`s need
   `:ellipsis="false"` or they fold items into "…". Use `link` buttons, not `type="text"` (removed

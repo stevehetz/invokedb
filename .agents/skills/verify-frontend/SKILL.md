@@ -16,20 +16,20 @@ only where you meant them to).
 `scripts/ui-smoke.mjs` drives the installed Chrome (the `playwright` npm package with
 `channel: 'chrome'`, so no browser download and no native build) through:
 
-| Step                       | What it checks                                                                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `public_pages`             | every public page renders with only the site's CSS loaded; `/app` signed out sends you to `/login`                              |
-| `login`                    | `/login` → `/app` with the email shown, no token in the URL, and only the app's CSS loaded                                      |
-| `upload_csv`               | `+` → Table from CSV → upload; tab opens with 3 rows; `WEB_FILE_PROCESS_COMPLETE` arrives over the websocket                    |
-| `sort`                     | header click: ascending, descending, cleared (server-side sort)                                                                 |
-| `filter`                   | floating "contains" filter on `name` narrows to 2 rows, clearing restores 3                                                     |
-| `cell_edit`                | double-click a cell, type, Enter; the grid shows it and the backend saved it                                                    |
-| `add_column`               | Edit Columns → Add Column → name it → save; shown and saved                                                                     |
-| `remove_column`            | Edit Columns → ⊖ on `joined` → save; gone from grid and backend                                                                 |
-| `websocket_type_change`    | change `age` to number + index → background job; grid reloads only after `WEB_FILE_PROCESS_START`/`COMPLETE` over the websocket |
-| `api_key_and_external_api` | Account page shows the API key; `/api/v1/get` with that key returns the table                                                   |
-| `delete_table`             | select the table in the tree → trash → Confirm; tab closes, backend has no table                                                |
-| `logout`                   | sign-out icon returns to the public site                                                                                        |
+| Step                       | What it checks                                                                                                                                                       |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `public_pages`             | every public page renders with `<html class="site-area">`, the site's CSS scoped to it and Element's default primary colour; `/app` signed out sends you to `/login` |
+| `login`                    | `/login` → `/app` through the router (no reload) with the email shown and no token in the URL; `app-area` class, app CSS scoped, app primary colour                  |
+| `upload_csv`               | `+` → Table from CSV → upload; tab opens with 3 rows; `WEB_FILE_PROCESS_COMPLETE` arrives over the websocket                                                         |
+| `sort`                     | header click: ascending, descending, cleared (server-side sort)                                                                                                      |
+| `filter`                   | floating "contains" filter on `name` narrows to 2 rows, clearing restores 3                                                                                          |
+| `cell_edit`                | double-click a cell, type, Enter; the grid shows it and the backend saved it                                                                                         |
+| `add_column`               | Edit Columns → Add Column → name it → save; shown and saved                                                                                                          |
+| `remove_column`            | Edit Columns → ⊖ on `joined` → save; gone from grid and backend                                                                                                      |
+| `websocket_type_change`    | change `age` to number + index → background job; grid reloads only after `WEB_FILE_PROCESS_START`/`COMPLETE` over the websocket                                      |
+| `api_key_and_external_api` | Account page shows the API key; `/api/v1/get` with that key returns the table                                                                                        |
+| `delete_table`             | select the table in the tree → trash → Confirm; tab closes, backend has no table                                                                                     |
+| `logout`                   | sign-out icon returns to the public site                                                                                                                             |
 
 It stops at the first failing step, prints a screenshot path, and removes its table
 (`ui_smoke_people` under `demo@invokedb.com`) unless you pass `--keep`. A leftover table from a

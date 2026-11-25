@@ -32,6 +32,7 @@ import KanbanView from './kanban-view';
 import ChartView from './chart-view';
 import { VIEW_TYPE_ICONS } from './views-dialog/views-dialog';
 import { view_http } from '@/core/context/view/view-http';
+import { table_display_name } from './table-name';
 
 // Since ag-grid 33 every feature is a module that has to be registered. Only the ones the grid
 // uses are, so the rest of ag-grid is left out of the bundle (AllCommunityModule was 1.3 MB).
@@ -980,7 +981,7 @@ export default {
 
         api_btn_clicked() {
             this.$bus.$emit('container-dialog:open', {
-                title: this.file.name.replace(/.g/, ''),
+                title: table_display_name(this.file.name),
                 props: {
                     file: this.file
                 },
@@ -990,7 +991,7 @@ export default {
 
         webhooks_btn_clicked() {
             this.$bus.$emit('container-dialog:open', {
-                title: `${this.file.name.replace(/.g/, '')}: webhooks`,
+                title: `${table_display_name(this.file.name)}: webhooks`,
                 props: {
                     file: this.file
                 },
@@ -1000,7 +1001,7 @@ export default {
 
         forms_btn_clicked() {
             this.$bus.$emit('container-dialog:open', {
-                title: `${this.file.name.replace(/.g/, '')}: forms`,
+                title: `${table_display_name(this.file.name)}: forms`,
                 props: {
                     file: this.file
                 },
@@ -1051,7 +1052,7 @@ export default {
 
         views_btn_clicked() {
             this.$bus.$emit('container-dialog:open', {
-                title: `${this.file.name.replace(/.g/, '')}: views`,
+                title: `${table_display_name(this.file.name)}: views`,
                 props: {
                     file: this.file,
                     state: () => this.grid_state(),

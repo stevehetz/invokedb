@@ -5,6 +5,7 @@ import { defineComponent } from 'vue';
 import copy from 'copy-to-clipboard';
 import { bus } from '@/core/bus';
 import { webhook_http } from '@/core/context/webhook/webhook-http';
+import { table_display_name } from '../table-name';
 
 const EVENTS = ['row.created', 'row.updated', 'row.deleted'];
 
@@ -48,6 +49,14 @@ export default defineComponent({
     },
 
     computed: {
+        /**
+         * The table's name as the dialog's title shows it (no `.g`)
+         * @returns {string}
+         */
+        table_name() {
+            return table_display_name(this.props.file.name);
+        },
+
         /** @returns {boolean} */
         can_add() {
             return (

@@ -9,6 +9,7 @@ import {
     form_link,
     form_embed
 } from '@/core/context/form/form-http';
+import { table_display_name } from '../table-name';
 
 /** @param {any} ex */
 function message_of(ex, fallback) {
@@ -71,6 +72,14 @@ export default defineComponent({
     },
 
     computed: {
+        /**
+         * The table's name as the dialog's title shows it (no `.g`)
+         * @returns {string}
+         */
+        table_name() {
+            return table_display_name(this.props.file.name);
+        },
+
         /** @returns {boolean} */
         can_save() {
             return (
@@ -105,7 +114,7 @@ export default defineComponent({
 
         new_form() {
             this.draft = draft_of(this.columns);
-            this.draft.title = this.props.file.name;
+            this.draft.title = this.table_name;
         },
 
         /** @param {any} form */

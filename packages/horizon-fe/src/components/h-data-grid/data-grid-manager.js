@@ -4,8 +4,8 @@ import { parse_utc_date } from '@/core/date';
 
 export const data_grid_manager = {
     /*** Start: Row data ***/
-    async get_new_column(id) {
-        return await web_file_http.get_new_column(id);
+    async get_new_column(id, pending) {
+        return await web_file_http.get_new_column(id, pending);
     },
 
     async get_rows(id, params, page_size) {

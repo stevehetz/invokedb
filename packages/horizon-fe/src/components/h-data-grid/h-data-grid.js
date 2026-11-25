@@ -774,7 +774,18 @@ export default {
             this.disable_add_column = true;
             let col_defs = this.col_defs();
 
-            const new_col = await mgr.get_new_column(this.file_directory_id);
+            // Columns added in this edit and not saved yet, including ones deleted again in it
+            // (their batch delete runs on save): the server won't hand them out again
+            const saved = new Set(
+                (this.cached_col_defs || []).map(c => String(c._id))
+            );
+            const pending = [...col_defs, ...(this.delete_columns || [])]
+                .filter(c => c._id && !saved.has(String(c._id)))
+                .map(c => String(c._id));
+            const new_col = await mgr.get_new_column(
+                this.file_directory_id,
+                pending
+            );
             new_col.edit_mode = true;
 
             col_defs.push(new_col);

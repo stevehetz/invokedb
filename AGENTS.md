@@ -305,7 +305,9 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   count goes up. Grid row pages carry `link_labels`; `/web-file/:id/link-targets` and
   `/link-options` feed the settings dialog and picker (`h-data-grid/link-dialog`). `/api/v1`
   returns ids, or rows with `expand=<column>[,<column>]`. Deleting rows clears them from every
-  link to them (owner's decision); link columns are left out of forms.
+  link to them (owner's decision); so does a replace URL re-sync (every row of the table). Deleting
+  the linked table empties those cells and turns the link columns into string columns (#175,
+  `FileDirectoryService.clear_links_to_table`). Link columns are left out of forms.
 - Saved views (#146): `src/core/view/` has the pure rules (`view.ts`: settings checked against
   the columns, filters kept in the grid's own format `{ field, type, value }` and turned into a
   Mongo filter, the kanban and chart aggregations) and the store (`view.manager.ts`,

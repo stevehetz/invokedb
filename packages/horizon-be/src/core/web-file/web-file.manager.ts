@@ -967,6 +967,39 @@ export class WebFileManager {
         }
     }
 
+    /**
+     * Every row of `target_id` is gone (#175): empties every link cell of `table_id` that points
+     * at it. When the table itself was deleted (`to_string`), those columns also become plain
+     * string columns, as they have nothing left to link to; after a replace re-sync they stay
+     * links to the table's new rows. Returns how many columns pointed at it.
+     */
+    async clear_all_links(acct_id, table_id, target_id, to_string: boolean) {
+        const col_coll = await this._collections.get_dg_col(acct_id, table_id);
+        const cols = await col_coll
+            .find({
+                col_type: LINK_TYPE,
+                link_table_id: Number(target_id),
+                deleted: { $ne: true }
+            })
+            .toArray();
+        if (cols.length === 0) return 0;
+        const row_coll = await this._collections.get_dg_row(acct_id, table_id);
+        for (const col of cols) {
+            const field = col.field;
+            await row_coll.updateMany({ [field]: { $ne: null } }, { $set: { [field]: null } });
+            if (to_string) {
+                await col_coll.updateOne(
+                    { _id: col._id },
+                    {
+                        $set: { col_type: 'string' },
+                        $unset: { link_table_id: '', link_display_field: '' }
+                    }
+                );
+            }
+        }
+        return cols.length;
+    }
+
     async delete_dg(account, file_id) {
         const col = await this._collections.get_dg_col(account.id, file_id);
         await col.drop();

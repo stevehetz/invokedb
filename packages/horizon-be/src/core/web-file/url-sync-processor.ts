@@ -137,18 +137,34 @@ export class UrlSyncProcessor {
         if (this.running.has(file_id)) this.cancelled.add(file_id);
     }
 
-    async sync(account, file_id: number, file_path: string, settings: SyncSettings) {
+    /**
+     * `on_rows_replaced` runs once a replace has deleted the table's old rows (even if writing
+     * the new ones then fails), so links to the old rows can be cleared (#175).
+     */
+    async sync(
+        account,
+        file_id: number,
+        file_path: string,
+        settings: SyncSettings,
+        on_rows_replaced?: () => Promise<void>
+    ) {
         this.running.add(file_id);
         this.cancelled.delete(file_id);
         try {
-            return await this.run(account, file_id, file_path, settings);
+            return await this.run(account, file_id, file_path, settings, on_rows_replaced);
         } finally {
             this.running.delete(file_id);
             this.cancelled.delete(file_id);
         }
     }
 
-    private async run(account, file_id: number, file_path: string, settings: SyncSettings) {
+    private async run(
+        account,
+        file_id: number,
+        file_path: string,
+        settings: SyncSettings,
+        on_rows_replaced?: () => Promise<void>
+    ) {
         const deadline = Date.now() + _c.JOB_PROCESSOR_TIMEOUT_MIN * 60 * 1000;
         const check = () => {
             if (this.cancelled.has(file_id)) throw new Error('File delete request');
@@ -215,20 +231,26 @@ export class UrlSyncProcessor {
             await row_coll.deleteMany({});
             let batch = [];
             let row_index = 0;
-            let header = true;
-            for await (const record of this.records(file_path)) {
-                if (header) {
-                    header = false;
-                    continue;
+            try {
+                let header = true;
+                for await (const record of this.records(file_path)) {
+                    if (header) {
+                        header = false;
+                        continue;
+                    }
+                    check();
+                    batch.push({ ...this.row_of(plan, record, file_id), row_index: ++row_index });
+                    if (batch.length >= BATCH_SIZE) {
+                        await row_coll.insertMany(batch);
+                        batch = [];
+                    }
                 }
-                check();
-                batch.push({ ...this.row_of(plan, record, file_id), row_index: ++row_index });
-                if (batch.length >= BATCH_SIZE) {
-                    await row_coll.insertMany(batch);
-                    batch = [];
-                }
+                if (batch.length > 0) await row_coll.insertMany(batch);
+            } finally {
+                // Every old row is gone, so every link to one is stale; this runs after the
+                // inserts so it also clears a link column of this table that points at itself
+                if (on_rows_replaced) await on_rows_replaced();
             }
-            if (batch.length > 0) await row_coll.insertMany(batch);
             result.rows = row_index;
             result.inserted = row_index;
         } else {

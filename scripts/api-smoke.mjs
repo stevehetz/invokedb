@@ -307,7 +307,7 @@ await billing_checks();
 // "stubbed": this script signs Stripe-shaped events itself, as Stripe would.
 async function billing_checks() {
     const email = `smoke-${Date.now()}@invokedb.com`;
-    const password = 'Smoke-test-1A';
+    const password = 'Smoke-test-1A!'; // the special character must be one of !@#$%^&* (validators.ts)
     await call('signup', 'POST', '/auth/create-account', { body: { email, password } });
     const s = await call('signup_login', 'POST', '/auth/login', { body: { email, password } });
     const t = s.token;

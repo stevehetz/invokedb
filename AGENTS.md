@@ -170,9 +170,10 @@ without merging also marks its issue `agent-stuck`; removing the label asks for 
   needing a decision (`you`), visual checks, or production.
 - When writing an issue for the agent, put everything it needs in the body: it can't ask.
 - Follow-ups it finds (out-of-scope bugs, `.github/` changes it can't make) become issues labelled
-  `agent-found`, at most 3 per run, checked for duplicates and added to the board (#69). The user
-  triages them: the workflow strips `agent`/`you`/`hold`, and the queue takes one only after the
-  user adds `agent` (it checks who added the label).
+  `agent-found`, at most 3 per run, checked for duplicates and added to the board (#69). The workflow
+  strips `agent`/`you`/`hold`; then **bugs** (`bug`, not `security`) get `agent` from the workflow
+  and are queued straight away (#196). Everything else (features, security triage, decisions) waits
+  for the user to add `agent` (the queue checks who added the label).
 - It can't change `.github/workflows/`: the Claude GitHub App has no `workflows` permission, so
   GitHub refuses the push (#10, #67). Don't label such issues `agent`; do them in a local session.
 

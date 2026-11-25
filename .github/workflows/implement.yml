@@ -161,6 +161,11 @@ jobs:
             for l in agent you hold; do
               if grep -qx "$l" <<<"$labels"; then gh issue edit "$n" -R "$R" --remove-label "$l"; fi
             done
+            # Agent-found bugs go straight to the queue; features, security and decisions wait for
+            # the owner's `agent` label (#196). agent-queue.yml accepts this label from the workflow.
+            if grep -qx bug <<<"$labels" && ! grep -qx security <<<"$labels"; then
+              gh issue edit "$n" -R "$R" --add-label agent
+            fi
             if [ -n "$PROJECTS_TOKEN" ]; then
               # A direct GraphQL add: `gh project item-add --owner` fails with "unknown owner type" (#193)
               add_q='mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}'

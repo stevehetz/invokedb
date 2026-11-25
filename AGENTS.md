@@ -333,6 +333,13 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `get_file_id` (writes: create/update/delete) and for `expand`. There's no `account.api_key`
   any more: the smoke tests and `examples/setup.mjs` make their own keys, and the onboarding
   command has a `YOUR_API_KEY` placeholder the app fills with a key made in the same visit.
+- Per-key limits and request logs (#216): a key may have its own rate limit, set when it's made
+  (`rate_limit_per_second`, `rate_limit_burst`; none means only the account's per-minute limit).
+  `ApiKeyUsageGuard` (after the bearer guard on `/api/v1`) applies it with an in-memory token
+  bucket (`core/api-key/key-rate-limit.ts`; 429 + `Retry-After`) and logs every key call on
+  `finish` (time, method, path without query, status, duration) into `tracking:api_key_request`,
+  one document per key capped at 100 by `$push`/`$slice` (`key-request-log.manager.ts`; filter on
+  `account_id`). `GET /api-key/:id/requests` (session only); the Account page shows it under a key.
 - Saved views (#146): `src/core/view/` has the pure rules (`view.ts`: settings checked against
   the columns, filters kept in the grid's own format `{ field, type, value }` and turned into a
   Mongo filter, the kanban and chart aggregations) and the store (`view.manager.ts`,

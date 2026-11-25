@@ -13,6 +13,7 @@ import { HealthController } from './http/health/health.controller';
 import { TableTemplateController } from './http/table-template/table-template.controller';
 import { OnboardingController } from './http/onboarding/onboarding.controller';
 import { OnboardingInterceptor } from './http/external/onboarding.interceptor';
+import { ApiKeyUsageGuard } from './http/external/api-key-usage.guard';
 import { UrlImportController } from './http/url-import/url-import.controller';
 import { WebhookController } from './http/webhook/webhook.controller';
 import { FormController, PublicFormController } from './http/form/form.controller';
@@ -51,6 +52,6 @@ import { WebsocketClient } from './ws/websocket-client';
         PublicDashboardController,
         AiController
     ],
-    providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor]
+    providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor, ApiKeyUsageGuard]
 })
 export class WebModule {}

@@ -28,6 +28,14 @@ export class ApiKey {
     @Column({ type: 'int', array: true, nullable: true })
     table_ids: number[] | null;
 
+    // The key's own request limit (#216): null for none, so only the account's limit applies.
+    // A float column, which TypeORM returns as a number.
+    @Column({ type: 'double precision', nullable: true })
+    rate_limit_per_second: number | null;
+
+    @Column({ type: 'int', nullable: true })
+    rate_limit_burst: number | null;
+
     @CreateDateColumn()
     created_datetime: Date;
 

@@ -95,6 +95,41 @@
                     ></el-option>
                 </el-select>
             </div>
+            <div class="api-key-row">
+                <label>Limit</label>
+                <el-radio-group class="api-key-limit" v-model="form.limited">
+                    <el-radio :value="false">Account's limit only</el-radio>
+                    <el-radio :value="true">Its own limit too</el-radio>
+                </el-radio-group>
+            </div>
+            <div class="api-key-row api-key-limit-fields" v-if="form.limited">
+                <label></label>
+                <el-input-number
+                    class="api-key-rate"
+                    v-model="form.per_second"
+                    :min="min_rate"
+                    :max="max_rate"
+                    :step="1"
+                    size="small"
+                    controls-position="right"
+                    aria-label="Requests per second"
+                ></el-input-number>
+                <span class="api-key-limit-unit"
+                    >requests a second, bursts of</span
+                >
+                <el-input-number
+                    class="api-key-burst"
+                    v-model="form.burst"
+                    :min="1"
+                    :max="max_burst"
+                    :step="1"
+                    :step-strictly="true"
+                    :placeholder="String(default_burst)"
+                    size="small"
+                    controls-position="right"
+                    aria-label="Burst"
+                ></el-input-number>
+            </div>
             <div class="api-key-actions">
                 <el-button size="small" @click="show_new = false"
                     >Cancel</el-button
@@ -125,42 +160,125 @@
                     <th>Key</th>
                     <th>Access</th>
                     <th>Tables</th>
+                    <th>Limit</th>
                     <th>Last used</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
-                <tr
-                    v-for="k in shown_keys"
-                    :key="k.id"
-                    class="api-key-item"
-                    :class="{ revoked: !!k.revoked_datetime }"
-                    :data-key-id="k.id"
-                >
-                    <td class="api-key-item-name">{{ k.name }}</td>
-                    <td>
-                        <code>{{ k.prefix }}…</code>
-                    </td>
-                    <td>{{ access_label(k.access) }}</td>
-                    <td>{{ tables_label(k) }}</td>
-                    <td>
-                        {{ k.last_used_datetime ? time(k.last_used_datetime) :
-                        'Never' }}
-                    </td>
-                    <td class="api-key-item-actions">
-                        <span v-if="k.revoked_datetime" class="api-key-revoked"
-                            >Revoked {{ time(k.revoked_datetime) }}</span
-                        >
-                        <el-button
-                            v-else
-                            class="api-key-revoke"
-                            link
-                            type="danger"
-                            @click="revoke(k)"
-                            >Revoke</el-button
-                        >
-                    </td>
-                </tr>
+                <template v-for="k in shown_keys" :key="k.id">
+                    <tr
+                        class="api-key-item"
+                        :class="{ revoked: !!k.revoked_datetime }"
+                        :data-key-id="k.id"
+                    >
+                        <td class="api-key-item-name">{{ k.name }}</td>
+                        <td>
+                            <code>{{ k.prefix }}…</code>
+                        </td>
+                        <td>{{ access_label(k.access) }}</td>
+                        <td>{{ tables_label(k) }}</td>
+                        <td class="api-key-item-limit">{{ limit_label(k) }}</td>
+                        <td>
+                            {{ k.last_used_datetime ? time(k.last_used_datetime)
+                            : 'Never' }}
+                        </td>
+                        <td class="api-key-item-actions">
+                            <el-button
+                                class="api-key-requests-toggle"
+                                link
+                                type="primary"
+                                @click="toggle_requests(k)"
+                                >{{ open_requests === k.id ? 'Hide requests' :
+                                'Requests' }}</el-button
+                            >
+                            <span
+                                v-if="k.revoked_datetime"
+                                class="api-key-revoked"
+                                >Revoked {{ time(k.revoked_datetime) }}</span
+                            >
+                            <el-button
+                                v-else
+                                class="api-key-revoke"
+                                link
+                                type="danger"
+                                @click="revoke(k)"
+                                >Revoke</el-button
+                            >
+                        </td>
+                    </tr>
+                    <tr
+                        v-if="open_requests === k.id"
+                        class="api-key-requests-row"
+                        :data-key-id="k.id"
+                    >
+                        <td colspan="7">
+                            <div class="api-key-requests">
+                                <div
+                                    class="api-key-status"
+                                    v-if="requests_loading"
+                                >
+                                    Loading requests...
+                                </div>
+                                <div
+                                    class="api-key-status error"
+                                    v-else-if="requests_error"
+                                >
+                                    {{ requests_error }}
+                                </div>
+                                <div
+                                    class="api-key-status api-key-requests-empty"
+                                    v-else-if="requests.length === 0"
+                                >
+                                    No requests with this key yet.
+                                </div>
+                                <template v-else>
+                                    <div class="api-key-requests-note">
+                                        The last {{ requests.length }} of up to
+                                        {{ requests_max }} requests, newest
+                                        first.
+                                        <el-button
+                                            link
+                                            type="primary"
+                                            @click="load_requests(k)"
+                                            >Refresh</el-button
+                                        >
+                                    </div>
+                                    <table class="api-key-requests-list">
+                                        <thead>
+                                            <tr>
+                                                <th>Time</th>
+                                                <th>Method</th>
+                                                <th>Path</th>
+                                                <th>Status</th>
+                                                <th>Duration</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr
+                                                v-for="(r, i) in requests"
+                                                :key="i"
+                                                class="api-key-request"
+                                            >
+                                                <td>{{ time(r.at) }}</td>
+                                                <td>{{ r.method }}</td>
+                                                <td>
+                                                    <code>{{ r.path }}</code>
+                                                </td>
+                                                <td
+                                                    :class="{ 'request-failed': r.status >= 400 }"
+                                                >
+                                                    {{ r.status }}
+                                                </td>
+                                                <td>{{ r.duration_ms }} ms</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </template>
+                            </div>
+                        </td>
+                    </tr>
+                </template>
             </tbody>
         </table>
         <div

@@ -18,9 +18,11 @@ import { api_key_account } from '@app/web/http/_auth/request-account';
 import { assert_key_allows } from '@app/core/api-key/api-key-rules';
 import { public_api_base_url } from '@app/web/http/public-api-url';
 import { OnboardingInterceptor } from './onboarding.interceptor';
+import { ApiKeyUsageGuard } from './api-key-usage.guard';
 
 @Controller('api/v1')
-@UseGuards(AuthGuard('bearer'))
+// The key's own rate limit and its request log (#216), once the key is known
+@UseGuards(AuthGuard('bearer'), ApiKeyUsageGuard)
 // A successful call ticks the onboarding checklist's last step (#143)
 @UseInterceptors(OnboardingInterceptor)
 export class ExternalV1Controller {

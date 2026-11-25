@@ -30,12 +30,48 @@ export interface ApiKeyScope {
     access: ApiKeyAccess;
     // null: every table of the account, now and later
     table_ids: number[] | null;
+    // null: no limit of its own, only the account's per-minute limit (#216)
+    rate_limit: KeyRateLimit | null;
+}
+
+/**
+ * A key's own request limit (#216), set when the key is made: on average `per_second` requests
+ * a second, with up to `burst` at once (a token bucket of `burst` tokens refilled at `per_second`).
+ */
+export interface KeyRateLimit {
+    per_second: number;
+    burst: number;
 }
 
 export interface NewApiKey {
     name: string;
     access: ApiKeyAccess;
     table_ids: number[] | null;
+    rate_limit: KeyRateLimit | null;
+}
+
+export const MIN_KEY_RATE = 0.1;
+export const MAX_KEY_RATE = 1000;
+export const MAX_KEY_BURST = 10000;
+// With no burst given, a key may make this many seconds' worth of requests at once
+export const DEFAULT_BURST_SECONDS = 2;
+
+/** The burst a key gets when none is given: two seconds' worth, at least one request. */
+export function default_burst(per_second: number): number {
+    return Math.min(MAX_KEY_BURST, Math.max(1, Math.ceil(per_second * DEFAULT_BURST_SECONDS)));
+}
+
+/** The key's limit from its stored columns, or null for a key without one. */
+export function key_rate_limit(
+    per_second: number | string | null | undefined,
+    burst: number | string | null | undefined
+): KeyRateLimit | null {
+    if (per_second === null || per_second === undefined) return null;
+    const rate = Number(per_second);
+    if (!(rate > 0)) return null;
+    const b = Number(burst);
+    const has_burst = burst !== null && burst !== undefined && Number.isInteger(b) && b >= 1;
+    return { per_second: rate, burst: has_burst ? b : default_burst(rate) };
 }
 
 /**
@@ -74,7 +110,45 @@ export function parse_new_key(body: unknown): NewApiKey {
         if (table_ids.length === 0) bad_request('Pick at least one table, or leave out table_ids');
         if (table_ids.length > MAX_KEY_TABLES) bad_request(`At most ${MAX_KEY_TABLES} tables`);
     }
-    return { name, access: b.access, table_ids };
+    return { name, access: b.access, table_ids, rate_limit: parse_rate_limit(b) };
+}
+
+const is_blank = (v: unknown) => v === undefined || v === null || v === '';
+
+/**
+ * `rate_limit_per_second` (MIN_KEY_RATE..MAX_KEY_RATE, may be a fraction: 0.5 is 30 a minute)
+ * and `rate_limit_burst` (a whole number from 1 to MAX_KEY_BURST; two seconds' worth when left
+ * out). Both left out: no limit of the key's own, so only the account's limit applies.
+ */
+function parse_rate_limit(b: any): KeyRateLimit | null {
+    if (is_blank(b.rate_limit_per_second)) {
+        if (!is_blank(b.rate_limit_burst)) {
+            bad_request('rate_limit_burst needs rate_limit_per_second');
+        }
+        return null;
+    }
+    const per_second = Number(b.rate_limit_per_second);
+    if (
+        typeof b.rate_limit_per_second === 'boolean' ||
+        !Number.isFinite(per_second) ||
+        per_second < MIN_KEY_RATE ||
+        per_second > MAX_KEY_RATE
+    ) {
+        bad_request(
+            `rate_limit_per_second must be a number from ${MIN_KEY_RATE} to ${MAX_KEY_RATE}`
+        );
+    }
+    if (is_blank(b.rate_limit_burst)) return { per_second, burst: default_burst(per_second) };
+    const burst = Number(b.rate_limit_burst);
+    if (
+        typeof b.rate_limit_burst === 'boolean' ||
+        !Number.isInteger(burst) ||
+        burst < 1 ||
+        burst > MAX_KEY_BURST
+    ) {
+        bad_request(`rate_limit_burst must be a whole number from 1 to ${MAX_KEY_BURST}`);
+    }
+    return { per_second, burst };
 }
 
 /** Why a key can't make this call, or null if it can. */

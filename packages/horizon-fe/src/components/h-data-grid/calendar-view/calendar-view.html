@@ -1,0 +1,74 @@
+<div class="calendar-view">
+    <div class="view-status error" v-if="error">{{ error }}</div>
+    <div class="calendar-panel">
+        <div class="calendar-head">
+            <div class="calendar-nav">
+                <el-button size="small" @click="go(-1)" title="Previous month"
+                    ><i class="fa fa-chevron-left"></i
+                ></el-button>
+                <el-button size="small" @click="go_today">Today</el-button>
+                <el-button size="small" @click="go(1)" title="Next month"
+                    ><i class="fa fa-chevron-right"></i
+                ></el-button>
+            </div>
+            <b class="calendar-title">{{ title }}</b>
+            <span class="calendar-count">
+                <template v-if="loading">Loading...</template>
+                <template v-else
+                    >{{ month_count }} {{ month_count === 1 ? 'row' : 'rows'
+                    }}</template
+                >
+            </span>
+        </div>
+        <div class="calendar-status" v-if="truncated">
+            Showing the first {{ events.length }} rows of these weeks.
+        </div>
+        <table class="calendar-grid">
+            <thead>
+                <tr>
+                    <th v-for="w in weekdays" :key="w">{{ w }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="(week, i) in weeks" :key="i">
+                    <td
+                        v-for="d in week"
+                        :key="d.date"
+                        :class="['calendar-day', { other: !d.in_month, today: d.date === today }]"
+                        :data-date="d.date"
+                    >
+                        <div class="calendar-day-num">{{ d.day }}</div>
+                        <div
+                            class="calendar-event"
+                            v-for="e in shown(d.date)"
+                            :key="e._id"
+                            :title="(e.time ? e.time + ' ' : '') + e.title"
+                        >
+                            <span class="calendar-event-time" v-if="e.time"
+                                >{{ e.time }}</span
+                            >
+                            {{ e.title }}
+                        </div>
+                        <button
+                            type="button"
+                            class="calendar-more"
+                            v-if="(by_day[d.date] || []).length > day_events"
+                            @click="toggle_day(d.date)"
+                        >
+                            <template v-if="open_day === d.date"
+                                >Show less</template
+                            >
+                            <template v-else
+                                >+ {{ by_day[d.date].length - day_events }}
+                                more</template
+                            >
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <div class="calendar-status">
+            Dates are shown in UTC, as in the grid.
+        </div>
+    </div>
+</div>

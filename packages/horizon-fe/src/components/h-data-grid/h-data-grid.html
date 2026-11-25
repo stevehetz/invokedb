@@ -219,6 +219,16 @@
                 :key="current_view.id + ':' + view_version"
                 :view="current_view"
             ></chart-view>
+            <calendar-view
+                v-if="current_view.type === 'calendar'"
+                :key="current_view.id + ':' + view_version"
+                :view="current_view"
+            ></calendar-view>
+            <map-view
+                v-if="current_view.type === 'map'"
+                :key="current_view.id + ':' + view_version"
+                :view="current_view"
+            ></map-view>
         </div>
         <ag-grid-vue
             :class="['ag-grid-wrapper', { 'behind-view': other_view }]"

@@ -14,8 +14,8 @@
 // checks signatures; refused private URLs, a retry, demo2 locked out), checks shareable forms
 // (#145: public view and submissions, typed answers, honeypot, closing, the rate limit, deleted
 // forms and tables, demo2 locked out), checks saved views (#146: grid views saved, renamed and
-// deleted, a kanban board and a moved card, bar/pie/line charts, demo2 and API keys locked
-// out, a deleted table's views gone), checks dashboards (#209: chart, table and stat tiles read
+// deleted, a kanban board and a moved card, bar/pie/line charts, a calendar's days and a map's
+// points (#211), demo2 and API keys locked out, a deleted table's views gone), checks dashboards (#209: chart, table and stat tiles read
 // live, a share link replaced and revoked, a deleted view shown in its tile, demo2 and API keys
 // locked out), checks link columns (#147: picker, grid labels, ids and
 // `expand` on /api/v1, bad links refused, deleted rows cleared from links, no links across
@@ -1968,7 +1968,23 @@ const bad_views = {
         hidden_fields: [v_task, v_owner, view_col('Priority'), v_status, v_hours, v_due]
     },
     view_create_unknown_setting: { ...grid_view_body, account_id: me.id },
-    view_create_bad_type: { ...grid_view_body, type: 'calendar' },
+    view_create_bad_type: { ...grid_view_body, type: 'gantt' },
+    view_create_calendar_no_date: { ...grid_view_body, type: 'calendar' },
+    view_create_calendar_text: {
+        ...grid_view_body,
+        type: 'calendar',
+        calendar: { date_field: v_status }
+    },
+    view_create_map_text: {
+        ...grid_view_body,
+        type: 'map',
+        map: { lat_field: v_hours, lng_field: v_status }
+    },
+    view_create_map_same: {
+        ...grid_view_body,
+        type: 'map',
+        map: { lat_field: v_hours, lng_field: v_hours }
+    },
     view_create_kanban_no_group: { ...grid_view_body, type: 'kanban' },
     view_create_kanban_date: { ...grid_view_body, type: 'kanban', kanban: { group_field: v_due } },
     view_create_chart_sum_no_value: {
@@ -2114,6 +2130,114 @@ await call('view_chart_of_kanban', 'GET', `/view/${kview?.id}/chart`, {
     expectFail: true
 });
 
+// Calendar (#211): rows placed by Due (2026-11-20, 2026-12-01, 2026-12-05, 2026-12-08), titled
+// by Task, read a range of days at a time
+const cview = await call('view_create_calendar', 'POST', '/view', {
+    token,
+    body: {
+        file_id: view_table,
+        name: 'Due smoke',
+        type: 'calendar',
+        calendar: { date_field: v_due, title_field: v_task }
+    }
+});
+const cal_days = res => (res?.events || []).map(e => e.date).join(',');
+const cal_dec = await call(
+    'view_calendar_dec',
+    'GET',
+    `/view/${cview?.id}/calendar?from=2026-12-01&to=2027-01-01`,
+    { token }
+);
+check(
+    'view_calendar_dec',
+    cview?.calendar?.date_field === v_due &&
+        cal_dec?.from === '2026-12-01' &&
+        cal_days(cal_dec) === '2026-12-01,2026-12-05,2026-12-08' &&
+        (cal_dec?.events || []).every(e => typeof e.title === 'string' && e.title.length > 0),
+    cal_dec
+);
+const cal_nov = await call(
+    'view_calendar_nov',
+    'GET',
+    `/view/${cview?.id}/calendar?from=2026-11-01&to=2026-12-01`,
+    { token }
+);
+check('view_calendar_nov', cal_days(cal_nov) === '2026-11-20', cal_nov);
+const cal_default = await call('view_calendar_default', 'GET', `/view/${cview?.id}/calendar`, {
+    token
+});
+check(
+    'view_calendar_default_month',
+    /^\d{4}-\d{2}-01$/.test(cal_default?.from || '') && Array.isArray(cal_default?.events),
+    cal_default
+);
+const bad_ranges = {
+    view_calendar_bad_day: '?from=2026-12-01&to=soon',
+    view_calendar_too_long: '?from=2026-01-01&to=2026-12-01',
+    view_calendar_backwards: '?from=2026-12-08&to=2026-12-01',
+    view_calendar_half: '?from=2026-12-01'
+};
+for (const [name, q] of Object.entries(bad_ranges)) {
+    await call(name, 'GET', `/view/${cview?.id}/calendar${q}`, { token, expectFail: true });
+}
+check(
+    'view_calendar_bad_range_is_400',
+    Object.keys(bad_ranges).every(n => results[n]?.status === 400),
+    Object.keys(bad_ranges).map(n => [n, results[n]?.status])
+);
+await call('view_calendar_of_kanban', 'GET', `/view/${kview?.id}/calendar`, {
+    token,
+    expectFail: true
+});
+
+// Map (#211), on an inventory-template table (Reorder Level: 50, 40, 25, 200; Unit Price: 9.5,
+// 18, 14.25, 1.2) standing in for latitude and longitude: 200 isn't a latitude, so that row is
+// left off the map and counted as missing
+const map_table = await call('view_map_table', 'POST', '/table-template/inventory', {
+    token,
+    body: { name: 'smoke_view_map' }
+});
+const map_cols = await call(
+    'view_map_table_cols',
+    'POST',
+    `/web-file/data_grid_column/${map_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const map_col = name => (map_cols.data || []).find(c => c.headerName === name)?.field;
+const [m_product, m_lat, m_lng] = ['Product', 'Reorder Level', 'Unit Price'].map(map_col);
+const mview = await call('view_create_map', 'POST', '/view', {
+    token,
+    body: {
+        file_id: map_table,
+        name: 'Map smoke',
+        type: 'map',
+        map: { lat_field: m_lat, lng_field: m_lng, label_field: m_product }
+    }
+});
+const map_res = await call('view_map', 'GET', `/view/${mview?.id}/map`, { token });
+const map_pts = (map_res?.points || [])
+    .map(p => `${p.lat},${p.lng}`)
+    .sort()
+    .join(';');
+check(
+    'view_map_points',
+    map_pts === '25,14.25;40,18;50,9.5' &&
+        map_res?.missing === 1 &&
+        (map_res?.points || []).some(p => p.label === 'Ceramic mug'),
+    map_res
+);
+await call('view_map_filter', 'PUT', `/view/${mview?.id}`, {
+    token,
+    body: { filters: [{ field: m_lng, type: 'greaterThan', value: '10' }] }
+});
+const map_filtered = await call('view_map_filtered', 'GET', `/view/${mview?.id}/map`, { token });
+check(
+    'view_map_filtered',
+    (map_filtered?.points || []).length === 2 && map_filtered?.missing === 0,
+    map_filtered
+);
+await call('view_map_of_calendar', 'GET', `/view/${cview?.id}/map`, { token, expectFail: true });
+
 // demo2 can't see, use, change or delete demo's views, nor put one on demo's table; an API key
 // can't use views at all
 const view_other = await call('view_other_login', 'POST', '/auth/login', {
@@ -2125,6 +2249,20 @@ const other_view_calls = {
     view_other_get: ['GET', `/view/${kview?.id}`],
     view_other_kanban: ['GET', `/view/${kview?.id}/kanban`],
     view_other_chart: ['GET', `/view/${bar.view?.id}/chart`],
+    view_other_calendar: ['GET', `/view/${cview?.id}/calendar`],
+    view_other_calendar_range: ['GET', `/view/${cview?.id}/calendar?from=2026-12-01&to=2027-01-01`],
+    view_other_map: ['GET', `/view/${mview?.id}/map`],
+    view_other_map_rename: ['PUT', `/view/${mview?.id}`, { name: 'mine now' }],
+    view_other_map_create: [
+        'POST',
+        '/view',
+        {
+            file_id: map_table,
+            name: 'on your table',
+            type: 'map',
+            map: { lat_field: m_lat, lng_field: m_lng }
+        }
+    ],
     view_other_rename: ['PUT', `/view/${kview?.id}`, { name: 'mine now' }],
     view_other_delete: ['DELETE', `/view/${kview?.id}`],
     view_other_create: ['POST', '/view', { ...grid_view_body, name: 'on your table' }]
@@ -2138,6 +2276,18 @@ await call('view_api_key_list', 'GET', `/view?table=${view_table}`, {
     expectFail: true
 });
 await call('view_api_key_get', 'GET', `/view/${kview?.id}`, { token: key, expectFail: true });
+await call('view_api_key_map', 'GET', `/view/${mview?.id}/map`, { token: key, expectFail: true });
+const mview_after = await call('view_map_after_other', 'GET', `/view/${mview?.id}`, { token });
+check('view_map_unchanged_by_other', mview_after?.name === 'Map smoke', mview_after);
+await call('view_map_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [map_table] }
+});
+await call('view_map_table_deleted', 'GET', `/view/${mview?.id}/map`, {
+    token,
+    expectFail: true
+});
+check('view_map_table_deleted_is_404', results.view_map_table_deleted?.status === 404);
 const kview_after = await call('view_get_after_other', 'GET', `/view/${kview?.id}`, { token });
 check(
     'view_unchanged_by_other',

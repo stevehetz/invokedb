@@ -31,7 +31,9 @@ function setup() {
             data: [
                 { field: 'a', headerName: 'Task', order: 1 },
                 { field: 'b', headerName: 'Status', order: 2 },
-                { field: 'c', headerName: 'Hours', col_type: 'number', order: 3 }
+                { field: 'c', headerName: 'Hours', col_type: 'number', order: 3 },
+                { field: 'd', headerName: 'Due', col_type: 'date', order: 4 },
+                { field: 'e', headerName: 'Lng', col_type: 'number', order: 5 }
             ]
         })),
         format_data_response: jest.fn(rows => rows)
@@ -56,6 +58,7 @@ function setup() {
             if (i >= 0) views.splice(i, 1);
         }),
         aggregate_rows: jest.fn(async (..._args: any[]): Promise<any[]> => []),
+        count_rows: jest.fn(async (..._args: any[]): Promise<number> => 0),
         find_rows: jest.fn(async (..._args: any[]): Promise<any[]> => [])
     };
     const svc = new ViewService(
@@ -84,7 +87,7 @@ describe('ViewService', () => {
 
         const list = await svc.list(ACCT, '11');
         expect(list.views.map(x => x.id)).toEqual([v.id]);
-        expect(list.columns.map(c => c.field)).toEqual(['a', 'b', 'c']);
+        expect(list.columns.map(c => c.field)).toEqual(['a', 'b', 'c', 'd', 'e']);
 
         expect((await svc.update(ACCT, v.id, { name: 'Renamed' })).name).toBe('Renamed');
         await expect(svc.update(ACCT, v.id, { file_id: 12 })).rejects.toThrow(BadRequestException);
@@ -170,5 +173,71 @@ describe('ViewService', () => {
             truncated: false
         });
         await expect(svc.kanban(ACCT, v.id)).rejects.toThrow(BadRequestException);
+    });
+
+    it('reads a calendar over a range of days (#211)', async () => {
+        const { svc, view_manager } = setup();
+        svc.now = () => Date.UTC(2026, 10, 25);
+        const v = await svc.create(ACCT, {
+            file_id: 11,
+            name: 'Due',
+            type: 'calendar',
+            calendar: { date_field: 'd', title_field: 'a' }
+        });
+        view_manager.find_rows.mockResolvedValue([
+            { _id: 'r1', row_index: 1, a: 'Ship', d: new Date('2026-11-20T00:00:00Z') }
+        ]);
+        const cal = await svc.calendar(ACCT, v.id, undefined, undefined);
+        expect(cal).toMatchObject({
+            date_field: 'd',
+            title_field: 'a',
+            from: '2026-11-01',
+            to: '2026-12-01',
+            events: [{ _id: 'r1', date: '2026-11-20', time: null, title: 'Ship' }],
+            truncated: false
+        });
+        const [, file_id, filter, sort, limit] = view_manager.find_rows.mock.calls[0];
+        expect(file_id).toBe(11);
+        expect(filter).toEqual({
+            d: { $gte: new Date('2026-11-01T00:00:00Z'), $lt: new Date('2026-12-01T00:00:00Z') }
+        });
+        expect(sort).toEqual({ d: 1, _id: 1 });
+        expect(limit).toBe(VIEW_LIMITS.max_calendar_rows + 1);
+        expect((await svc.calendar(ACCT, v.id, '2026-12-01', '2027-01-01')).from).toBe(
+            '2026-12-01'
+        );
+        await expect(svc.calendar(ACCT, v.id, '2026-12-01', 'soon')).rejects.toThrow(
+            BadRequestException
+        );
+        await expect(svc.calendar(OTHER, v.id, undefined, undefined)).rejects.toThrow(
+            NotFoundException
+        );
+        await expect(svc.map(ACCT, v.id)).rejects.toThrow(BadRequestException);
+    });
+
+    it('reads a map, counting rows without a place (#211)', async () => {
+        const { svc, view_manager } = setup();
+        const v = await svc.create(ACCT, {
+            file_id: 11,
+            name: 'Places',
+            type: 'map',
+            map: { lat_field: 'c', lng_field: 'e', label_field: 'a' }
+        });
+        view_manager.find_rows.mockResolvedValue([
+            { _id: 'r1', row_index: 1, a: 'London', c: 51.5, e: -0.12 }
+        ]);
+        view_manager.count_rows.mockResolvedValueOnce(3).mockResolvedValueOnce(1);
+        expect(await svc.map(ACCT, v.id)).toEqual({
+            lat_field: 'c',
+            lng_field: 'e',
+            label_field: 'a',
+            points: [{ _id: 'r1', lat: 51.5, lng: -0.12, label: 'London' }],
+            truncated: false,
+            missing: 2
+        });
+        await expect(svc.map(OTHER, v.id)).rejects.toThrow(NotFoundException);
+        await expect(svc.calendar(ACCT, v.id, undefined, undefined)).rejects.toThrow(
+            BadRequestException
+        );
     });
 });

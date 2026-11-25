@@ -2,7 +2,8 @@
     <p class="views-intro">
         Save the grid's filters, sort and hidden columns as a named view of
         <b>{{ table_name }}</b>, shown as the grid, as kanban cards grouped by a
-        column, or as a chart.
+        column, as a chart, as a calendar over a date column or as a map of
+        latitude and longitude.
     </p>
 
     <div class="views-status" v-if="loading">Loading views...</div>
@@ -98,6 +99,96 @@
                         {{ c.name }}
                     </option>
                 </select>
+            </div>
+        </template>
+
+        <template v-if="draft.type === 'calendar'">
+            <div class="view-editor-row">
+                <label>Date column</label>
+                <select
+                    class="view-editor-date-field"
+                    v-model="draft.date_field"
+                >
+                    <option
+                        v-for="c in date_columns"
+                        :key="c.field"
+                        :value="c.field"
+                    >
+                        {{ c.name }}
+                    </option>
+                </select>
+            </div>
+            <div class="view-editor-row">
+                <label>Title</label>
+                <select
+                    class="view-editor-title-field"
+                    v-model="draft.title_field"
+                >
+                    <option :value="null">Row number</option>
+                    <option
+                        v-for="c in group_columns"
+                        :key="c.field"
+                        :value="c.field"
+                    >
+                        {{ c.name }}
+                    </option>
+                </select>
+            </div>
+            <div class="views-hint" v-if="date_columns.length === 0">
+                A calendar view needs a date column.
+            </div>
+        </template>
+
+        <template v-if="draft.type === 'map'">
+            <div class="view-editor-row">
+                <label>Latitude</label>
+                <select class="view-editor-lat-field" v-model="draft.lat_field">
+                    <option
+                        v-for="c in number_columns"
+                        :key="c.field"
+                        :value="c.field"
+                    >
+                        {{ c.name }}
+                    </option>
+                </select>
+            </div>
+            <div class="view-editor-row">
+                <label>Longitude</label>
+                <select class="view-editor-lng-field" v-model="draft.lng_field">
+                    <option
+                        v-for="c in number_columns"
+                        :key="c.field"
+                        :value="c.field"
+                    >
+                        {{ c.name }}
+                    </option>
+                </select>
+            </div>
+            <div class="view-editor-row">
+                <label>Label</label>
+                <select
+                    class="view-editor-label-field"
+                    v-model="draft.label_field"
+                >
+                    <option :value="null">Row number</option>
+                    <option
+                        v-for="c in group_columns"
+                        :key="c.field"
+                        :value="c.field"
+                    >
+                        {{ c.name }}
+                    </option>
+                </select>
+            </div>
+            <div class="views-hint" v-if="number_columns.length < 2">
+                A map view needs two number columns: latitude and longitude, in
+                degrees.
+            </div>
+            <div
+                class="views-hint"
+                v-else-if="draft.lat_field && draft.lat_field === draft.lng_field"
+            >
+                Pick different latitude and longitude columns.
             </div>
         </template>
 

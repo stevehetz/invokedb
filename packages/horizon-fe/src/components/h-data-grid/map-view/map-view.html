@@ -1,0 +1,93 @@
+<div class="map-view">
+    <div class="view-status" v-if="loading">Loading the map...</div>
+    <div class="view-status error" v-if="error">{{ error }}</div>
+    <div class="view-status" v-if="!loading && !error && points.length === 0">
+        No rows of this view have a latitude and longitude.
+    </div>
+    <div class="map-panel" v-if="!loading && points.length > 0">
+        <div class="map-title">
+            <b>{{ view.name }}</b>
+            <span class="map-readout">
+                <template v-if="current">
+                    {{ current.label }}: {{ coord(current.lat) }}, {{
+                    coord(current.lng) }}
+                    <a
+                        class="map-osm-link"
+                        :href="osm_link(current.lat, current.lng)"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        >Open map</a
+                    >
+                </template>
+                <template v-else
+                    >{{ points.length }} {{ points.length === 1 ? 'point' :
+                    'points' }}</template
+                >
+            </span>
+        </div>
+
+        <svg
+            class="map-svg"
+            :viewBox="'0 0 ' + width + ' ' + height"
+            role="img"
+            :aria-label="view.name"
+            @mouseleave="hover = null"
+        >
+            <rect class="map-bg" :width="width" :height="height"></rect>
+            <g class="map-grid">
+                <template v-for="l in geo.lng_lines" :key="'x' + l.label">
+                    <line :x1="l.pos" :x2="l.pos" y1="0" :y2="height"></line>
+                    <text class="map-tick" :x="l.pos + 3" :y="height - 6">
+                        {{ l.label }}
+                    </text>
+                </template>
+                <template v-for="l in geo.lat_lines" :key="'y' + l.label">
+                    <line x1="0" :x2="width" :y1="l.pos" :y2="l.pos"></line>
+                    <text class="map-tick" x="4" :y="l.pos - 3">
+                        {{ l.label }}
+                    </text>
+                </template>
+            </g>
+            <g
+                v-for="d in geo.dots"
+                :key="points[d.i]._id"
+                :class="['map-point', { on: hover === d.i || picked === d.i }]"
+                @mouseenter="hover = d.i"
+                @click="pick(d.i)"
+            >
+                <circle class="map-hit" :cx="d.x" :cy="d.y" r="10"></circle>
+                <circle class="map-dot" :cx="d.x" :cy="d.y" r="5">
+                    <title>{{ points[d.i].label }}</title>
+                </circle>
+            </g>
+        </svg>
+
+        <div class="view-status" v-if="truncated">
+            Showing the first {{ points.length }} points.
+        </div>
+        <div class="view-status" v-if="missing > 0">
+            {{ missing }} {{ missing === 1 ? 'row has' : 'rows have' }} no
+            latitude or longitude in range, so {{ missing === 1 ? "it isn't" :
+            "they aren't" }} on the map.
+        </div>
+
+        <details class="map-table">
+            <summary>Show the points</summary>
+            <table>
+                <tr>
+                    <th>Label</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                </tr>
+                <tr v-for="p in points.slice(0, listed)" :key="p._id">
+                    <td>{{ p.label }}</td>
+                    <td class="num">{{ coord(p.lat) }}</td>
+                    <td class="num">{{ coord(p.lng) }}</td>
+                </tr>
+            </table>
+            <div class="view-status" v-if="points.length > listed">
+                Listing the first {{ listed }}.
+            </div>
+        </details>
+    </div>
+</div>

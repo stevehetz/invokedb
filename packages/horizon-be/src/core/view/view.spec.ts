@@ -4,13 +4,18 @@ import {
     ViewError,
     ViewSettings,
     assert_view_columns,
+    calendar_events,
+    calendar_filter,
     chart_pipeline,
     chart_points,
     is_view_id,
     kanban_group_filter,
     kanban_groups,
     kanban_groups_pipeline,
+    map_filter,
+    map_points,
     new_view_id,
+    parse_calendar_range,
     parse_view_settings,
     view_columns,
     view_filter_query,
@@ -71,7 +76,9 @@ describe('parse_view_settings: a new view', () => {
             sort: null,
             hidden_fields: [],
             kanban: null,
-            chart: null
+            chart: null,
+            calendar: null,
+            map: null
         });
     });
 
@@ -124,7 +131,7 @@ describe('parse_view_settings: a new view', () => {
         bad({}, /name/);
         bad({ name: 'x'.repeat(VIEW_LIMITS.max_name_length + 1) }, /at most/);
         bad({ name: 'x', account_id: 2 }, /Unknown view setting: account_id/);
-        bad({ name: 'x', type: 'calendar' }, /type must be/);
+        bad({ name: 'x', type: 'gantt' }, /type must be/);
         bad({ name: 'x', filters: {} }, /must be a list/);
         bad(
             { name: 'x', filters: [{ field: 'zz', type: 'equals', value: '1' }] },
@@ -202,18 +209,37 @@ describe('parse_view_settings: an update', () => {
         ).toEqual({
             type: 'chart',
             chart: { kind: 'bar', group_field: 'b', agg: 'count', value_field: null },
-            kanban: null
+            kanban: null,
+            calendar: null,
+            map: null
         });
         expect(parse_view_settings({ type: 'grid' }, COLUMNS, current)).toEqual({
             type: 'grid',
             kanban: null,
-            chart: null
+            chart: null,
+            calendar: null,
+            map: null
         });
         // Back to kanban with the settings it already has
         expect(parse_view_settings({ type: 'kanban' }, COLUMNS, current)).toEqual({
             type: 'kanban',
             kanban: { group_field: 'b' },
-            chart: null
+            chart: null,
+            calendar: null,
+            map: null
+        });
+        expect(
+            parse_view_settings(
+                { type: 'calendar', calendar: { date_field: 'd' } },
+                COLUMNS,
+                current
+            )
+        ).toEqual({
+            type: 'calendar',
+            calendar: { date_field: 'd', title_field: null },
+            kanban: null,
+            chart: null,
+            map: null
         });
         bad({ type: 'chart' }, /needs a column/, current);
         bad({ name: '' }, /name/, current);
@@ -383,5 +409,168 @@ describe('assert_view_columns', () => {
         );
         expect(() => assert_view_columns(c, changed)).toThrow(/number column/);
         expect(() => assert_view_columns(parse({ name: 'g' }), [])).not.toThrow();
+
+        const cal = parse({ name: 'cal', type: 'calendar', calendar: { date_field: 'd' } });
+        expect(() => assert_view_columns(cal, COLUMNS)).not.toThrow();
+        expect(() =>
+            assert_view_columns(
+                cal,
+                COLUMNS.filter(col => col.field !== 'd')
+            )
+        ).toThrow(/date column/);
+        const m = parse_view_settings(
+            { name: 'm', type: 'map', map: { lat_field: 'c', lng_field: 'f' } },
+            MAP_COLUMNS
+        ) as ViewSettings;
+        expect(() => assert_view_columns(m, MAP_COLUMNS)).not.toThrow();
+        expect(() =>
+            assert_view_columns(
+                m,
+                MAP_COLUMNS.filter(col => col.field !== 'f')
+            )
+        ).toThrow(/longitude/);
+    });
+});
+
+// Hours (c) and Distance (f) are numbers, so they can stand in for latitude and longitude
+const MAP_COLUMNS: ViewColumn[] = [...COLUMNS, { field: 'f', name: 'Distance', type: 'number' }];
+
+describe('calendar views (#211)', () => {
+    it('saves a date column and an optional title column', () => {
+        const v = parse({
+            name: 'Due',
+            type: 'calendar',
+            calendar: { date_field: 'd', title_field: 'a' }
+        });
+        expect(v.calendar).toEqual({ date_field: 'd', title_field: 'a' });
+        expect(v.kanban).toBeNull();
+        expect(v.map).toBeNull();
+        expect(
+            parse({ name: 'n', type: 'calendar', calendar: { date_field: 'd', title_field: '' } })
+                .calendar
+        ).toEqual({ date_field: 'd', title_field: null });
+        bad({ name: 'x', type: 'calendar' }, /needs a date column/);
+        bad({ name: 'x', type: 'calendar', calendar: { date_field: 'a' } }, /string column/);
+        bad(
+            { name: 'x', type: 'calendar', calendar: { date_field: 'd', title_field: 'e' } },
+            /link column/
+        );
+        bad(
+            { name: 'x', type: 'calendar', calendar: { date_field: 'd', color: 'red' } },
+            /Unknown calendar setting/
+        );
+        bad({ name: 'x', calendar: { date_field: 'd' } }, /only go with type calendar/);
+    });
+
+    it('reads a range of days, the current month by default', () => {
+        const now = Date.UTC(2026, 10, 25, 15);
+        const month = parse_calendar_range(undefined, undefined, now);
+        expect(month.from.toISOString()).toBe('2026-11-01T00:00:00.000Z');
+        expect(month.to.toISOString()).toBe('2026-12-01T00:00:00.000Z');
+        const dec = parse_calendar_range('2026-12-01', '2027-01-01', now);
+        expect(dec.to.toISOString()).toBe('2027-01-01T00:00:00.000Z');
+        const r = (from: any, to: any) => () => parse_calendar_range(from, to, now);
+        expect(r('2026-12-01', undefined)).toThrow(/both/);
+        expect(r('2026-02-30', '2026-03-01')).toThrow(/YYYY-MM-DD/);
+        expect(r('2026-12-01T00:00', '2026-12-02')).toThrow(/YYYY-MM-DD/);
+        expect(r({ $gt: '' }, '2026-12-02')).toThrow(ViewError);
+        expect(r('2026-12-02', '2026-12-02')).toThrow(/after/);
+        expect(r('2026-01-01', '2026-06-01')).toThrow(/at most/);
+        expect(() => parse_calendar_range('2026-01-01', '2026-03-04', now)).not.toThrow(); // 62 days
+    });
+
+    it('filters to the range, with the view filter', () => {
+        const range = parse_calendar_range('2026-12-01', '2026-12-08', 0);
+        expect(calendar_filter({}, 'd', range)).toEqual({
+            d: { $gte: range.from, $lt: range.to }
+        });
+        expect(calendar_filter({ $and: [{ b: 'x' }] }, 'd', range)).toEqual({
+            $and: [{ $and: [{ b: 'x' }] }, { d: { $gte: range.from, $lt: range.to } }]
+        });
+    });
+
+    it('turns rows into events', () => {
+        const rows = [
+            { _id: 1, row_index: 4, d: new Date('2026-12-01T00:00:00Z'), a: 'Ship it' },
+            { _id: 2, row_index: 5, d: new Date('2026-12-02T14:30:00Z'), a: '' },
+            { _id: 3, row_index: 6, d: '2026-12-03', a: 'not a date' }
+        ];
+        const cal = { date_field: 'd', title_field: 'a' };
+        expect(calendar_events(rows, cal, COLUMNS)).toEqual({
+            events: [
+                { _id: '1', date: '2026-12-01', time: null, title: 'Ship it' },
+                { _id: '2', date: '2026-12-02', time: '14:30', title: 'Row 5' }
+            ],
+            truncated: false
+        });
+        // A title column that's been deleted falls back to the row number
+        expect(
+            calendar_events(
+                rows.slice(0, 1),
+                cal,
+                COLUMNS.filter(c => c.field !== 'a')
+            ).events[0].title
+        ).toBe('Row 4');
+        const many = Array.from({ length: VIEW_LIMITS.max_calendar_rows + 1 }, (_, i) => ({
+            _id: i,
+            d: new Date('2026-12-01')
+        }));
+        const capped = calendar_events(many, cal, COLUMNS);
+        expect(capped.events.length).toBe(VIEW_LIMITS.max_calendar_rows);
+        expect(capped.truncated).toBe(true);
+    });
+});
+
+describe('map views (#211)', () => {
+    const mp = (body: any) => parse_view_settings(body, MAP_COLUMNS) as ViewSettings;
+
+    it('saves latitude, longitude and an optional label column', () => {
+        const v = mp({
+            name: 'Places',
+            type: 'map',
+            map: { lat_field: 'c', lng_field: 'f', label_field: 'a' }
+        });
+        expect(v.map).toEqual({ lat_field: 'c', lng_field: 'f', label_field: 'a' });
+        expect(v.calendar).toBeNull();
+        const no = (body: any, message: RegExp) =>
+            expect(() => parse_view_settings(body, MAP_COLUMNS)).toThrow(message);
+        no({ name: 'x', type: 'map' }, /latitude and a longitude/);
+        no({ name: 'x', type: 'map', map: { lat_field: 'c' } }, /Longitude: pick a column/);
+        no({ name: 'x', type: 'map', map: { lat_field: 'a', lng_field: 'f' } }, /string column/);
+        no({ name: 'x', type: 'map', map: { lat_field: 'c', lng_field: 'c' } }, /different/);
+        no({ name: 'x', type: 'map', map: { lat_field: 'c', lng_field: 'f', zoom: 3 } }, /Unknown/);
+        no(
+            { name: 'x', type: 'map', map: { lat_field: 'c', lng_field: 'f', label_field: 'd' } },
+            /date column/
+        );
+    });
+
+    it('keeps rows with coordinates in range', () => {
+        const map = { lat_field: 'c', lng_field: 'f', label_field: 'a' };
+        expect(map_filter({}, map)).toEqual({
+            $and: [{ c: { $gte: -90, $lte: 90 } }, { f: { $gte: -180, $lte: 180 } }]
+        });
+        expect(map_filter({ $and: [{ b: 'x' }] }, map).$and).toHaveLength(3);
+        const rows = [
+            { _id: 1, row_index: 1, c: 51.5, f: -0.12, a: 'London' },
+            { _id: 2, row_index: 2, c: 40.7, f: -74, a: null },
+            { _id: 3, row_index: 3, c: 120, f: 0, a: 'off the map' },
+            { _id: 4, row_index: 4, c: '10', f: 10, a: 'text' }
+        ];
+        expect(map_points(rows, map, MAP_COLUMNS)).toEqual({
+            points: [
+                { _id: '1', lat: 51.5, lng: -0.12, label: 'London' },
+                { _id: '2', lat: 40.7, lng: -74, label: 'Row 2' }
+            ],
+            truncated: false
+        });
+        const many = Array.from({ length: VIEW_LIMITS.max_map_points + 1 }, (_, i) => ({
+            _id: i,
+            c: 0,
+            f: 0
+        }));
+        const capped = map_points(many, map, MAP_COLUMNS);
+        expect(capped.points.length).toBe(VIEW_LIMITS.max_map_points);
+        expect(capped.truncated).toBe(true);
     });
 });

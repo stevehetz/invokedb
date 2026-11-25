@@ -89,6 +89,12 @@ export class ViewManager {
         return await rows.aggregate(pipeline).toArray();
     }
 
+    /** How many of a table's rows match a filter. */
+    async count_rows(account_id: number, file_id: number, filter: Record<string, unknown>) {
+        const rows = await this._collections.get_dg_row(account_id, file_id);
+        return await rows.countDocuments(filter);
+    }
+
     /** Some of a table's rows. */
     async find_rows(
         account_id: number,

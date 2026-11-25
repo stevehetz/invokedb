@@ -1050,7 +1050,8 @@ $nav_active_color: #ffffff;
     width: 100%;
     height: 100%;
 }
-// A kanban or chart view (#146) is shown instead of the grid, which stays loaded behind it
+// A kanban, chart, calendar or map view (#146, #211) is shown instead of the grid, which stays
+// loaded behind it
 .h-data-grid .bottom .ag-grid-wrapper.behind-view {
     visibility: hidden;
 }
@@ -1244,6 +1245,172 @@ $nav_active_color: #ffffff;
     border-bottom: solid 1px #ececec;
 }
 .h-data-grid .chart-table td.num {
+    text-align: right;
+}
+
+// Calendar (#211)
+.h-data-grid .calendar-panel {
+    max-width: 1100px;
+    padding: 14px 16px;
+    color: #191919;
+    background-color: #ffffff;
+    border-radius: 6px;
+}
+.h-data-grid .calendar-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 8px;
+}
+.h-data-grid .calendar-nav {
+    display: flex;
+}
+.h-data-grid .calendar-title {
+    font-size: 16px;
+}
+.h-data-grid .calendar-count,
+.h-data-grid .calendar-status {
+    color: #666666;
+    font-size: 14px;
+}
+.h-data-grid .calendar-status {
+    padding: 6px 0 0;
+}
+.h-data-grid .calendar-grid {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+.h-data-grid .calendar-grid th {
+    padding: 4px;
+    color: #666666;
+    font-size: 13px;
+    font-weight: normal;
+    text-align: left;
+}
+.h-data-grid .calendar-day {
+    height: 92px;
+    padding: 4px;
+    vertical-align: top;
+    border: solid 1px #e2e2e2;
+}
+.h-data-grid .calendar-day.other {
+    background-color: #f7f7f7;
+}
+.h-data-grid .calendar-day.other .calendar-day-num {
+    color: #9a9a9a;
+}
+.h-data-grid .calendar-day.today .calendar-day-num {
+    display: inline-block;
+    min-width: 20px;
+    color: #ffffff;
+    text-align: center;
+    background-color: #257de0;
+    border-radius: 10px;
+}
+.h-data-grid .calendar-day-num {
+    margin-bottom: 2px;
+    font-size: 13px;
+}
+.h-data-grid .calendar-event {
+    margin-bottom: 2px;
+    padding: 1px 4px;
+    overflow: hidden;
+    font-size: 12px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    background-color: #e3effc;
+    border-radius: 3px;
+}
+.h-data-grid .calendar-event-time {
+    color: #4a6d94;
+}
+.h-data-grid .calendar-more {
+    padding: 0 4px;
+    color: #257de0;
+    font-size: 12px;
+    font-family: inherit;
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+// Map (#211)
+.h-data-grid .map-panel {
+    max-width: 800px;
+    padding: 14px 16px;
+    color: #191919;
+    background-color: #ffffff;
+    border-radius: 6px;
+}
+.h-data-grid .map-panel .view-status {
+    color: #666666;
+}
+.h-data-grid .map-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.h-data-grid .map-readout {
+    color: #666666;
+    font-size: 14px;
+}
+.h-data-grid .map-osm-link {
+    margin-left: 6px;
+    color: #257de0;
+}
+.h-data-grid .map-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: inherit;
+}
+.h-data-grid .map-bg {
+    fill: #f2f6fa;
+}
+.h-data-grid .map-grid line {
+    stroke: #dde4ec;
+    stroke-width: 1;
+}
+.h-data-grid .map-tick {
+    fill: #7a8794;
+    font-size: 11px;
+}
+.h-data-grid .map-point {
+    cursor: pointer;
+}
+.h-data-grid .map-hit {
+    fill: transparent;
+}
+.h-data-grid .map-dot {
+    fill: #257de0;
+    stroke: #ffffff;
+    stroke-width: 2;
+}
+.h-data-grid .map-point.on .map-dot {
+    fill: #e05a25;
+}
+.h-data-grid .map-table {
+    margin-top: 10px;
+    font-size: 14px;
+}
+.h-data-grid .map-table summary {
+    cursor: pointer;
+    color: #666666;
+}
+.h-data-grid .map-table table {
+    margin-top: 6px;
+    border-collapse: collapse;
+}
+.h-data-grid .map-table th,
+.h-data-grid .map-table td {
+    padding: 2px 12px 2px 0;
+    text-align: left;
+    border-bottom: solid 1px #ececec;
+}
+.h-data-grid .map-table td.num {
     text-align: right;
 }
 .h-data-grid .ag-root {
@@ -2418,6 +2585,7 @@ $nav_active_color: #ffffff;
 }
 .views-dialog .view-editor-types {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
 }
 .views-dialog .view-editor-type {

@@ -340,7 +340,12 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   (session only; `GET /view/:id/kanban`, `/view/:id/chart`). A grid view is applied by the grid
   itself (filter model, sort, hidden columns); moving a kanban card is an ordinary row update.
   The frontend's Views menu is on the grid's top bar (`h-data-grid/views-dialog`,
-  `kanban-view`, `chart-view`, SVG with no chart library).
+  `kanban-view`, `chart-view`, SVG with no chart library). Calendar and map views (#211):
+  `GET /view/:id/calendar?from=&to=` (UTC days, at most 62, the current month without them) and
+  `GET /view/:id/map` (number columns in degrees; `missing` counts rows off the map).
+  `calendar-view` draws a six-week month grid; `map-view` draws the points on a
+  latitude/longitude grid in SVG, with no base map or tiles (nothing is fetched from a map
+  service; each point links to OpenStreetMap).
 - Dashboards (#209): `src/core/dashboard/` has the pure rules (`dashboard.ts`: tiles `chart`
   (a chart view), `table` and `stat` (count/sum/avg/min/max), each a table id plus an optional
   view id, never rows; the share token) and the store (`dashboard.manager.ts`,

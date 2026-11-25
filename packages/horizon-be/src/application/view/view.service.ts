@@ -15,12 +15,17 @@ import {
     ViewError,
     ViewSettings,
     assert_view_columns,
+    calendar_events,
+    calendar_filter,
     chart_pipeline,
     chart_points,
     kanban_group_filter,
     kanban_groups,
     kanban_groups_pipeline,
+    map_filter,
+    map_points,
     new_view_id,
+    parse_calendar_range,
     parse_view_settings,
     view_columns,
     view_filter_query,
@@ -28,8 +33,9 @@ import {
 } from '@app/core/view/view';
 
 // Saved views of a table (#146): a named filter, sort and set of hidden columns, shown as the
-// grid, as a kanban board or as a chart. A grid view is applied by the grid itself (its filter
-// row and sort); a board's cards and a chart's points are read here, with the view's filters.
+// grid, as a kanban board, as a chart, as a calendar or as a map (#211). A grid view is applied
+// by the grid itself (its filter row and sort); a board's cards, a chart's points, a calendar's
+// events and a map's points are read here, with the view's filters.
 // Moving a card is an ordinary row update (PUT /web-file/...), so the locks and webhooks apply.
 @Injectable()
 export class ViewService {
@@ -142,7 +148,7 @@ export class ViewService {
     }
 
     // A view of the given type, with its table's current columns
-    private async live(acct_id: number, id: string, type: 'kanban' | 'chart') {
+    private async live(acct_id: number, id: string, type: 'kanban' | 'chart' | 'calendar' | 'map') {
         const view = await this.owned(acct_id, id);
         if (view.type !== type) throw new BadRequestException(`This isn't a ${type} view`);
         const file = await this.owned_table(acct_id, view.file_id);
@@ -194,5 +200,51 @@ export class ViewService {
             chart_pipeline(filter, view.chart, columns)
         );
         return { ...view.chart, ...chart_points(docs as any[]) };
+    }
+
+    /**
+     * A calendar view's events from `from` up to `to` (days as YYYY-MM-DD; the current month
+     * without them), in date order: `{ _id, date, time, title }`.
+     */
+    async calendar(acct_id: number, id: string, from: unknown, to: unknown) {
+        const range = this.checked(() => parse_calendar_range(from, to, this.now()));
+        const { view, columns, filter } = await this.live(acct_id, id, 'calendar');
+        const field = view.calendar.date_field;
+        const rows = await this.view_manager.find_rows(
+            acct_id,
+            view.file_id,
+            calendar_filter(filter, field, range),
+            { [field]: 1, _id: 1 },
+            VIEW_LIMITS.max_calendar_rows + 1
+        );
+        return {
+            ...view.calendar,
+            from: range.from.toISOString().slice(0, 10),
+            to: range.to.toISOString().slice(0, 10),
+            ...calendar_events(rows, view.calendar, columns)
+        };
+    }
+
+    /**
+     * A map view's points, `{ _id, lat, lng, label }`, in the view's sort; `missing` counts the
+     * view's rows left out for having no latitude or longitude in range.
+     */
+    async map(acct_id: number, id: string) {
+        const { view, columns, filter } = await this.live(acct_id, id, 'map');
+        const located = map_filter(filter, view.map);
+        const rows = await this.view_manager.find_rows(
+            acct_id,
+            view.file_id,
+            located,
+            view_mongo_sort(view.sort, columns),
+            VIEW_LIMITS.max_map_points + 1
+        );
+        const all = await this.view_manager.count_rows(acct_id, view.file_id, filter);
+        const with_place = await this.view_manager.count_rows(acct_id, view.file_id, located);
+        return {
+            ...view.map,
+            ...map_points(rows, view.map, columns),
+            missing: Math.max(0, all - with_place)
+        };
     }
 }

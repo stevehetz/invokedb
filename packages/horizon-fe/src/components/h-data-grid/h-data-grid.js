@@ -30,6 +30,8 @@ import LinkDialog from './link-dialog';
 import ViewsDialog from './views-dialog';
 import KanbanView from './kanban-view';
 import ChartView from './chart-view';
+import CalendarView from './calendar-view';
+import MapView from './map-view';
 import { VIEW_TYPE_ICONS } from './views-dialog/views-dialog';
 import { view_http } from '@/core/context/view/view-http';
 import { table_display_name } from './table-name';
@@ -81,6 +83,8 @@ export default {
         'grid-toast': GridToast,
         'kanban-view': KanbanView,
         'chart-view': ChartView,
+        'calendar-view': CalendarView,
+        'map-view': MapView,
         GridHeader,
         GridFilter
     },

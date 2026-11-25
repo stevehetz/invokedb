@@ -1,7 +1,8 @@
 // Saved views of a table (#146): a named filter, sort and set of hidden columns, shown as the
-// grid, as kanban cards grouped by a column, or as a chart over a column. Pure rules only (no
-// I/O): what a view's settings may be, the Mongo filter its filters make, and the aggregation
-// a chart runs. view.manager.ts stores the views.
+// grid, as kanban cards grouped by a column, as a chart over a column, or (#211) as a calendar
+// over a date column or a map over latitude and longitude columns. Pure rules only (no I/O):
+// what a view's settings may be, the Mongo filter its filters make, and the aggregation a chart
+// runs. view.manager.ts stores the views.
 //
 // Filters are kept as the grid sends them (a column's Mongo field, a filter type and the value
 // as typed), so a grid view puts them back in the grid's filter row unchanged. Nothing from a
@@ -10,12 +11,12 @@
 import { randomBytes } from 'crypto';
 import { parse_utc_date } from '../date';
 
-export type ViewType = 'grid' | 'kanban' | 'chart';
+export type ViewType = 'grid' | 'kanban' | 'chart' | 'calendar' | 'map';
 export type ViewColumnType = 'string' | 'number' | 'date' | 'link';
 export type ChartKind = 'bar' | 'line' | 'pie';
 export type ChartAgg = 'count' | 'sum';
 
-export const VIEW_TYPES: ViewType[] = ['grid', 'kanban', 'chart'];
+export const VIEW_TYPES: ViewType[] = ['grid', 'kanban', 'chart', 'calendar', 'map'];
 export const CHART_KINDS: ChartKind[] = ['bar', 'line', 'pie'];
 export const CHART_AGGS: ChartAgg[] = ['count', 'sum'];
 
@@ -42,7 +43,12 @@ export const VIEW_LIMITS = {
     max_kanban_groups: 50,
     max_kanban_cards: 100,
     // A chart's bars, points or slices
-    max_chart_points: 50
+    max_chart_points: 50,
+    // A calendar reads at most this many days at once (a month grid shows 42), and rows
+    max_calendar_days: 62,
+    max_calendar_rows: 500,
+    // A map's points
+    max_map_points: 1000
 };
 
 // A table column as a view sees it
@@ -80,6 +86,21 @@ export interface ChartSettings {
     value_field: string | null;
 }
 
+export interface CalendarSettings {
+    // The date column the rows are placed by
+    date_field: string;
+    // The text or number column shown as each row's title (null: "Row <n>")
+    title_field: string | null;
+}
+
+export interface MapSettings {
+    // Number columns, in degrees
+    lat_field: string;
+    lng_field: string;
+    // The text or number column shown as each point's label (null: "Row <n>")
+    label_field: string | null;
+}
+
 export interface ViewSettings {
     name: string;
     type: ViewType;
@@ -89,6 +110,8 @@ export interface ViewSettings {
     hidden_fields: string[];
     kanban: KanbanSettings | null;
     chart: ChartSettings | null;
+    calendar: CalendarSettings | null;
+    map: MapSettings | null;
 }
 
 // A refusal the user can act on; the HTTP layer answers it with a 400
@@ -102,6 +125,8 @@ const SETTING_KEYS = [
     'hidden_fields',
     'kanban',
     'chart',
+    'calendar',
+    'map',
     // Read by the service: the view's table, which can't change
     'file_id'
 ];
@@ -290,6 +315,47 @@ function parse_chart(chart: unknown, columns: ViewColumn[]): ChartSettings {
     return { kind: kind as ChartKind, group_field: group.field, agg: agg as ChartAgg, value_field };
 }
 
+// A column shown as a title or label: a text or number column, or none
+function title_column(columns: ViewColumn[], field: unknown, what: string) {
+    if (field === undefined || field === null || field === '') return null;
+    return group_column(columns, field, what, ['string', 'number']).field;
+}
+
+function parse_calendar(calendar: unknown, columns: ViewColumn[]): CalendarSettings {
+    if (!is_plain_object(calendar)) throw new ViewError('A calendar view needs a date column');
+    check_keys(calendar, ['date_field', 'title_field'], 'calendar setting');
+    const date = group_column(columns, calendar.date_field, 'Date column', ['date']);
+    return {
+        date_field: date.field,
+        title_field: title_column(columns, calendar.title_field, 'Title column')
+    };
+}
+
+function parse_map(map: unknown, columns: ViewColumn[]): MapSettings {
+    if (!is_plain_object(map)) {
+        throw new ViewError('A map view needs a latitude and a longitude column');
+    }
+    check_keys(map, ['lat_field', 'lng_field', 'label_field'], 'map setting');
+    const lat = group_column(columns, map.lat_field, 'Latitude', ['number']);
+    const lng = group_column(columns, map.lng_field, 'Longitude', ['number']);
+    if (lat.field === lng.field) {
+        throw new ViewError('Map: pick different latitude and longitude columns');
+    }
+    return {
+        lat_field: lat.field,
+        lng_field: lng.field,
+        label_field: title_column(columns, map.label_field, 'Label column')
+    };
+}
+
+// The settings each view type has besides its filters, sort and hidden columns
+const TYPE_SETTINGS: [string, (value: unknown, columns: ViewColumn[]) => unknown][] = [
+    ['kanban', parse_kanban],
+    ['chart', parse_chart],
+    ['calendar', parse_calendar],
+    ['map', parse_map]
+];
+
 /**
  * A view's settings from a request body, checked against the table's columns. With `current`
  * (an update), only the keys in the body change, and the result holds just those; a type
@@ -319,21 +385,17 @@ export function parse_view_settings(
 
     // Only the settings of the view's type are kept
     const type_changed = !current || has('type');
-    if (type === 'kanban' && (type_changed || has('kanban'))) {
-        out.kanban = parse_kanban(has('kanban') ? body.kanban : current?.kanban, columns);
-    } else if (type === 'chart' && (type_changed || has('chart'))) {
-        out.chart = parse_chart(has('chart') ? body.chart : current?.chart, columns);
-    }
-    if (type_changed) {
-        if (type !== 'kanban') out.kanban = null;
-        if (type !== 'chart') out.chart = null;
-    }
-    if (type !== 'kanban' && has('kanban') && body.kanban !== null) {
-        throw new ViewError('kanban settings only go with type kanban');
-    }
-    if (type !== 'chart' && has('chart') && body.chart !== null) {
-        throw new ViewError('chart settings only go with type chart');
-    }
+    const o = out as Record<string, unknown>;
+    TYPE_SETTINGS.forEach(([t, parse]) => {
+        if (t === type) {
+            if (type_changed || has(t)) o[t] = parse(has(t) ? body[t] : current?.[t], columns);
+            return;
+        }
+        if (has(t) && body[t] !== null) {
+            throw new ViewError(`${t} settings only go with type ${t}`);
+        }
+        if (type_changed) o[t] = null;
+    });
     return out;
 }
 
@@ -472,7 +534,117 @@ export function chart_points(docs: { _id: unknown; value: number }[]) {
     return { points, truncated: (docs || []).length > VIEW_LIMITS.max_chart_points };
 }
 
-/** Checks that a saved view's columns are still there, for its kanban or chart. */
+// --- Calendars (#211) ---
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function utc_day(value: unknown, what: string) {
+    const m = typeof value === 'string' ? DAY.exec(value) : null;
+    if (m) {
+        const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+        if (d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3]) return d;
+    }
+    throw new ViewError(`${what} must be a day as YYYY-MM-DD`);
+}
+
+/**
+ * The days a calendar reads: `from` up to but not including `to` (YYYY-MM-DD, in UTC like the
+ * stored dates). Without them, the current month.
+ */
+export function parse_calendar_range(from: unknown, to: unknown, now: number) {
+    const none = (v: unknown) => v === undefined || v === null || v === '';
+    if (none(from) && none(to)) {
+        const d = new Date(now);
+        return {
+            from: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)),
+            to: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1))
+        };
+    }
+    if (none(from) || none(to)) throw new ViewError('Give both from and to, or neither');
+    const start = utc_day(from, 'from');
+    const end = utc_day(to, 'to');
+    if (end.getTime() <= start.getTime()) throw new ViewError('to must be after from');
+    if ((end.getTime() - start.getTime()) / DAY_MS > VIEW_LIMITS.max_calendar_days) {
+        throw new ViewError(`A calendar reads at most ${VIEW_LIMITS.max_calendar_days} days`);
+    }
+    return { from: start, to: end };
+}
+
+function and_filter(filter: Record<string, unknown>, conds: Record<string, unknown>[]) {
+    const parts = Object.keys(filter).length > 0 ? [filter, ...conds] : conds;
+    return parts.length === 1 ? parts[0] : { $and: parts };
+}
+
+/** The Mongo filter of a calendar: the view's rows whose date falls in the range. */
+export function calendar_filter(
+    filter: Record<string, unknown>,
+    date_field: string,
+    range: { from: Date; to: Date }
+) {
+    return and_filter(filter, [{ [date_field]: { $gte: range.from, $lt: range.to } }]);
+}
+
+// A row's title or label: its column's value, or "Row <n>"
+function row_title(row: any, field: string | null, columns: ViewColumn[]) {
+    const col = field ? columns.find(c => c.field === field) : null;
+    const v = col && ['string', 'number'].includes(col.type) ? row[col.field] : null;
+    if (v === null || v === undefined || v === '' || typeof v === 'object') {
+        return row.row_index ? `Row ${row.row_index}` : 'Row';
+    }
+    return String(v);
+}
+
+/**
+ * A calendar's events from its rows (read in date order): the row's id, its day (UTC), its time
+ * when it isn't midnight, and its title.
+ */
+export function calendar_events(rows: any[], calendar: CalendarSettings, columns: ViewColumn[]) {
+    const events: { _id: string; date: string; time: string | null; title: string }[] = [];
+    (rows || []).slice(0, VIEW_LIMITS.max_calendar_rows).forEach(row => {
+        const d = row[calendar.date_field];
+        if (!(d instanceof Date) || isNaN(d.getTime())) return;
+        const iso = d.toISOString();
+        events.push({
+            _id: String(row._id),
+            date: iso.slice(0, 10),
+            time: iso.slice(11, 23) === '00:00:00.000' ? null : iso.slice(11, 16),
+            title: row_title(row, calendar.title_field, columns)
+        });
+    });
+    return { events, truncated: (rows || []).length > VIEW_LIMITS.max_calendar_rows };
+}
+
+// --- Maps (#211) ---
+
+/** The Mongo filter of a map: the view's rows with a latitude and longitude in range. */
+export function map_filter(filter: Record<string, unknown>, map: MapSettings) {
+    // A range on numbers matches only numbers, so text and empty cells are left out
+    return and_filter(filter, [
+        { [map.lat_field]: { $gte: -90, $lte: 90 } },
+        { [map.lng_field]: { $gte: -180, $lte: 180 } }
+    ]);
+}
+
+/** A map's points from its rows: the row's id, latitude, longitude and label. */
+export function map_points(rows: any[], map: MapSettings, columns: ViewColumn[]) {
+    const points: { _id: string; lat: number; lng: number; label: string }[] = [];
+    (rows || []).slice(0, VIEW_LIMITS.max_map_points).forEach(row => {
+        const lat = row[map.lat_field];
+        const lng = row[map.lng_field];
+        if (typeof lat !== 'number' || typeof lng !== 'number') return;
+        if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+        points.push({
+            _id: String(row._id),
+            lat,
+            lng,
+            label: row_title(row, map.label_field, columns)
+        });
+    });
+    return { points, truncated: (rows || []).length > VIEW_LIMITS.max_map_points };
+}
+
+/** Checks that a saved view's columns are still there, for its kanban, chart, calendar or map. */
 export function assert_view_columns(view: ViewSettings, columns: ViewColumn[]) {
     if (view.type === 'kanban' && view.kanban) {
         const col = columns.find(c => c.field === view.kanban.group_field);
@@ -492,6 +664,22 @@ export function assert_view_columns(view: ViewSettings, columns: ViewColumn[]) {
                     "This chart's number column was deleted or changed; edit the view"
                 );
             }
+        }
+    }
+    if (view.type === 'calendar' && view.calendar) {
+        const col = columns.find(c => c.field === view.calendar.date_field);
+        if (!col || col.type !== 'date') {
+            throw new ViewError(
+                "This calendar's date column was deleted or changed; edit the view"
+            );
+        }
+    }
+    if (view.type === 'map' && view.map) {
+        const ok = (field: string) => columns.some(c => c.field === field && c.type === 'number');
+        if (!ok(view.map.lat_field) || !ok(view.map.lng_field)) {
+            throw new ViewError(
+                "This map's latitude or longitude column was deleted or changed; edit the view"
+            );
         }
     }
 }

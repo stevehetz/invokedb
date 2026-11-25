@@ -1089,7 +1089,7 @@ export default {
                 props: {
                     file: this.file,
                     // Rows the AI proposed (#234) become new rows to review, then Save
-                    on_generated: rows => this.preview_generated_rows(rows)
+                    on_generated: rows => this.add_proposed_rows(rows)
                 },
                 component: AskDialog
             });
@@ -1313,6 +1313,27 @@ export default {
         },
 
         /*** Start: Generated rows (#148, asked for in Ask AI, #234) ***/
+        /**
+         * Rows proposed in Ask AI, shown as new rows to review. Answers null when they're shown,
+         * or why they can't be yet, so the dialog stays open with its rows (already paid for).
+         * A kanban or chart view is left for the plain grid, where the rows show.
+         * @param {any[]} rows
+         * @returns {string | null}
+         */
+        add_proposed_rows(rows) {
+            if (!this.grid_api)
+                return 'The table is still loading. Try again in a moment.';
+            if (this.table_lock || this.processing) {
+                return 'The table is updating. Try again in a moment.';
+            }
+            if (this.edit_column_mode) {
+                return 'Save or cancel your column changes first, then add the rows.';
+            }
+            if (this.other_view) this.select_view(null);
+            this.preview_generated_rows(rows);
+            return null;
+        },
+
         // The generated rows become new rows of add-row mode: the user can edit or delete
         // them, then Save inserts them (row limit, locks, webhooks) or Cancel drops them.
         async preview_generated_rows(rows) {

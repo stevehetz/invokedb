@@ -112,11 +112,15 @@ export default defineComponent({
         cell_text,
 
         // The proposed rows go to the grid as new rows to review (`props.on_generated`); the
-        // user saves them there. Closes this dialog.
+        // user saves them there. The grid answers why when it can't take them yet (column edit
+        // mode, an update running): the dialog then stays open, so the rows aren't lost.
         add_rows() {
-            if (!this.proposed) return;
-            const rows = this.proposed.rows;
-            if (this.props.on_generated) this.props.on_generated(rows);
+            if (!this.proposed || !this.props.on_generated) return;
+            const problem = this.props.on_generated(this.proposed.rows);
+            if (problem) {
+                this.error = problem;
+                return;
+            }
             bus.$emit('container-dialog:close');
         },
 

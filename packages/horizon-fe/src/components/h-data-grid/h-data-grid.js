@@ -25,6 +25,11 @@ import ApiDialog from './api-dialog';
 import WebhooksDialog from './webhooks-dialog';
 import FormsDialog from './forms-dialog';
 import LinkDialog from './link-dialog';
+import ViewsDialog from './views-dialog';
+import KanbanView from './kanban-view';
+import ChartView from './chart-view';
+import { VIEW_TYPE_ICONS } from './views-dialog/views-dialog';
+import { view_http } from '@/core/context/view/view-http';
 
 // Since ag-grid 33 every feature is a module that has to be registered. Only the ones the grid
 // uses are, so the rest of ag-grid is left out of the bundle (AllCommunityModule was 1.3 MB).
@@ -68,6 +73,8 @@ export default {
     components: {
         'ag-grid-vue': AgGridVue,
         'grid-toast': GridToast,
+        'kanban-view': KanbanView,
+        'chart-view': ChartView,
         GridHeader,
         GridFilter
     },
@@ -89,7 +96,13 @@ export default {
             add_row_mode: false,
             show_delete_rows: false,
             // Where the table was imported from (#144), or null
-            url_source: null
+            url_source: null,
+            // Saved views (#146): the table's, and the one shown (null: the plain grid)
+            views: [],
+            current_view: null,
+            // Bumped to reload the kanban board or chart
+            view_version: 0,
+            view_icons: VIEW_TYPE_ICONS
         };
     },
 
@@ -103,6 +116,8 @@ export default {
         this.new_rows = [];
         // What link cells (#147) show: { field: { row id: label } }, from the row pages
         this.link_labels = {};
+        // Fields the current view hides (#146); column_visible() leaves them hidden
+        this.hidden_fields = new Set();
         this.grid_options = markRaw({
             theme: grid_theme,
             rowData: null,
@@ -153,6 +168,11 @@ export default {
     /*** End: Mounted ***/
 
     computed: {
+        // A kanban board or chart is shown instead of the grid
+        other_view() {
+            return !!this.current_view && this.current_view.type !== 'grid';
+        },
+
         /*** Start: Debounced grid handlers ***/
         drag_stopped() {
             return _.debounce(e => {
@@ -186,6 +206,7 @@ export default {
         grid_ready(params) {
             this.grid_api = markRaw(params.api);
             this.load_url_source();
+            this.load_views();
             if (this.file.status === 'PENDING') {
                 this.set_table_load_pending();
             } else if (this.file.status === 'ERROR') {
@@ -321,6 +342,7 @@ export default {
                     this.edit_column_changes
                 ).length;
                 this.grid_api.refreshHeader();
+                this.restore_view_columns();
                 this.set_datasource(this.get_rows);
                 this.table_lock = false;
                 this.saving_columns = false;
@@ -443,8 +465,14 @@ export default {
             this.show_delete_rows = this.grid_api.getSelectedNodes().length > 0;
         },
 
+        // Columns stay visible, except the ones the current view hides
         column_visible(e) {
-            if (e.column) e.api.setColumnsVisible([e.column], true);
+            if (
+                e.column &&
+                !this.hidden_fields.has(e.column.getColDef().field)
+            ) {
+                e.api.setColumnsVisible([e.column], true);
+            }
         },
 
         async cell_value_changed(e) {
@@ -635,6 +663,7 @@ export default {
         /*** Start: Header controls - event handlers ***/
         refresh_clicked() {
             this.grid_api.refreshInfiniteCache();
+            if (this.other_view) this.view_version++;
         },
 
         upload_clicked() {
@@ -646,6 +675,9 @@ export default {
         },
 
         edit_columns_clicked() {
+            // Every column can be edited, the ones the view hides too
+            this.hidden_fields = new Set();
+            this.apply_hidden_columns();
             this.cache_columns();
             this.edit_column_mode = true;
             this.set_all_columns_edit_mode(true);
@@ -708,6 +740,7 @@ export default {
             this.edit_column_changes = {};
             this.edit_column_mode = false;
             this.edit_column_count = 0;
+            this.restore_view_columns();
         },
 
         async save_clicked() {
@@ -970,6 +1003,168 @@ export default {
             });
         },
         /*** End: Header controls event handlers ***/
+
+        /*** Start: Saved views (#146) ***/
+        async load_views() {
+            try {
+                const res = await view_http.list(this.file_directory_id);
+                this.views = (res && res.views) || [];
+            } catch (ex) {
+                this.views = [];
+            }
+        },
+
+        view_command(command) {
+            if (command === 'manage') {
+                this.views_btn_clicked();
+            } else if (command === 'grid') {
+                this.select_view(null);
+            } else {
+                const view = this.views.find(v => v.id === command);
+                if (view) this.select_view(view);
+            }
+        },
+
+        views_btn_clicked() {
+            this.$bus.$emit('container-dialog:open', {
+                title: `${this.file.name.replace(/.g/, '')}: views`,
+                props: {
+                    file: this.file,
+                    state: () => this.grid_state(),
+                    current_id: this.current_view ? this.current_view.id : null,
+                    on_select: view => this.select_view(view),
+                    on_change: views => this.views_changed(views)
+                },
+                component: ViewsDialog
+            });
+        },
+
+        views_changed(views) {
+            this.views = views.slice();
+            if (this.current_view) {
+                const current = this.views.find(
+                    v => v.id === this.current_view.id
+                );
+                if (!current) this.select_view(null);
+                else this.current_view = current;
+            }
+        },
+
+        // Shows a view (null: the plain grid). The grid takes the view's filters, sort and
+        // hidden columns, whatever its type, so switching back to the grid keeps them.
+        select_view(view) {
+            if (this.add_row_mode || this.edit_column_mode) return;
+            this.current_view = view;
+            this.view_version++;
+            this.apply_view_to_grid(view);
+        },
+
+        grid_column_by_field(field) {
+            return this.grid_api
+                .getAllGridColumns()
+                .find(c => c.getColDef().field === field);
+        },
+
+        apply_view_to_grid(view) {
+            if (!this.grid_api) return;
+            this.hidden_fields = new Set((view && view.hidden_fields) || []);
+            this.apply_hidden_columns();
+
+            // The same model the filter row (grid-filter.js) makes
+            const model = {};
+            ((view && view.filters) || []).forEach(f => {
+                const col = this.grid_column_by_field(f.field);
+                if (!col) return;
+                model[col.getColId()] = {
+                    filterType: 'text',
+                    type: 'contains',
+                    filter: JSON.stringify({
+                        col_type: col.getColDef().col_type,
+                        filter_type: f.type,
+                        filter_value: f.value
+                    })
+                };
+            });
+            this.grid_api.setFilterModel(model);
+
+            const sort = view && view.sort;
+            const col = sort ? this.grid_column_by_field(sort.field) : null;
+            this.grid_api.applyColumnState({
+                state: col ? [{ colId: col.getColId(), sort: sort.dir }] : [],
+                defaultState: { sort: null }
+            });
+        },
+
+        apply_hidden_columns() {
+            if (!this.grid_api) return;
+            const cols = this.grid_api
+                .getAllGridColumns()
+                .filter(c => c.getColDef().field !== 'row_num');
+            const hidden = c => this.hidden_fields.has(c.getColDef().field);
+            const show = cols.filter(c => !hidden(c));
+            const hide = cols.filter(hidden);
+            if (show.length > 0) this.grid_api.setColumnsVisible(show, true);
+            if (hide.length > 0) this.grid_api.setColumnsVisible(hide, false);
+        },
+
+        // After the columns were edited or reloaded: hide the view's hidden columns again
+        restore_view_columns() {
+            this.hidden_fields = new Set(
+                (this.current_view && this.current_view.hidden_fields) || []
+            );
+            this.apply_hidden_columns();
+        },
+
+        // The grid's filters, sort and hidden columns, as a view stores them
+        grid_state() {
+            const filters = [];
+            const model = this.grid_api.getFilterModel() || {};
+            Object.keys(model).forEach(col_id => {
+                const col = this.grid_api.getColumn(col_id);
+                const field = col && col.getColDef().field;
+                if (!field || field === 'row_num') return;
+                let f;
+                try {
+                    f = JSON.parse(model[col_id].filter);
+                } catch (ex) {
+                    return;
+                }
+                if (
+                    !f ||
+                    f.filter_value === null ||
+                    f.filter_value === undefined
+                )
+                    return;
+                if (String(f.filter_value).trim() === '') return;
+                filters.push({
+                    field,
+                    type: f.filter_type,
+                    value: String(f.filter_value)
+                });
+            });
+
+            let sort = null;
+            const sorted = this.grid_api.getColumnState().find(s => s.sort);
+            if (sorted) {
+                const col = this.grid_api.getColumn(sorted.colId);
+                const field = col && col.getColDef().field;
+                if (field) sort = { field, dir: sorted.sort };
+            }
+
+            const hidden_fields = this.grid_api
+                .getAllGridColumns()
+                .filter(c => !c.isVisible())
+                .map(c => c.getColDef().field)
+                .filter(f => f && f !== 'row_num');
+            return { filters, sort, hidden_fields };
+        },
+
+        // A card moved on the board: the grid's rows are stale
+        view_row_saved() {
+            this.grid_api.refreshInfiniteCache();
+            this.show_top_bar_success('Saved', 1000);
+        },
+        /*** End: Saved views ***/
 
         /*** Start: Add Mode ***/
         async set_add_row_mode() {

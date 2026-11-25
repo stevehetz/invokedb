@@ -23,6 +23,7 @@ import { UrlImportManager } from './url-import/url-import.manager';
 import { UrlSyncProcessor } from './web-file/url-sync-processor';
 import { WebhookManager } from './webhook/webhook.manager';
 import { FormManager } from './form/form.manager';
+import { ViewManager } from './view/view.manager';
 
 @Module({
     imports: [
@@ -52,6 +53,7 @@ import { FormManager } from './form/form.manager';
         UrlSyncProcessor,
         WebhookManager,
         FormManager,
+        ViewManager,
         WebsocketClientStore
     ],
     exports: [
@@ -67,6 +69,7 @@ import { FormManager } from './form/form.manager';
         UrlSyncProcessor,
         WebhookManager,
         FormManager,
+        ViewManager,
         WebsocketClientStore,
         TypeOrmModule
     ]

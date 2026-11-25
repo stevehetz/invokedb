@@ -20,6 +20,7 @@ import { WebhookService } from './webhook/webhook.service';
 import { WebhookPrcService } from './webhook/webhook-prc.service';
 import { FormService } from './form/form.service';
 import { ApiKeyService } from './api-key/api-key.service';
+import { ViewService } from './view/view.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -41,7 +42,8 @@ import { ApiKeyService } from './api-key/api-key.service';
         WebhookService,
         WebhookPrcService,
         FormService,
-        ApiKeyService
+        ApiKeyService,
+        ViewService
     ],
     exports: [
         AuthService,
@@ -58,7 +60,8 @@ import { ApiKeyService } from './api-key/api-key.service';
         UrlImportService,
         WebhookService,
         FormService,
-        ApiKeyService
+        ApiKeyService,
+        ViewService
     ]
 })
 export class ApplicationModule {}

@@ -1,0 +1,54 @@
+<div class="kanban-view">
+    <div class="view-status" v-if="loading">Loading the board...</div>
+    <div class="view-status error" v-if="error">{{ error }}</div>
+    <div class="view-status" v-if="!loading && !error && groups.length === 0">
+        No rows match this view.
+    </div>
+    <div class="view-status" v-if="truncated">
+        Showing the first {{ groups.length }} values of {{ group_column ?
+        group_column.name : 'the column' }}.
+    </div>
+    <div class="kanban-board">
+        <div
+            v-for="group in groups"
+            :key="group.key"
+            :class="['kanban-column', { 'drop-target': drop_target === group.key }]"
+            :data-value="group.key"
+            @dragover="drag_over($event, group)"
+            @dragleave="drag_leave(group)"
+            @drop="drop($event, group)"
+        >
+            <div class="kanban-column-head">
+                <span class="kanban-column-name"
+                    >{{ group_label(group.value) }}</span
+                >
+                <span class="kanban-column-count">{{ group.count }}</span>
+            </div>
+            <div class="kanban-cards">
+                <div
+                    v-for="row in group.rows"
+                    :key="row._id"
+                    :class="['kanban-card', { saving: saving === String(row._id), locked: locked }]"
+                    :draggable="!locked"
+                    @dragstart="drag_start($event, row, group)"
+                    @dragend="drag_end"
+                >
+                    <div class="kanban-card-title">{{ card_title(row) }}</div>
+                    <div
+                        class="kanban-card-field"
+                        v-for="f in card_fields(row)"
+                        :key="f.name"
+                    >
+                        <span class="kanban-card-field-name">{{ f.name }}</span>
+                        <span class="kanban-card-field-value"
+                            >{{ f.value }}</span
+                        >
+                    </div>
+                </div>
+                <div class="kanban-more" v-if="group.count > group.rows.length">
+                    + {{ group.count - group.rows.length }} more
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

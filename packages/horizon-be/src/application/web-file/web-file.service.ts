@@ -27,6 +27,15 @@ import {
     parse_row_query
 } from '@app/core/web-file/row-query';
 import { WebhookService } from '../webhook/webhook.service';
+import { AuditService } from '../audit/audit.service';
+import {
+    AuditActor,
+    ColumnChange,
+    column_changes,
+    column_created,
+    column_deleted,
+    updated_columns
+} from '@app/core/audit/audit';
 import { assert_key_allows } from '@app/core/api-key/api-key-rules';
 import {
     LINK_TYPE,
@@ -48,8 +57,22 @@ export class WebFileService {
         private web_file_manager: WebFileManager,
         private tracking_manager: TrackingManager,
         private job_manager: JobManager,
-        private webhook_svc: WebhookService
+        private webhook_svc: WebhookService,
+        private audit_svc: AuditService
     ) {}
+
+    // The column changes (#217) a save of these columns would make, worked out before it,
+    // since the save takes `_id` off each column
+    private async pending_column_changes(account_id, file_id, cols: any[]) {
+        const before = await this.web_file_manager.get_columns(account_id, file_id);
+        return column_changes(before, cols);
+    }
+
+    // The columns a row update sets (#217), worked out before it, like the above
+    private async row_update_columns(account_id, file_id, rows: any[]) {
+        const cols = await this.web_file_manager.get_columns(account_id, file_id);
+        return updated_columns(rows, cols);
+    }
 
     async get_new_column(account, file_id, pending?: Set<string>) {
         // A locked account makes no placeholders either (#182)
@@ -684,17 +707,24 @@ export class WebFileService {
     async update(account, file_id, web_file_type, data) {
         await this.tracking_manager.check_account_lock(account);
         await this.tracking_manager.check_table_lock(file_id);
+        let col_changes: ColumnChange[] = [];
+        let row_columns: string[] = [];
         if (web_file_type === 'data_grid_column') {
             data = assert_column_update(data);
             await this.assert_link_columns(account.id, [data]);
             // 403 if this turns a new column on past the column limit (#182)
             await this.tracking_manager.add_columns(account, { columns: [data], file_id });
+            col_changes = await this.pending_column_changes(account.id, file_id, [data]);
         } else if (web_file_type === 'data_grid_row') {
             await this.web_file_manager.resolve_links(account.id, file_id, [data], true);
+            row_columns = await this.row_update_columns(account.id, file_id, [data]);
         }
         const res = await this.web_file_manager.update(account.id, file_id, web_file_type, data);
         if (web_file_type === 'data_grid_row' && res) {
             await this.webhook_svc.emit(account.id, file_id, 'row.updated', [res]);
+            await this.audit_svc.rows(account, file_id, 'row.updated', [res._id], row_columns);
+        } else if (web_file_type === 'data_grid_column') {
+            await this.audit_svc.columns(account, file_id, col_changes);
         }
         return res;
     }
@@ -715,14 +745,17 @@ export class WebFileService {
             await this.assert_link_columns(account.id, data);
             // 403 if turning on new columns would take the table past the column limit (#163)
             await this.tracking_manager.add_columns(account, { columns: data, file_id });
+            const col_changes = await this.pending_column_changes(account.id, file_id, data);
             try {
                 if (!use_job) {
-                    return await this.web_file_manager.batch_update_column(
+                    const res = await this.web_file_manager.batch_update_column(
                         account.id,
                         file_id,
                         'data_grid_column',
                         data
                     );
+                    await this.audit_svc.columns(account, file_id, col_changes);
+                    return res;
                 } else {
                     await this.file_directory_svc.update(file_id, {
                         status: 'PENDING'
@@ -739,6 +772,8 @@ export class WebFileService {
                         account.id,
                         file_id
                     );
+                    // Logged when queued: the processor makes the change the caller asked for
+                    await this.audit_svc.columns(account, file_id, col_changes);
                     return 'queued';
                 }
             } catch (ex) {
@@ -746,8 +781,10 @@ export class WebFileService {
                 throw new HttpException('Error updating columns', HttpStatus.INTERNAL_SERVER_ERROR);
             }
         } else {
+            let row_columns: string[] = [];
             if (web_file_type === 'data_grid_row') {
                 await this.web_file_manager.resolve_links(account.id, file_id, data, true);
+                row_columns = await this.row_update_columns(account.id, file_id, data);
             }
             const updated = [];
             const res = await this.web_file_manager.batch_update_row(
@@ -758,17 +795,22 @@ export class WebFileService {
                 updated
             );
             await this.webhook_svc.emit(account.id, file_id, 'row.updated', updated);
+            if (web_file_type === 'data_grid_row') {
+                const ids = updated.map(r => r._id);
+                await this.audit_svc.rows(account, file_id, 'row.updated', ids, row_columns);
+            }
             return res;
         }
     }
 
-    async batch_create_internal(account, file_id, web_file_type, data) {
+    /** `actor`: who the audit log (#217) says added the rows, when not `account` (a form). */
+    async batch_create_internal(account, file_id, web_file_type, data, actor?: AuditActor) {
         await this.tracking_manager.check_account_lock(account);
         await this.tracking_manager.check_table_lock(file_id);
-        await this.batch_create(account, file_id, web_file_type, data);
+        await this.batch_create(account, file_id, web_file_type, data, actor);
     }
 
-    private async batch_create(account, file_id, web_file_type, data) {
+    private async batch_create(account, file_id, web_file_type, data, actor?: AuditActor) {
         data = assert_array_body(data);
         if (web_file_type === 'data_grid_column') {
             await this.assert_link_columns(account.id, data);
@@ -801,6 +843,11 @@ export class WebFileService {
         }
         if (web_file_type === 'data_grid_row') {
             await this.webhook_svc.emit(account.id, file_id, 'row.created', inserted);
+            const ids = inserted.map(r => r._id);
+            await this.audit_svc.rows(account, file_id, 'row.created', ids, [], actor);
+        } else if (web_file_type === 'data_grid_column') {
+            const named = data.filter(c => c && typeof c.headerName === 'string' && c.headerName);
+            await this.audit_svc.columns(account, file_id, named.map(column_created));
         }
         return res;
     }
@@ -808,18 +855,20 @@ export class WebFileService {
     async batch_delete(account, file_id, web_file_type, data) {
         // A locked account deletes nothing, like create and update (#172)
         await this.tracking_manager.check_account_lock(account);
-        // Which rows are really there, for the webhooks that want deletes (#140)
+        // Which rows are really there, for the webhooks that want deletes (#140) and the audit
+        // log (#217)
         let deleted_ids: string[] = [];
+        let col_changes: ColumnChange[] = [];
         const is_rows = web_file_type === 'data_grid_row';
         if (is_rows && Array.isArray(data)) {
-            if (await this.webhook_svc.wants(account.id, file_id, 'row.deleted')) {
-                const ids = data.filter(d => typeof d === 'string');
-                deleted_ids = await this.web_file_manager.existing_row_ids(
-                    account.id,
-                    file_id,
-                    ids
-                );
-            }
+            const ids = data.filter(d => typeof d === 'string');
+            deleted_ids = await this.web_file_manager.existing_row_ids(account.id, file_id, ids);
+        } else if (web_file_type === 'data_grid_column' && Array.isArray(data)) {
+            const ids = new Set(data.map(String));
+            const before = await this.web_file_manager.get_columns(account.id, file_id);
+            col_changes = before
+                .filter(c => ids.has(String(c._id)) && c.headerName)
+                .map(column_deleted);
         }
         const removed_rows_count = await this.web_file_manager.batch_delete(
             account.id,
@@ -839,6 +888,9 @@ export class WebFileService {
                 file_id
             });
             await this.webhook_svc.emit(account.id, file_id, 'row.deleted', deleted_ids);
+            await this.audit_svc.rows(account, file_id, 'row.deleted', deleted_ids);
+        } else {
+            await this.audit_svc.columns(account, file_id, col_changes);
         }
         return removed_rows_count;
     }

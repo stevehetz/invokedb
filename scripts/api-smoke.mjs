@@ -31,8 +31,9 @@
 // links), checks two-factor sign-in on demo6 (#214: setup and QR code, the login's code step,
 // replayed and reused codes refused, recovery codes, demo2 and API keys locked out, turned off
 // again), checks data export (#215: the processor's zip has every table as CSV and JSON and the
-// settings without webhook secrets; one at a time; demo2 and API keys can't download it), then
-// deletes the tables and the new account. Writes every response to out.json
+// settings without webhook secrets; one at a time; demo2 and API keys can't download it), checks the
+// audit log (#217: app and API key changes per table and per account, paging, demo2 and API keys
+// locked out), then deletes the tables and the new account. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -1103,6 +1104,102 @@ await call('ext_bad_key', 'GET', `/api/v1/get?table=smoke_people&skip=0&limit=1`
     token: 'not-a-key',
     expectFail: true
 });
+
+// Audit log (#217): the table's changes above, newest first, from the app (demo's email) and
+// /api/v1 (the "smoke" key's name and prefix, never the key); the account's log has the key
+// made at the start; paging; demo2 and API keys can't read demo's log.
+const audit = await call('audit_table', 'GET', `/audit?table=${file_id}&limit=100`, { token });
+const audit_entries = Array.isArray(audit?.entries) ? audit.entries : [];
+const audit_has = (action, actor_type, extra = () => true) =>
+    audit_entries.some(e => e.action === action && e.actor?.type === actor_type && extra(e));
+check('audit_table_created', audit_has('table.created', 'user'), audit_entries.slice(-3));
+check(
+    'audit_app_row_changes',
+    audit_has('row.updated', 'user', e => e.actor.label === 'demo@invokedb.com') &&
+        audit_has('row.created', 'user', e => e.details?.count === 1),
+    audit_entries
+);
+check(
+    'audit_column_type_change',
+    audit_has('column.updated', 'user', e =>
+        (e.details?.changes || []).some(c => /number/.test(c))
+    ),
+    audit_entries.filter(e => e.action.startsWith('column.'))
+);
+const smoke_key_label = e =>
+    e.source === 'api' && e.actor.key_prefix === key?.slice(0, 6) && /smoke/.test(e.actor.label);
+check(
+    'audit_api_row_changes',
+    ['row.created', 'row.updated', 'row.deleted'].every(a =>
+        audit_has(a, 'api_key', smoke_key_label)
+    ),
+    audit_entries.filter(e => e.source === 'api').slice(0, 5)
+);
+check(
+    'audit_newest_first',
+    audit_entries.length > 3 &&
+        audit_entries.every((e, i) => i === 0 || audit_entries[i - 1].created_at >= e.created_at),
+    audit_entries.map(e => e.created_at)
+);
+check(
+    'audit_no_secrets',
+    !!key && !JSON.stringify(audit).includes(key) && audit_entries.every(e => !('account_id' in e)),
+    audit_entries[0]
+);
+check(
+    'audit_only_this_table',
+    audit_entries.every(e => e.file_id === file_id),
+    audit_entries[0]
+);
+const audit_p1 = await call('audit_page_1', 'GET', `/audit?table=${file_id}&limit=2`, { token });
+const audit_p2 = await call(
+    'audit_page_2',
+    'GET',
+    `/audit?table=${file_id}&limit=2&cursor=${encodeURIComponent(audit_p1?.next_cursor || '')}`,
+    { token }
+);
+check(
+    'audit_paged',
+    audit_p1?.entries?.length === 2 &&
+        !!audit_p1.next_cursor &&
+        audit_p2?.entries?.length === 2 &&
+        audit_p2.entries.every(e => !audit_p1.entries.some(f => f.id === e.id)) &&
+        audit_p2.entries[0].id === audit_entries[2]?.id,
+    { p1: audit_p1, p2: audit_p2 }
+);
+await call('audit_bad_limit', 'GET', `/audit?table=${file_id}&limit=1000`, {
+    token,
+    expectFail: true
+});
+await call('audit_bad_cursor', 'GET', `/audit?cursor=nope`, { token, expectFail: true });
+const audit_account = await call('audit_account', 'GET', '/audit?limit=100', { token });
+check(
+    'audit_account_has_key_created',
+    (audit_account?.entries || []).some(
+        e => e.action === 'api_key.created' && e.file_id === null && e.details?.key_name === 'smoke'
+    ) && audit_account?.keep_days === 90,
+    (audit_account?.entries || []).slice(0, 3)
+);
+// demo2 (logged in again: its first session ended above) sees none of demo's entries
+const audit_other = await call('audit_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const audit_otoken = audit_other.token;
+await call('other_audit_table', 'GET', `/audit?table=${file_id}`, {
+    token: audit_otoken,
+    expectFail: true
+});
+check('other_audit_table_is_404', results.other_audit_table?.status === 404);
+const other_audit = await call('other_audit_account', 'GET', '/audit?limit=100', {
+    token: audit_otoken
+});
+check(
+    'other_audit_account_is_own',
+    Array.isArray(other_audit?.entries) && other_audit.entries.every(e => e.file_id !== file_id),
+    other_audit?.entries?.slice(0, 3)
+);
+await call('audit_other_logout', 'GET', `/auth/logout?token=${audit_otoken}`);
+await call('audit_api_key', 'GET', '/audit', { token: key, expectFail: true });
 
 // Per-table API docs (#139): the docs and OpenAPI spec, then run the generated curl, fetch
 // and (if python3 is installed) Python snippets against this backend
@@ -2921,6 +3018,15 @@ await call('api_key_revoked_query', 'POST', '/api/v1/query?table=smoke_link_task
     expectFail: true
 });
 await call('api_key_revoke_again', 'DELETE', `/api-key/${ro?.key?.id}`, { token });
+// The audit log (#217) has the revoke once, on no table
+const audit_revoked = await call('audit_after_revoke', 'GET', '/audit?limit=100', { token });
+check(
+    'audit_key_revoked_once',
+    (audit_revoked?.entries || []).filter(
+        e => e.action === 'api_key.revoked' && e.details?.key_prefix === ro?.key?.prefix
+    ).length === 1,
+    (audit_revoked?.entries || []).slice(0, 3)
+);
 await call('api_key_revoke_unknown', 'DELETE', '/api-key/999999999', { token, expectFail: true });
 await call('api_key_revoke_bad_id', 'DELETE', '/api-key/abc', { token, expectFail: true });
 await call('api_key_other_keys_unaffected', 'GET', TASKS, { token: scoped?.secret });

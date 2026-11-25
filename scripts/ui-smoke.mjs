@@ -760,6 +760,25 @@ try {
         await dialog.waitFor({ state: 'detached' });
     });
 
+    // History (#217): the More menu opens the table's audit log, with the table's creation and
+    // the column changes above, made by this user
+    await step('table_history', async () => {
+        await grid().locator('.more-button button').click();
+        await page.locator('.more-menu .more-history').click();
+        const dialog = page.locator('.container-dialog .audit-log');
+        await dialog.locator('.audit-log-entry').first().waitFor();
+        const summaries = await dialog.locator('.audit-log-summary').allInnerTexts();
+        results.observed.history_entries = summaries.length;
+        check(
+            summaries.some(s => /Created table/.test(s)),
+            `the history has no "Created table": ${JSON.stringify(summaries.slice(0, 5))}`
+        );
+        const actor = (await dialog.locator('.audit-log-actor').first().innerText()).trim();
+        check(actor.toLowerCase() === EMAIL.toLowerCase(), `the newest change is by "${actor}"`);
+        await page.locator('.container-dialog .el-dialog__headerbtn').click();
+        await dialog.waitFor({ state: 'detached' });
+    });
+
     // Webhooks (#140): a private URL is refused; one added for this table shows its secret,
     // sends a test event (it appears in its delivery log), is disabled and then deleted. Its URL
     // is on example.com, so only that the test event was queued and logged is checked, not

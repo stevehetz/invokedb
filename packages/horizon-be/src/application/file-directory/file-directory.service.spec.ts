@@ -39,6 +39,7 @@ function setup(tables: number) {
     };
     const web_file_manager = { create_new: jest.fn(async () => undefined) };
     const onboarding_manager = { record_table_created: jest.fn(async () => undefined) };
+    const audit_svc = { record: jest.fn(async () => undefined) };
     const svc = new FileDirectoryService(
         repo as any,
         account_service as any,
@@ -49,7 +50,8 @@ function setup(tables: number) {
         {} as any,
         {} as any,
         {} as any,
-        onboarding_manager as any
+        onboarding_manager as any,
+        audit_svc as any
     );
     return { svc, saved, tracking_manager, web_file_manager };
 }

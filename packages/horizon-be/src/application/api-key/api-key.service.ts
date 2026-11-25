@@ -7,6 +7,8 @@ import { FileDirectory } from '@app/core/file-directory/file-directory.entity';
 import { generate_api_key } from '@app/core/account/api-key';
 import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
 import { assert_verified } from '@app/core/email-verification/email-verification';
+import { api_key_change } from '@app/core/audit/audit';
+import { AuditService } from '../audit/audit.service';
 import {
     MAX_API_KEYS,
     REVOKED_KEPT_DAYS,
@@ -32,8 +34,15 @@ export class ApiKeyService {
         @InjectRepository(FileDirectory)
         private readonly file_directory_repository: Repository<FileDirectory>,
         private readonly onboarding_manager: OnboardingManager,
+        private readonly audit_svc: AuditService,
         private readonly request_log: KeyRequestLogManager
     ) {}
+
+    // The audit log (#217): keys are account-wide changes, on no table
+    private async audit(account_id: number, action: 'api_key.created' | 'api_key.revoked', key) {
+        const account = await this.account_repository.findOneBy({ id: account_id });
+        await this.audit_svc.record(account, null, [{ action, ...api_key_change(action, key) }]);
+    }
 
     /**
      * The account a live key belongs to, with the key's scope on it (`key_scope`), or null for
@@ -63,6 +72,8 @@ export class ApiKeyService {
             key_id: api_key.id,
             access: api_key.access,
             table_ids: api_key.table_ids,
+            name: api_key.name,
+            prefix: api_key.prefix,
             rate_limit: key_rate_limit(api_key.rate_limit_per_second, api_key.rate_limit_burst)
         };
         return account;
@@ -154,6 +165,7 @@ export class ApiKeyService {
             await this.onboarding_manager.mark(account_id, 'view_api_key').catch(err => {
                 console.error('onboarding: could not mark the key step', err);
             });
+            await this.audit(account_id, 'api_key.created', saved);
             return { key: this.view(saved, tables), secret };
         }
         throw new Error('Could not make a unique API key');
@@ -168,6 +180,7 @@ export class ApiKeyService {
                 { id: key.id, account_id },
                 { revoked_datetime: key.revoked_datetime }
             );
+            await this.audit(account_id, 'api_key.revoked', key);
         }
         return this.view(key, await this.tables_by_id(account_id));
     }

@@ -30,6 +30,7 @@ import { ViewManager } from './view/view.manager';
 import { AiClient } from './ai/ai-client';
 import { AiUsageManager } from './ai/ai-usage.manager';
 import { AiSpend } from './ai/ai-spend';
+import { AuditManager } from './audit/audit.manager';
 import { AccountExportManager } from './account-export/account-export.manager';
 
 @Module({
@@ -67,6 +68,7 @@ import { AccountExportManager } from './account-export/account-export.manager';
         AiClient,
         AiUsageManager,
         AiSpend,
+        AuditManager,
         AccountExportManager,
         WebsocketClientStore
     ],
@@ -88,6 +90,7 @@ import { AccountExportManager } from './account-export/account-export.manager';
         AiClient,
         AiUsageManager,
         AiSpend,
+        AuditManager,
         AccountExportManager,
         WebsocketClientStore,
         TypeOrmModule

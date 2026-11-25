@@ -24,6 +24,8 @@ import {
     creating_needs_verified_email
 } from '@app/core/email-verification/email-verification';
 import { build_schema_diagram } from '@app/core/schema-diagram/schema-diagram';
+import { AuditService } from '../audit/audit.service';
+import { table_change } from '@app/core/audit/audit';
 import _c from '@app/constants';
 import logger from '@app/logger';
 
@@ -40,7 +42,8 @@ export class FileDirectoryService {
         private webhook_manager: WebhookManager,
         private form_manager: FormManager,
         private view_manager: ViewManager,
-        private onboarding_manager: OnboardingManager
+        private onboarding_manager: OnboardingManager,
+        private audit_svc: AuditService
     ) {}
 
     async get_by_id(file_directory_id: number) {
@@ -159,6 +162,14 @@ export class FileDirectoryService {
             }
             // The funnel's "created a table" step (#169)
             if (data.type !== 'dir') await this.onboarding_manager.record_table_created(acct_id);
+            if (data.type === 'file') {
+                await this.audit_svc.record(
+                    account,
+                    res.id,
+                    [{ action: 'table.created', ...table_change('table.created', res.name) }],
+                    { table_name: res.name }
+                );
+            }
             return res;
         } finally {
             await release();
@@ -195,7 +206,22 @@ export class FileDirectoryService {
             }
         }
         if (Object.keys(changes).length === 0) return file_directory;
-        return await this.update(file_directory.id, changes);
+        const updated = await this.update(file_directory.id, changes);
+        if (
+            file_directory.type === 'file' &&
+            updated &&
+            changes.name !== undefined &&
+            updated.name !== file_directory.name
+        ) {
+            const change = table_change('table.renamed', updated.name, file_directory.name);
+            await this.audit_svc.record(
+                await this.account_service.get(account_id),
+                file_directory.id,
+                [{ action: 'table.renamed', ...change }],
+                { table_name: updated.name }
+            );
+        }
+        return updated;
     }
 
     /** Marks the account's own tables and folders deleted. Rejects the whole batch if any id isn't theirs. */
@@ -220,6 +246,15 @@ export class FileDirectoryService {
             );
             await this.file_directory_repository.update(file_directory.id, { deleted: true });
             if (file_directory.type === 'file') {
+                if (!file_directory.deleted) {
+                    const change = table_change('table.deleted', file_directory.name);
+                    await this.audit_svc.record(
+                        account,
+                        file_directory.id,
+                        [{ action: 'table.deleted', ...change }],
+                        { table_name: file_directory.name }
+                    );
+                }
                 try {
                     await this.web_file_manager.delete_dg(account, file_directory.id);
                 } catch (ex) {

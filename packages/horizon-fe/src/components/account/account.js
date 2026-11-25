@@ -6,6 +6,7 @@ import ChangePasswordForm from './change-password-form';
 import TwoFactorForm from './two-factor-form';
 import DataExportForm from './data-export-form';
 import DeleteAccountForm from './delete-account-form';
+import AuditLog from '../audit-log';
 import { store } from '@/store';
 
 export default {
@@ -14,6 +15,7 @@ export default {
     components: {
         SubscriptionForm,
         ApiKeyForm,
+        AuditLog,
         AccountInfoForm,
         ChangePasswordForm,
         TwoFactorForm,

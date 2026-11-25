@@ -50,6 +50,9 @@ ModuleRegistry.registerModules([
 ]);
 
 const PAGE_SIZE = 50;
+// The first status check of a locked table, doubling up to the max (#190)
+const PENDING_CHECK_FIRST_MS = 5000;
+const PENDING_CHECK_MAX_MS = 60000;
 const ADD_ROW_MODE_ROW_COUNT = 4;
 
 const ROW_INDEX_COLUMN = {
@@ -119,6 +122,11 @@ export default {
         this.link_labels = {};
         // Fields the current view hides (#146); column_visible() leaves them hidden
         this.hidden_fields = new Set();
+        // While the table is locked waiting for a job (or after a failed load), a timer checks
+        // the table's status and reloads it once it isn't PENDING (#190)
+        this.pending_timer = null;
+        this.pending_delay = 0;
+        this.pending_token = 0;
         this.grid_options = markRaw({
             theme: grid_theme,
             rowData: null,
@@ -165,6 +173,7 @@ export default {
 
     beforeUnmount() {
         bus.$off('websocket:message', this.websocket_message);
+        this.stop_pending_check();
     },
     /*** End: Mounted ***/
 
@@ -242,6 +251,10 @@ export default {
             ) {
                 switch (event) {
                     case 'WEB_FILE_PROCESS_START':
+                        // The backend sends START and COMPLETE without waiting for each
+                        // other, so a START can arrive after its COMPLETE. Its file is read
+                        // when it's sent: if that isn't PENDING, the job is already done.
+                        if (message.file.status !== 'PENDING') break;
                         this.set_table_load_pending();
                         break;
                     case 'WEB_FILE_PROCESS_COMPLETE':
@@ -259,11 +272,64 @@ export default {
         set_table_load_pending() {
             this.table_lock = true;
             this.processing = true;
+            this.pending_delay = 0;
+            this.schedule_pending_check();
+        },
+
+        // A START whose COMPLETE was missed (or came first) would leave the grid locked, so
+        // while it's locked, check the table's status with a growing delay and reload it as
+        // soon as no job is running on it.
+        schedule_pending_check() {
+            this.stop_pending_check();
+            this.pending_delay = Math.min(
+                this.pending_delay
+                    ? this.pending_delay * 2
+                    : PENDING_CHECK_FIRST_MS,
+                PENDING_CHECK_MAX_MS
+            );
+            const token = this.pending_token;
+            this.pending_timer = window.setTimeout(
+                () => this.check_pending(token),
+                this.pending_delay
+            );
+        },
+
+        stop_pending_check() {
+            if (this.pending_timer) window.clearTimeout(this.pending_timer);
+            this.pending_timer = null;
+            // A check already waiting on the server is ignored when it returns
+            this.pending_token++;
+        },
+
+        async check_pending(token) {
+            let file;
+            try {
+                file = await web_file_http.get_file(this.file_directory_id);
+            } catch (ex) {
+                if (token === this.pending_token) this.schedule_pending_check();
+                return;
+            }
+            if (token !== this.pending_token) return;
+            this.pending_timer = null;
+            // The table is gone: the tree closes its tab
+            if (!file) return;
+            if (file.status === 'PENDING') {
+                this.schedule_pending_check();
+                return;
+            }
+            // The tree and tab may still show the table as processing
+            bus.$emit('table:status', file);
+            if (file.status === 'ERROR') {
+                this.set_table_load_error(file);
+            } else {
+                this.load_table();
+            }
         },
 
         set_table_load_error(file, error) {
             let err_msg = file.status_reason ? file.status_reason : null;
             if (err_msg) {
+                this.stop_pending_check();
                 this.toast.error(err_msg);
                 this.table_lock = true;
                 this.processing = false;
@@ -319,6 +385,7 @@ export default {
         },
 
         async load_table() {
+            this.stop_pending_check();
             this.table_lock = false;
             this.processing = false;
             this.show_top_bar_info('Loading...');
@@ -348,6 +415,7 @@ export default {
                 this.table_lock = false;
                 this.saving_columns = false;
                 this.processing = false;
+                this.pending_delay = 0;
 
                 if (this.file.locked && this.file.locked_reason) {
                     this.toast.error(this.file.locked_reason, 3000, {
@@ -364,6 +432,8 @@ export default {
                     this.toast.error(ex.message);
                 } else {
                     this.toast.error('Error loading table data');
+                    // Refresh is disabled while locked, so try again by itself
+                    this.schedule_pending_check();
                 }
             }
         },
@@ -854,6 +924,8 @@ export default {
             // if res !== 'done' then batch job has been queued
             if (res === 'done') {
                 this.load_table();
+            } else if (res === 'queued') {
+                this.set_table_load_pending();
             }
         },
 

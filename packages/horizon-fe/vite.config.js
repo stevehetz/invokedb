@@ -29,6 +29,15 @@ function chunk_budgets() {
     };
 }
 
+// A codeSplitting `test` that matches the JS modules of the npm packages `is_pkg` accepts.
+function vendor_test(is_pkg) {
+    return id => {
+        if (!/\.[cm]?js$/.test(id)) return false;
+        const m = id.match(/node_modules[\\/]((?:@[^\\/]+[\\/])?[^\\/]+)/);
+        return !!m && is_pkg(m[1].replace(/\\/g, '/'));
+    };
+}
+
 // Env comes from scripts/env.sh (the repo .env); the browser gets its runtime env from
 // public/env.txt, written by env.js.
 export default defineConfig({
@@ -43,27 +52,45 @@ export default defineConfig({
             CHUNK_BUDGET_KB,
             ...Object.values(CHUNK_BUDGETS_KB)
         ),
-        rollupOptions: {
+        rolldownOptions: {
             output: {
                 // The big libraries get chunks of their own, so they're cached across deploys.
                 // JS only: CSS must stay with the shell that imports it (see router.js).
-                manualChunks(id) {
-                    if (!/\.[cm]?js$/.test(id)) return;
-                    const m = id.match(/node_modules\/((?:@[^/]+\/)?[^/]+)/);
-                    if (!m) return;
-                    const pkg = m[1];
-                    if (pkg.startsWith('ag-grid-')) return 'ag-grid';
-                    if (
-                        pkg === 'element-plus' ||
-                        pkg.startsWith('@element-plus/')
-                    )
-                        return 'element-plus';
-                    if (
-                        pkg === 'vue' ||
-                        pkg === 'vue-router' ||
-                        pkg.startsWith('@vue/')
-                    )
-                        return 'vue';
+                // A group also takes in its modules' dependencies, so Vue has the highest
+                // priority and claims its modules first. Otherwise ag-grid-vue3 pulls the Vue
+                // runtime into the ag-grid chunk, and the entry (every page, the public site
+                // too) has to load all of ag-grid statically just to get Vue (#131).
+                codeSplitting: {
+                    groups: [
+                        {
+                            name: 'vue',
+                            test: vendor_test(
+                                pkg =>
+                                    pkg === 'vue' ||
+                                    pkg === 'vue-router' ||
+                                    pkg.startsWith('@vue/')
+                            ),
+                            priority: 3
+                        },
+                        {
+                            name: 'element-plus',
+                            test: vendor_test(
+                                pkg =>
+                                    pkg === 'element-plus' ||
+                                    pkg.startsWith('@element-plus/')
+                            ),
+                            priority: 2
+                        },
+                        {
+                            name: 'ag-grid',
+                            test: vendor_test(
+                                pkg =>
+                                    pkg.startsWith('ag-grid-') ||
+                                    pkg === 'ag-stack'
+                            ),
+                            priority: 1
+                        }
+                    ]
                 }
             }
         }

@@ -23,6 +23,7 @@ import ElDialog from 'element-plus/es/components/dialog/index.mjs';
 import ElDropdown from 'element-plus/es/components/dropdown/index.mjs';
 import ElForm from 'element-plus/es/components/form/index.mjs';
 import ElInput from 'element-plus/es/components/input/index.mjs';
+import ElLink from 'element-plus/es/components/link/index.mjs';
 import ElLoading from 'element-plus/es/components/loading/index.mjs';
 import ElMenu from 'element-plus/es/components/menu/index.mjs';
 import ElProgress from 'element-plus/es/components/progress/index.mjs';
@@ -50,6 +51,7 @@ app.config.globalProperties.$bus = bus;
     ElDropdown,
     ElForm,
     ElInput,
+    ElLink,
     ElLoading,
     ElMenu,
     ElProgress,

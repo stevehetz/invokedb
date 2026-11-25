@@ -3,8 +3,10 @@ import SubscriptionForm from './subscription-form';
 import ApiKeyForm from './api-key-form';
 import AccountInfoForm from './account-info-form';
 import ChangePasswordForm from './change-password-form';
+import TwoFactorForm from './two-factor-form';
 import DataExportForm from './data-export-form';
 import DeleteAccountForm from './delete-account-form';
+import AuditLog from '../audit-log';
 import { store } from '@/store';
 
 export default {
@@ -13,8 +15,10 @@ export default {
     components: {
         SubscriptionForm,
         ApiKeyForm,
+        AuditLog,
         AccountInfoForm,
         ChangePasswordForm,
+        TwoFactorForm,
         DataExportForm,
         DeleteAccountForm
     },

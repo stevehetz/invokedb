@@ -193,6 +193,33 @@
                             <span>Ask AI</span>
                         </el-button>
                     </div>
+                    <div class="more-button">
+                        <el-dropdown
+                            trigger="click"
+                            :disabled="table_lock"
+                            @command="more_command"
+                        >
+                            <el-button
+                                link
+                                class="more-menu-button"
+                                title="More"
+                                aria-label="More"
+                                :disabled="table_lock"
+                            >
+                                <i class="fa fa-ellipsis-h"></i>
+                            </el-button>
+                            <template #dropdown>
+                                <el-dropdown-menu class="more-menu">
+                                    <el-dropdown-item
+                                        command="history"
+                                        class="more-history"
+                                    >
+                                        <i class="fa fa-history"></i> History
+                                    </el-dropdown-item>
+                                </el-dropdown-menu>
+                            </template>
+                        </el-dropdown>
+                    </div>
                 </div>
             </div>
         </div>

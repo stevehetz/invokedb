@@ -20,6 +20,8 @@ import { FormController, PublicFormController } from './http/form/form.controlle
 import { ApiKeyController } from './http/api-key/api-key.controller';
 import { ViewController } from './http/view/view.controller';
 import { AiController } from './http/ai/ai.controller';
+import { AuditController } from './http/audit/audit.controller';
+import { TwoFactorController } from './http/two-factor/two-factor.controller';
 import { AccountExportController } from './http/account-export/account-export.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
@@ -46,6 +48,8 @@ import { WebsocketClient } from './ws/websocket-client';
         ApiKeyController,
         ViewController,
         AiController,
+        AuditController,
+        TwoFactorController,
         AccountExportController
     ],
     providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor, ApiKeyUsageGuard]

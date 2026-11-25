@@ -27,7 +27,56 @@
                 <i class="fas fa-sync fa-spin spinner"></i>
                 <h3 class="processing-text">Logging in...</h3>
             </div>
-            <div class="panel-box" v-if="!processing">
+            <div
+                class="panel-box two-factor-box"
+                v-if="!processing && challenge"
+            >
+                <div class="top">
+                    <h3 class="panel-title">Two-factor sign-in</h3>
+                    <p class="two-factor-help">
+                        Enter the 6-digit code from your authenticator app, or
+                        one of your recovery codes.
+                    </p>
+                    <div class="input-box">
+                        <el-input
+                            class="two-factor-code"
+                            type="text"
+                            v-model="code"
+                            @keyup.enter="submit_code"
+                            placeholder="Code"
+                            autocomplete="one-time-code"
+                            maxlength="24"
+                            ref="code"
+                        ></el-input>
+                    </div>
+                </div>
+                <div class="bottom">
+                    <div class="error-box">
+                        <div class="error-message" v-if="error.message !== ''">
+                            <i class="fa fa-exclamation-triangle"></i>
+                            <span>{{ error.message }}</span>
+                        </div>
+                    </div>
+                    <div class="control-box">
+                        <div class="flex-2-col">
+                            <div class="left">
+                                <a href="" @click="restart($event)"
+                                    >Use another account</a
+                                >
+                            </div>
+                            <div class="right">
+                                <a
+                                    href=""
+                                    class="login-button two-factor-submit"
+                                    @click="submit_code($event)"
+                                    >Verify <i class="fa fa-sign-in"></i
+                                ></a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-box" v-if="!processing && !challenge">
                 <div class="top">
                     <h3 class="panel-title">Login to your InvokeDB account</h3>
                     <sso-buttons></sso-buttons>

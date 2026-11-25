@@ -5,7 +5,7 @@
 // render the public site's pages, log in, check the onboarding checklist, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
 // open the table's API docs and "Try it" on Get, add / test / disable / delete a webhook, ask the
-// table a question (#149, against a stub of the Anthropic API on the smoke stack), make a read-only table-scoped API key on the account page, call /api/v1 with it and revoke it (#138), make a form and submit it
+// table a question (#149, against a stub of the Anthropic API on the smoke stack), make a read-only table-scoped API key on the account page, call /api/v1 with it and revoke it (#138), start (and cancel) the two-factor setup (#214), make a form and submit it
 // through its public link, then close and delete it, make (and delete) a table
 // from a template (saving a grid view of it, a kanban view where a card is dragged and a
 // chart view, #146, and a calendar view, #211) and one from a URL (a CSV on GitHub, so it needs internet), add a link column
@@ -275,7 +275,7 @@ async function step(name, fn) {
         const mask = page
             ? [
                   page.locator(
-                      'input[type=password], .api-key-secret, .onboarding-key code, .onboarding-command, .webhook-secret input'
+                      'input[type=password], .api-key-secret, .onboarding-key code, .onboarding-command, .webhook-secret input, .two-factor-secret, .two-factor-qr'
                   )
               ]
             : [];
@@ -770,6 +770,25 @@ try {
         await dialog.waitFor({ state: 'detached' });
     });
 
+    // History (#217): the More menu opens the table's audit log, with the table's creation and
+    // the column changes above, made by this user
+    await step('table_history', async () => {
+        await grid().locator('.more-button button').click();
+        await page.locator('.more-menu .more-history').click();
+        const dialog = page.locator('.container-dialog .audit-log');
+        await dialog.locator('.audit-log-entry').first().waitFor();
+        const summaries = await dialog.locator('.audit-log-summary').allInnerTexts();
+        results.observed.history_entries = summaries.length;
+        check(
+            summaries.some(s => /Created table/.test(s)),
+            `the history has no "Created table": ${JSON.stringify(summaries.slice(0, 5))}`
+        );
+        const actor = (await dialog.locator('.audit-log-actor').first().innerText()).trim();
+        check(actor.toLowerCase() === EMAIL.toLowerCase(), `the newest change is by "${actor}"`);
+        await page.locator('.container-dialog .el-dialog__headerbtn').click();
+        await dialog.waitFor({ state: 'detached' });
+    });
+
     // Webhooks (#140): a private URL is refused; one added for this table shows its secret,
     // sends a test event (it appears in its delivery log), is disabled and then deleted. Its URL
     // is on example.com, so only that the test event was queued and logged is checked, not
@@ -1078,6 +1097,25 @@ try {
             if (initial_key_ids && !initial_key_ids.has(k.id) && !k.revoked_datetime) {
                 await be('DELETE', `/api-key/${k.id}`, { token: be_s.token });
             }
+        }
+        // Two-factor sign-in (#214), on the same page: the card loads, and "Turn on" shows a QR
+        // code drawn by the backend (a data URI) and the key; cancelled, so login is unchanged.
+        // Skipped where the server has no HORIZON_TOTP_KEY (the card then says so).
+        const tf = page.locator('.two-factor-form');
+        await tf.locator('.two-factor-intro').first().waitFor();
+        if (await tf.locator('.two-factor-setup-button').count()) {
+            await tf.locator('.two-factor-setup-button').click();
+            const qr = tf.locator('.two-factor-qr');
+            await qr.waitFor();
+            const src = (await qr.getAttribute('src')) || '';
+            check(
+                src.startsWith('data:image/svg+xml;base64,'),
+                `two-factor QR src ${src.slice(0, 30)}`
+            );
+            const secret = (await tf.locator('.two-factor-secret').innerText()).trim();
+            check(/^[A-Z2-7]{32}$/.test(secret), 'the two-factor key is not shown');
+            await tf.locator('.two-factor-setup').getByRole('button', { name: 'Cancel' }).click();
+            await qr.waitFor({ state: 'detached' });
         }
         await page.locator('.layout .nav .el-menu-item', { hasText: 'Tables' }).click();
     });

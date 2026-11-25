@@ -9,7 +9,9 @@ jest.mock('uuid', () => ({ v4: () => jest.requireActual('crypto').randomUUID() }
 const TOKEN = '0b6f3c3e-2f7a-4d5e-9b1c-7a8d9e0f1a2b';
 const PASSWORD = 'Passw0rd!';
 
-function setup(opts: { existing?: any; verification?: any; account?: any } = {}) {
+function setup(
+    opts: { existing?: any; verification?: any; account?: any; two_factor?: boolean } = {}
+) {
     const sent: Array<{ to: string; subject: string; body: string }> = [];
     const account_repository = {
         save: jest.fn(async (a: any) => ({ id: 41, ...a })),
@@ -41,6 +43,15 @@ function setup(opts: { existing?: any; verification?: any; account?: any } = {})
         record_email_verified: jest.fn(async () => {})
     };
 
+    const session_manager = {
+        create_session: jest.fn(async (account_id: number) => ({ token: 'internal_t', account_id }))
+    };
+    // Two-factor sign-in (#214): on when opts.two_factor is set
+    const two_factor_service = {
+        is_enabled: jest.fn(async () => !!opts.two_factor),
+        start_login: jest.fn(() => 'challenge-token'),
+        finish_login: jest.fn(async () => opts.account)
+    };
     const service = new AuthService(
         {} as any,
         account_repository as any,
@@ -48,13 +59,16 @@ function setup(opts: { existing?: any; verification?: any; account?: any } = {})
         {} as any,
         email_verification_repository as any,
         account_manager,
-        {} as any,
+        session_manager as any,
         email_manager as any,
         {} as any,
-        onboarding_manager as any
+        onboarding_manager as any,
+        two_factor_service as any
     );
     return {
         service,
+        session_manager,
+        two_factor_service,
         account_repository,
         email_verification_repository,
         account_manager,
@@ -188,5 +202,58 @@ describe('AuthService.resend_verification', () => {
         const t = setup({ account: { id: 3, email: 'u@x.com', email_verified: true } });
         expect(await t.service.resend_verification(3)).toEqual({ email_verified: true });
         expect(t.sent).toHaveLength(0);
+    });
+});
+
+describe('AuthService.login (two-factor, #214)', () => {
+    const account = { id: 9, email: 'u@x.com', password_hash: 'hash' };
+
+    it('starts a session when two-factor is off', async () => {
+        const t = setup({ account });
+        jest.spyOn(t.account_manager, 'authenticate_account').mockResolvedValue(account as any);
+        expect(await t.service.login({ email: 'u@x.com', password: PASSWORD })).toEqual({
+            token: 'internal_t',
+            account_id: 9
+        });
+        expect(t.two_factor_service.start_login).not.toHaveBeenCalled();
+    });
+
+    it('answers a challenge, not a session, when two-factor is on', async () => {
+        const t = setup({ account, two_factor: true });
+        jest.spyOn(t.account_manager, 'authenticate_account').mockResolvedValue(account as any);
+        expect(await t.service.login({ email: 'u@x.com', password: PASSWORD })).toEqual({
+            two_factor_required: true,
+            challenge: 'challenge-token'
+        });
+        expect(t.two_factor_service.start_login).toHaveBeenCalledWith(9);
+        expect(t.session_manager.create_session).not.toHaveBeenCalled();
+    });
+
+    it('never answers a challenge for a wrong password', async () => {
+        const t = setup({ account, two_factor: true });
+        jest.spyOn(t.account_manager, 'authenticate_account').mockRejectedValue(
+            new HttpException('Invalid email or password', HttpStatus.BAD_REQUEST)
+        );
+        expect(await status_of(t.service.login({ email: 'u@x.com', password: 'x' }))).toBe(400);
+        expect(t.two_factor_service.start_login).not.toHaveBeenCalled();
+    });
+
+    it('starts the session once the code step passes', async () => {
+        const t = setup({ account, two_factor: true });
+        expect(await t.service.login_two_factor({ challenge: 'c', code: '123456' })).toEqual({
+            token: 'internal_t',
+            account_id: 9
+        });
+        expect(t.two_factor_service.finish_login).toHaveBeenCalledWith('c', '123456');
+    });
+
+    it('starts no session when the code step fails', async () => {
+        const t = setup({ account, two_factor: true });
+        t.two_factor_service.finish_login.mockRejectedValue(
+            new HttpException('wrong', HttpStatus.BAD_REQUEST)
+        );
+        const status = await status_of(t.service.login_two_factor({ challenge: 'c', code: '1' }));
+        expect(status).toBe(400);
+        expect(t.session_manager.create_session).not.toHaveBeenCalled();
     });
 });

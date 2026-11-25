@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="870" viewBox="0 0 1200 870" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>InvokeDB production: runtime</title>
+  <desc>What runs InvokeDB in production and what flows between the pieces: Cloudflare DNS and Email Routing, the DigitalOcean firewall, droplet and backups, and the outside services for email, sign-in, monitoring and alerts. See docs/OPERATIONS.md.</desc>
+  <style>
+    .bg { fill: #ffffff; }
+    .grp { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.2; }
+    .box { fill: #ffffff; stroke: #8c959f; stroke-width: 1.2; }
+    .h { fill: #1f2328; font-size: 14px; font-weight: 600; }
+    .g { fill: #1f2328; font-size: 15px; font-weight: 700; }
+    .d { fill: #59636e; font-size: 11.5px; }
+    .title { fill: #1f2328; font-size: 20px; font-weight: 700; }
+    .web { stroke: #0969da; }
+    .mail { stroke: #1a7f37; }
+    .alert { stroke: #cf222e; stroke-dasharray: 6 4; }
+    .backup { stroke: #8250df; }
+    .ssh { stroke: #9a6700; }
+    .web, .mail, .alert, .backup, .ssh { fill: none; stroke-width: 1.6; }
+    .k-web { fill: #0969da; }
+    .k-mail { fill: #1a7f37; }
+    .k-alert { fill: #cf222e; }
+    .k-backup { fill: #8250df; }
+    .k-ssh { fill: #9a6700; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .grp { fill: #161b22; stroke: #30363d; }
+      .box { fill: #0d1117; stroke: #6e7681; }
+      .h, .g, .title { fill: #e6edf3; }
+      .d { fill: #9198a1; }
+      .web { stroke: #4493f8; }
+      .mail { stroke: #3fb950; }
+      .alert { stroke: #f85149; }
+      .backup { stroke: #ab7df8; }
+      .ssh { stroke: #d29922; }
+      .k-web { fill: #4493f8; }
+      .k-mail { fill: #3fb950; }
+      .k-alert { fill: #f85149; }
+      .k-backup { fill: #ab7df8; }
+      .k-ssh { fill: #d29922; }
+    }
+  </style>
+  <defs>
+    <marker id="m-web" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="k-web" d="M0,0L10,5L0,10z"/></marker>
+    <marker id="m-mail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="k-mail" d="M0,0L10,5L0,10z"/></marker>
+    <marker id="m-alert" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="k-alert" d="M0,0L10,5L0,10z"/></marker>
+    <marker id="m-backup" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="k-backup" d="M0,0L10,5L0,10z"/></marker>
+    <marker id="m-ssh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path class="k-ssh" d="M0,0L10,5L0,10z"/></marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1200" height="870"/>
+  <text class="title" x="20" y="36">InvokeDB production: runtime</text>
+  <text class="d" x="20" y="58">What runs where, and what flows between the pieces. How code gets there: infrastructure-delivery.svg. Details: docs/OPERATIONS.md.</text>
+
+  <!-- Left column: people and the owner -->
+  <rect class="box" x="20" y="100" width="210" height="60" rx="6"/>
+  <text class="h" x="32" y="122">Browsers</text>
+  <text class="d" x="32" y="142">the site, the app, websockets</text>
+
+  <rect class="box" x="20" y="180" width="210" height="60" rx="6"/>
+  <text class="h" x="32" y="202">API clients</text>
+  <text class="d" x="32" y="222">/api/v1 with an API key</text>
+
+  <rect class="box" x="20" y="420" width="210" height="76" rx="6"/>
+  <text class="h" x="32" y="442">GitHub Actions: cd.yml</text>
+  <text class="d" x="32" y="462">SSH: deploy &lt;sha&gt;, see the</text>
+  <text class="d" x="32" y="478">delivery diagram</text>
+
+  <rect class="box" x="20" y="590" width="210" height="86" rx="6"/>
+  <text class="h" x="32" y="612">The owner's Mac</text>
+  <text class="d" x="32" y="632">deploy/deploy.sh over SSH,</text>
+  <text class="d" x="32" y="648">only from the home IP;</text>
+  <text class="d" x="32" y="664">copies prod.env to the server</text>
+
+  <rect class="box" x="20" y="720" width="210" height="60" rx="6"/>
+  <text class="h" x="32" y="742">Dropbox</text>
+  <text class="d" x="32" y="762">the secret files' originals</text>
+
+  <!-- Cloudflare -->
+  <rect class="grp" x="280" y="90" width="360" height="160" rx="8"/>
+  <text class="g" x="292" y="111">Cloudflare</text>
+
+  <rect class="box" x="292" y="122" width="170" height="116" rx="6"/>
+  <text class="h" x="304" y="144">DNS (grey cloud)</text>
+  <text class="d" x="304" y="164">invokedb.com</text>
+  <text class="d" x="304" y="180">www. → invokedb.com</text>
+  <text class="d" x="304" y="196">api.   ws.</text>
+  <text class="d" x="304" y="212">+ Mailgun, MX records</text>
+
+  <rect class="box" x="474" y="122" width="154" height="116" rx="6"/>
+  <text class="h" x="486" y="144">Email Routing</text>
+  <text class="d" x="486" y="164">catch-all rule for</text>
+  <text class="d" x="486" y="180">@invokedb.com → the</text>
+  <text class="d" x="486" y="196">invokedb-email Worker</text>
+  <text class="d" x="486" y="212">(up when the server isn't)</text>
+
+  <!-- DigitalOcean -->
+  <rect class="grp" x="280" y="275" width="550" height="540" rx="8"/>
+  <text class="g" x="818" y="296" text-anchor="end">DigitalOcean (NYC)</text>
+
+  <rect class="box" x="292" y="305" width="526" height="70" rx="6"/>
+  <text class="h" x="304" y="327">Cloud Firewall invokedb-prod</text>
+  <text class="d" x="304" y="347">In: TCP 80, 443 and UDP 443 from anywhere</text>
+  <text class="d" x="304" y="363">SSH 22: the owner's home IP, plus a temporary /32 for cd.yml's runner</text>
+
+  <rect class="grp" x="292" y="390" width="526" height="310" rx="8"/>
+  <text class="h" x="304" y="410">Droplet invokedb-prod · docker compose</text>
+  <text class="d" x="304" y="426">Ubuntu 24.04 · 2 vCPU / 4 GB · secrets in /opt/invokedb/prod.env</text>
+
+  <rect class="box" x="304" y="438" width="502" height="64" rx="6"/>
+  <text class="h" x="316" y="460">Caddy (web)</text>
+  <text class="d" x="316" y="476">TLS from Let's Encrypt · serves the built site and app</text>
+  <text class="d" x="316" y="492">proxies api. → api:8001 and ws. → api:9000</text>
+
+  <rect class="box" x="304" y="518" width="140" height="102" rx="6"/>
+  <text class="h" x="316" y="540">prc</text>
+  <text class="d" x="316" y="560">CSV processor:</text>
+  <text class="d" x="316" y="576">imports uploads</text>
+  <text class="d" x="316" y="592">into Mongo</text>
+
+  <rect class="box" x="476" y="518" width="158" height="48" rx="6"/>
+  <text class="h" x="488" y="538">Postgres 17</text>
+  <text class="d" x="488" y="556">accounts, tables, keys</text>
+
+  <rect class="box" x="476" y="572" width="158" height="48" rx="6"/>
+  <text class="h" x="488" y="592">Mongo 8</text>
+  <text class="d" x="488" y="610">row data</text>
+
+  <rect class="box" x="666" y="518" width="140" height="102" rx="6"/>
+  <text class="h" x="678" y="540">api</text>
+  <text class="d" x="678" y="560">HTTP API :8001</text>
+  <text class="d" x="678" y="576">websockets :9000</text>
+  <text class="d" x="678" y="592">file uploads</text>
+
+  <rect class="box" x="304" y="636" width="502" height="50" rx="6"/>
+  <text class="h" x="316" y="656">backup.sh (cron, 07:15 UTC)</text>
+  <text class="d" x="316" y="674">pg_dump + mongodump, encrypted with BACKUP_PASSPHRASE, kept 30 days</text>
+
+  <rect class="box" x="292" y="720" width="255" height="62" rx="6"/>
+  <text class="h" x="304" y="742">Spaces: invokedb-backups</text>
+  <text class="d" x="304" y="762">NYC3 · nightly, encrypted</text>
+
+  <rect class="box" x="563" y="720" width="255" height="62" rx="6"/>
+  <text class="h" x="575" y="742">Droplet backups</text>
+  <text class="d" x="575" y="762">weekly, the whole droplet</text>
+
+  <text class="d" x="292" y="804">Both backup copies are in the one DigitalOcean account.</text>
+
+  <!-- Right column: outside services -->
+  <rect class="box" x="870" y="90" width="300" height="62" rx="6"/>
+  <text class="h" x="882" y="112">Google and GitHub OAuth apps</text>
+  <text class="d" x="882" y="132">sign-in; callback api.invokedb.com/auth/…</text>
+
+  <rect class="box" x="870" y="180" width="300" height="78" rx="6"/>
+  <text class="h" x="882" y="202">Support Gmail</text>
+  <text class="d" x="882" y="222">the one inbox: support@, the contact</text>
+  <text class="d" x="882" y="238">form, resets, UptimeRobot alerts</text>
+
+  <rect class="box" x="870" y="285" width="300" height="78" rx="6"/>
+  <text class="h" x="882" y="307">Mailgun · mail.invokedb.com</text>
+  <text class="d" x="882" y="327">welcome and password-reset emails,</text>
+  <text class="d" x="882" y="343">the contact form → support@</text>
+
+  <rect class="box" x="870" y="410" width="300" height="62" rx="6"/>
+  <text class="h" x="882" y="432">UptimeRobot</text>
+  <text class="d" x="882" y="452">every 5 min: the site and the API</text>
+
+  <rect class="box" x="870" y="495" width="300" height="78" rx="6"/>
+  <text class="h" x="882" y="517">Telegram bot → the owner's chat</text>
+  <text class="d" x="882" y="537">backup and e2e alerts; the contact</text>
+  <text class="d" x="882" y="553">form when Mailgun refuses it</text>
+
+  <rect class="box" x="870" y="600" width="300" height="62" rx="6"/>
+  <text class="h" x="882" y="622">Healthchecks.io</text>
+  <text class="d" x="882" y="642">"invokedb backups": daily, 2 h grace</text>
+
+  <rect class="box" x="870" y="695" width="300" height="62" rx="6"/>
+  <text class="h" x="882" y="717">e2e.yml (GitHub Actions)</text>
+  <text class="d" x="882" y="737">nightly + after deploys: drives the site</text>
+
+  <!-- Web traffic -->
+  <path class="web" marker-end="url(#m-web)" d="M230,130 H292"/>
+  <path class="web" marker-end="url(#m-web)" d="M230,210 H292"/>
+  <path class="web" marker-end="url(#m-web)" d="M377,238 V305"/>
+  <text class="d" x="385" y="267">HTTPS to the droplet</text>
+  <path class="web" marker-end="url(#m-web)" d="M760,375 V438"/>
+  <path class="web" marker-end="url(#m-web)" d="M736,502 V518"/>
+  <path class="web" marker-end="url(#m-web)" d="M444,542 H476"/>
+  <path class="web" marker-end="url(#m-web)" d="M444,596 H476"/>
+  <path class="web" marker-end="url(#m-web)" d="M666,542 H634"/>
+  <path class="web" marker-end="url(#m-web)" d="M666,596 H634"/>
+  <!-- api calls out: OAuth, Mailgun -->
+  <path class="web" marker-end="url(#m-web)" d="M806,528 H848 V121 H870"/>
+  <path class="mail" marker-end="url(#m-mail)" d="M848,324 H870"/>
+
+  <!-- Email -->
+  <path class="mail" marker-end="url(#m-mail)" d="M628,215 H870"/>
+  <text class="d" x="648" y="208">forwards all mail</text>
+  <path class="mail" marker-end="url(#m-mail)" d="M1020,285 V258"/>
+
+  <!-- Monitoring and alerts -->
+  <path class="alert" marker-end="url(#m-alert)" d="M870,460 H806"/>
+  <path class="alert" marker-end="url(#m-alert)" d="M1170,441 H1185 V230 H1170"/>
+  <path class="alert" marker-end="url(#m-alert)" d="M806,550 H870"/>
+  <path class="alert" marker-end="url(#m-alert)" d="M806,650 H870"/>
+  <path class="alert" marker-end="url(#m-alert)" d="M1020,600 V573"/>
+  <path class="alert" marker-end="url(#m-alert)" d="M1170,726 H1185 V545 H1170"/>
+
+  <!-- Backups -->
+  <path class="backup" marker-end="url(#m-backup)" d="M555,620 V636"/>
+  <path class="backup" marker-end="url(#m-backup)" d="M420,686 V720"/>
+  <path class="backup" marker-end="url(#m-backup)" d="M690,700 V720"/>
+
+  <!-- Deploys and SSH -->
+  <path class="ssh" marker-end="url(#m-ssh)" d="M230,450 H250 V322 H292"/>
+  <path class="ssh" marker-end="url(#m-ssh)" d="M230,620 H262 V352 H292"/>
+  <path class="ssh" marker-end="url(#m-ssh)" d="M125,676 V720"/>
+  <text class="d" x="133" y="702">scripts/secrets.sh</text>
+
+  <!-- Legend -->
+  <path class="web" d="M20,840 H50"/><text class="d" x="58" y="844">web traffic and API calls</text>
+  <path class="mail" d="M230,840 H260"/><text class="d" x="268" y="844">email</text>
+  <path class="alert" d="M330,840 H360"/><text class="d" x="368" y="844">monitoring and alerts</text>
+  <path class="backup" d="M520,840 H550"/><text class="d" x="558" y="844">backups</text>
+  <path class="ssh" d="M640,840 H670"/><text class="d" x="678" y="844">deploys, SSH and secrets</text>
+</svg>

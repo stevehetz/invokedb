@@ -7,7 +7,8 @@ import {
     HttpException,
     HttpCode,
     Put,
-    UseGuards
+    UseGuards,
+    UseInterceptors
 } from '@nestjs/common';
 import { WebFileService } from '@app/application/web-file/web-file.service';
 import { AccountService } from '@app/application/account/account.service';
@@ -15,9 +16,12 @@ import { FileDirectoryService } from '@app/application/file-directory/file-direc
 import { AuthGuard } from '@nestjs/passport';
 import { api_key_account } from '@app/web/http/_auth/request-account';
 import { public_api_base_url } from '@app/web/http/public-api-url';
+import { OnboardingInterceptor } from './onboarding.interceptor';
 
 @Controller('api/v1')
 @UseGuards(AuthGuard('bearer'))
+// A successful call ticks the onboarding checklist's last step (#143)
+@UseInterceptors(OnboardingInterceptor)
 export class ExternalV1Controller {
     constructor(
         private readonly web_file_service: WebFileService,

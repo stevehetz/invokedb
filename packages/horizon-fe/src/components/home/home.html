@@ -39,4 +39,8 @@
             </el-tab-pane>
         </el-tabs>
     </div>
+    <onboarding
+        :tree_items="tree_items"
+        @add_table="type => add_tree_item(type, null)"
+    ></onboarding>
 </div>

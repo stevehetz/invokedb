@@ -1,0 +1,142 @@
+<div class="onboarding" v-if="visible" :class="{ collapsed }">
+    <div class="onboarding-heading">
+        <button
+            class="onboarding-toggle"
+            type="button"
+            :aria-expanded="!collapsed"
+            @click="collapsed = !collapsed"
+        >
+            <i
+                class="fa"
+                :class="collapsed ? 'fa-chevron-up' : 'fa-chevron-down'"
+            ></i>
+            <span class="onboarding-title">
+                {{ view.complete ? "You're all set" : 'Make your first API call'
+                }}
+            </span>
+            <span class="onboarding-progress">
+                {{ done_count }}/{{ steps.length }}
+            </span>
+        </button>
+        <button
+            class="onboarding-dismiss"
+            type="button"
+            title="Hide the checklist for good"
+            aria-label="Hide the checklist"
+            @click="dismiss"
+        >
+            <i class="fa fa-times"></i>
+        </button>
+    </div>
+    <ol class="onboarding-steps" v-if="!collapsed">
+        <li
+            v-for="step in steps"
+            :key="step.id"
+            class="onboarding-step"
+            :class="{ done: step.done }"
+            :data-step="step.id"
+        >
+            <i
+                class="step-check fa"
+                :class="step.done ? 'fa-check-circle' : 'fa-circle'"
+            ></i>
+            <div class="step-body">
+                <div class="step-title">{{ step.title }}</div>
+
+                <div class="step-detail" v-if="step.id === 'create_table'">
+                    <template v-if="!step.done">
+                        <p>A ready-made template is quickest.</p>
+                        <el-button
+                            size="small"
+                            type="primary"
+                            @click="add_table('template')"
+                            >From a template</el-button
+                        >
+                        <el-button size="small" @click="add_table('data-grid')"
+                            >Empty</el-button
+                        >
+                        <el-button size="small" @click="add_table('upload')"
+                            >From a CSV</el-button
+                        >
+                    </template>
+                    <p v-else-if="view.first_call">
+                        The command calls <b>{{ view.first_call.table }}</b>.
+                    </p>
+                </div>
+
+                <div class="step-detail" v-if="step.id === 'view_api_key'">
+                    <p>
+                        It opens your tables through the API: keep it secret.
+                        It's also on the
+                        <router-link :to="{ name: 'account' }"
+                            >Account page</router-link
+                        >.
+                    </p>
+                    <div class="onboarding-code" v-if="key_shown">
+                        <code>{{ api_key }}</code>
+                    </div>
+                    <el-button v-else size="small" @click="show_key"
+                        >Show key</el-button
+                    >
+                </div>
+
+                <div
+                    class="step-detail"
+                    v-if="step.id === 'copy_command' && view.first_call"
+                >
+                    <p>It has your key in it, so it runs as pasted.</p>
+                    <div class="onboarding-code">
+                        <code class="onboarding-command"
+                            >{{ view.first_call.command }}</code
+                        >
+                        <button
+                            class="onboarding-copy"
+                            type="button"
+                            title="Copy"
+                            aria-label="Copy the command"
+                            @click="copy_command"
+                        >
+                            <i class="fa fa-copy"></i>
+                        </button>
+                        <span class="onboarding-copied" v-if="copied"
+                            >copied!</span
+                        >
+                    </div>
+                </div>
+
+                <div
+                    class="step-detail"
+                    v-if="step.id === 'call_api' && view.first_call"
+                >
+                    <p v-if="!step.done">
+                        Paste it into a terminal. This ticks itself when the API
+                        answers. No terminal?
+                        <el-link
+                            type="primary"
+                            :disabled="running"
+                            @click="run_here"
+                            >Run it here</el-link
+                        >
+                    </p>
+                    <p v-else>
+                        Next: the
+                        <router-link :to="{ name: 'api' }"
+                            >API docs</router-link
+                        >
+                        and each table's <b>API</b> button.
+                    </p>
+                    <div
+                        class="onboarding-response"
+                        v-if="response"
+                        :class="{ failed: !response.ok }"
+                    >
+                        <div class="response-status">
+                            Status {{ response.status }}
+                        </div>
+                        <pre>{{ response.body }}</pre>
+                    </div>
+                </div>
+            </div>
+        </li>
+    </ol>
+</div>

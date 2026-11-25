@@ -2,7 +2,8 @@
 // Exits non-zero if any call or check fails (CI runs it: .github/workflows/ci.yml, `smoke`).
 // Logs in as demo@invokedb.com, uploads a small CSV as table "smoke_people", exercises the
 // grid + external /api/v1 endpoints, checks that demo2@invokedb.com can't reach demo's tables
-// or account, makes tables from templates (and checks demo2's free-tier table limit), reads the
+// or account, checks each account's onboarding checklist (#143: runs its curl command, ticks,
+// dismisses demo2's), makes tables from templates (and checks demo2's free-tier table limit), reads the
 // table's generated API docs and OpenAPI spec and runs their curl, fetch and Python snippets
 // (#139; Python only if python3 is installed), checks /api/v1/query and /count (#141: filters,
 // sort, fields, cursor paging, index use, 400s), then deletes the tables. Writes every response to out.json
@@ -416,6 +417,106 @@ await call('template_delete', 'POST', '/file-directory/batch_delete', {
     token,
     body: { ids: [tpl_id] }
 });
+
+// Onboarding checklist (#143): each account sees only its own, with its own key in the command;
+// the command runs as copied; only a login session may read or change it.
+const ONBOARDING_STEPS = ['create_table', 'view_api_key', 'copy_command', 'call_api'];
+const step_done = (view, id) => !!view?.steps?.find?.(s => s.id === id)?.done;
+const ob = await call('onboarding', 'GET', '/onboarding', { token });
+check(
+    'onboarding_steps',
+    Array.isArray(ob?.steps) && ob.steps.map(s => s.id).join() === ONBOARDING_STEPS.join(),
+    ob
+);
+check('onboarding_has_table', step_done(ob, 'create_table') && !!ob.first_call, ob);
+const ob_cmd = ob?.first_call?.command || '';
+check(
+    'onboarding_command_has_own_key',
+    ob_cmd.includes(me.api_key) && !ob_cmd.includes(other_me.api_key),
+    ob_cmd
+);
+// Run the command as copied, pointed at this backend (as snippet() does for the docs)
+let ob_out;
+try {
+    const pub_base = ob.first_call.url.slice(0, ob.first_call.url.indexOf('/api/v1/'));
+    ob_out = execFileSync('bash', ['-c', ob_cmd.split(pub_base).join(BASE)], {
+        encoding: 'utf8',
+        timeout: 30000
+    });
+} catch (ex) {
+    ob_out = `error: ${ex.stderr || ex.message}`;
+}
+results.onboarding_command_out = ob_out;
+let ob_res;
+try {
+    ob_res = JSON.parse(ob_out);
+} catch {
+    ob_res = null;
+}
+check(
+    'onboarding_command_runs',
+    Array.isArray(ob_res?.data) && typeof ob_res.count === 'number',
+    ob_out
+);
+// The call is recorded just after it's answered
+let ob_called;
+for (let i = 0; i < 10; i++) {
+    ob_called = await call('onboarding_after_call', 'GET', '/onboarding', { token });
+    if (step_done(ob_called, 'call_api')) break;
+    await sleep(200);
+}
+check(
+    'onboarding_call_ticked',
+    ONBOARDING_STEPS.slice(1).every(id => step_done(ob_called, id)),
+    ob_called
+);
+const ob_marked = await call('onboarding_mark_key', 'PUT', '/onboarding/steps/view_api_key', {
+    token
+});
+check('onboarding_mark_key_done', step_done(ob_marked, 'view_api_key'), ob_marked);
+await call('onboarding_mark_call_api', 'PUT', '/onboarding/steps/call_api', {
+    token,
+    expectFail: true
+});
+await call('onboarding_mark_unknown', 'PUT', '/onboarding/steps/dismissed_at', {
+    token,
+    expectFail: true
+});
+await call('onboarding_unauth', 'GET', '/onboarding', { expectFail: true });
+await call('onboarding_api_key', 'GET', '/onboarding', { token: me.api_key, expectFail: true });
+await call('onboarding_api_key_dismiss', 'PUT', '/onboarding/dismiss', {
+    token: me.api_key,
+    expectFail: true
+});
+await call('onboarding_unauth_mark', 'PUT', '/onboarding/steps/copy_command', {
+    expectFail: true
+});
+const ob_other = await call('other_onboarding', 'GET', '/onboarding', { token: otoken });
+const ob_other_cmd = ob_other?.first_call?.command || '';
+check(
+    'other_onboarding_is_own',
+    !ob_other_cmd.includes(me.api_key) &&
+        (!ob_other.first_call || ob_other_cmd.includes(other_me.api_key)),
+    ob_other
+);
+// Dismissed, it stays hidden, and demo's checklist doesn't change. demo2 dismisses, so the UI
+// smoke test (which signs in as demo) still sees demo's checklist on the same stack.
+const ob_before = await call('onboarding_before_other_dismiss', 'GET', '/onboarding', { token });
+const ob_dismissed = await call('other_onboarding_dismiss', 'PUT', '/onboarding/dismiss', {
+    token: otoken
+});
+check('other_onboarding_dismissed', ob_dismissed?.show === false, ob_dismissed);
+const ob_again = await call('other_onboarding_after_dismiss', 'GET', '/onboarding', {
+    token: otoken
+});
+check('other_onboarding_stays_dismissed', ob_again?.show === false, ob_again);
+const ob_after = await call('onboarding_after_other_dismiss', 'GET', '/onboarding', { token });
+check(
+    'onboarding_not_dismissed_by_other',
+    ob_after?.show === ob_before?.show &&
+        ONBOARDING_STEPS.every(id => step_done(ob_after, id) === step_done(ob_before, id)),
+    ob_after
+);
 
 await call('other_logout', 'GET', `/auth/logout?token=${otoken}`);
 const me_after = await call('authorize_after_other', 'GET', `/auth/authorize?token=${token}`);

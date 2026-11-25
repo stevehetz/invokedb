@@ -54,6 +54,26 @@ const people = await db
 const countries = await wines.find({ $group: 'country' }).limit(100).exec();
 
 const total = await wines.count();
+
+// Query: several filters, sort by several columns, only some columns, cursor paging
+const query = {
+  filters: [
+    { column: 'country', op: 'in', value: ['France', 'Italy'] },
+    { column: 'points', op: 'gte', value: 90 },
+    { column: 'designation', op: 'empty', value: false }
+  ],
+  sort: ['-points', 'price'], // "-" for descending
+  fields: ['title', 'points', 'price'],
+  limit: 50
+};
+let res = await wines.query(query); // { data: [...], next_cursor }
+while (res.next_cursor) {
+  // the same query with the cursor; pages stay in order when rows are added
+  res = await wines.query({ ...query, cursor: res.next_cursor });
+}
+const french = await wines.count({
+  filters: [{ column: 'country', op: 'eq', value: 'France' }]
+});
 const first = await wines.findOne({ title: { $ctn: 'Riesling' } }).exec(); // row or null
 
 // Write
@@ -67,6 +87,11 @@ await todo.delete(task._id); // or an array of _ids
 Filter operators: `$eq`, `$ctn` (contains, case-insensitive), `$gt`, `$gte`, `$lt`, `$lte`.
 A plain value means `$eq`. Number and date columns take the range operators; set a column's
 type on the table's Edit Columns screen (or let `examples/setup.mjs` do it).
+
+`query()` and `count({ filters })` take `{ column, op, value }` filters with the operators `eq`,
+`ne`, `gt`, `gte`, `lt`, `lte`, `in` (an array), `contains` (text, case-insensitive unless
+`case: 'sensitive'`) and `empty` (`true` or `false`); they all have to match, or any of them
+with `match: 'any'`. `eq` on text is exact and case-sensitive, and uses the column's index.
 
 Failed requests throw an `InvokeDBError` with `status` and the response `body`.
 

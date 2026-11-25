@@ -18,6 +18,14 @@ import logger from '@app/logger';
 import { assert_array_body } from '@app/core/helpers/array-body';
 import { assert_column_update } from '@app/core/helpers/column-update';
 import { build_openapi, build_table_docs, TableDocsInput } from '@app/core/table-docs/table-docs';
+import {
+    QueryColumn,
+    encode_cursor,
+    explain_indexes,
+    max_query_limit,
+    parse_count_query,
+    parse_row_query
+} from '@app/core/web-file/row-query';
 
 const fs = require('fs');
 
@@ -174,6 +182,65 @@ export class WebFileService {
         };
 
         return response;
+    }
+
+    // The table's columns as /api/v1/query sees them (#141)
+    private async query_columns(account, file_id, format): Promise<QueryColumn[]> {
+        const columns = await this.web_file_manager.get_all(
+            account.id,
+            file_id,
+            'data_grid_column'
+        );
+        return ((columns && columns.data) || [])
+            .filter(c => typeof c.headerName === 'string' && c.headerName.length > 0)
+            .map(c => ({
+                name: this.get_key_from_column_name(c.headerName, format),
+                header_name: c.headerName,
+                field: c.field,
+                type: c.col_type === 'number' || c.col_type === 'date' ? c.col_type : 'string'
+            }));
+    }
+
+    private async check_external_request(account, file_id) {
+        await this.tracking_manager.check_account_lock(account);
+        await this.tracking_manager.update_req_count(account);
+        await this.tracking_manager.check_table_lock(file_id);
+    }
+
+    // POST /api/v1/query (#141): filters, sort, fields and cursor paging
+    async external_query_rows(account, file_id, body, format) {
+        await this.check_external_request(account, file_id);
+        const columns = await this.query_columns(account, file_id, format);
+        const query = parse_row_query(body, columns, max_query_limit());
+        const res = await this.web_file_manager.query_rows(account.id, file_id, query);
+        if (query.explain) {
+            return { explain: explain_indexes(res.explain, columns) };
+        }
+        const docs = res.docs.slice(0, query.limit);
+        const has_more = res.docs.length > query.limit;
+        const last = docs[docs.length - 1];
+        return {
+            data: docs.map(doc => {
+                const row: any = { _id: doc._id };
+                query.fields.forEach(c => {
+                    const value = doc[c.field] === undefined ? null : doc[c.field];
+                    row[c.name] =
+                        c.type === 'date' && value
+                            ? this.web_file_manager.format_date_field(value)
+                            : value;
+                });
+                return row;
+            }),
+            next_cursor: has_more && last ? encode_cursor(last, query.sort, query.signature) : null
+        };
+    }
+
+    // POST /api/v1/count (#141): how many rows match the filters
+    async external_count_rows(account, file_id, body, format) {
+        await this.check_external_request(account, file_id);
+        const columns = await this.query_columns(account, file_id, format);
+        const query = parse_count_query(body, columns);
+        return { count: await this.web_file_manager.count_rows(account.id, file_id, query) };
     }
 
     validate_external_get_rows_filters(filters) {

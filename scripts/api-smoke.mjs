@@ -4,7 +4,8 @@
 // grid + external /api/v1 endpoints, checks that demo2@invokedb.com can't reach demo's tables
 // or account, makes tables from templates (and checks demo2's free-tier table limit), reads the
 // table's generated API docs and OpenAPI spec and runs their curl, fetch and Python snippets
-// (#139; Python only if python3 is installed), then deletes the tables. Writes every response to out.json
+// (#139; Python only if python3 is installed), checks /api/v1/query and /count (#141: filters,
+// sort, fields, cursor paging, index use, 400s), then deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -334,6 +335,22 @@ await call('other_ext_openapi', 'GET', '/api/v1/openapi?table=smoke_people', {
     token: other_me.api_key,
     expectFail: true
 });
+// Richer queries (#141): demo2's key can't query or count demo's table, nor a session token
+await call('other_ext_query', 'POST', '/api/v1/query?table=smoke_people', {
+    token: other_me.api_key,
+    body: {},
+    expectFail: true
+});
+await call('other_ext_count', 'POST', '/api/v1/count?table=smoke_people', {
+    token: other_me.api_key,
+    body: {},
+    expectFail: true
+});
+await call('ext_query_session_token', 'POST', '/api/v1/query?table=smoke_people', {
+    token,
+    body: {},
+    expectFail: true
+});
 await call('api_docs_unauth', 'GET', `/web-file/${file_id}/api-docs`, { expectFail: true });
 await call('api_docs_api_key', 'GET', `/web-file/${file_id}/api-docs`, {
     token: me.api_key,
@@ -411,6 +428,160 @@ await call('ext_search', 'POST', `/api/v1/search?table=smoke_people&skip=0&limit
     token: key,
     body: { name: { type: 'equals', value: 'bob' } }
 });
+
+// Richer queries (#141): POST /api/v1/query and /count. The table now has alice2 (30), bob (41),
+// carol (25) and dave (50); age is an indexed number column.
+const QUERY = '/api/v1/query?table=smoke_people';
+const COUNT = '/api/v1/count?table=smoke_people';
+const query = (name, body, opts = {}) => call(name, 'POST', QUERY, { token: key, body, ...opts });
+const names = res => (res.data || []).map(r => r.name);
+const q_older = await query('ext_query_filters_sort_fields', {
+    filters: [{ column: 'age', op: 'gte', value: 30 }],
+    sort: ['-age'],
+    fields: ['name']
+});
+check(
+    'ext_query_filters_sort_fields_result',
+    JSON.stringify(names(q_older)) === JSON.stringify(['dave', 'bob', 'alice2']) &&
+        q_older.data.every(r => JSON.stringify(Object.keys(r)) === '["_id","name"]') &&
+        q_older.next_cursor === null,
+    q_older
+);
+const q_any = await query('ext_query_match_any', {
+    filters: [
+        { column: 'name', op: 'eq', value: 'bob' },
+        { column: 'age', op: 'lt', value: 26 },
+        { column: 'name', op: 'in', value: ['nobody'] }
+    ],
+    match: 'any',
+    sort: [{ column: 'name', dir: 'asc' }]
+});
+check(
+    'ext_query_match_any_result',
+    JSON.stringify(names(q_any)) === JSON.stringify(['bob', 'carol']),
+    q_any
+);
+const q_ops = await query('ext_query_contains_empty_ne', {
+    filters: [
+        { column: 'name', op: 'contains', value: 'A' },
+        { column: 'name', op: 'ne', value: 'carol' },
+        { column: 'name', op: 'empty', value: false }
+    ],
+    sort: ['name']
+});
+check(
+    'ext_query_contains_empty_ne_result',
+    JSON.stringify(names(q_ops)) === JSON.stringify(['alice2', 'dave']),
+    q_ops
+);
+
+// Cursor paging, one row a page, with rows added after the first page: the one sorting before
+// the cursor isn't returned, the one after it is, and no row comes twice
+const paged = { sort: ['age'], fields: ['name', 'age'], limit: 1 };
+let page = await query('ext_query_page_1', paged);
+const seen = names(page);
+await call('ext_query_page_insert', 'POST', '/api/v1/create?table=smoke_people', {
+    token: key,
+    body: [
+        { name: 'smoke_early', age: 1 },
+        { name: 'smoke_late', age: 99 }
+    ]
+});
+for (let i = 2; page.next_cursor && i <= 10; i++) {
+    page = await query(`ext_query_page_${i}`, { ...paged, cursor: page.next_cursor });
+    seen.push(...names(page));
+}
+check(
+    'ext_query_cursor_paging',
+    JSON.stringify(seen) === JSON.stringify(['carol', 'alice2', 'bob', 'dave', 'smoke_late']),
+    seen
+);
+const first_page = await query('ext_query_cursor_first', paged);
+await query(
+    'ext_query_cursor_wrong_query',
+    { ...paged, sort: ['-age'], cursor: first_page.next_cursor },
+    { expectFail: true }
+);
+const added = await query('ext_query_added_rows', {
+    filters: [{ column: 'name', op: 'in', value: ['smoke_early', 'smoke_late'] }]
+});
+if ((added.data || []).length > 0) {
+    await call('ext_query_added_rows_delete', 'POST', '/api/v1/delete?table=smoke_people', {
+        token: key,
+        body: added.data.map(r => r._id)
+    });
+}
+
+// Count
+const total_rows = await call(
+    'ext_get_total',
+    'GET',
+    '/api/v1/get?table=smoke_people&skip=0&limit=1',
+    {
+        token: key
+    }
+);
+const count_all = await call('ext_count_all', 'POST', COUNT, { token: key, body: {} });
+const count_old = await call('ext_count_filtered', 'POST', COUNT, {
+    token: key,
+    body: { filters: [{ column: 'age', op: 'gt', value: 40 }] }
+});
+check(
+    'ext_count_result',
+    count_all.count === total_rows.count && total_rows.count === 4 && count_old.count === 2,
+    { count_all, count_old, total_rows }
+);
+
+// An equality filter on the indexed age column uses its index
+const explained = await query('ext_query_explain', {
+    filters: [{ column: 'age', op: 'eq', value: 41 }],
+    explain: true
+});
+check(
+    'ext_query_uses_index',
+    explained.explain?.uses_index === true && explained.explain.index_columns.includes('age'),
+    explained
+);
+
+// Bad column names, operators and values are a clear 400, never a Mongo error
+const bad_queries = {
+    unknown_column: { filters: [{ column: 'nope', op: 'eq', value: 1 }] },
+    unknown_op: { filters: [{ column: 'age', op: '$where', value: 'sleep(1000)' }] },
+    operator_as_value: { filters: [{ column: 'name', op: 'eq', value: { $ne: null } }] },
+    wrong_type: { filters: [{ column: 'age', op: 'gt', value: 'ten' }] },
+    contains_on_number: { filters: [{ column: 'age', op: 'contains', value: '1' }] },
+    bad_sort: { sort: ['nope'] },
+    bad_field: { fields: ['nope'] },
+    bad_cursor: { cursor: 'eyJub3QiOiJhIGN1cnNvciJ9' },
+    over_limit: { limit: 100000 },
+    unknown_key: { where: {} },
+    not_an_object: [1]
+};
+for (const [name, body] of Object.entries(bad_queries)) {
+    await query(`ext_query_bad_${name}`, body, { expectFail: true });
+    check(
+        `ext_query_bad_${name}_is_400`,
+        results[`ext_query_bad_${name}`].status === 400 &&
+            typeof results[`ext_query_bad_${name}`].data?.message === 'string',
+        results[`ext_query_bad_${name}`]
+    );
+}
+await call('ext_count_bad', 'POST', COUNT, {
+    token: key,
+    body: { filters: [{ column: 'age', op: 'eq', value: [1] }] },
+    expectFail: true
+});
+await call('ext_query_no_table', 'POST', '/api/v1/query', {
+    token: key,
+    body: {},
+    expectFail: true
+});
+check(
+    'ext_query_no_table_is_400',
+    results.ext_query_no_table.status === 400,
+    results.ext_query_no_table
+);
+
 const created = await call('ext_create', 'POST', `/api/v1/create?table=smoke_people`, {
     token: key,
     body: [{ name: 'erin', age: 22 }]
@@ -440,7 +611,7 @@ await call('ext_bad_key', 'GET', `/api/v1/get?table=smoke_people&skip=0&limit=1`
 // and (if python3 is installed) Python snippets against this backend
 const docs = await call('api_docs', 'GET', `/web-file/${file_id}/api-docs`, { token });
 const doc_ids = (docs.endpoints || []).map(e => e.id).join(',');
-check('api_docs_endpoints', doc_ids === 'get,search,create,update,delete', docs);
+check('api_docs_endpoints', doc_ids === 'get,search,query,count,create,update,delete', docs);
 check(
     'api_docs_columns',
     docs.table === 'smoke_people' &&
@@ -457,7 +628,7 @@ check(
     'openapi_spec',
     spec.openapi === '3.0.3' &&
         JSON.stringify(spec) === JSON.stringify(ext_spec) &&
-        Object.keys(spec.paths || {}).length === 5 &&
+        Object.keys(spec.paths || {}).length === 7 &&
         'age' in (spec.components?.schemas?.Row?.properties || {}),
     spec
 );
@@ -512,6 +683,14 @@ run_snippet('snippet_search_fetch', 'fetch', snippet('search', 'fetch'), out => 
     const res = json_after(out, '201 ');
     return out.startsWith('201 ') && res?.count >= 1;
 });
+run_snippet('snippet_query_curl', 'curl', snippet('query', 'curl'), out => {
+    const res = json_after(out);
+    return Array.isArray(res?.data) && 'next_cursor' in res;
+});
+run_snippet('snippet_count_fetch', 'fetch', snippet('count', 'fetch'), out => {
+    const res = json_after(out, '200 ');
+    return out.startsWith('200 ') && typeof res?.count === 'number';
+});
 // create answers 201 with no body (curl prints only the body; an error would be JSON)
 run_snippet(
     'snippet_create_curl',
@@ -552,6 +731,9 @@ if (has_python) {
     });
     run_snippet('snippet_search_python', 'python', snippet('search', 'python'), out =>
         out.startsWith('201 ')
+    );
+    run_snippet('snippet_query_python', 'python', snippet('query', 'python'), out =>
+        out.startsWith('200 ')
     );
 }
 

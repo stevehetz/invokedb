@@ -3,6 +3,13 @@
 // `invokedb` client, Python) and an OpenAPI 3 spec. Pure functions, so they're unit-tested
 // (table-docs.spec.ts); the smoke test (scripts/api-smoke.mjs) runs the curl, fetch and Python
 // snippets against a real backend.
+import {
+    DEFAULT_QUERY_LIMIT,
+    MAX_FILTERS,
+    MAX_QUERY_LIMIT,
+    MAX_SORT,
+    OPERATORS
+} from '../web-file/row-query';
 
 export type ColumnType = 'string' | 'number' | 'date';
 
@@ -23,7 +30,7 @@ export interface TableDocsInput {
 export type Language = 'curl' | 'fetch' | 'client' | 'python';
 
 export interface EndpointDoc {
-    id: 'get' | 'search' | 'create' | 'update' | 'delete';
+    id: 'get' | 'search' | 'query' | 'count' | 'create' | 'update' | 'delete';
     title: string;
     method: 'GET' | 'POST' | 'PUT';
     // Full URL, with the example query string
@@ -122,6 +129,24 @@ function search_filter(col: DocColumn | undefined, sample: Record<string, unknow
     return {
         [col.name]: { type: 'contains', value: request_value(col, sample), case: 'insensitive' }
     };
+}
+
+// The /query and /count example (#141): one filter like the search example's, in the
+// { column, op, value } form
+function query_filters(col: DocColumn | undefined, sample: Record<string, unknown>) {
+    if (!col) return [];
+    if (col.type === 'number') {
+        return [{ column: col.name, op: 'gte', value: request_value(col, sample) }];
+    }
+    if (col.type === 'date') return [{ column: col.name, op: 'gte', value: '2020-01-01' }];
+    return [{ column: col.name, op: 'contains', value: request_value(col, sample) }];
+}
+
+// Sorts by a number or date column, largest or newest first, if there is one
+function query_sort(columns: DocColumn[]) {
+    const col = columns.find(c => c.type !== 'string') || columns[0];
+    if (!col) return [];
+    return [{ column: col.name, dir: col.type === 'string' ? 'asc' : 'desc' }];
 }
 
 // The same filter in the client's shorthand ($ctn, $gte, ...)
@@ -273,12 +298,24 @@ export function build_table_docs(input: TableDocsInput): TableDocs {
     const row = example_row(columns, sample);
     const out_row = response_row(columns, sample);
     const filter = search_filter(search_column(columns, sample), sample);
+    const filters = query_filters(search_column(columns, sample), sample);
+    const fields = columns.slice(0, 3).map(c => c.name);
+    const query_body: Record<string, unknown> = {
+        filters,
+        sort: query_sort(columns),
+        fields,
+        limit: 10
+    };
+    const query_row: Record<string, unknown> = { _id: out_row._id };
+    fields.forEach(name => (query_row[name] = out_row[name]));
     const update_col = columns[0];
     const update_row: Record<string, unknown> = { _id: ROW_ID_PLACEHOLDER };
     if (update_col) update_row[update_col.name] = request_value(update_col, sample);
 
     const get_req: SnippetRequest = { method: 'GET', url: url('get', page) };
     const search_req: SnippetRequest = { method: 'POST', url: url('search', page), body: filter };
+    const query_req: SnippetRequest = { method: 'POST', url: url('query'), body: query_body };
+    const count_req: SnippetRequest = { method: 'POST', url: url('count'), body: { filters } };
     const create_req: SnippetRequest = { method: 'POST', url: url('create'), body: [row] };
     const update_req: SnippetRequest = { method: 'PUT', url: url('update'), body: [update_row] };
     const delete_req: SnippetRequest = {
@@ -318,6 +355,57 @@ export function build_table_docs(input: TableDocsInput): TableDocs {
                 base_url,
                 table,
                 `table.find(${js_literal(client_filter(filter))}).skip(0).limit(10).exec()`
+            )
+        },
+        {
+            id: 'query',
+            title: 'Query rows',
+            ...query_req,
+            description:
+                'Returns rows that match every filter (or any, with "match": "any"), sorted by ' +
+                'one or more columns, with only the columns in fields. Operators: eq, ne, gt, ' +
+                'gte, lt, lte, in (an array), contains (text, case-insensitive unless "case": ' +
+                '"sensitive") and empty (true or false). eq on text is exact and case-sensitive. ' +
+                `limit is 1 to ${MAX_QUERY_LIMIT} (default ${DEFAULT_QUERY_LIMIT}). For the next ` +
+                'page, send the same body with "cursor" set to next_cursor; it is null on the ' +
+                'last page. Pages stay in order when rows are added. "explain": true returns ' +
+                'whether the query uses a column index instead of rows.',
+            read_only: true,
+            params: [
+                ...TABLE_PARAM,
+                {
+                    name: 'body',
+                    in: 'body',
+                    description:
+                        'filters ([{ column, op, value }]), match (all or any), sort ' +
+                        '(["column", "-column"] or [{ column, dir }]), fields, limit, cursor, explain'
+                }
+            ],
+            response: { status: 200, body: { data: [query_row], next_cursor: null } },
+            snippets: snippets(query_req, base_url, table, `table.query(${js_literal(query_body)})`)
+        },
+        {
+            id: 'count',
+            title: 'Count rows',
+            ...count_req,
+            description:
+                'Returns the number of rows that match the filters (the same filters and match ' +
+                'as Query rows). Send {} to count every row.',
+            read_only: true,
+            params: [
+                ...TABLE_PARAM,
+                {
+                    name: 'body',
+                    in: 'body',
+                    description: 'filters ([{ column, op, value }]) and match (all or any)'
+                }
+            ],
+            response: { status: 200, body: { count: 1 } },
+            snippets: snippets(
+                count_req,
+                base_url,
+                table,
+                `table.count(${js_literal({ filters })})`
             )
         },
         {
@@ -409,6 +497,7 @@ export function build_openapi(input: TableDocsInput) {
     const properties: Record<string, unknown> = {};
     columns.forEach(c => (properties[c.name] = column_schema(c)));
     const by_id = Object.fromEntries(docs.endpoints.map(e => [e.id, e]));
+    const column_names = columns.map(c => c.name);
 
     const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
     const json = (schema: unknown, example?: unknown) => ({
@@ -475,6 +564,59 @@ export function build_openapi(input: TableDocsInput) {
                         content: json(ref('Filter'), by_id.search.body)
                     },
                     responses: { '201': row_list(by_id.search.response.body), ...errors }
+                }
+            },
+            '/query': {
+                post: {
+                    operationId: 'query_rows',
+                    summary: by_id.query.title,
+                    description: by_id.query.description,
+                    parameters: [table_param],
+                    requestBody: {
+                        required: true,
+                        content: json(ref('Query'), by_id.query.body)
+                    },
+                    responses: {
+                        '200': {
+                            description:
+                                'A page of rows and the cursor for the next one (null on the last ' +
+                                'page), or { explain } with "explain": true',
+                            content: json(ref('QueryResult'), by_id.query.response.body)
+                        },
+                        ...errors
+                    }
+                }
+            },
+            '/count': {
+                post: {
+                    operationId: 'count_rows',
+                    summary: by_id.count.title,
+                    description: by_id.count.description,
+                    parameters: [table_param],
+                    requestBody: {
+                        required: true,
+                        content: json(
+                            {
+                                type: 'object',
+                                properties: {
+                                    filters: ref('QueryFilters'),
+                                    match: { type: 'string', enum: ['all', 'any'] }
+                                },
+                                additionalProperties: false
+                            },
+                            by_id.count.body
+                        )
+                    },
+                    responses: {
+                        '200': {
+                            description: 'The number of matching rows',
+                            content: json(
+                                { type: 'object', properties: { count: { type: 'integer' } } },
+                                by_id.count.response.body
+                            )
+                        },
+                        ...errors
+                    }
                 }
             },
             '/create': {
@@ -582,6 +724,73 @@ export function build_openapi(input: TableDocsInput) {
                         },
                         value: {},
                         case: { type: 'string', enum: ['sensitive', 'insensitive'] }
+                    }
+                },
+                QueryFilters: {
+                    type: 'array',
+                    maxItems: MAX_FILTERS,
+                    items: {
+                        type: 'object',
+                        required: ['column', 'op', 'value'],
+                        properties: {
+                            column: { type: 'string', enum: [...column_names, '_id'] },
+                            op: { type: 'string', enum: OPERATORS },
+                            value: {},
+                            case: { type: 'string', enum: ['sensitive', 'insensitive'] }
+                        },
+                        additionalProperties: false
+                    }
+                },
+                Query: {
+                    type: 'object',
+                    properties: {
+                        filters: ref('QueryFilters'),
+                        match: { type: 'string', enum: ['all', 'any'] },
+                        sort: {
+                            type: 'array',
+                            maxItems: MAX_SORT,
+                            items: {
+                                oneOf: [
+                                    {
+                                        type: 'string',
+                                        description: 'A column name, "-name" for descending'
+                                    },
+                                    {
+                                        type: 'object',
+                                        required: ['column'],
+                                        properties: {
+                                            column: {
+                                                type: 'string',
+                                                enum: [...column_names, '_id']
+                                            },
+                                            dir: { type: 'string', enum: ['asc', 'desc'] }
+                                        },
+                                        additionalProperties: false
+                                    }
+                                ]
+                            }
+                        },
+                        fields: {
+                            type: 'array',
+                            minItems: 1,
+                            items: { type: 'string', enum: column_names }
+                        },
+                        limit: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: MAX_QUERY_LIMIT,
+                            default: DEFAULT_QUERY_LIMIT
+                        },
+                        cursor: { type: 'string', nullable: true },
+                        explain: { type: 'boolean' }
+                    },
+                    additionalProperties: false
+                },
+                QueryResult: {
+                    type: 'object',
+                    properties: {
+                        data: { type: 'array', items: ref('RowWithId') },
+                        next_cursor: { type: 'string', nullable: true }
                     }
                 },
                 Filter: {

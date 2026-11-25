@@ -22,6 +22,42 @@ export interface IFindResult<T = any> {
 }
 
 // There is no public API for now, so the default is the local dev backend.
+export type QueryOp =
+  | 'eq'
+  | 'ne'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'contains'
+  | 'in'
+  | 'empty';
+
+export interface IQueryFilter {
+  column: string;
+  op: QueryOp;
+  value: any;
+  case?: 'sensitive' | 'insensitive';
+}
+
+export interface ICountQuery {
+  filters?: IQueryFilter[];
+  match?: 'all' | 'any';
+}
+
+export interface IQuery extends ICountQuery {
+  sort?: Array<string | { column: string; dir?: 'asc' | 'desc' }>;
+  fields?: string[];
+  limit?: number;
+  cursor?: string | null;
+  explain?: boolean;
+}
+
+export interface IQueryResult<T = any> {
+  data: T[];
+  next_cursor: string | null;
+}
+
 export const DEFAULT_BASE_URL = 'http://127.0.0.1:8001/api/v1';
 const DEFAULT_LIMIT = 10;
 const DEFAULT_SORT_DIR = 'asc';
@@ -178,8 +214,21 @@ export class InvokeDBTable {
     );
   }
 
-  count() {
-    return this._createFindClient().count();
+  // With no argument, the total row count; with { filters, match }, the rows that match (#141)
+  async count(query?: ICountQuery): Promise<number> {
+    if (query === undefined) {
+      return this._createFindClient().count();
+    }
+    const url = tableUrl(this._baseUrl, 'count', this._tableName);
+    const res = await request(this._apiKey, 'POST', url, query);
+    return res.count;
+  }
+
+  // Filters, sort, fields and cursor paging (#141). Pass res.next_cursor as cursor (with the
+  // same filters and sort) for the next page; it's null on the last one.
+  async query<T = any>(query: IQuery = {}): Promise<IQueryResult<T>> {
+    const url = tableUrl(this._baseUrl, 'query', this._tableName);
+    return await request(this._apiKey, 'POST', url, query);
   }
 
   find(filter?: any) {

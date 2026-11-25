@@ -149,6 +149,30 @@ export class BillingService {
         }
     }
 
+    /**
+     * Before an account is deleted: cancel every live Stripe subscription of its customer (and
+     * expire any open Checkout), so a deleted account, which can't sign in to reach the Portal,
+     * isn't billed. Throws when that can't be done, so the deletion is refused instead.
+     */
+    async cancel_for_deleted_account(account_id: number) {
+        const account = await this.get_account(account_id);
+        if (account.plan === 'internal' || !account.stripe_customer_id) return;
+        if (!this.stripe) {
+            if (!account.stripe_subscription_id) return;
+            throw new ServiceUnavailableException(
+                'Billing is unavailable, so the paid plan cannot be cancelled: try again later'
+            );
+        }
+        const customer = account.stripe_customer_id;
+        await this.expire_open_checkouts(customer);
+        const subs = await this.stripe.subscriptions.list({ customer, status: 'all', limit: 10 });
+        for (const sub of subs.data) {
+            if (!LIVE_SUBSCRIPTION_STATUSES.has(sub.status)) continue;
+            await this.stripe.subscriptions.cancel(sub.id);
+            logger.info(`Account ${account.id} deleted: cancelled Stripe subscription ${sub.id}`);
+        }
+    }
+
     async create_portal_session(account_id: number): Promise<{ url: string }> {
         this.assert_enabled();
         const account = await this.get_account(account_id);

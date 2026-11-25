@@ -5,6 +5,7 @@ import { Account } from '@app/core/account/account.entity';
 import { AccountManager } from '@app/core/account/account.manager';
 import { AccountUpdateDto } from './dto/account-update.dto';
 import { AccountPassChangeDto } from './dto/account-pass-change.dto';
+import { BillingService } from '../billing/billing.service';
 
 @Injectable()
 export class AccountService {
@@ -12,7 +13,8 @@ export class AccountService {
     constructor(
         @InjectRepository(Account)
         private readonly account_repository: Repository<Account>,
-        private account_manager: AccountManager
+        private account_manager: AccountManager,
+        private readonly billing_service: BillingService
     ) {}
 
     async get(id) {
@@ -73,6 +75,8 @@ export class AccountService {
     }
 
     async delete_account(account_id) {
+        // Cancel a paid plan first; if Stripe refuses, the account isn't deleted
+        await this.billing_service.cancel_for_deleted_account(account_id);
         return await this.account_repository.update({ id: account_id }, { deleted: true });
     }
 }

@@ -43,7 +43,10 @@ function make_service({ stripe_enabled = true } = {}) {
                 expire: jest.fn(async (_id?: string) => ({}))
             }
         },
-        subscriptions: { list: jest.fn(async (_params?: any) => ({ data: [] as any[] })) },
+        subscriptions: {
+            list: jest.fn(async (_params?: any) => ({ data: [] as any[] })),
+            cancel: jest.fn(async (_id?: string) => ({}))
+        },
         billingPortal: {
             sessions: { create: jest.fn(async () => ({ url: 'https://portal.test/p' })) }
         }
@@ -416,5 +419,65 @@ describe('BillingService Checkout and Portal', () => {
             customer: 'cus_2',
             return_url: 'https://app.test/app/account'
         });
+    });
+});
+
+describe('BillingService account deletion', () => {
+    const paying = {
+        id: 1,
+        plan: 'pro',
+        stripe_customer_id: 'cus_1',
+        stripe_subscription_id: 'sub_1'
+    };
+
+    it('cancels every live subscription and expires open Checkouts', async () => {
+        const { service, add_account, stripe } = make_service();
+        add_account(paying);
+        stripe.subscriptions.list.mockResolvedValueOnce({
+            data: [
+                { id: 'sub_1', status: 'active' },
+                { id: 'sub_2', status: 'past_due' },
+                { id: 'sub_old', status: 'canceled' }
+            ]
+        });
+        stripe.checkout.sessions.list.mockResolvedValueOnce({ data: [{ id: 'cs_open' }] });
+        await service.cancel_for_deleted_account(1);
+        expect(stripe.subscriptions.list).toHaveBeenCalledWith({
+            customer: 'cus_1',
+            status: 'all',
+            limit: 10
+        });
+        expect(stripe.subscriptions.cancel.mock.calls.map(c => c[0])).toEqual(['sub_1', 'sub_2']);
+        expect(stripe.checkout.sessions.expire).toHaveBeenCalledWith('cs_open');
+    });
+
+    it('does nothing for a free account without a Stripe customer, or an internal one', async () => {
+        const { service, add_account, stripe } = make_service();
+        add_account({ id: 1 });
+        add_account({ id: 2, plan: 'internal', stripe_customer_id: 'cus_2' });
+        await service.cancel_for_deleted_account(1);
+        await service.cancel_for_deleted_account(2);
+        expect(stripe.subscriptions.list).not.toHaveBeenCalled();
+        expect(stripe.subscriptions.cancel).not.toHaveBeenCalled();
+    });
+
+    it('throws when Stripe refuses the cancel, so the deletion is refused', async () => {
+        const { service, add_account, stripe } = make_service();
+        add_account(paying);
+        stripe.subscriptions.list.mockResolvedValueOnce({
+            data: [{ id: 'sub_1', status: 'active' }]
+        });
+        stripe.subscriptions.cancel.mockRejectedValueOnce(new Error('stripe down'));
+        await expect(service.cancel_for_deleted_account(1)).rejects.toThrow('stripe down');
+    });
+
+    it('refuses with 503 when Stripe is off but the account has a subscription', async () => {
+        const { service, add_account } = make_service({ stripe_enabled: false });
+        add_account(paying);
+        add_account({ id: 2, stripe_customer_id: 'cus_2' });
+        await expect(service.cancel_for_deleted_account(1)).rejects.toMatchObject({
+            status: 503
+        });
+        await expect(service.cancel_for_deleted_account(2)).resolves.toBeUndefined();
     });
 });

@@ -8,7 +8,7 @@
 // table a question (#149, against a stub of the Anthropic API on the smoke stack), make a read-only table-scoped API key on the account page, call /api/v1 with it and revoke it (#138), make a form and submit it
 // through its public link, then close and delete it, make (and delete) a table
 // from a template (saving a grid view of it, a kanban view where a card is dragged and a
-// chart view, #146) and one from a URL (a CSV on GitHub, so it needs internet), add a link column
+// chart view, #146, and a calendar view, #211) and one from a URL (a CSV on GitHub, so it needs internet), add a link column
 // to a tasks table, fill a cell from its picker and open the linked table (#147), check the
 // schema diagram draws both tables and the link and opens a table (#208), generate rows
 // and make a table from a description (#148; only against the Anthropic stub, so skipped against
@@ -1337,9 +1337,45 @@ try {
             `the chart's numbers are ${results.observed.chart_numbers}`
         );
 
-        // Deleted: the chart (shown) too, so the grid comes back
+        // A calendar by Due (#211; 2026-11-20, 2026-12-01, 2026-12-05, 2026-12-08), titled by
+        // Task: it opens on this month, and paging to December 2026 shows three of the rows
+        await views_menu('All rows');
+        await wait_rows(r => r.length === 4, 'all rows');
         await open_dialog();
-        for (let i = 0; i < 3; i++) {
+        await dialog.locator('.views-new-button').click();
+        await dialog.locator('.view-editor-name').fill('UI smoke calendar');
+        await dialog.locator('.view-type-calendar').click();
+        await dialog.locator('.view-editor-date-field').selectOption({ label: 'Due' });
+        await dialog.locator('.view-editor-title-field').selectOption({ label: 'Task' });
+        await dialog.locator('.view-save-button').click();
+        await dialog.waitFor({ state: 'detached' });
+        const cal = grid().locator('.calendar-view');
+        await cal.locator('.calendar-grid').waitFor();
+        check((await cal.locator('.calendar-day').count()) === 42, 'the calendar shows six weeks');
+        const cal_title = () => cal.locator('.calendar-title').innerText();
+        const now = new Date();
+        const months_to_dec = (2026 - now.getUTCFullYear()) * 12 + (11 - now.getUTCMonth());
+        for (let i = 0; i < Math.abs(months_to_dec); i++) {
+            await cal
+                .locator(
+                    `.calendar-nav button[title="${months_to_dec < 0 ? 'Previous' : 'Next'} month"]`
+                )
+                .click();
+        }
+        await cal.locator('.calendar-title', { hasText: 'December 2026' }).waitFor();
+        await cal.locator('.calendar-day[data-date="2026-12-05"] .calendar-event').waitFor();
+        const dec_days = await cal
+            .locator('.calendar-day:not(.other) .calendar-event')
+            .evaluateAll(els => els.map(e => e.closest('[data-date]').dataset.date));
+        results.observed.calendar_days = dec_days;
+        check(
+            dec_days.join() === '2026-12-01,2026-12-05,2026-12-08',
+            `December's rows are on ${dec_days} (${await cal_title()})`
+        );
+
+        // Deleted: the calendar (shown) too, so the grid comes back
+        await open_dialog();
+        for (let i = 0; i < 4; i++) {
             await dialog.locator('.view-delete-button').first().click();
             await page
                 .locator('.confirm-dialog .el-dialog')
@@ -1347,7 +1383,7 @@ try {
                 .click();
             await dialog
                 .locator('.view-item')
-                .nth(2 - i)
+                .nth(3 - i)
                 .waitFor({ state: 'detached' });
         }
         await close_dialog();

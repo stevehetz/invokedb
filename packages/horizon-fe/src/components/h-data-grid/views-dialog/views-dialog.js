@@ -1,6 +1,6 @@
 // A table's saved views (#146): save the grid's current filters, sort and hidden columns as a
-// grid, kanban or chart view; open, rename, update and delete views. Opened from the grid's top
-// bar through `container-dialog:open` with
+// grid, kanban, chart, calendar or map view (#211); open, rename, update and delete views.
+// Opened from the grid's top bar through `container-dialog:open` with
 // `props: { file, state, current_id, on_select, on_change }`: `state()` is the grid's current
 // `{ filters, sort, hidden_fields }`, `on_select(view)` shows a view, `on_change(views)` hands
 // back the table's views after a change.
@@ -17,13 +17,17 @@ function message_of(ex, fallback) {
 export const VIEW_TYPE_LABELS = {
     grid: 'Grid',
     kanban: 'Kanban',
-    chart: 'Chart'
+    chart: 'Chart',
+    calendar: 'Calendar',
+    map: 'Map'
 };
 
 export const VIEW_TYPE_ICONS = {
     grid: 'fa fa-table',
     kanban: 'fa fa-columns',
-    chart: 'fa fa-chart-bar'
+    chart: 'fa fa-chart-bar',
+    calendar: 'fa fa-calendar-alt',
+    map: 'fa fa-map-marker-alt'
 };
 
 export default defineComponent({
@@ -90,6 +94,11 @@ export default defineComponent({
             return this.columns.filter(c => c.type === 'number');
         },
 
+        /** @returns {any[]} */
+        date_columns() {
+            return this.columns.filter(c => c.type === 'date');
+        },
+
         /** @returns {boolean} */
         can_save() {
             const d = this.draft;
@@ -98,6 +107,14 @@ export default defineComponent({
             if (d.type === 'chart') {
                 return (
                     !!d.chart_field && (d.agg === 'count' || !!d.value_field)
+                );
+            }
+            if (d.type === 'calendar') return !!d.date_field;
+            if (d.type === 'map') {
+                return (
+                    !!d.lat_field &&
+                    !!d.lng_field &&
+                    d.lat_field !== d.lng_field
                 );
             }
             return true;
@@ -154,6 +171,15 @@ export default defineComponent({
             const group = this.group_columns[0];
             const chart = this.chart_columns[0];
             const num = this.number_columns[0];
+            const date = this.date_columns[0];
+            // Columns named like latitude and longitude, else the first two number columns
+            /** @param {RegExp} re @param {number} i */
+            const coord = (re, i) => {
+                const c =
+                    this.number_columns.find(col => re.test(col.name)) ||
+                    this.number_columns[i];
+                return c ? c.field : null;
+            };
             this.draft = {
                 name: '',
                 type: 'grid',
@@ -161,7 +187,12 @@ export default defineComponent({
                 kind: 'bar',
                 chart_field: chart ? chart.field : null,
                 agg: 'count',
-                value_field: num ? num.field : null
+                value_field: num ? num.field : null,
+                date_field: date ? date.field : null,
+                title_field: group ? group.field : null,
+                lat_field: coord(/^lat/i, 0),
+                lng_field: coord(/^(lng|lon)/i, 1),
+                label_field: group ? group.field : null
             };
         },
 
@@ -188,6 +219,19 @@ export default defineComponent({
                     group_field: d.chart_field,
                     agg: d.agg,
                     value_field: d.agg === 'sum' ? d.value_field : null
+                };
+            }
+            if (d.type === 'calendar') {
+                body.calendar = {
+                    date_field: d.date_field,
+                    title_field: d.title_field || null
+                };
+            }
+            if (d.type === 'map') {
+                body.map = {
+                    lat_field: d.lat_field,
+                    lng_field: d.lng_field,
+                    label_field: d.label_field || null
                 };
             }
             this.saving = true;
@@ -290,6 +334,13 @@ export default defineComponent({
                         ? `sum of ${this.column_name(c.value_field)}`
                         : 'row count';
                 return `${c.kind} chart of ${what} by ${this.column_name(c.group_field)}`;
+            }
+            if (view.type === 'calendar' && view.calendar) {
+                return `calendar by ${this.column_name(view.calendar.date_field)}`;
+            }
+            if (view.type === 'map' && view.map) {
+                const m = view.map;
+                return `map of ${this.column_name(m.lat_field)}, ${this.column_name(m.lng_field)}`;
             }
             return '';
         }

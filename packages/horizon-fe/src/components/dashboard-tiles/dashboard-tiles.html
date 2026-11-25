@@ -58,6 +58,7 @@
                                 v-for="c in tile.data.columns"
                                 :key="c.field"
                                 :class="{ num: c.type === 'number' }"
+                                :title="c.name"
                             >
                                 {{ c.name }}
                             </th>
@@ -69,6 +70,7 @@
                                 v-for="c in tile.data.columns"
                                 :key="c.field"
                                 :class="{ num: c.type === 'number' }"
+                                :title="cell_text(row[c.field])"
                             >
                                 {{ cell_text(row[c.field]) }}
                             </td>

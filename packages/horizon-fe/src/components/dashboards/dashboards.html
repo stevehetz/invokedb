@@ -20,7 +20,7 @@
             <input
                 class="dash-new-name"
                 v-model="new_name"
-                placeholder="New dashboard name"
+                placeholder="New dashboard"
                 :disabled="at_limit"
                 maxlength="100"
             />
@@ -116,34 +116,50 @@
                         readonly
                         @focus="$event.target.select()"
                     />
-                    <el-button link type="primary" @click="copy_link">
-                        <i class="fa fa-copy"></i> {{ copied ? 'Copied' : 'Copy'
-                        }}
-                    </el-button>
-                    <a :href="share_link" target="_blank" rel="noopener"
-                        >Open</a
-                    >
-                    <el-button link type="primary" @click="new_link"
-                        >New link</el-button
-                    >
-                    <el-button
-                        class="dash-unshare"
-                        link
-                        type="danger"
-                        @click="unshare"
-                        >Stop sharing</el-button
-                    >
+                    <span class="dash-share-actions">
+                        <button
+                            type="button"
+                            class="dash-link-button"
+                            @click="copy_link"
+                        >
+                            <i class="fa fa-copy"></i>
+                            {{ copied ? 'Copied' : 'Copy' }}
+                        </button>
+                        <a
+                            class="dash-link-button"
+                            :href="share_link"
+                            target="_blank"
+                            rel="noopener"
+                            ><i class="fa fa-external-link-alt"></i> Open</a
+                        >
+                        <button
+                            type="button"
+                            class="dash-link-button"
+                            title="Make a new link; the old one stops working"
+                            @click="new_link"
+                        >
+                            <i class="fa fa-sync-alt"></i> New link
+                        </button>
+                        <button
+                            type="button"
+                            class="dash-link-button dash-unshare"
+                            @click="unshare"
+                        >
+                            <i class="fa fa-ban"></i> Stop sharing
+                        </button>
+                    </span>
                 </template>
                 <template v-else>
                     <i class="fa fa-lock"></i>
                     <span>Only you can see this dashboard.</span>
-                    <el-button
-                        class="dash-share-button"
-                        link
-                        type="primary"
+                    <button
+                        type="button"
+                        class="dash-link-button dash-share-button"
                         @click="share"
-                        >Share by link (read-only)</el-button
                     >
+                        <i class="fa fa-share-alt"></i> Share by link
+                        (read-only)
+                    </button>
                 </template>
             </section>
 

@@ -18,6 +18,10 @@ import { WebhookController } from './http/webhook/webhook.controller';
 import { FormController, PublicFormController } from './http/form/form.controller';
 import { ApiKeyController } from './http/api-key/api-key.controller';
 import { ViewController } from './http/view/view.controller';
+import {
+    DashboardController,
+    PublicDashboardController
+} from './http/dashboard/dashboard.controller';
 import { AiController } from './http/ai/ai.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
@@ -43,6 +47,8 @@ import { WebsocketClient } from './ws/websocket-client';
         PublicFormController,
         ApiKeyController,
         ViewController,
+        DashboardController,
+        PublicDashboardController,
         AiController
     ],
     providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor]

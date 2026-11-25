@@ -38,6 +38,10 @@ const env = {
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID,
     GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET,
+    // Encrypts each account's two-factor (TOTP) secret (#214), e.g. `openssl rand -hex 32`.
+    // Unset: nobody can turn two-factor sign-in on (locally a fixed development key is used).
+    // Changing it breaks the authenticator apps already set up; recovery codes still work.
+    HORIZON_TOTP_KEY: process.env.HORIZON_TOTP_KEY,
     HORIZON_FILE_SHARE: process.env.HORIZON_FILE_SHARE,
     HORIZON_BE_PRIV_HTTP_PORT: process.env.HORIZON_BE_PRIV_HTTP_PORT,
     HORIZON_POSTGRES_HOST: process.env.HORIZON_POSTGRES_HOST,

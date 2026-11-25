@@ -18,6 +18,7 @@ import { WebsocketClientStore } from '@app/websocket/client.store';
 import { Job } from './job/job.entity';
 import { AccountIdentity } from './account-identity/account-identity.entity';
 import { ApiKey } from './api-key/api-key.entity';
+import { TwoFactor } from './two-factor/two-factor.entity';
 import { JobManager } from './job/job.manager';
 import { OnboardingManager } from './onboarding/onboarding.manager';
 import { UrlImportManager } from './url-import/url-import.manager';
@@ -39,6 +40,7 @@ import { AccountExportManager } from './account-export/account-export.manager';
             Account,
             AccountIdentity,
             ApiKey,
+            TwoFactor,
             FileDirectory,
             ResetPassword,
             EmailVerification,

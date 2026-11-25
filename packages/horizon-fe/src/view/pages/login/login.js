@@ -14,6 +14,10 @@ export default {
             processing: false,
             email: '',
             password: '',
+            // Two-factor sign-in (#214): after the right password, a code from the
+            // authenticator app (or a recovery code) and the challenge the login answered
+            challenge: '',
+            code: '',
             error: {
                 message: ''
             }
@@ -47,12 +51,55 @@ export default {
                     email: this.email,
                     password: this.password
                 });
-                cookies.set('token', session.token);
-                this.$router.push(APP_PATH);
+                if (session && session.two_factor_required) {
+                    this.challenge = session.challenge;
+                    this.code = '';
+                    this.password = '';
+                    this.error.message = '';
+                    this.processing = false;
+                    this.$nextTick(() => {
+                        if (this.$refs.code) this.$refs.code.focus();
+                    });
+                    return;
+                }
+                this.signed_in(session);
             } catch (ex) {
-                this.error.message = ex.message || 'Server error';
+                this.error.message = (ex && ex.message) || 'Server error';
                 this.processing = false;
             }
+        },
+
+        async submit_code(e) {
+            if (e) e.preventDefault();
+            if (!this.code.trim()) return;
+            this.processing = true;
+            try {
+                const session = await auth_http.login_two_factor({
+                    challenge: this.challenge,
+                    code: this.code.trim()
+                });
+                this.signed_in(session);
+            } catch (ex) {
+                this.error.message = (ex && ex.message) || 'Server error';
+                // A gone challenge (expired, too many tries) needs the password again
+                if (ex && /expired/i.test(String(ex.message))) this.restart();
+                this.processing = false;
+            }
+        },
+
+        // Back to the email and password
+        restart(e) {
+            if (e) {
+                e.preventDefault();
+                this.error.message = '';
+            }
+            this.challenge = '';
+            this.code = '';
+        },
+
+        signed_in(session) {
+            cookies.set('token', session.token);
+            this.$router.push(APP_PATH);
         }
     }
 };

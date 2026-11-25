@@ -3820,6 +3820,65 @@ $page_nav_active_color: #dcb467;
     margin-bottom: 20px;
     position: relative;
 }
+
+// Two-factor sign-in (#214)
+.account-page .two-factor-form {
+    margin-bottom: 20px;
+}
+.account-page .two-factor-form .form-body {
+    padding-left: 20px;
+}
+.account-page .two-factor-form .two-factor-intro {
+    margin: 0 0 15px;
+    color: $gray400;
+}
+.account-page .two-factor-form .two-factor-on {
+    color: #449744;
+    font-weight: bold;
+}
+.account-page .two-factor-form .two-factor-status.error {
+    color: #e44949;
+}
+.account-page .two-factor-form .two-factor-box {
+    margin-bottom: 20px;
+    padding: 12px 15px;
+    border: solid 1px $gray50;
+    border-radius: 5px;
+    max-width: 640px;
+}
+.account-page .two-factor-form .two-factor-box p {
+    margin: 0 0 10px;
+}
+.account-page .two-factor-form .two-factor-qr {
+    display: block;
+    width: 200px;
+    height: 200px;
+    margin-bottom: 10px;
+    image-rendering: pixelated;
+}
+.account-page .two-factor-form .two-factor-secret {
+    font-family: monospace;
+    word-break: break-all;
+}
+.account-page .two-factor-form .two-factor-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.account-page .two-factor-form .two-factor-row .el-input {
+    max-width: 220px;
+}
+.account-page .two-factor-form .two-factor-recovery-codes {
+    font-family: monospace;
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 0 0 10px;
+    padding: 10px 15px;
+    background-color: #f7f7f7;
+    border-radius: 5px;
+    columns: 2;
+    max-width: 420px;
+}
 .account-page .api-key-form .form-body {
     padding-left: 20px;
 }

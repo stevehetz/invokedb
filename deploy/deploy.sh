@@ -26,11 +26,12 @@ if [ "$cmd" = init-env ]; then
   [ -e "$ENV_FILE" ] && { echo "$ENV_FILE already exists"; exit 1; }
   awk -v pg="$(openssl rand -hex 24)" -v mr="$(openssl rand -hex 24)" \
       -v ma="$(openssl rand -hex 24)" -v ws="$(openssl rand -hex 24)" \
-      -v bk="$(openssl rand -hex 32)" '
+      -v bk="$(openssl rand -hex 32)" -v tk="$(openssl rand -hex 32)" '
     /^POSTGRES_PASSWORD=$/       { print $0 pg; next }
     /^MONGO_ROOT_PASSWORD=$/     { print $0 mr; next }
     /^MONGO_APP_PASSWORD=$/      { print $0 ma; next }
     /^HORIZON_WS_SERVER_TOKEN=$/ { print $0 ws; next }
+    /^HORIZON_TOTP_KEY=$/        { print $0 tk; next }
     /^BACKUP_PASSPHRASE=$/       { print $0 bk; next }
     { print }' "$DIR/prod.env.example" > "$ENV_FILE"
   chmod 600 "$ENV_FILE"

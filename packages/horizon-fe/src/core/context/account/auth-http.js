@@ -6,6 +6,12 @@ export const auth_http = {
         return http.post(http.get_url('/auth/login'), data);
     },
 
+    // The code step when two-factor sign-in is on (#214): login answered
+    // { two_factor_required, challenge } instead of a session
+    login_two_factor(data) {
+        return http.post(http.get_url('/auth/login/two-factor'), data);
+    },
+
     authorize(token) {
         return http.get(http.get_url(`/auth/authorize?token=${token}`));
     },

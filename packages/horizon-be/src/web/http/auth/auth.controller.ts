@@ -30,6 +30,16 @@ export class AuthController {
         return await this.auth_service.login(req.body);
     }
 
+    // The code step when two-factor sign-in is on (#214). Limited per IP here, and per account
+    // and per challenge in TwoFactorService, like the password routes (#133).
+    @Post('login/two-factor')
+    @UseGuards(
+        new RateLimitGuard({ name: 'login-two-factor', per_ip: 30, per_email: 0, window_ms: HOUR })
+    )
+    async login_two_factor(@Request() req) {
+        return await this.auth_service.login_two_factor(req.body);
+    }
+
     @Get('logout')
     async logout(@Request() req) {
         return await this.auth_service.logout(req.query.token);

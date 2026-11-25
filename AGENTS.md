@@ -144,6 +144,12 @@ e.g. `gh project item-list 1 --owner stevehetz`). There is no other task list;
    otherwise the user does. Never merge yourself unless asked. The merge closes the issue and
    the board moves it to `Done`. Decisions and findings made along the way go in issue or PR comments; anything a
    future session needs goes in HANDOFF or this file.
+7. **Clean up local branches.** GitHub deletes merged branches on the remote, but local ones
+   pile up. When you're back on `main` after a PR merges (and at the start of a session),
+   run `git fetch --prune`, then delete local branches whose PR is merged or closed with
+   `git branch -d <branch>` (it refuses a branch with unmerged commits; never use `-D` without
+   the user's OK). Check with `gh pr list --head <branch> --state all` first, and keep any
+   branch with an open PR.
 
 Issues opened by `repair.yml` (failed CI/CD) are bugs: label and add them to the board like any
 other.

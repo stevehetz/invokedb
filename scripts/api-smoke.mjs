@@ -3116,6 +3116,7 @@ for (let i = ai_cap_status?.usage?.used ?? 0; i <= ai_cap_limit; i++) {
         headers: { Authorization: `Bearer ${ai_ctoken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ table: ai_cap_table, question: `Question ${i}` })
     });
+    // A question answered is a 201 (POST); stop at the first refusal
     if (!res.ok) {
         ai_cap_hit = { at: i, status: res.status, body: await res.text() };
         break;

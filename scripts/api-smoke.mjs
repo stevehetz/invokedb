@@ -16,7 +16,8 @@
 // deleted, a kanban board and a moved card, bar/pie/line charts, demo2 and API keys locked
 // out, a deleted table's views gone), checks link columns (#147: picker, grid labels, ids and
 // `expand` on /api/v1, bad links refused, deleted rows cleared from links, no links across
-// accounts), then deletes the tables. Writes every response to out.json
+// accounts), checks AI rows and tables (#148: smoke-env.sh's stand-in model, typed preview rows,
+// usage counted per account, caps, demo2 locked out), then deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -2452,6 +2453,186 @@ await call('link_other_logout', 'GET', `/auth/logout?token=${ltoken2}`);
 await call('link_tables_delete', 'POST', '/file-directory/batch_delete', {
     token,
     body: { ids: [link_tasks, link_contacts] }
+});
+
+// AI rows and tables (#148), with smoke-env.sh's stand-in model (HORIZON_AI_STUB), never the
+// real one. Generated rows fit the column types and aren't saved until the app inserts them;
+// every generated row is counted for the account; demo2 can't generate rows for demo's table,
+// see demo's usage or read a table demo made from a description.
+const ai_count = async (name, id) =>
+    (await call(name, 'POST', `/web-file/data_grid_row/${id}?skip=0&limit=1`, { token, body: {} }))
+        ?.count;
+const ai_status = await call('ai_status', 'GET', '/ai/status', { token });
+check(
+    'ai_enabled_with_limits',
+    ai_status?.enabled === true &&
+        ai_status?.limits?.max_rows_per_request === 500 &&
+        typeof ai_status?.usage?.allowance === 'number',
+    ai_status
+);
+const ai_used_before = ai_status?.usage?.used ?? 0;
+const ai_rows_before = await ai_count('ai_rows_before', file_id);
+const ai_gen = await call('ai_generate_rows', 'POST', `/ai/web-file/${file_id}/generate-rows`, {
+    token,
+    body: { prompt: 'people with ages and join dates', count: 30 }
+});
+const ai_fits = (v, type) =>
+    type === 'number'
+        ? typeof v === 'number'
+        : type === 'date'
+          ? /^\d{4}-\d{2}-\d{2}$/.test(v)
+          : typeof v === 'string';
+const ai_cols = ai_gen?.columns || [];
+check(
+    'ai_rows_typed',
+    Array.isArray(ai_gen?.rows) &&
+        ai_gen.rows.length === 30 &&
+        ai_cols.find(c => c.name === 'age')?.type === 'number' &&
+        ai_gen.rows.every(
+            r =>
+                Object.keys(r).length === ai_cols.length &&
+                ai_cols.every(c => ai_fits(r[c.field], c.type))
+        ),
+    ai_gen
+);
+check(
+    'ai_preview_saves_nothing',
+    (await ai_count('ai_rows_after_preview', file_id)) === ai_rows_before
+);
+const ai_status_after = await call('ai_status_after_rows', 'GET', '/ai/status', { token });
+check(
+    'ai_rows_counted',
+    ai_status_after?.usage?.used === ai_used_before + 30 &&
+        ai_gen?.usage?.used === ai_used_before + 30,
+    ai_status_after
+);
+await call('ai_insert_rows', 'POST', `/web-file/batch_create/data_grid_row/${file_id}`, {
+    token,
+    body: ai_gen?.rows || []
+});
+check(
+    'ai_rows_inserted',
+    (await ai_count('ai_rows_after_insert', file_id)) === ai_rows_before + 30
+);
+for (const [name, body] of [
+    ['ai_rows_over_cap', { prompt: 'x', count: 501 }],
+    ['ai_rows_no_prompt', { prompt: ' ', count: 5 }],
+    ['ai_rows_bad_count', { prompt: 'x', count: 'many' }]
+]) {
+    await call(name, 'POST', `/ai/web-file/${file_id}/generate-rows`, {
+        token,
+        body,
+        expectFail: true
+    });
+    check(`${name}_400`, results[name].status === 400, results[name]);
+}
+await call('ai_rows_no_table', 'POST', '/ai/web-file/99999999/generate-rows', {
+    token,
+    body: { prompt: 'x', count: 1 },
+    expectFail: true
+});
+
+const ai_other = await call('ai_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const atoken2 = ai_other.token;
+const ai_other_before = await call('ai_other_status', 'GET', '/ai/status', { token: atoken2 });
+await call('ai_other_generate', 'POST', `/ai/web-file/${file_id}/generate-rows`, {
+    token: atoken2,
+    body: { prompt: 'x', count: 5 },
+    expectFail: true
+});
+check(
+    'ai_other_generate_refused',
+    [403, 404].includes(results.ai_other_generate.status),
+    results.ai_other_generate
+);
+const ai_other_after = await call('ai_other_status_after', 'GET', '/ai/status', {
+    token: atoken2
+});
+const ai_own_after = await call('ai_status_after_other', 'GET', '/ai/status', { token });
+check(
+    'ai_usage_per_account',
+    ai_other_after?.usage?.used === ai_other_before?.usage?.used &&
+        ai_own_after?.usage?.used === ai_used_before + 30,
+    { ai_other_before, ai_other_after, ai_own_after }
+);
+await call('ai_api_key_refused', 'GET', '/ai/status', { token: key, expectFail: true });
+
+const ai_preview = await call('ai_table_preview', 'POST', '/ai/table/preview', {
+    token,
+    body: { description: 'a CRM for a dog groomer', row_count: 3 }
+});
+check(
+    'ai_table_preview_shape',
+    typeof ai_preview?.table_name === 'string' &&
+        Array.isArray(ai_preview?.columns) &&
+        ai_preview.columns.length > 0 &&
+        ai_preview.columns.every(c => ['string', 'number', 'date'].includes(c.type)) &&
+        Array.isArray(ai_preview?.rows) &&
+        ai_preview.rows.length === 3 &&
+        ai_preview?.usage?.used === ai_used_before + 33,
+    ai_preview
+);
+const ai_table = await call('ai_table_create', 'POST', '/ai/table', {
+    token,
+    body: {
+        table_name: 'smoke_ai_table',
+        columns: ai_preview?.columns,
+        rows: ai_preview?.rows
+    }
+});
+const ai_table_cols = await call(
+    'ai_table_cols',
+    'POST',
+    `/web-file/data_grid_column/${ai_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+check(
+    'ai_table_columns_match',
+    JSON.stringify((ai_table_cols.data || []).map(c => [c.headerName, c.col_type])) ===
+        JSON.stringify((ai_preview?.columns || []).map(c => [c.name, c.type])),
+    ai_table_cols
+);
+const ai_table_rows = await call(
+    'ai_table_rows',
+    'POST',
+    `/web-file/data_grid_row/${ai_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const ai_num_col = (ai_table_cols.data || []).find(c => c.col_type === 'number');
+check(
+    'ai_table_rows_typed',
+    ai_table_rows?.count === 3 &&
+        (!ai_num_col ||
+            ai_table_rows.data.every(
+                r =>
+                    [null, undefined].includes(r[ai_num_col.field]) ||
+                    typeof r[ai_num_col.field] === 'number'
+            )),
+    ai_table_rows
+);
+await call('ai_table_create_bad', 'POST', '/ai/table', {
+    token,
+    body: { table_name: 'smoke ai bad', columns: [{ name: 'A', type: 'link' }] },
+    expectFail: true
+});
+check('ai_table_create_bad_400', results.ai_table_create_bad.status === 400);
+await call('ai_other_table_rows', 'POST', `/web-file/data_grid_row/${ai_table}?skip=0&limit=1`, {
+    token: atoken2,
+    body: {},
+    expectFail: true
+});
+const ai_other_files = await call('ai_other_files', 'GET', '/file-directory', { token: atoken2 });
+check(
+    'ai_table_not_in_other_account',
+    Array.isArray(ai_other_files) && !ai_other_files.some(d => d.id === ai_table),
+    ai_other_files
+);
+await call('ai_other_logout', 'GET', `/auth/logout?token=${atoken2}`);
+await call('ai_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [ai_table] }
 });
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');

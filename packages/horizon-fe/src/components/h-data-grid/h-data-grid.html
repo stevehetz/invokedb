@@ -187,6 +187,16 @@
                             <span>Forms</span>
                         </el-button>
                     </div>
+                    <div class="generate-rows-button" v-if="ai_enabled">
+                        <el-button
+                            link
+                            @click="generate_rows_btn_clicked"
+                            :disabled="table_lock || edit_column_mode || other_view"
+                        >
+                            <i class="fa fa-wand-magic-sparkles"></i>
+                            <span>Generate rows</span>
+                        </el-button>
+                    </div>
                 </div>
             </div>
         </div>

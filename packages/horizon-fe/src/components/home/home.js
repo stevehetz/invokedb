@@ -3,6 +3,7 @@ import Split from 'split.js';
 import h_tree from '@/components/h-tree';
 import doc_container from '@/components/doc-container';
 import onboarding from '@/components/onboarding';
+import AiTableDialog from './ai-table-dialog';
 import { store } from '@/store';
 import { bus } from '@/core/bus';
 import { error_manager as err_mgr } from '@/core/error/error-manager';
@@ -208,6 +209,8 @@ export default {
                 this.add_from_template(parent_id);
             } else if (type === 'url') {
                 this.add_from_url(parent_id);
+            } else if (type === 'ai') {
+                this.add_from_description(parent_id);
             } else {
                 this.add_web_file(type, parent_id);
             }
@@ -316,6 +319,23 @@ export default {
                         this.$bus.$emit('url-import-dialog:processing', false);
                     }
                 }
+            });
+        },
+
+        // A table the AI designs from a description (#148): previewed in the dialog, which
+        // creates it; then it opens like any new table
+        add_from_description(parent_id) {
+            this.$bus.$emit('container-dialog:open', {
+                title: 'New table from a description',
+                props: {
+                    parent_id,
+                    on_created: async fid => {
+                        await this.setup_tree();
+                        this.create_tab_from_tree_id(fid);
+                        this.select_and_manage_tree_item_by_id(fid);
+                    }
+                },
+                component: AiTableDialog
             });
         },
 

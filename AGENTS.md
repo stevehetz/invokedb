@@ -313,6 +313,16 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   itself (filter model, sort, hidden columns); moving a kanban card is an ordinary row update.
   The frontend's Views menu is on the grid's top bar (`h-data-grid/views-dialog`,
   `kanban-view`, `chart-view`, SVG with no chart library).
+- AI rows and tables (#148): `src/core/ai/` has the pure rules (`ai.ts`: request caps, the
+  JSON schemas built from the columns, checking the model's answer, prompts, the monthly
+  allowance per tier), the model (`ai-model.ts`: the Anthropic SDK with structured output, or
+  `StubModel` when `HORIZON_AI_STUB` is set, which only `smoke-env.sh` does) and the usage store
+  (`ai-usage.manager.ts`, `tracking:ai_usage`, shared; filter on `account_id`). Routes are `/ai`
+  (session only; 503 without `ANTHROPIC_API_KEY`, 429 past the allowance). Generated rows aren't
+  saved by `/ai`: the grid shows them in add-row mode and its Save inserts them; a table from a
+  description is made through `TableTemplateService.create_from`. Never call the real model in
+  tests: unit tests set `svc.model`, and `ui-smoke.mjs` skips its AI step unless the model is
+  the stub.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

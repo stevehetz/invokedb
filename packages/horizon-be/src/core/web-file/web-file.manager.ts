@@ -815,6 +815,12 @@ export class WebFileManager {
         return await col_coll.find({ deleted: { $ne: true } }).toArray();
     }
 
+    /** A table's first `n` rows, as stored (the AI's examples, #148). */
+    async first_rows(acct_id, file_id, n: number) {
+        const row_coll = await this._collections.get_dg_row(acct_id, file_id);
+        return await row_coll.find({}).limit(n).toArray();
+    }
+
     /** These rows of a table (ids as strings; anything else is skipped), by id. */
     async rows_by_ids(acct_id, file_id, ids: string[], projection?: any) {
         const object_ids = ids.filter(is_row_id).map(id => new ObjectId(id));

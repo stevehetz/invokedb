@@ -51,6 +51,13 @@ const env = {
     HORIZON_MONGO_TRACKING_DB: process.env.HORIZON_MONGO_TRACKING_DB,
     MAILGUN_API_KEY: process.env.MAILGUN_API_KEY,
     MAILGUN_DN: process.env.MAILGUN_DN,
+    // Optional. The AI features (#148: generate rows, new table from a description) are on when
+    // it's set. HORIZON_AI_MODEL overrides the Claude model (default in core/ai/ai-model.ts).
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    HORIZON_AI_MODEL: process.env.HORIZON_AI_MODEL,
+    // Test only (scripts/smoke-env.sh sets it): a stand-in model that makes up rows, so the
+    // smoke tests never call the real one. Never set it in production.
+    HORIZON_AI_STUB: process.env.HORIZON_AI_STUB,
     // Test only (scripts/smoke-env.sh sets it): webhook receivers ("127.0.0.1:8199,...") that are
     // allowed although they're private addresses (#140). Never set it in production.
     HORIZON_WEBHOOK_TEST_HOSTS: process.env.HORIZON_WEBHOOK_TEST_HOSTS

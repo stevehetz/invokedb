@@ -31,5 +31,8 @@ HORIZON_SB_PUB_WS_URL=ws://127.0.0.1:9100
 HORIZON_SB_PRIV_WS_URL=ws://127.0.0.1:9100
 # api-smoke.mjs's webhook receiver (#140): allowed although it's on loopback
 HORIZON_WEBHOOK_TEST_HOSTS=127.0.0.1:8199
+# The AI features (#148) with a stand-in model: never the real one, even if .env has a key
+ANTHROPIC_API_KEY=
+HORIZON_AI_STUB=1
 VARS
 echo "Wrote $OUT"

@@ -1,0 +1,57 @@
+<div class="ai-dialog generate-rows-dialog">
+    <p class="ai-intro">
+        Describe the rows you want and the AI fills in
+        <b>{{ props.file.name }}</b>'s columns, using a few of its rows as
+        examples. You'll see them in the grid first: edit or delete any, then
+        Save to add them, or Cancel.
+    </p>
+
+    <div class="ai-row">
+        <label>Rows to make</label>
+        <textarea
+            ref="prompt_input"
+            class="ai-prompt"
+            v-model="prompt"
+            rows="3"
+            :maxlength="max_prompt_length"
+            placeholder="50 US customers with realistic emails and signup dates in 2025"
+            @keydown.enter.ctrl="generate"
+        ></textarea>
+    </div>
+    <div class="ai-row">
+        <label>How many</label>
+        <input
+            class="ai-count"
+            type="number"
+            v-model.number="count"
+            min="1"
+            :max="max_count"
+            step="1"
+        />
+    </div>
+
+    <p class="ai-usage" v-if="usage">
+        This month: {{ usage.used.toLocaleString() }} of {{
+        usage.allowance.toLocaleString() }} AI rows used. At most {{ max_count
+        }} rows at a time.
+    </p>
+    <p class="ai-status error" v-if="usage && count > left">
+        Only {{ left.toLocaleString() }} AI rows are left this month.
+    </p>
+    <p class="ai-status error" v-if="error">{{ error }}</p>
+    <p class="ai-status" v-if="generating">
+        <i class="fa fa-sync fa-spin"></i> Generating... this can take a minute.
+    </p>
+
+    <div class="ai-actions">
+        <el-button
+            type="primary"
+            size="small"
+            class="ai-generate"
+            :loading="generating"
+            :disabled="!can_generate"
+            @click="generate"
+            >Generate</el-button
+        >
+    </div>
+</div>

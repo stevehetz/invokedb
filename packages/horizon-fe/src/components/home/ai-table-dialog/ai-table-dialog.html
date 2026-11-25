@@ -1,0 +1,129 @@
+<div class="ai-dialog ai-table-dialog">
+    <template v-if="!columns">
+        <p class="ai-intro">
+            Describe the table you need and the AI suggests its columns, their
+            types and some sample rows. You can change them before the table is
+            made.
+        </p>
+        <div class="ai-row">
+            <label>Table for</label>
+            <textarea
+                ref="description_input"
+                class="ai-description"
+                v-model="description"
+                rows="3"
+                :maxlength="max_prompt_length"
+                placeholder="A CRM for a dog groomer"
+                @keydown.enter.ctrl="generate"
+            ></textarea>
+        </div>
+        <div class="ai-row">
+            <label>Sample rows</label>
+            <input
+                class="ai-count"
+                type="number"
+                v-model.number="row_count"
+                min="0"
+                :max="max_rows"
+                step="1"
+            />
+        </div>
+        <p class="ai-usage" v-if="usage">
+            This month: {{ usage.used.toLocaleString() }} of {{
+            usage.allowance.toLocaleString() }} AI rows used.
+        </p>
+        <p
+            class="ai-status error"
+            v-if="usage && Math.max(1, row_count) > left"
+        >
+            Only {{ left.toLocaleString() }} AI rows are left this month.
+        </p>
+        <p class="ai-status error" v-if="error">{{ error }}</p>
+        <p class="ai-status" v-if="generating">
+            <i class="fa fa-sync fa-spin"></i> Designing the table... this can
+            take a minute.
+        </p>
+        <div class="ai-actions">
+            <el-button
+                type="primary"
+                size="small"
+                class="ai-generate"
+                :loading="generating"
+                :disabled="!can_generate"
+                @click="generate"
+                >Suggest a table</el-button
+            >
+        </div>
+    </template>
+
+    <template v-else>
+        <div class="ai-row">
+            <label>Table name</label>
+            <input class="ai-table-name" v-model="table_name" />
+        </div>
+        <label class="ai-label">Columns</label>
+        <table class="ai-columns">
+            <tr v-for="(c, i) in columns" :key="i" class="ai-column">
+                <td><input class="ai-column-name" v-model="c.name" /></td>
+                <td>
+                    <select class="ai-column-type" v-model="c.type">
+                        <option value="string">string</option>
+                        <option value="number">number</option>
+                        <option value="date">date</option>
+                    </select>
+                </td>
+                <td>
+                    <el-button
+                        link
+                        size="small"
+                        :disabled="columns.length <= 1"
+                        @click="remove_column(i)"
+                        title="Remove column"
+                        ><i class="fa fa-times"></i
+                    ></el-button>
+                </td>
+            </tr>
+        </table>
+
+        <label class="ai-label">Sample rows ({{ rows.length }})</label>
+        <div class="ai-preview" v-if="rows.length > 0">
+            <table>
+                <tr>
+                    <th v-for="(c, i) in columns" :key="i">{{ c.name }}</th>
+                    <th></th>
+                </tr>
+                <tr v-for="(r, ri) in rows" :key="ri" class="ai-preview-row">
+                    <td v-for="(c, ci) in columns" :key="ci">
+                        {{ show(r[ci]) }}
+                    </td>
+                    <td>
+                        <el-button
+                            link
+                            size="small"
+                            @click="remove_row(ri)"
+                            title="Remove row"
+                            ><i class="fa fa-times"></i
+                        ></el-button>
+                    </td>
+                </tr>
+            </table>
+        </div>
+        <p class="ai-usage" v-if="usage">
+            This month: {{ usage.used.toLocaleString() }} of {{
+            usage.allowance.toLocaleString() }} AI rows used.
+        </p>
+        <p class="ai-status error" v-if="error">{{ error }}</p>
+        <div class="ai-actions">
+            <el-button
+                type="primary"
+                size="small"
+                class="ai-create"
+                :loading="creating"
+                :disabled="!can_create"
+                @click="create"
+                >Create table</el-button
+            >
+            <el-button size="small" @click="start_over">Start over</el-button>
+        </div>
+    </template>
+</div>

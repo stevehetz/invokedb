@@ -77,6 +77,23 @@ repo: it's public.
 - **Check:** Healthchecks.io → the check → Integrations → test the webhook; a message should
   arrive in the chat.
 
+### Anthropic API (AI rows and tables)
+
+- **Does:** the Claude model behind "Generate rows" (grid top bar) and "Table from a
+  Description (AI)" (#148). Only the backend calls it. Without a key, the AI buttons are hidden
+  and `/ai/*` answers 503.
+- **Configured:** an API key from console.anthropic.com in `prod.env`, passed to the api
+  container by `deploy/compose.yaml`. The model is `claude-opus-5-5` unless `HORIZON_AI_MODEL`
+  is set (`packages/horizon-be/src/core/ai/ai-model.ts`).
+- **Secrets:** `ANTHROPIC_API_KEY` (`prod.env`).
+- **Limits:** at most 500 generated rows per request, and a monthly allowance of generated rows
+  per account by plan tier (`AI_MONTHLY_ROWS` in `core/ai/ai.ts`; until #137 decides), counted
+  in `tracking:ai_usage` in the tracking database. Set a monthly spend limit in the Anthropic
+  console too.
+- **Alerts:** none of its own. Failed calls are logged as `AI call failed` and answer 502.
+- **Check:** `GET /ai/status` (signed in) says `enabled: true`; generate a few rows in a test
+  table; `deploy/deploy.sh logs api` for `AI call failed`.
+
 ### Google and GitHub sign-in (OAuth apps)
 
 - **Does:** "Continue with Google / GitHub" on the login and signup pages (#17). A provider's

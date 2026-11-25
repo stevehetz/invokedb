@@ -901,7 +901,8 @@ $nav_active_color: #ffffff;
 .h-data-grid .top .views-button,
 .h-data-grid .top .api-button,
 .h-data-grid .top .webhooks-button,
-.h-data-grid .top .forms-button {
+.h-data-grid .top .forms-button,
+.h-data-grid .top .generate-rows-button {
     display: flex;
     align-items: center;
     border-left: solid 1px gray;
@@ -913,24 +914,28 @@ $nav_active_color: #ffffff;
 .h-data-grid .top .views-button .el-button.is-link,
 .h-data-grid .top .api-button .el-button.is-link,
 .h-data-grid .top .webhooks-button .el-button.is-link,
-.h-data-grid .top .forms-button .el-button.is-link {
+.h-data-grid .top .forms-button .el-button.is-link,
+.h-data-grid .top .generate-rows-button .el-button.is-link {
     color: #696fe4;
 }
 .h-data-grid .top .views-button:hover .el-button.is-link,
 .h-data-grid .top .api-button:hover .el-button.is-link,
 .h-data-grid .top .webhooks-button:hover .el-button.is-link,
-.h-data-grid .top .forms-button:hover .el-button.is-link {
+.h-data-grid .top .forms-button:hover .el-button.is-link,
+.h-data-grid .top .generate-rows-button:hover .el-button.is-link {
     color: #7f84ee;
 }
 .h-data-grid .top .views-button .el-button.is-disabled,
 .h-data-grid .top .api-button .el-button.is-disabled,
 .h-data-grid .top .webhooks-button .el-button.is-disabled,
-.h-data-grid .top .forms-button .el-button.is-disabled {
+.h-data-grid .top .forms-button .el-button.is-disabled,
+.h-data-grid .top .generate-rows-button .el-button.is-disabled {
     color: #777777;
 }
 .h-data-grid .top .api-button:hover .el-button.is-disabled,
 .h-data-grid .top .webhooks-button:hover .el-button.is-disabled,
-.h-data-grid .top .forms-button:hover .el-button.is-disabled {
+.h-data-grid .top .forms-button:hover .el-button.is-disabled,
+.h-data-grid .top .generate-rows-button:hover .el-button.is-disabled {
     color: #777777;
 }
 .h-data-grid .top .info {
@@ -2109,6 +2114,80 @@ $nav_active_color: #ffffff;
 }
 .forms-dialog .form-item-actions {
     margin-top: 4px;
+}
+/* AI rows and tables (#148) */
+.ai-dialog {
+    color: $gray500;
+}
+.ai-dialog .ai-intro {
+    margin: 0 0 10px;
+}
+.ai-dialog input,
+.ai-dialog textarea,
+.ai-dialog select {
+    padding: 4px 6px;
+    font-size: 14px;
+    font-family: inherit;
+    border: solid 1px #b7b7b7;
+    border-radius: 3px;
+}
+.ai-dialog .ai-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.ai-dialog .ai-row > label {
+    width: 110px;
+    flex: none;
+    padding-top: 4px;
+    color: $gray600;
+}
+.ai-dialog .ai-row textarea,
+.ai-dialog .ai-row .ai-table-name {
+    flex: 1;
+    min-width: 0;
+}
+.ai-dialog .ai-count {
+    width: 90px;
+}
+.ai-dialog .ai-label {
+    display: block;
+    margin: 8px 0 4px;
+    color: $gray600;
+}
+.ai-dialog .ai-usage {
+    margin: 4px 0;
+    font-size: 13px;
+    color: $gray300;
+}
+.ai-dialog .ai-status {
+    margin: 4px 0;
+}
+.ai-dialog .ai-status.error {
+    color: #a03e3e;
+}
+.ai-dialog .ai-actions {
+    margin-top: 10px;
+}
+.ai-dialog .ai-columns td {
+    padding: 2px 6px 2px 0;
+}
+.ai-dialog .ai-preview {
+    max-height: 260px;
+    overflow: auto;
+    border: solid 1px #e2e2e2;
+}
+.ai-dialog .ai-preview table {
+    border-collapse: collapse;
+    font-size: 13px;
+    white-space: nowrap;
+}
+.ai-dialog .ai-preview th,
+.ai-dialog .ai-preview td {
+    padding: 3px 8px;
+    border-bottom: solid 1px #eeeeee;
+    text-align: left;
 }
 .views-dialog {
     color: $gray500;

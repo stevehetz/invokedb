@@ -8,8 +8,8 @@
 # Runs nightly (06:00 UTC, before the 07:15 backup), by hand, and after every successful deploy:
 # cd.yml starts it with the deployed commit (a workflow_run trigger wouldn't fire, since deploys
 # are started with the workflow token). On failure it keeps the screenshot (password and API key
-# masked) as the `e2e` artifact and sends a Telegram message (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID, the
-# bot production uses).
+# masked) as the `e2e` artifact, sends a Telegram message (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID, the
+# bot production uses), and starts repair.yml, which opens a fix PR or an issue (#198).
 name: E2E
 
 on:
@@ -33,6 +33,9 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      actions: write # start repair.yml on failure
+      issues: read
+      pull-requests: read
     env:
       HORIZON_FE_PUB_HTTP_URL: https://invokedb.com
       HORIZON_BE_PUB_HTTP_URL: https://api.invokedb.com
@@ -92,3 +95,16 @@ jobs:
           text="InvokeDB E2E failed against production ($why). $RUN_URL"
           curl -fsS -o /dev/null "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" \
             --data-urlencode "chat_id=$CHAT_ID" --data-urlencode "text=$text"
+
+      # Hand the failure to repair.yml (#198), which opens a fix PR or an issue. Only for runs on
+      # main (not a branch being tried out), and not while an open PR or issue already covers it.
+      - name: Start a repair
+        if: failure() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open=$( { gh pr list -R "$GITHUB_REPOSITORY" --state open --search 'in:title "Fix E2E"' --json number --jq '.[].number'
+                    gh issue list -R "$GITHUB_REPOSITORY" --state open --search 'in:title "E2E failed"' --json number --jq '.[].number'; } | head -1)
+          if [ -n "$open" ]; then echo "#$open already covers an E2E failure; no new repair"; exit 0; fi
+          gh workflow run repair.yml -R "$GITHUB_REPOSITORY" --ref main -f run_id="$GITHUB_RUN_ID"
+          echo "Started repair.yml for this run"

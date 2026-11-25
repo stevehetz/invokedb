@@ -48,6 +48,7 @@ export default {
         this.dom_remove_bindings();
         bus.$off('websocket:message', this.websocket_message);
         bus.$off('table:open', this.open_table);
+        bus.$off('table:status', this.table_status);
     },
 
     methods: {
@@ -56,6 +57,13 @@ export default {
             bus.$on('websocket:message', this.websocket_message);
             // A link cell's chip opens the table it links to (#147)
             bus.$on('table:open', this.open_table);
+            // A grid found its table's job done without a COMPLETE message (#190)
+            bus.$on('table:status', this.table_status);
+        },
+
+        table_status(file) {
+            this.setup_tree();
+            this.refresh_tabs(file);
         },
 
         open_table(id) {

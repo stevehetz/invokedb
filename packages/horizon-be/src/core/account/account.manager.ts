@@ -42,15 +42,16 @@ export class AccountManager {
         return account;
     }
 
-    async check_if_exists(email) {
-        if (!email) throw new HttpException('Email is required', HttpStatus.BAD_REQUEST);
-        const existing = await this.account_repository.findOneBy({ email });
-
-        if (existing)
-            throw new HttpException(
-                'An account with that email already exists',
-                HttpStatus.BAD_REQUEST
-            );
+    // Any account with this email, deleted or not, compared without case (Foo@x.com and
+    // foo@x.com are one mailbox). Signup uses it to decide which email to send; it never tells
+    // the caller (#132).
+    async find_by_email_any_case(email: string): Promise<Account | null> {
+        if (!email) return null;
+        return await this.account_repository
+            .createQueryBuilder('account')
+            .where('LOWER(account.email) = LOWER(:email)', { email })
+            .orderBy('account.deleted', 'ASC')
+            .getOne();
     }
 
     validate_account_info(account) {

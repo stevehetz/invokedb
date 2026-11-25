@@ -1,7 +1,5 @@
 import { auth_http } from '@/core/context/account/auth-http';
-import cookies from 'js-cookie';
 import SsoButtons from '@/view/sso/sso-buttons.vue';
-import { APP_PATH } from '@/router';
 
 export default {
     name: 'CreateAccount',
@@ -13,6 +11,8 @@ export default {
             email: '',
             password: '',
             retype_password: '',
+            // Set once the signup went through: the page then says "Check your email"
+            sent_to: '',
             error: {
                 message: ''
             }
@@ -26,22 +26,24 @@ export default {
     methods: {
         async create_account(e) {
             e.preventDefault();
+            if (this.sent_to) return;
             try {
                 let { valid, message } = this.validate();
 
                 if (!valid) throw new Error(message);
 
+                // The answer is the same whether or not the email already has an account
+                // (#132), so this doesn't sign in: for a taken email the password wouldn't
+                // work, which would tell anyone the email has an account
                 await auth_http.create_account({
                     email: this.email,
                     password: this.password
                 });
 
-                let session = await auth_http.login({
-                    email: this.email,
-                    password: this.password
-                });
-                cookies.set('token', session.token);
-                this.$router.push(APP_PATH);
+                this.error.message = '';
+                this.sent_to = this.email;
+                this.password = '';
+                this.retype_password = '';
             } catch (ex) {
                 this.error.message = ex.message || 'Server error';
             }

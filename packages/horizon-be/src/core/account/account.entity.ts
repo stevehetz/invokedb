@@ -42,4 +42,9 @@ export class Account {
 
     @Column()
     stripe_env_id: string;
+
+    // False for a password account until its owner clicks the link in the verification email
+    // (#132). Google and GitHub accounts, and accounts from before #132, are verified.
+    @Column({ type: 'boolean', default: false })
+    email_verified: boolean;
 }

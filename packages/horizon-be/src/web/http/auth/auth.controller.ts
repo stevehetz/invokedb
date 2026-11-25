@@ -1,11 +1,28 @@
-import { Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    HttpException,
+    HttpStatus,
+    Post,
+    Request,
+    UseGuards
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from '@app/application/auth/auth.service';
-import { RateLimitGuard } from '@app/web/http/_rate-limit/rate-limit';
+import {
+    RateLimitGuard,
+    RateLimiter,
+    TOO_MANY_REQUESTS_MESSAGE
+} from '@app/web/http/_rate-limit/rate-limit';
+import { session_account_id } from '@app/web/http/_auth/request-account';
 
 const HOUR = 60 * 60 * 1000;
 
 @Controller('auth')
 export class AuthController {
+    // Resending sends an email, so it's limited per account as well as per IP (#132, #133)
+    private readonly resend_per_account = new RateLimiter(3, HOUR);
+
     constructor(private readonly auth_service: AuthService) {}
 
     @Post('login')
@@ -30,6 +47,31 @@ export class AuthController {
     )
     async create_account(@Request() req) {
         return await this.auth_service.create_account(req.body);
+    }
+
+    // The link in the verification email (the site's /verify-email page calls it)
+    @Get('verify-email')
+    async verify_email(@Request() req) {
+        return await this.auth_service.verify_email(req.query.token);
+    }
+
+    // The app's banner: send a new verification link to the signed-in account
+    @Post('resend-verification')
+    @UseGuards(
+        AuthGuard('bearer'),
+        new RateLimitGuard({
+            name: 'resend-verification',
+            per_ip: 10,
+            per_email: 3,
+            window_ms: HOUR
+        })
+    )
+    async resend_verification(@Request() req) {
+        const account_id = session_account_id(req.user);
+        if (!this.resend_per_account.hit(`account:${account_id}`)) {
+            throw new HttpException(TOO_MANY_REQUESTS_MESSAGE, HttpStatus.TOO_MANY_REQUESTS);
+        }
+        return await this.auth_service.resend_verification(account_id);
     }
 
     @Get('reset-password')

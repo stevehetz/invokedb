@@ -5,6 +5,7 @@ import { Account } from '@app/core/account/account.entity';
 import { FileDirectory } from '@app/core/file-directory/file-directory.entity';
 import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
 import { build_onboarding, MarkableStep, OnboardingView } from '@app/core/onboarding/onboarding';
+import { visible_api_key } from '@app/core/email-verification/email-verification';
 
 @Injectable()
 export class OnboardingService {
@@ -29,7 +30,7 @@ export class OnboardingService {
         return build_onboarding({
             state,
             table: table ? table.name : null,
-            api_key: account ? account.api_key : null,
+            api_key: account ? visible_api_key(account) : null,
             base_url
         });
     }

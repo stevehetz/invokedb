@@ -474,7 +474,7 @@ try {
         const tabs = dialog.locator('.api-dialog-tab');
         await tabs.first().waitFor();
         results.observed.api_docs_tabs = await tabs.allInnerTexts();
-        check(results.observed.api_docs_tabs.length === 5, 'the API dialog has no 5 endpoint tabs');
+        check(results.observed.api_docs_tabs.length === 7, 'the API dialog has no 7 endpoint tabs');
         const snippet = await dialog.locator('.api-dialog-snippet pre').innerText();
         check(snippet.includes(`table=${TABLE}`), `the curl snippet doesn't name ${TABLE}`);
         await dialog.getByRole('button', { name: 'Send request' }).click();
@@ -487,6 +487,20 @@ try {
         );
         const body = JSON.parse(await dialog.locator('.try-response pre').innerText());
         check(body.count === 3, `Try it on Get returned count ${body.count}`);
+        // Query rows (#141) is read-only too, and answers rows and a cursor
+        await tabs.filter({ hasText: 'Query rows' }).click();
+        await dialog.getByRole('button', { name: 'Send request' }).click();
+        await status.waitFor();
+        results.observed.api_docs_query_status = (await status.innerText()).trim();
+        check(
+            results.observed.api_docs_query_status === '200',
+            `Try it on Query answered ${results.observed.api_docs_query_status}`
+        );
+        const query_body = JSON.parse(await dialog.locator('.try-response pre').innerText());
+        check(
+            Array.isArray(query_body.data) && 'next_cursor' in query_body,
+            'Try it on Query returned no data and next_cursor'
+        );
         // Writes are off by default
         await tabs.filter({ hasText: 'Delete rows' }).click();
         check(

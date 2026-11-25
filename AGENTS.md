@@ -259,6 +259,11 @@ token starts no CI, and a dispatched CI run doesn't count toward a PR's required
   snippets (curl, fetch, `invokedb` client, Python) and OpenAPI spec from its columns
   (`GET /web-file/:id/api-docs`, `/web-file/:id/openapi.json`, `/api/v1/openapi?table=`).
   `api-smoke.mjs` runs the curl, fetch and Python snippets, so a snippet change must still run.
+- Richer queries (#141): `POST /api/v1/query` and `/count` take `{ filters, match, sort, fields,
+limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body against the table's
+  columns and builds the Mongo find (cursor = keyset on the sort columns + `_id`). The page cap
+  is `max_query_limit()`, one value until #137 sets per-plan limits. `/get` and `/search` are
+  unchanged.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

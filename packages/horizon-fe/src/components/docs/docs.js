@@ -22,6 +22,8 @@ export default {
                 search_two_columns_and: samples.search_two_columns_and,
                 search_two_columns_or: samples.search_two_columns_or,
                 search_group: samples.search_group,
+                query: samples.query,
+                count: samples.count,
                 create: samples.create,
                 update: samples.update,
                 remove: samples.remove

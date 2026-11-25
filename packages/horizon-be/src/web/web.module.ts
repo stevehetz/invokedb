@@ -23,6 +23,7 @@ import {
     PublicDashboardController
 } from './http/dashboard/dashboard.controller';
 import { AiController } from './http/ai/ai.controller';
+import { AccountExportController } from './http/account-export/account-export.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
@@ -49,7 +50,8 @@ import { WebsocketClient } from './ws/websocket-client';
         ViewController,
         DashboardController,
         PublicDashboardController,
-        AiController
+        AiController,
+        AccountExportController
     ],
     providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor]
 })

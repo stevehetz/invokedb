@@ -3795,6 +3795,24 @@ $page_nav_active_color: #dcb467;
     margin-top: 15px;
 }
 
+.account-page .data-export-form .form-body {
+    padding-left: 20px;
+}
+.account-page .data-export-form .data-export-intro {
+    margin: 0 0 15px;
+    max-width: 640px;
+    color: $gray400;
+}
+.account-page .data-export-form .data-export-status p {
+    margin: 0 0 10px;
+}
+.account-page .data-export-form .data-export-ready {
+    margin-bottom: 15px;
+}
+.account-page .data-export-form .data-export-error {
+    color: #e44949;
+}
+
 .account-page .api-key-form {
     margin-bottom: 20px;
     position: relative;

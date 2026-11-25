@@ -56,6 +56,11 @@ export class AllExceptionFilter implements ExceptionFilter {
         } else {
             json_response.message = message;
         }
+        // Per-field messages, such as a form submission's wrong answers (#145)
+        const errors = response && response.errors;
+        if (status === 400 && errors && typeof errors === 'object' && !Array.isArray(errors)) {
+            json_response.errors = errors;
+        }
 
         ctx.getResponse<Response>().status(status).json(json_response);
     }

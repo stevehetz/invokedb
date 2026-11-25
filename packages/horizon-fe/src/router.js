@@ -30,6 +30,9 @@ const Privacy = () => import('@/view/pages/privacy');
 // and links between the areas use the router like any other. Logging out is still a full page
 // load, on purpose (components/layout/layout.js).
 const Site = () => import(/* webpackChunkName: "site" */ '@/view/site.vue');
+// A shareable form's public page (#145), also shown in other sites' iframes. It's in neither
+// shell (no site nav, no app), so it carries its own scoped CSS.
+const FormPage = () => import('@/view/form-page');
 const App = () =>
     import(/* webpackChunkName: "signed-in" */ '@/components/app.vue');
 
@@ -76,6 +79,7 @@ const router = createRouter({
                 }
             ]
         },
+        { path: '/f/:id', name: 'form', component: FormPage },
         {
             path: '/',
             component: Site,

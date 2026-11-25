@@ -23,6 +23,7 @@ import GridFilter from './grid-filter';
 import GridToast from './grid-toast';
 import ApiDialog from './api-dialog';
 import WebhooksDialog from './webhooks-dialog';
+import FormsDialog from './forms-dialog';
 
 // Since ag-grid 33 every feature is a module that has to be registered. Only the ones the grid
 // uses are, so the rest of ag-grid is left out of the bundle (AllCommunityModule was 1.3 MB).
@@ -798,6 +799,16 @@ export default {
                     file: this.file
                 },
                 component: WebhooksDialog
+            });
+        },
+
+        forms_btn_clicked() {
+            this.$bus.$emit('container-dialog:open', {
+                title: `${this.file.name.replace(/.g/, '')}: forms`,
+                props: {
+                    file: this.file
+                },
+                component: FormsDialog
             });
         },
         /*** End: Header controls event handlers ***/

@@ -21,6 +21,7 @@ import { OnboardingManager } from './onboarding/onboarding.manager';
 import { UrlImportManager } from './url-import/url-import.manager';
 import { UrlSyncProcessor } from './web-file/url-sync-processor';
 import { WebhookManager } from './webhook/webhook.manager';
+import { FormManager } from './form/form.manager';
 
 @Module({
     imports: [
@@ -48,6 +49,7 @@ import { WebhookManager } from './webhook/webhook.manager';
         UrlImportManager,
         UrlSyncProcessor,
         WebhookManager,
+        FormManager,
         WebsocketClientStore
     ],
     exports: [
@@ -62,6 +64,7 @@ import { WebhookManager } from './webhook/webhook.manager';
         UrlImportManager,
         UrlSyncProcessor,
         WebhookManager,
+        FormManager,
         WebsocketClientStore,
         TypeOrmModule
     ]

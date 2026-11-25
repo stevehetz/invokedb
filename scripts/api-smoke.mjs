@@ -10,7 +10,9 @@
 // refused private/loopback URLs, replace and upsert re-syncs, a failed sync, demo2 locked out;
 // the URLs are this repo's files on GitHub, so it needs internet), checks webhooks on row changes
 // (#140: a receiver on 127.0.0.1:8199, allowed by smoke-env.sh's HORIZON_WEBHOOK_TEST_HOSTS,
-// checks signatures; refused private URLs, a retry, demo2 locked out), then deletes the tables. Writes every response to out.json
+// checks signatures; refused private URLs, a retry, demo2 locked out), checks shareable forms
+// (#145: public view and submissions, typed answers, honeypot, closing, the rate limit, deleted
+// forms and tables, demo2 locked out), then deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -1485,6 +1487,295 @@ check(
 );
 receiver.closeAllConnections();
 receiver.close();
+
+// Shareable forms (#145), on a table made from the waitlist template. The public link shows the
+// questions with their column types; a submission is checked against them and becomes a row; a
+// filled honeypot adds nothing; a closed, deleted or table-deleted form's link stops working;
+// submissions are rate-limited per IP; demo2 can't see, change or delete demo's forms, nor put
+// one on demo's table; an API key can't manage forms.
+const form_table = await call('form_table_create', 'POST', '/table-template/waitlist', {
+    token,
+    body: { name: 'smoke_form_waitlist' }
+});
+const form_cols = await call(
+    'form_table_cols',
+    'POST',
+    `/web-file/data_grid_column/${form_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const form_col = name => (form_cols.data || []).find(c => c.headerName === name)?.field;
+const [f_email, f_name, f_position, f_joined, f_status] = [
+    'Email',
+    'Name',
+    'Position',
+    'Joined',
+    'Status'
+].map(form_col);
+check('form_table_columns', !!(f_email && f_name && f_position && f_joined && f_status), form_cols);
+const form_rows = async name =>
+    (
+        await call(name, 'POST', `/web-file/data_grid_row/${form_table}?skip=0&limit=100`, {
+            token,
+            body: {}
+        })
+    )?.data || [];
+const form_rows_before = await form_rows('form_rows_before');
+
+const form_body = {
+    file_id: form_table,
+    title: 'Join the smoke waitlist',
+    description: 'A form from api-smoke.mjs',
+    fields: [
+        { field: f_email, required: true, label: 'Your email' },
+        { field: f_name },
+        { field: f_position, help: 'Any number' },
+        { field: f_joined }
+    ],
+    thank_you: 'Thanks, smoke!',
+    redirect_url: 'https://example.com/thanks'
+};
+const bad_forms = {
+    form_create_no_fields: { ...form_body, fields: [] },
+    form_create_unknown_column: { ...form_body, fields: [{ field: 'zz' }] },
+    form_create_repeated_column: { ...form_body, fields: [{ field: f_email }, { field: f_email }] },
+    form_create_no_title: { ...form_body, title: ' ' },
+    form_create_js_redirect: { ...form_body, redirect_url: 'javascript:alert(1)' },
+    form_create_unknown_setting: { ...form_body, account_id: me.id },
+    form_create_no_table: { ...form_body, file_id: undefined }
+};
+for (const [name, body] of Object.entries(bad_forms)) {
+    await call(name, 'POST', '/form', { token, body, expectFail: true });
+}
+check(
+    'form_create_bad_is_400',
+    Object.keys(bad_forms).every(n => results[n]?.status === 400),
+    Object.keys(bad_forms).map(n => [n, results[n]?.status])
+);
+const sform = await call('form_create', 'POST', '/form', { token, body: form_body });
+check(
+    'form_created',
+    /^form_[0-9a-f]{24}$/.test(sform?.id || '') &&
+        sform.open === true &&
+        sform.file_id === form_table &&
+        sform.submissions === 0 &&
+        !('account_id' in sform),
+    sform
+);
+const sform_list = await call('form_list_table', 'GET', `/form?table=${form_table}`, { token });
+check(
+    'form_listed',
+    Array.isArray(sform_list?.forms) && sform_list.forms.some(f => f.id === sform?.id),
+    sform_list
+);
+await call('form_get', 'GET', `/form/${sform?.id}`, { token });
+
+// The public link: no token
+const PUB = `/public/form/${sform?.id}`;
+const pub_view = await call('form_public_view', 'GET', PUB);
+check(
+    'form_public_view_types',
+    JSON.stringify((pub_view?.fields || []).map(f => [f.key, f.label, f.type, f.required])) ===
+        JSON.stringify([
+            [f_email, 'Your email', 'string', true],
+            [f_name, 'Name', 'string', false],
+            [f_position, 'Position', 'number', false],
+            [f_joined, 'Joined', 'date', false]
+        ]) &&
+        pub_view.title === form_body.title &&
+        pub_view.honeypot === 'website',
+    pub_view
+);
+check(
+    'form_public_view_hides_owner',
+    pub_view &&
+        !('file_id' in pub_view) &&
+        !('account_id' in pub_view) &&
+        !('thank_you' in pub_view),
+    pub_view
+);
+
+const submitted = await call('form_submit', 'POST', `${PUB}/submit`, {
+    body: {
+        values: {
+            [f_email]: 'smoke-form@example.com',
+            [f_name]: 'Smoke Form',
+            [f_position]: '42',
+            [f_joined]: '2026-11-25'
+        },
+        website: ''
+    }
+});
+check(
+    'form_submit_answer',
+    submitted?.ok === true &&
+        submitted.thank_you === 'Thanks, smoke!' &&
+        submitted.redirect_url === 'https://example.com/thanks',
+    submitted
+);
+const rows_after_submit = await form_rows('form_rows_after_submit');
+const submitted_row = rows_after_submit.find(r => r[f_email] === 'smoke-form@example.com');
+check(
+    'form_submit_added_row',
+    rows_after_submit.length === form_rows_before.length + 1 &&
+        submitted_row?.[f_name] === 'Smoke Form' &&
+        submitted_row?.[f_position] === 42 &&
+        String(submitted_row?.[f_joined]).startsWith('2026-11-25') &&
+        (submitted_row?.[f_status] ?? null) === null,
+    submitted_row
+);
+
+// Wrong answers: a 400 with each field's message, and no row
+await call('form_submit_invalid', 'POST', `${PUB}/submit`, {
+    body: { values: { [f_email]: '', [f_position]: 'lots', [f_joined]: 'someday' } },
+    expectFail: true
+});
+const invalid = results.form_submit_invalid;
+check(
+    'form_submit_invalid_fields',
+    invalid?.status === 400 &&
+        invalid.data?.errors?.[f_email] === 'This field is required' &&
+        invalid.data?.errors?.[f_position] === 'Enter a number' &&
+        invalid.data?.errors?.[f_joined] === 'Enter a date',
+    invalid
+);
+await call('form_submit_other_column', 'POST', `${PUB}/submit`, {
+    body: { values: { [f_email]: 'x@example.com', [f_status]: 'Invited' } },
+    expectFail: true
+});
+check('form_submit_other_column_400', results.form_submit_other_column?.status === 400);
+// The honeypot: answered like a submission, but nothing is added
+const spam = await call('form_submit_honeypot', 'POST', `${PUB}/submit`, {
+    body: { values: { [f_email]: 'bot@example.com' }, website: 'http://spam.example' }
+});
+check('form_submit_honeypot_ok', spam?.ok === true, spam);
+const rows_after_bad = await form_rows('form_rows_after_bad');
+check(
+    'form_submit_bad_added_nothing',
+    rows_after_bad.length === rows_after_submit.length &&
+        !rows_after_bad.some(
+            r => r[f_email] === 'bot@example.com' || r[f_email] === 'x@example.com'
+        ),
+    rows_after_bad.length
+);
+const sform_after = await call('form_get_after_submit', 'GET', `/form/${sform?.id}`, { token });
+check('form_submission_counted', sform_after?.submissions === 1, sform_after);
+
+// demo2 can't see, change, close or delete demo's form, nor put one on demo's table; an API
+// key can't manage forms. The public link is public, so that's all it can do.
+const form_other = await call('form_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const ftoken2 = form_other.token;
+const other_forms = await call('form_other_list', 'GET', '/form', { token: ftoken2 });
+check(
+    'form_other_list_is_own',
+    Array.isArray(other_forms?.forms) && !other_forms.forms.some(f => f.id === sform?.id),
+    other_forms
+);
+await call('form_other_list_table', 'GET', `/form?table=${form_table}`, {
+    token: ftoken2,
+    expectFail: true
+});
+await call('form_other_get', 'GET', `/form/${sform?.id}`, { token: ftoken2, expectFail: true });
+await call('form_other_update', 'PUT', `/form/${sform?.id}`, {
+    token: ftoken2,
+    body: { open: false, title: 'stolen' },
+    expectFail: true
+});
+await call('form_other_delete', 'DELETE', `/form/${sform?.id}`, {
+    token: ftoken2,
+    expectFail: true
+});
+await call('form_other_create_on_table', 'POST', '/form', {
+    token: ftoken2,
+    body: { ...form_body, title: 'theirs' },
+    expectFail: true
+});
+await call('form_api_key_list', 'GET', '/form', { token: key, expectFail: true });
+await call('form_api_key_create', 'POST', '/form', {
+    token: key,
+    body: form_body,
+    expectFail: true
+});
+await call('form_unauth_list', 'GET', '/form', { expectFail: true });
+const sform_after_other = await call('form_get_after_other', 'GET', `/form/${sform?.id}`, {
+    token
+});
+check(
+    'form_other_changed_nothing',
+    sform_after_other?.open === true && sform_after_other?.title === form_body.title,
+    sform_after_other
+);
+const forms_after_other = await call('form_list_after_other', 'GET', '/form', { token });
+check(
+    'form_other_created_nothing',
+    Array.isArray(forms_after_other?.forms) &&
+        !forms_after_other.forms.some(f => f.title === 'theirs'),
+    forms_after_other
+);
+await call('form_other_logout', 'GET', `/auth/logout?token=${ftoken2}`);
+
+// Closed: the link answers 410 and takes nothing; opened again, it works
+const closed = await call('form_close', 'PUT', `/form/${sform?.id}`, {
+    token,
+    body: { open: false }
+});
+check('form_closed', closed?.open === false, closed);
+await call('form_public_closed', 'GET', PUB, { expectFail: true });
+await call('form_submit_closed', 'POST', `${PUB}/submit`, {
+    body: { values: { [f_email]: 'closed@example.com' } },
+    expectFail: true
+});
+check(
+    'form_closed_is_410',
+    results.form_public_closed?.status === 410 && results.form_submit_closed?.status === 410,
+    [results.form_public_closed, results.form_submit_closed]
+);
+await call('form_reopen', 'PUT', `/form/${sform?.id}`, { token, body: { open: true } });
+await call('form_public_reopened', 'GET', PUB);
+
+// Rate limit: 10 submissions per IP per form in 10 minutes, the refused ones included. The
+// ones above used 5, so 5 more are refused for their answers (400) and the next one is a 429.
+// The counters are in memory, so a backend restart resets them.
+const form_statuses = [];
+for (let i = 0; i < 12; i++) {
+    const res = await fetch(`${BASE}${PUB}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: { [f_email]: '' } })
+    });
+    form_statuses.push(res.status);
+    if (res.status === 429) break;
+}
+results.form_rate_limit_statuses = form_statuses;
+check(
+    'form_submit_rate_limited',
+    form_statuses.at(-1) === 429 && form_statuses.slice(0, -1).every(s => s === 400),
+    form_statuses
+);
+
+// Deleted: the link is a 404
+await call('form_delete', 'DELETE', `/form/${sform?.id}`, { token });
+await call('form_delete_again', 'DELETE', `/form/${sform?.id}`, { token, expectFail: true });
+await call('form_public_deleted', 'GET', PUB, { expectFail: true });
+check('form_deleted_is_404', results.form_public_deleted?.status === 404);
+
+// A form on a table that's then deleted: its link is a 404 and the form is gone
+const sform2 = await call('form_create_second', 'POST', '/form', {
+    token,
+    body: { ...form_body, title: 'Second smoke form' }
+});
+await call('form_public_second', 'GET', `/public/form/${sform2?.id}`);
+await call('form_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [form_table] }
+});
+await call('form_public_table_deleted', 'GET', `/public/form/${sform2?.id}`, { expectFail: true });
+check('form_table_deleted_is_404', results.form_public_table_deleted?.status === 404);
+await call('form_get_table_deleted', 'GET', `/form/${sform2?.id}`, { token, expectFail: true });
+await call('form_public_unknown', 'GET', '/public/form/form_000000000000000000000000', {
+    expectFail: true
+});
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');
 if (nameCol) {

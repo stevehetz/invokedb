@@ -199,15 +199,16 @@ describe('AiService', () => {
         );
     });
 
-    it('hands back rows the model did not make, and all of them when it fails', async () => {
+    it('charges every row asked of the model, even when the call fails', async () => {
         const { svc, model, used } = setup();
         model.json.mockResolvedValueOnce({ rows: [{ a: 'only one' }] });
         const res = await svc.generate_rows(ACCT, 11, { prompt: 'x', count: 5 });
         expect(res.rows).toHaveLength(1);
-        expect(used()).toBe(1);
+        expect(used()).toBe(5);
 
         model.json.mockRejectedValueOnce(new Error('overloaded'));
         expect(await status_of(svc.generate_rows(ACCT, 11, { prompt: 'x', count: 5 }))).toBe(502);
+        expect(used()).toBe(10);
         model.json.mockRejectedValueOnce(new AiModelError('The AI declined this request'));
         await expect(svc.generate_rows(ACCT, 11, { prompt: 'x', count: 5 })).rejects.toThrow(
             /declined/
@@ -216,7 +217,33 @@ describe('AiService', () => {
         await expect(svc.generate_rows(ACCT, 11, { prompt: 'x', count: 5 })).rejects.toThrow(
             BadGatewayException
         );
-        expect(used()).toBe(1);
+        expect(used()).toBe(20);
+    });
+
+    it('keeps the rows of the calls that worked when one fails', async () => {
+        const { svc, model, used } = setup();
+        model.json.mockImplementationOnce(async () => {
+            throw new Error('cut off');
+        });
+        const res = await svc.generate_rows(ACCT, 11, { prompt: 'x', count: 60 });
+        expect(res.rows).toHaveLength(60 - AI_LIMITS.rows_per_call);
+        expect(used()).toBe(60);
+    });
+
+    it('hands back rows of calls never started after a failure', async () => {
+        const { svc, model, used } = setup();
+        const parallel = AI_LIMITS.parallel_calls;
+        (AI_LIMITS as any).parallel_calls = 1;
+        try {
+            model.json.mockRejectedValueOnce(new Error('cut off'));
+            expect(await status_of(svc.generate_rows(ACCT, 11, { prompt: 'x', count: 60 }))).toBe(
+                502
+            );
+            expect(model.json).toHaveBeenCalledTimes(1);
+            expect(used()).toBe(AI_LIMITS.rows_per_call);
+        } finally {
+            (AI_LIMITS as any).parallel_calls = parallel;
+        }
     });
 
     it('previews a table from a description, rows keyed by column name', async () => {
@@ -237,16 +264,26 @@ describe('AiService', () => {
         expect(res.usage.used).toBe(2);
     });
 
-    it('charges a design with no rows one row, and a failed design nothing', async () => {
+    it('charges a design one row, failed or not, and its rows as asked', async () => {
         const { svc, model, used } = setup();
         await svc.preview_table(ACCT, { description: 'x', row_count: 0 });
         expect(model.json).toHaveBeenCalledTimes(1);
         expect(used()).toBe(1);
         model.json.mockResolvedValueOnce({ table_name: 'x', columns: [] });
         expect(await status_of(svc.preview_table(ACCT, { description: 'x' }))).toBe(400);
+        expect(used()).toBe(2);
         model.json.mockRejectedValueOnce(new Error('down'));
-        expect(await status_of(svc.preview_table(ACCT, { description: 'x' }))).toBe(502);
-        expect(used()).toBe(1);
+        expect(await status_of(svc.preview_table(ACCT, { description: 'x', row_count: 5 }))).toBe(
+            502
+        );
+        expect(used()).toBe(3);
+        // The design works but its rows fail: the rows asked for are charged
+        model.json.mockImplementationOnce(req => new StubModel().json(req));
+        model.json.mockRejectedValueOnce(new Error('cut off'));
+        expect(await status_of(svc.preview_table(ACCT, { description: 'x', row_count: 5 }))).toBe(
+            502
+        );
+        expect(used()).toBe(8);
     });
 
     it('creates a previewed table like a template', async () => {

@@ -117,37 +117,55 @@ export class AiService {
         }
     }
 
-    /** `count` rows for `columns`, in parallel model calls of at most rows_per_call rows. */
+    /**
+     * `count` rows for `columns`, in parallel model calls of at most rows_per_call rows. Never
+     * throws for a failed call: it answers the rows of the calls that worked, `sent` (the rows
+     * asked of the model, which is what's charged, usable or not) and the first call's error.
+     * After a failed call no new calls are started.
+     */
     private async generate(
         columns: AiColumn[],
         samples: any[],
         prompt: string,
         count: number,
         key_of?: (c: AiColumn) => string
-    ) {
+    ): Promise<{ rows: any[]; sent: number; error: unknown }> {
         const schema = rows_schema(columns);
         const sizes = batch_sizes(count);
         const results: any[][] = new Array(sizes.length);
         let next = 0;
+        let sent = 0;
+        let error: unknown = null;
         const worker = async () => {
-            while (next < sizes.length) {
+            while (next < sizes.length && !error) {
                 const i = next++;
-                const raw = await this.call({
-                    system: ROWS_SYSTEM,
-                    prompt: rows_prompt(columns, samples, prompt, sizes[i], {
-                        index: i,
-                        of: sizes.length
-                    }),
-                    schema,
-                    max_tokens: max_tokens_for(sizes[i], columns.length),
-                    rows: sizes[i]
-                });
-                results[i] = check_rows(columns, raw, sizes[i], key_of);
+                sent += sizes[i];
+                try {
+                    const raw = await this.call({
+                        system: ROWS_SYSTEM,
+                        prompt: rows_prompt(columns, samples, prompt, sizes[i], {
+                            index: i,
+                            of: sizes.length
+                        }),
+                        schema,
+                        max_tokens: max_tokens_for(sizes[i], columns.length),
+                        rows: sizes[i]
+                    });
+                    results[i] = check_rows(columns, raw, sizes[i], key_of);
+                } catch (ex) {
+                    if (!error) error = ex;
+                }
             }
         };
         const workers = Math.min(AI_LIMITS.parallel_calls, sizes.length);
         await Promise.all(Array.from({ length: workers }, worker));
-        return results.flat();
+        return { rows: results.filter(Boolean).flat(), sent, error };
+    }
+
+    /** No usable rows at all: the first call's error, or a 502 of its own. */
+    private no_rows(error: unknown): never {
+        if (error) throw error;
+        throw new BadGatewayException("The AI didn't make any usable rows. Try rewording it.");
     }
 
     /** Whether the AI features are on, this month's usage and the limits, for the app. */
@@ -188,16 +206,19 @@ export class AiService {
             await this.web_file_manager.first_rows(acct_id, file.id, AI_LIMITS.sample_rows)
         );
 
+        // Every row asked of the model is charged, even when its call failed or its rows were
+        // unusable (the call costs the same); only rows never asked for are handed back.
         const month = await this.reserve(account, request.count);
-        let rows = [];
+        let sent = 0;
+        let result: { rows: any[]; sent: number; error: unknown };
         try {
-            rows = await this.generate(columns, samples, request.prompt, request.count);
+            result = await this.generate(columns, samples, request.prompt, request.count);
+            sent = result.sent;
         } finally {
-            await this.usage_manager.release(account.id, month, request.count - rows.length);
+            await this.usage_manager.release(account.id, month, request.count - sent);
         }
-        if (rows.length === 0) {
-            throw new BadGatewayException("The AI didn't make any usable rows. Try rewording it.");
-        }
+        const rows = result.rows;
+        if (rows.length === 0) this.no_rows(result.error);
         return { rows, columns, usage: await this.usage(account) };
     }
 
@@ -213,10 +234,12 @@ export class AiService {
 
         const cost = Math.max(1, request.row_count);
         const month = await this.reserve(account, cost);
-        // The design costs one row's worth even when its rows fail; nothing if it fails itself
+        // Every call made is charged, failed or not: the design one row's worth, and the rows
+        // asked of the model; only rows never asked for are handed back.
         let used = 0;
         let preview;
         try {
+            used = 1;
             const raw = await this.call({
                 system: TABLE_SYSTEM,
                 prompt: table_prompt(request.description),
@@ -224,18 +247,19 @@ export class AiService {
                 max_tokens: 2048
             });
             const design = this.checked(() => check_table_design(raw));
-            used = 1;
             let rows = [];
             if (request.row_count > 0) {
-                rows = await this.generate(
+                const result = await this.generate(
                     design_columns(design.columns),
                     [],
                     request.description,
                     request.row_count,
                     c => c.name
                 );
+                used = Math.max(1, result.sent);
+                rows = result.rows;
+                if (rows.length === 0) this.no_rows(result.error);
             }
-            used = Math.max(1, rows.length);
             preview = { ...design, rows };
         } finally {
             await this.usage_manager.release(account.id, month, cost - used);

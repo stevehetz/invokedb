@@ -14,8 +14,8 @@ export interface AiUsage {
 
 // Each account's AI usage per month (#148): one document per account and month, in one
 // collection of the tracking database shared by all accounts, so every read and write filters
-// on account_id. Rows are reserved before the model is called and the unused part handed back,
-// so two requests at once can't pass the allowance together.
+// on account_id. Rows are reserved before the model is called and the part never asked of the
+// model handed back, so two requests at once can't pass the allowance together.
 @Injectable()
 export class AiUsageManager {
     private indexed = false;

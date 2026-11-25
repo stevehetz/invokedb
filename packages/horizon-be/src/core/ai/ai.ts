@@ -378,5 +378,5 @@ export function table_prompt(description: string) {
 
 /** Rough output tokens for `rows` rows of `columns` columns, for the model's max_tokens. */
 export function max_tokens_for(rows: number, columns: number) {
-    return Math.min(32000, Math.max(1024, 200 + rows * columns * 25));
+    return Math.min(32000, Math.max(1024, 200 + rows * columns * 60));
 }

@@ -914,8 +914,10 @@ try {
         await open_dialog();
         const item = dialog.locator('.view-item', { hasText: 'UI smoke Sam' });
         await item.locator('.view-rename-button').click();
-        await item.locator('.view-rename-input').fill('UI smoke Sam renamed');
-        await item.locator('.view-rename-save').click();
+        // Renaming swaps the name for an input (whose value isn't text), so `item` no longer
+        // matches; only one view is renamed at a time, so find the input in the dialog
+        await dialog.locator('.view-rename-input').fill('UI smoke Sam renamed');
+        await dialog.locator('.view-rename-save').click();
         await dialog.locator('.view-item-name', { hasText: 'UI smoke Sam renamed' }).waitFor();
         await close_dialog();
         check(

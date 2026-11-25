@@ -37,8 +37,13 @@ function make_service({ stripe_enabled = true } = {}) {
     const stripe = {
         customers: { create: jest.fn(async () => ({ id: 'cus_new' })) },
         checkout: {
-            sessions: { create: jest.fn(async () => ({ url: 'https://checkout.test/s' })) }
+            sessions: {
+                create: jest.fn(async () => ({ url: 'https://checkout.test/s' })),
+                list: jest.fn(async (_params?: any) => ({ data: [] as any[] })),
+                expire: jest.fn(async (_id?: string) => ({}))
+            }
         },
+        subscriptions: { list: jest.fn(async (_params?: any) => ({ data: [] as any[] })) },
         billingPortal: {
             sessions: { create: jest.fn(async () => ({ url: 'https://portal.test/p' })) }
         }
@@ -347,6 +352,56 @@ describe('BillingService Checkout and Portal', () => {
         add_account({ id: 2, plan: 'internal' });
         await expect(service.create_checkout_session(1)).rejects.toMatchObject({ status: 400 });
         await expect(service.create_checkout_session(2)).rejects.toMatchObject({ status: 400 });
+    });
+
+    it('refuses Checkout while Stripe has a live subscription the webhook has not applied', async () => {
+        const { service, add_account, stripe } = make_service();
+        add_account({ id: 1, stripe_customer_id: 'cus_1' });
+        for (const status of ['active', 'trialing', 'past_due', 'incomplete', 'unpaid']) {
+            stripe.subscriptions.list.mockResolvedValueOnce({ data: [{ id: 'sub_1', status }] });
+            await expect(service.create_checkout_session(1)).rejects.toMatchObject({
+                status: 400
+            });
+        }
+        expect(stripe.subscriptions.list).toHaveBeenCalledWith({
+            customer: 'cus_1',
+            status: 'all',
+            limit: 10
+        });
+        expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+        // An ended subscription doesn't stop a new one
+        stripe.subscriptions.list.mockResolvedValueOnce({
+            data: [{ id: 'sub_0', status: 'canceled' }]
+        });
+        await expect(service.create_checkout_session(1)).resolves.toEqual({
+            url: 'https://checkout.test/s'
+        });
+    });
+
+    it('expires a Checkout still open in another tab before opening a new one', async () => {
+        const { service, add_account, stripe } = make_service();
+        add_account({ id: 1, stripe_customer_id: 'cus_1' });
+        stripe.checkout.sessions.list.mockResolvedValueOnce({ data: [{ id: 'cs_old' }] });
+        await service.create_checkout_session(1);
+        expect(stripe.checkout.sessions.list).toHaveBeenCalledWith({
+            customer: 'cus_1',
+            status: 'open',
+            limit: 10
+        });
+        expect(stripe.checkout.sessions.expire).toHaveBeenCalledWith('cs_old');
+        expect(stripe.checkout.sessions.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs a second paid Checkout and tracks the newer subscription', async () => {
+        const { service, add_account, accounts } = make_service();
+        add_account({ id: 1, plan: 'pro', stripe_subscription_id: 'sub_old' });
+        await service.apply_event({
+            id: 'evt_twice',
+            type: 'checkout.session.completed',
+            created: 1000,
+            data: { object: checkout_completed(1) }
+        } as any);
+        expect(accounts.get(1)).toMatchObject({ plan: 'pro', stripe_subscription_id: 'sub_1' });
     });
 
     it('opens the portal only for an account with a Stripe customer', async () => {

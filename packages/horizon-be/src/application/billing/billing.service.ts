@@ -21,6 +21,16 @@ type PlanChange = Partial<
     Pick<Account, 'plan' | 'plan_status' | 'stripe_customer_id' | 'stripe_subscription_id'>
 >;
 
+// Subscription statuses that are live (or can become live again): a second Checkout while one
+// of these exists would start a second subscription and charge the customer twice
+const LIVE_SUBSCRIPTION_STATUSES = new Set([
+    'active',
+    'trialing',
+    'past_due',
+    'incomplete',
+    'unpaid'
+]);
+
 function id_of(value: string | { id: string } | null | undefined): string | null {
     if (!value) return null;
     return typeof value === 'string' ? value : value.id;
@@ -100,6 +110,9 @@ export class BillingService {
                 { id: account.id },
                 { stripe_customer_id: customer }
             );
+        } else {
+            await this.assert_no_live_subscription(customer);
+            await this.expire_open_checkouts(customer);
         }
 
         const session = await this.stripe.checkout.sessions.create({
@@ -113,6 +126,27 @@ export class BillingService {
             cancel_url: this.app_url('?billing=cancel')
         });
         return { url: session.url };
+    }
+
+    // The webhook can land after Stripe redirects back (or be retried for a while), so the
+    // account may still say free while the customer already pays: ask Stripe itself
+    private async assert_no_live_subscription(customer: string) {
+        const subs = await this.stripe.subscriptions.list({ customer, status: 'all', limit: 10 });
+        if (subs.data.some(sub => LIVE_SUBSCRIPTION_STATUSES.has(sub.status))) {
+            throw new BadRequestException('Already on a paid plan: manage it in billing');
+        }
+    }
+
+    // A Checkout left open in another tab could still be paid after this one: expire it
+    private async expire_open_checkouts(customer: string) {
+        const open = await this.stripe.checkout.sessions.list({
+            customer,
+            status: 'open',
+            limit: 10
+        });
+        for (const session of open.data) {
+            await this.stripe.checkout.sessions.expire(session.id);
+        }
     }
 
     async create_portal_session(account_id: number): Promise<{ url: string }> {
@@ -201,11 +235,26 @@ export class BillingService {
             logger.warn(`Stripe ${event.id}: no account for checkout session ${session.id}`);
             return;
         }
+        const subscription_id = id_of(session.subscription);
+        if (
+            account.plan === 'pro' &&
+            account.stripe_subscription_id &&
+            subscription_id &&
+            account.stripe_subscription_id !== subscription_id
+        ) {
+            // Two Checkouts were paid (Checkout refuses a second one, so only a race gets here).
+            // Track the newer subscription and flag it, so the owner can cancel and refund one.
+            logger.error(
+                `Stripe ${event.id}: account ${account.id} already has subscription ` +
+                    `${account.stripe_subscription_id} and now also ${subscription_id}: ` +
+                    `possible double charge, cancel and refund one in Stripe`
+            );
+        }
         await this.apply_plan(account, event, {
             plan: 'pro',
             plan_status: 'active',
             stripe_customer_id: id_of(session.customer) ?? account.stripe_customer_id,
-            stripe_subscription_id: id_of(session.subscription)
+            stripe_subscription_id: subscription_id
         });
     }
 

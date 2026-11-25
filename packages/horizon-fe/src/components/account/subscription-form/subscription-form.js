@@ -15,7 +15,9 @@ export default {
             error: null,
             status: null,
             redirecting: false,
-            notice: null
+            notice: null,
+            // Back from a paid Checkout: no Upgrade button while the webhook catches up
+            just_paid: false
         };
     },
 
@@ -45,7 +47,12 @@ export default {
         },
         can_upgrade() {
             const s = this.status;
-            return !!(s && s.billing_enabled && s.plan === 'free');
+            return !!(
+                s &&
+                s.billing_enabled &&
+                s.plan === 'free' &&
+                !this.just_paid
+            );
         },
         can_manage() {
             const s = this.status;
@@ -88,6 +95,7 @@ export default {
         const billing = new URLSearchParams(window.location.search).get(
             'billing'
         );
+        this.just_paid = billing === 'success';
         await this.load();
         if (billing === 'success') {
             this.notice =

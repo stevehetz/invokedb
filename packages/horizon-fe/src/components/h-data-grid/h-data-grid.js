@@ -25,7 +25,6 @@ import ApiDialog from './api-dialog';
 import WebhooksDialog from './webhooks-dialog';
 import FormsDialog from './forms-dialog';
 import AskDialog from './ask-dialog';
-import GenerateRowsDialog from './generate-rows-dialog';
 import { ai_http } from '@/core/context/ai/ai-http';
 import LinkDialog from './link-dialog';
 import ViewsDialog from './views-dialog';
@@ -1086,11 +1085,11 @@ export default {
 
         ask_btn_clicked() {
             this.$bus.$emit('container-dialog:open', {
-                title: `${table_display_name(this.file.name)}: ask your data`,
+                title: `${table_display_name(this.file.name)}: ask AI`,
                 props: {
                     file: this.file,
-                    // "Add 10 rows" in Ask points here (#148)
-                    on_generate: () => this.generate_rows_btn_clicked()
+                    // Rows the AI proposed (#234) become new rows to review, then Save
+                    on_generated: rows => this.add_proposed_rows(rows)
                 },
                 component: AskDialog
             });
@@ -1313,16 +1312,26 @@ export default {
             this.hide_top_bar_msg();
         },
 
-        /*** Start: Generated rows (#148) ***/
-        generate_rows_btn_clicked() {
-            this.$bus.$emit('container-dialog:open', {
-                title: `${table_display_name(this.file.name)}: generate rows`,
-                props: {
-                    file: this.file,
-                    on_generated: rows => this.preview_generated_rows(rows)
-                },
-                component: GenerateRowsDialog
-            });
+        /*** Start: Generated rows (#148, asked for in Ask AI, #234) ***/
+        /**
+         * Rows proposed in Ask AI, shown as new rows to review. Answers null when they're shown,
+         * or why they can't be yet, so the dialog stays open with its rows (already paid for).
+         * A kanban or chart view is left for the plain grid, where the rows show.
+         * @param {any[]} rows
+         * @returns {string | null}
+         */
+        add_proposed_rows(rows) {
+            if (!this.grid_api)
+                return 'The table is still loading. Try again in a moment.';
+            if (this.table_lock || this.processing) {
+                return 'The table is updating. Try again in a moment.';
+            }
+            if (this.edit_column_mode) {
+                return 'Save or cancel your column changes first, then add the rows.';
+            }
+            if (this.other_view) this.select_view(null);
+            this.preview_generated_rows(rows);
+            return null;
         },
 
         // The generated rows become new rows of add-row mode: the user can edit or delete

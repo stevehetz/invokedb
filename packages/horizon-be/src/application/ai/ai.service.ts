@@ -15,7 +15,7 @@ import { WebFileManager } from '@app/core/web-file/web-file.manager';
 import { AiClient, AiModelError } from '@app/core/ai/ai-client';
 import { AiUsageManager } from '@app/core/ai/ai-usage.manager';
 import { AiSpend } from '@app/core/ai/ai-spend';
-import { ai_allowance, usage_month } from '@app/core/ai/ai-plan';
+import { AI_OFF_MESSAGE, AI_PAUSED_MESSAGE, ai_allowance, usage_month } from '@app/core/ai/ai-plan';
 import {
     AI_LIMITS,
     AiColumn,
@@ -38,7 +38,6 @@ import {
 } from '@app/core/ai/ai';
 import { validate_template } from '@app/core/table-template/table-template';
 import { assert_verified } from '@app/core/email-verification/email-verification';
-import { AI_OFF_MESSAGE, AI_PAUSED_MESSAGE } from './ask.service';
 import logger from '@app/logger';
 
 // One model call's usage, for charging it
@@ -227,6 +226,17 @@ export class AiService {
         await this.tracking_manager.check_account_lock(account);
         const file = await this.file_directory_svc.assert_owned(acct_id, file_id);
         if (file.type !== 'file' || file.deleted) throw new NotFoundException('Table not found');
+        return await this.preview_rows(account, file, request);
+    }
+
+    /**
+     * Generated rows for one of the account's tables (already checked as its own), not saved:
+     * `{ rows (keyed by field), columns, usage }`. Also used by Ask when the model calls
+     * propose_rows (#234). Checks the table lock, takes the rows from the month's allowance
+     * (429 when they don't fit) and charges the calls.
+     */
+    async preview_rows(account, file, request: { prompt: string; count: number }) {
+        const acct_id = account.id;
         await this.tracking_manager.check_table_lock(file.id);
 
         const columns = ai_columns(await this.web_file_manager.get_columns(acct_id, file.id));

@@ -7,9 +7,8 @@ import {
     ServiceUnavailableException
 } from '@nestjs/common';
 import { AiService } from './ai.service';
-import { AI_OFF_MESSAGE } from './ask.service';
 import { AI_LIMITS } from '@app/core/ai/ai';
-import { AI_ALLOWANCES } from '@app/core/ai/ai-plan';
+import { AI_ALLOWANCES, AI_OFF_MESSAGE } from '@app/core/ai/ai-plan';
 import { AiSpend } from '@app/core/ai/ai-spend';
 import { AiModelError } from '@app/core/ai/ai-client';
 
@@ -21,10 +20,6 @@ jest.mock('@app/logger', () => ({
 jest.mock('../file-directory/file-directory.service', () => ({}));
 jest.mock('../account/account.service', () => ({}));
 jest.mock('../table-template/table-template.service', () => ({}));
-jest.mock('./ask.service', () => ({
-    AI_OFF_MESSAGE: 'AI features are not set up on this server',
-    AI_PAUSED_MESSAGE: 'AI features are paused until next month'
-}));
 jest.mock('../../core/ai/ai-client', () => ({
     AiClient: class {},
     AiModelError: class extends Error {

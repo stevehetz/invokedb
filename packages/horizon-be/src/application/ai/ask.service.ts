@@ -15,6 +15,7 @@ import { WebFileManager } from '@app/core/web-file/web-file.manager';
 import { AiClient } from '@app/core/ai/ai-client';
 import { AiUsageManager } from '@app/core/ai/ai-usage.manager';
 import { AiSpend } from '@app/core/ai/ai-spend';
+import { AiService } from './ai.service';
 import { QueryColumn, parse_row_query } from '@app/core/web-file/row-query';
 import {
     ASK_MAX_TURNS,
@@ -22,16 +23,25 @@ import {
     ASK_TOOL_NAME,
     AskError,
     AskQuery,
+    PROPOSE_TOOL_NAME,
     api_call,
     ask_columns,
     ask_system_prompt,
     ask_tool,
     parse_ask_input,
+    parse_propose_input,
     parse_question,
+    propose_tool,
     reply_text,
     tool_result_content
 } from '@app/core/ai/ask';
-import { ai_allowance, usage_month } from '@app/core/ai/ai-plan';
+import {
+    AI_OFF_MESSAGE,
+    AI_PAUSED_MESSAGE,
+    AI_UNVERIFIED_MESSAGE,
+    ai_allowance,
+    usage_month
+} from '@app/core/ai/ai-plan';
 import logger from '@app/logger';
 
 // A run_query call that ran: its body and what it returned
@@ -42,11 +52,10 @@ interface RanQuery {
     fields: string[];
 }
 
-export const AI_OFF_MESSAGE = 'AI features are not set up on this server';
-export const AI_PAUSED_MESSAGE = 'AI features are paused until next month';
-export const AI_UNVERIFIED_MESSAGE = 'Verify your email address to use the AI features';
+export { AI_OFF_MESSAGE, AI_PAUSED_MESSAGE, AI_UNVERIFIED_MESSAGE };
 // Tells the model to read the table when its first reply didn't
-const QUERY_FIRST = 'Call run_query to read the rows before you answer.';
+const QUERY_FIRST =
+    'Call run_query to read the rows before you answer, or propose_rows if I asked for rows.';
 
 // "Ask your data" (#149): a question about one of the account's tables is answered by Claude,
 // which reads the table only through run_query, a read-only /api/v1/query body that is checked
@@ -63,7 +72,8 @@ export class AskService {
         private web_file_manager: WebFileManager,
         private ai_client: AiClient,
         private ai_usage: AiUsageManager,
-        private ai_spend: AiSpend
+        private ai_spend: AiSpend,
+        private ai_service: AiService
     ) {}
 
     // Overridden by the unit tests
@@ -197,6 +207,8 @@ export class AskService {
         const tool = ask_tool(columns);
         const messages: any[] = [{ role: 'user', content: question }];
         let last: RanQuery | null = null;
+        // Rows the model proposed (#234), not saved: `{ rows, columns, usage }`
+        let proposal: { rows: any[]; columns: any[]; usage: any } | null = null;
         let answer = '';
         // Every model call, for charging what it used
         const spent: { model: string; usage: any }[] = [];
@@ -211,7 +223,7 @@ export class AskService {
                 const { reply, model }: any = await this.ai_client.create_message({
                     max_tokens: 2048,
                     system,
-                    tools: [tool as any],
+                    tools: [tool as any, propose_tool() as any],
                     tool_choice: tool_choice as any,
                     messages
                 });
@@ -227,9 +239,45 @@ export class AskService {
                     answer = reply_text(reply.content);
                     break;
                 }
+                // Asked for rows (#234): generate a preview and stop. Nothing is saved; the app
+                // shows the rows and the user decides. A bad input goes back to the model.
+                const propose = calls.find(c => c.name === PROPOSE_TOOL_NAME);
+                let bad_propose = '';
+                if (propose) {
+                    let request: { prompt: string; count: number } | null = null;
+                    try {
+                        request = parse_propose_input(propose.input);
+                    } catch (ex) {
+                        if (!(ex instanceof AskError)) throw ex;
+                        bad_propose = ex.message;
+                    }
+                    if (request) {
+                        try {
+                            proposal = await this.ai_service.preview_rows(account, file, request);
+                            const n = proposal.rows.length;
+                            answer =
+                                `Here ${n === 1 ? 'is 1 new row' : `are ${n} new rows`} for you ` +
+                                'to review. Add them to the table, check them, then Save.';
+                        } catch (ex) {
+                            // Over the row allowance, a locked table, no usable rows: say so
+                            if (!(ex instanceof HttpException)) throw ex;
+                            answer = ex.message;
+                        }
+                        break;
+                    }
+                }
                 messages.push({ role: 'assistant', content: reply.content });
                 const results = [];
                 for (const call of calls) {
+                    if (call.name === PROPOSE_TOOL_NAME) {
+                        results.push({
+                            type: 'tool_result',
+                            tool_use_id: call.id,
+                            is_error: true,
+                            content: bad_propose
+                        });
+                        continue;
+                    }
                     const res = await this.tool_result(acct_id, file.id, columns, call);
                     if (res.ran) last = res.ran;
                     results.push(res.result);
@@ -257,7 +305,10 @@ export class AskService {
             columns: last ? last.fields : [],
             total: last ? last.total : 0,
             api_call: last ? api_call(base_url, file.name, last.body) : null,
-            usage: await this.usage(account)
+            // Rows to review (keyed by field) and their columns, or null
+            proposed: proposal ? { rows: proposal.rows, columns: proposal.columns } : null,
+            usage: await this.usage(account),
+            rows_usage: await this.ai_service.rows_usage(account)
         };
     }
 

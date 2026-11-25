@@ -127,7 +127,17 @@ if (env.ANTHROPIC_BASE_URL === AI_STUB_URL) {
                             text: `Stub: ${JSON.parse(result.content).total_matching} rows match`
                         }
                     ]
-                  : [{ type: 'tool_use', id: 'toolu_ui_smoke', name: 'run_query', input: {} }];
+                  : // "add ..." asks for rows (#234): propose 2 of them
+                    /^add /i.test(String(body.messages?.[0]?.content || ''))
+                    ? [
+                          {
+                              type: 'tool_use',
+                              id: 'toolu_ui_smoke',
+                              name: 'propose_rows',
+                              input: { count: 2, description: 'two more people' }
+                          }
+                      ]
+                    : [{ type: 'tool_use', id: 'toolu_ui_smoke', name: 'run_query', input: {} }];
             res.setHeader('Content-Type', 'application/json');
             res.end(
                 JSON.stringify({
@@ -1360,9 +1370,9 @@ try {
     });
 
     // AI rows and tables (#148), only against the Anthropic stub, so a run against production
-    // never calls (and pays for) the real model. "Generate rows" shows the rows in the grid as
-    // new rows and Save adds them; a table from a description is previewed in its dialog and
-    // created with its columns and rows.
+    // never calls (and pays for) the real model. Asking Ask AI for rows (#234) shows them in the
+    // dialog, "Add to table" puts them in the grid as new rows and Save adds them; a table from a
+    // description is previewed in its dialog and created with its columns and rows.
     if (!ai_stub) {
         results.steps.ai_rows_and_table = 'skipped';
         console.log('skip ai_rows_and_table (no Anthropic stub: not the smoke stack)');
@@ -1370,12 +1380,17 @@ try {
         await step('ai_rows_and_table', async () => {
             await page.locator('.h-tree .tree-wrapper').getByText(TABLE, { exact: true }).click();
             await page.locator('.el-tabs__item.is-active', { hasText: TABLE }).waitFor();
-            await grid().locator('.generate-rows-button button').click();
-            const gen = page.locator('.container-dialog .generate-rows-dialog');
-            await gen.locator('.ai-prompt').fill('two more people');
-            await gen.locator('.ai-count').fill('2');
-            await gen.locator('.ai-generate').click();
-            await gen.waitFor({ state: 'detached', timeout: 30000 });
+            await grid().locator('.ask-data-button button').click();
+            const gen = page.locator('.container-dialog .ask-dialog');
+            await gen.locator('.ask-question').fill('add two more people');
+            await gen.getByRole('button', { name: 'Ask', exact: true }).click();
+            await gen.locator('.ask-proposed-row').nth(1).waitFor({ timeout: 30000 });
+            check(
+                (await gen.locator('.ask-proposed-row').count()) === 2,
+                "Ask AI doesn't show the 2 proposed rows"
+            );
+            await gen.locator('.ask-add-rows').click();
+            await gen.waitFor({ state: 'detached', timeout: 10000 });
             // The stub's text values are "<column> <n>"
             await wait_rows(r => r.some(row => row.name === 'name 2'), 'the generated rows');
             let saved = await be_table(be_s, file_id);

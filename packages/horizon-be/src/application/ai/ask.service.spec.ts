@@ -139,6 +139,18 @@ function setup(
             return { before, after: server[month] };
         })
     };
+    // Generated rows (#148), when the model calls propose_rows (#234)
+    const ai_service = {
+        preview_rows: jest.fn(async (_account: any, _file: any, request: any) => ({
+            rows: Array.from({ length: request.count }, (_, i) => ({ a: `Row ${i + 1}`, b: i })),
+            columns: [
+                { field: 'a', name: 'Name', type: 'string' },
+                { field: 'b', name: 'Price', type: 'number' }
+            ],
+            usage: { month: '2026-11', used: request.count, limit: 50 }
+        })),
+        rows_usage: jest.fn(async () => ({ month: '2026-11', used: 0, limit: 50 }))
+    };
     const svc = new AskService(
         file_directory_svc as any,
         account_svc as any,
@@ -146,10 +158,21 @@ function setup(
         web_file_manager as any,
         ai_client as any,
         ai_usage as any,
-        new AiSpend(ai_client as any, ai_usage as any)
+        new AiSpend(ai_client as any, ai_usage as any),
+        ai_service as any
     );
     svc.now = () => NOW;
-    return { svc, calls, usage, server, ai_client, ai_usage, web_file_manager, tracking_manager };
+    return {
+        svc,
+        calls,
+        usage,
+        server,
+        ai_client,
+        ai_usage,
+        ai_service,
+        web_file_manager,
+        tracking_manager
+    };
 }
 
 function matches(row: any, filter: any): boolean {
@@ -233,6 +256,53 @@ describe('AskService', () => {
         // The last turn may only answer
         expect(calls).toHaveLength(ASK_MAX_TURNS);
         expect(calls[ASK_MAX_TURNS - 1].tool_choice).toEqual({ type: 'none' });
+    });
+
+    it('proposes rows when asked for them, saving nothing (#234)', async () => {
+        const { svc, calls, usage, ai_service } = setup([
+            [tool_use({ count: 3, description: 'VIP signups' }, 'tu_1', 'propose_rows')]
+        ]);
+        const res = await svc.ask(ACCT, { table: 11, question: 'add 3 VIP signups' }, BASE);
+        // One model call: the rows come from the generator, not another turn
+        expect(calls).toHaveLength(1);
+        expect(calls[0].tools.map(t => t.name)).toEqual(['run_query', 'propose_rows']);
+        const [account, file, request] = ai_service.preview_rows.mock.calls[0];
+        expect(account.id).toBe(ACCT);
+        expect(file.id).toBe(11);
+        expect(request).toEqual({ prompt: 'VIP signups', count: 3 });
+        expect(res.proposed.rows).toHaveLength(3);
+        expect(res.proposed.columns.map(c => c.field)).toEqual(['a', 'b']);
+        expect(res.answer).toContain('3 new rows');
+        expect(res.api_call).toBeNull();
+        // It used one question
+        expect(usage[`${ACCT}:2026-11`].questions).toBe(1);
+    });
+
+    it("says why when the rows can't be made", async () => {
+        const { svc, ai_service } = setup([
+            [tool_use({ count: 60, description: 'x' }, 'tu_1', 'propose_rows')]
+        ]);
+        ai_service.preview_rows.mockRejectedValueOnce(
+            new HttpException("Only 50 of this month's 50 AI rows are left. Ask for fewer.", 429)
+        );
+        const res = await svc.ask(ACCT, { table: 11, question: 'add 60 rows' }, BASE);
+        expect(res.answer).toContain('Only 50');
+        expect(res.proposed).toBeNull();
+    });
+
+    it('sends a bad propose_rows input back to the model', async () => {
+        const { svc, calls, ai_service } = setup([
+            [tool_use({ count: 1000, description: 'x' }, 'tu_1', 'propose_rows')],
+            [text('I can add at most 100 rows at a time.')]
+        ]);
+        const res = await svc.ask(ACCT, { table: 11, question: 'add 1000 rows' }, BASE);
+        expect(ai_service.preview_rows).not.toHaveBeenCalled();
+        expect(calls[1].messages[2].content[0]).toMatchObject({
+            type: 'tool_result',
+            tool_use_id: 'tu_1',
+            is_error: true
+        });
+        expect(res.answer).toBe('I can add at most 100 rows at a time.');
     });
 
     it('refuses other tools', async () => {
@@ -372,7 +442,8 @@ describe('AskService', () => {
         expect(res.total).toBe(3);
         expect(calls[1].messages[2]).toEqual({
             role: 'user',
-            content: 'Call run_query to read the rows before you answer.'
+            content:
+                'Call run_query to read the rows before you answer, or propose_rows if I asked for rows.'
         });
     });
 

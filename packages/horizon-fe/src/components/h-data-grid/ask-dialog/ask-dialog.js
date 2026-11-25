@@ -10,17 +10,6 @@ import { table_display_name } from '../table-name';
 
 export const MAX_QUESTION_LENGTH = 500;
 
-/**
- * Whether a question asks to add data ("add 10 rows", "generate some records"), which Ask
- * can't do: the dialog then points to Generate rows (#148).
- * @param {string} question
- */
-export function wants_rows(question) {
-    return /\b(add|create|insert|generate|make|fill|populate)\b.*\b(rows?|records?|entries|data)\b/i.test(
-        question || ''
-    );
-}
-
 /** @param {any} ex @param {string} fallback */
 function message_of(ex, fallback) {
     return (ex && ex.message) || fallback;
@@ -44,10 +33,11 @@ export default defineComponent({
             error: null,
             /** @type {any} */
             result: null,
-            // The last question asked to add rows: point to Generate rows
-            write_hint: false,
             /** @type {any} */
             usage: null,
+            // Generated rows this month (#148): `{ used, limit }`
+            /** @type {any} */
+            rows_usage: null,
             copied: false,
             /** @type {number | undefined} */
             copied_timer: undefined,
@@ -77,6 +67,13 @@ export default defineComponent({
             return (this.result && this.result.rows) || [];
         },
 
+        // Rows the AI proposed (#234): `{ rows (keyed by field), columns: [{ field, name }] }`
+        /** @returns {any} */
+        proposed() {
+            const p = this.result && this.result.proposed;
+            return p && p.rows && p.rows.length > 0 ? p : null;
+        },
+
         /** @returns {boolean} */
         used_up() {
             return (
@@ -97,6 +94,7 @@ export default defineComponent({
         try {
             const status = await ai_http.status();
             this.usage = status && status.usage;
+            this.rows_usage = status && status.rows;
         } catch (ex) {
             this.error = message_of(ex, 'Could not load your AI usage');
         }
@@ -113,11 +111,17 @@ export default defineComponent({
     methods: {
         cell_text,
 
-        // Closes this dialog and opens Generate rows (`props.on_generate`, from the grid)
-        open_generate() {
-            const open = this.props.on_generate;
+        // The proposed rows go to the grid as new rows to review (`props.on_generated`); the
+        // user saves them there. The grid answers why when it can't take them yet (column edit
+        // mode, an update running): the dialog then stays open, so the rows aren't lost.
+        add_rows() {
+            if (!this.proposed || !this.props.on_generated) return;
+            const problem = this.props.on_generated(this.proposed.rows);
+            if (problem) {
+                this.error = problem;
+                return;
+            }
             bus.$emit('container-dialog:close');
-            if (open) setTimeout(open, 0);
         },
 
         async ask() {
@@ -130,8 +134,8 @@ export default defineComponent({
                     this.question.trim()
                 );
                 this.result = res;
-                this.write_hint = wants_rows(this.question);
                 if (res && res.usage) this.usage = res.usage;
+                if (res && res.rows_usage) this.rows_usage = res.rows_usage;
             } catch (ex) {
                 this.error = message_of(ex, 'Could not answer that question');
             }

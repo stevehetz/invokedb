@@ -2874,6 +2874,8 @@ await call('link_tables_delete', 'POST', '/file-directory/batch_delete', {
 const AI_KEY = 'smoke-anthropic-key';
 const ai_requests = [];
 let ai_next_input = {};
+// The tool the stub calls first: run_query, or propose_rows to test asking for rows (#234)
+let ai_next_tool = 'run_query';
 // What the stub says each call used (a big number tests the cost cap)
 let ai_next_usage = { input_tokens: 50, output_tokens: 5 };
 // The stub's answer to a structured-output request (#148): a table design, or the rows the
@@ -2934,7 +2936,7 @@ const ai_stub = http.createServer((req, res) => {
                 {
                     type: 'tool_use',
                     id: `toolu_smoke_${ai_requests.length}`,
-                    name: 'run_query',
+                    name: ai_next_tool,
                     input: ai_next_input
                 }
             ];
@@ -3276,6 +3278,31 @@ check(
     'gen_rows_inserted',
     (await gen_count('gen_rows_inserted', file_id)) === gen_rows_before + 10
 );
+
+// Asking for rows in Ask AI (#234): the model calls propose_rows, the answer carries the rows
+// to review (nothing saved), one question and 4 rows are used, the model is called once
+ai_next_tool = 'propose_rows';
+ai_next_input = { count: 4, description: 'more people' };
+const gen_ask_seen = ai_requests.length;
+const gen_ask = await call('gen_ask_rows', 'POST', '/ai/ask', {
+    token,
+    body: { table: file_id, question: 'add 4 more people' }
+});
+ai_next_tool = 'run_query';
+ai_next_input = {};
+check(
+    'gen_ask_proposes_rows',
+    gen_ask?.proposed?.rows?.length === 4 &&
+        gen_ask.proposed.columns.some(c => c.field && c.name === 'age') &&
+        gen_ask.api_call === null &&
+        gen_ask.rows_usage?.used === gen_used_before + 14 &&
+        ai_requests.slice(gen_ask_seen).filter(r => !r.body.output_config?.format).length === 1,
+    gen_ask
+);
+check(
+    'gen_ask_saves_nothing',
+    (await gen_count('gen_rows_after_ask', file_id)) === gen_rows_before + 10
+);
 for (const [name, body] of [
     ['gen_rows_over_request_cap', { prompt: 'x', count: 501 }],
     ['gen_rows_no_prompt', { prompt: ' ', count: 5 }],
@@ -3358,7 +3385,7 @@ check(
         gen_preview.columns.every(c => ['string', 'number', 'date'].includes(c.type)) &&
         Array.isArray(gen_preview?.rows) &&
         gen_preview.rows.length === 3 &&
-        gen_preview?.usage?.used === gen_used_before + 13,
+        gen_preview?.usage?.used === gen_used_before + 17,
     gen_preview
 );
 const gen_table = await call('gen_table_create', 'POST', '/ai/table', {

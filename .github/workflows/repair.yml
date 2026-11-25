@@ -73,12 +73,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.run.outputs.branch }}
+          MARKER: '<!-- repair-push -->'
+          MAX_PUSHES: 2
         run: |
           set -euo pipefail
           pr=''
           if [ "$BRANCH" != main ]; then
             pr=$(gh pr list -R "$GITHUB_REPOSITORY" --head "$BRANCH" --state open \
               --json number,labels --jq '[.[] | select(.labels | map(.name) | index("agent-pr"))][0].number // empty')
+          fi
+          # A direct push starts CI on the branch again, so a fix that fails would start another
+          # repair: at most MAX_PUSHES per PR (counted by the marker in repair's PR comments, like
+          # revise's rounds), and none once the PR is agent-stuck. Past that the fix goes in a
+          # claude/fix-* PR, which this workflow skips, so the chain ends there.
+          if [ -n "$pr" ]; then
+            stuck=$(gh pr view "$pr" -R "$GITHUB_REPOSITORY" --json labels \
+              --jq '.labels | map(.name) | index("agent-stuck") != null')
+            pushes=$(gh api "repos/$GITHUB_REPOSITORY/issues/$pr/comments" --paginate \
+              --jq "[.[] | select(.body | contains(\"$MARKER\"))] | length" | awk '{s+=$1} END {print s+0}')
+            if [ "$stuck" = true ] || [ "$pushes" -ge "$MAX_PUSHES" ]; then
+              echo "Agent PR #$pr: agent-stuck=$stuck, $pushes direct repair push(es) already: a fix PR instead"
+              pr=''
+            fi
           fi
           if [ -n "$pr" ]; then
             echo "direct=true" >> "$GITHUB_OUTPUT"
@@ -142,7 +158,8 @@ jobs:
                rejected because the branch moved, `git pull --rebase origin ${{ steps.run.outputs.branch }}`
                and push again; never force-push.
             d. `gh pr comment ${{ steps.target.outputs.pr }}` with the cause, the fix, how you
-               checked it, and a link to the failed run.
+               checked it, and a link to the failed run, ending with the line
+               `<!-- repair-push -->` exactly (it counts the direct pushes per PR).
 
             If the cause is in this repo's code or config and you can fix it in a new PR:
             1. `git switch -c claude/fix-${{ steps.run.outputs.id }}`

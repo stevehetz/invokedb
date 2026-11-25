@@ -121,7 +121,8 @@ data.
 - `.github/workflows/repair.yml` fixes failed CI or CD, or opens an issue. On an open agent PR's
   branch it pushes the fix straight onto that branch and comments on the PR (#135: a fix PR
   merged into the branch with the workflow token started no CI); anywhere else it opens a fix PR
-  (`claude/fix-*`). `automerge.yml` merges those into feature branches after CI passes and the
+  (`claude/fix-*`), and so after 2 direct pushes to a PR, or once it is `agent-stuck`, so a failing
+  fix can't loop. `automerge.yml` merges those into feature branches after CI passes and the
   review labels them `review-ok`; its fix PRs into `main` follow the auto-merge rule.
 - The site's `/changelog` (#219) is rebuilt before every deploy: `cd.yml` runs
   `scripts/changelog.mjs` and publishes the file as the `changelog` release's asset, and the

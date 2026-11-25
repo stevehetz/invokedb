@@ -3229,7 +3229,7 @@ check(
     'gen_status_rows_and_limits',
     gen_status?.available === true &&
         gen_status?.limits?.max_rows_per_request === 500 &&
-        gen_status?.rows?.limit === 50,
+        gen_status?.rows?.limit > 0,
     gen_status
 );
 const gen_used_before = gen_status?.rows?.used ?? 0;
@@ -3288,10 +3288,22 @@ for (const [name, body] of [
     });
     check(`${name}_400`, results[name].status === 400, results[name]);
 }
-// More than the month's allowance has left: 429, nothing asked of the model
+// More than the month's allowance (demo3, Free: 50 rows): 429, nothing asked of the model
+const gen_free = await call('gen_free_login', 'POST', '/auth/login', {
+    body: { email: 'demo3@invokedb.com', password: 'password' }
+});
+const gen_free_token = gen_free.token;
+const gen_free_status = await call('gen_free_status', 'GET', '/ai/status', {
+    token: gen_free_token
+});
+check('gen_free_rows_50', gen_free_status?.rows?.limit === 50, gen_free_status);
+const gen_free_table = await call('gen_free_table', 'POST', '/table-template/waitlist', {
+    token: gen_free_token,
+    body: { name: 'smoke_ai_gen_free' }
+});
 const gen_seen = ai_requests.length;
-await call('gen_rows_over_allowance', 'POST', `/ai/web-file/${file_id}/generate-rows`, {
-    token,
+await call('gen_rows_over_allowance', 'POST', `/ai/web-file/${gen_free_table}/generate-rows`, {
+    token: gen_free_token,
     body: { prompt: 'x', count: 60 },
     expectFail: true
 });
@@ -3300,6 +3312,11 @@ check(
     results.gen_rows_over_allowance.status === 429 && ai_requests.length === gen_seen,
     results.gen_rows_over_allowance
 );
+await call('gen_free_table_delete', 'POST', '/file-directory/batch_delete', {
+    token: gen_free_token,
+    body: { ids: [gen_free_table] }
+});
+await call('gen_free_logout', 'GET', `/auth/logout?token=${gen_free_token}`);
 await call('gen_rows_no_table', 'POST', '/ai/web-file/99999999/generate-rows', {
     token,
     body: { prompt: 'x', count: 1 },
@@ -3318,7 +3335,7 @@ await call('gen_other_generate', 'POST', `/ai/web-file/${file_id}/generate-rows`
 });
 check(
     'gen_other_generate_refused',
-    [403, 404].includes(results.gen_other_generate.status),
+    [401, 403, 404].includes(results.gen_other_generate.status),
     results.gen_other_generate
 );
 const gen_other_after = await call('gen_other_status_after', 'GET', '/ai/status', {

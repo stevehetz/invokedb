@@ -55,15 +55,22 @@ async function call(name, method, path, { token, body, form, expectFail } = {}) 
     const ok = res.status < 400;
     if (ok !== !expectFail) failures++;
     console.log(`${ok === !expectFail ? 'ok  ' : 'FAIL'} ${res.status} ${name}`);
-    if (ok === !!expectFail) console.log('     ', JSON.stringify(data).slice(0, 300));
+    if (ok === !!expectFail) console.log('     ', redacted(data).slice(0, 300));
     return data;
+}
+
+// CI logs are public: never print a key or secret from a response, even a throwaway one
+function redacted(value) {
+    return JSON.stringify(value, (k, v) =>
+        /^(secret|api_key|key|token)$/i.test(k) && typeof v === 'string' ? `${v.slice(0, 6)}…` : v
+    );
 }
 
 function check(name, pass, detail) {
     results[name] = pass;
     if (!pass) failures++;
     console.log(`${pass ? 'ok  ' : 'FAIL'} --- ${name}`);
-    if (!pass && detail !== undefined) console.log('     ', JSON.stringify(detail).slice(0, 300));
+    if (!pass && detail !== undefined) console.log('     ', redacted(detail).slice(0, 300));
 }
 
 // Wait until the backend's websocket clients are registered (GET /health answers 200): they

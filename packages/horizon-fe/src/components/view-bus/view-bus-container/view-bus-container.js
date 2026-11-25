@@ -5,6 +5,7 @@ import ConfirmDialog from '../confirm-dialog';
 import InputDialog from '../input-dialog';
 import UploadDialog from '../upload-dialog';
 import TemplateDialog from '../template-dialog';
+import UrlImportDialog from '../url-import-dialog';
 import ContainerDialog from '../container-dialog';
 import Notify from '../notify';
 
@@ -18,6 +19,7 @@ export default {
         'input-dialog': InputDialog,
         'upload-dialog': UploadDialog,
         'template-dialog': TemplateDialog,
+        'url-import-dialog': UrlImportDialog,
         'container-dialog': ContainerDialog
     },
     mounted() {
@@ -66,6 +68,20 @@ export default {
             bus.$on(
                 'template-dialog:processing',
                 this.$refs.template_dialog.set_processing
+            );
+
+            // UrlImportDialog
+            bus.$on(
+                'url-import-dialog:open',
+                this.$refs.url_import_dialog.open_dialog
+            );
+            bus.$on(
+                'url-import-dialog:close',
+                this.$refs.url_import_dialog.close_dialog
+            );
+            bus.$on(
+                'url-import-dialog:processing',
+                this.$refs.url_import_dialog.set_processing
             );
 
             // ContainerDialog

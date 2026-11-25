@@ -13,6 +13,7 @@ import { HealthController } from './http/health/health.controller';
 import { TableTemplateController } from './http/table-template/table-template.controller';
 import { OnboardingController } from './http/onboarding/onboarding.controller';
 import { OnboardingInterceptor } from './http/external/onboarding.interceptor';
+import { UrlImportController } from './http/url-import/url-import.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
@@ -30,7 +31,8 @@ import { WebsocketClient } from './ws/websocket-client';
         SupportController,
         HealthController,
         TableTemplateController,
-        OnboardingController
+        OnboardingController,
+        UrlImportController
     ],
     providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor]
 })

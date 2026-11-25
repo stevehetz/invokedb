@@ -193,6 +193,8 @@ export default {
                 this.upload_file(parent_id);
             } else if (type === 'template') {
                 this.add_from_template(parent_id);
+            } else if (type === 'url') {
+                this.add_from_url(parent_id);
             } else {
                 this.add_web_file(type, parent_id);
             }
@@ -270,6 +272,35 @@ export default {
                             r_msg || ex.message || 'Table create error'
                         );
                         this.$bus.$emit('template-dialog:processing', false);
+                    }
+                }
+            });
+        },
+
+        // A table from a Google Sheet or a CSV / JSON URL (#144). The server fetches it in the
+        // background; the new tab shows "updating" until it's loaded, or the error.
+        add_from_url(parent_id) {
+            this.$bus.$emit('url-import-dialog:open', {
+                callback: async form => {
+                    try {
+                        const fid = await tree_manager.add_from_url({
+                            ...form,
+                            parent_id
+                        });
+                        await this.setup_tree();
+                        this.create_tab_from_tree_id(fid);
+                        this.select_and_manage_tree_item_by_id(fid);
+                        this.$bus.$emit('url-import-dialog:close');
+                    } catch (ex) {
+                        const r_msg = err_mgr.first_rule_msg(
+                            'name',
+                            ex && ex.rules
+                        );
+                        this.$bus.$emit(
+                            'notify:error',
+                            r_msg || (ex && ex.message) || 'Import error'
+                        );
+                        this.$bus.$emit('url-import-dialog:processing', false);
                     }
                 }
             });

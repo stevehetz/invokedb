@@ -6,7 +6,9 @@
 // dismisses demo2's), makes tables from templates (and checks demo2's free-tier table limit), reads the
 // table's generated API docs and OpenAPI spec and runs their curl, fetch and Python snippets
 // (#139; Python only if python3 is installed), checks /api/v1/query and /count (#141: filters,
-// sort, fields, cursor paging, index use, 400s), then deletes the tables. Writes every response to out.json
+// sort, fields, cursor paging, index use, 400s), imports tables from a CSV and a JSON URL (#144:
+// refused private/loopback URLs, replace and upsert re-syncs, a failed sync, demo2 locked out;
+// the URLs are this repo's files on GitHub, so it needs internet), then deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -417,6 +419,251 @@ await call('template_delete', 'POST', '/file-directory/batch_delete', {
     token,
     body: { ids: [tpl_id] }
 });
+
+// Import from a URL (#144). Private, loopback and non-http URLs are a 400 and make no table; a
+// CSV and a JSON URL (this repo's own files on GitHub, so CI needs internet) become tables;
+// re-syncs replace or upsert, and a failed one leaves the rows alone; demo2 can't read,
+// change or sync demo's.
+const RAW = 'https://raw.githubusercontent.com/stevehetz/invokedb/main';
+const refused_urls = {
+    this_backend: `${BASE}/health`,
+    loopback: 'http://127.0.0.1/',
+    loopback_short: 'http://127.1/',
+    localhost: 'http://localhost/',
+    metadata: 'http://169.254.169.254/latest/meta-data/',
+    private_v4: 'http://10.0.0.1/data.csv',
+    ipv6_loopback: 'http://[::1]/',
+    mapped_v4: 'http://[::ffff:127.0.0.1]/',
+    other_port: 'https://raw.githubusercontent.com:8443/a.csv',
+    file_scheme: 'file:///etc/passwd',
+    credentials: 'https://user:pw@example.com/a.csv'
+};
+for (const [name, url] of Object.entries(refused_urls)) {
+    await call(`url_import_refused_${name}`, 'POST', '/url-import', {
+        token,
+        body: { new_name: `smoke_url_${name}`, url },
+        expectFail: true
+    });
+    check(
+        `url_import_refused_${name}_is_400`,
+        results[`url_import_refused_${name}`].status === 400
+    );
+}
+await call('url_import_upsert_no_key', 'POST', '/url-import', {
+    token,
+    body: { new_name: 'smoke_url_nokey', url: `${RAW}/examples/data/todo.csv`, mode: 'upsert' },
+    expectFail: true
+});
+const after_refused = await call('url_import_list_after_refused', 'GET', '/file-directory', {
+    token
+});
+check(
+    'url_import_refused_made_no_table',
+    Array.isArray(after_refused) && !after_refused.some(d => d.name.startsWith('smoke_url_')),
+    after_refused
+);
+
+// Waits for a table's import or sync to finish; answers its source
+async function url_source_settled(name, id) {
+    let source;
+    for (let i = 0; i < 60; i++) {
+        source = (await call(name, 'GET', `/url-import/${id}`, { token }))?.source;
+        if (source && source.last_status !== 'PENDING') break;
+        await sleep(1000);
+    }
+    return source;
+}
+const row_count = async (name, id) =>
+    (
+        await call(name, 'POST', `/web-file/data_grid_row/${id}?skip=0&limit=100`, {
+            token,
+            body: {}
+        })
+    )?.count;
+
+const todo_lines = fs
+    .readFileSync(new URL('../examples/data/todo.csv', import.meta.url), 'utf8')
+    .trim()
+    .split('\n');
+const todo_rows = todo_lines.length - 1;
+const url_id = await call('url_import_csv', 'POST', '/url-import', {
+    token,
+    body: { new_name: 'smoke_url_todo', url: `${RAW}/examples/data/todo.csv` }
+});
+let url_src = await url_source_settled('url_import_csv_source', url_id);
+check('url_import_csv_ok', url_src?.last_status === 'OK', url_src);
+check('url_import_csv_rows', url_src?.last_row_count === todo_rows, url_src);
+const url_cols = await call(
+    'url_import_csv_cols',
+    'POST',
+    `/web-file/data_grid_column/${url_id}?skip=0&limit=50`,
+    { token, body: {} }
+);
+check(
+    'url_import_csv_columns',
+    (url_cols.data || []).map(c => c.headerName).join(',') === todo_lines[0].trim(),
+    url_cols
+);
+// Through the external API like any other table
+await call('url_import_ext_get', 'GET', '/api/v1/get?table=smoke_url_todo&skip=0&limit=1', {
+    token: me.api_key
+});
+
+const tasks_template = JSON.parse(
+    fs.readFileSync(
+        new URL(
+            '../packages/horizon-be/src/core/table-template/templates/tasks.json',
+            import.meta.url
+        ),
+        'utf8'
+    )
+);
+const json_id = await call('url_import_json', 'POST', '/url-import', {
+    token,
+    body: {
+        new_name: 'smoke_url_tasks',
+        url: `${RAW}/packages/horizon-be/src/core/table-template/templates/tasks.json`,
+        mode: 'upsert',
+        key_column: 'Task',
+        schedule: 'daily'
+    }
+});
+const json_src = await url_source_settled('url_import_json_source', json_id);
+check('url_import_json_ok', json_src?.last_status === 'OK', json_src);
+check('url_import_json_rows', json_src?.last_row_count === tasks_template.rows.length, json_src);
+check(
+    'url_import_json_scheduled',
+    json_src?.schedule === 'daily' && json_src?.next_sync_at > Date.now(),
+    json_src
+);
+
+// demo2 can't read, change or sync demo's source, nor import into demo's folder
+await call('other_url_source', 'GET', `/url-import/${url_id}`, { token: otoken, expectFail: true });
+await call('other_url_update', 'PUT', `/url-import/${url_id}`, {
+    token: otoken,
+    body: { url: 'https://example.com/other.csv' },
+    expectFail: true
+});
+await call('other_url_sync', 'POST', `/url-import/${url_id}/sync`, {
+    token: otoken,
+    expectFail: true
+});
+await call('other_url_import_api_key', 'GET', `/url-import/${url_id}`, {
+    token: other_me.api_key,
+    expectFail: true
+});
+url_src = (await call('url_source_unchanged', 'GET', `/url-import/${url_id}`, { token }))?.source;
+check(
+    'other_url_update_changed_nothing',
+    url_src?.url === `${RAW}/examples/data/todo.csv`,
+    url_src
+);
+const no_source = await call('url_source_none', 'GET', `/url-import/${file_id}`, { token });
+check('url_source_none_is_null', no_source?.source === null, no_source);
+await call('url_sync_not_imported', 'POST', `/url-import/${file_id}/sync`, {
+    token,
+    expectFail: true
+});
+
+// Bad settings are a 400
+await call('url_update_bad_mode', 'PUT', `/url-import/${url_id}`, {
+    token,
+    body: { mode: 'merge' },
+    expectFail: true
+});
+await call('url_update_bad_schedule', 'PUT', `/url-import/${url_id}`, {
+    token,
+    body: { schedule: 'every-second' },
+    expectFail: true
+});
+await call('url_update_private_url', 'PUT', `/url-import/${url_id}`, {
+    token,
+    body: { url: 'http://169.254.169.254/' },
+    expectFail: true
+});
+
+// Upsert on "name": a deleted row comes back and an edited one is set back from the source
+const url_rows = await call(
+    'url_rows_before_upsert',
+    'POST',
+    `/web-file/data_grid_row/${url_id}?skip=0&limit=100`,
+    { token, body: {} }
+);
+const name_field = (url_cols.data || []).find(c => c.headerName === 'name')?.field;
+const priority_field = (url_cols.data || []).find(c => c.headerName === 'priority')?.field;
+const [first_row, second_row] = url_rows.data || [];
+if (first_row && second_row) {
+    await call('url_edit_row', 'PUT', `/web-file/${first_row._id}/data_grid_row/${url_id}`, {
+        token,
+        body: { ...first_row, [priority_field]: 'smoke-edited' }
+    });
+    await call('url_delete_row', 'POST', `/web-file/batch_delete/data_grid_row/${url_id}`, {
+        token,
+        body: [second_row._id]
+    });
+}
+await call('url_update_upsert', 'PUT', `/url-import/${url_id}`, {
+    token,
+    body: { mode: 'upsert', key_column: 'name' }
+});
+await call('url_sync_upsert', 'POST', `/url-import/${url_id}/sync`, { token });
+url_src = await url_source_settled('url_sync_upsert_source', url_id);
+check('url_sync_upsert_ok', url_src?.last_status === 'OK', url_src);
+check('url_sync_upsert_rows', (await row_count('url_sync_upsert_count', url_id)) === todo_rows);
+const upserted = await call(
+    'url_rows_after_upsert',
+    'POST',
+    `/web-file/data_grid_row/${url_id}?skip=0&limit=100`,
+    { token, body: {} }
+);
+const edited = (upserted.data || []).find(r => r[name_field] === first_row?.[name_field]);
+check(
+    'url_sync_upsert_restored_row',
+    edited && edited._id === first_row._id && edited[priority_field] === first_row[priority_field],
+    edited
+);
+
+// Replace: a row added by hand goes away
+await call('url_add_row', 'POST', `/web-file/batch_create/data_grid_row/${url_id}`, {
+    token,
+    body: [{ [name_field]: 'smoke extra row' }]
+});
+check('url_added_row', (await row_count('url_added_row_count', url_id)) === todo_rows + 1);
+await call('url_update_replace', 'PUT', `/url-import/${url_id}`, {
+    token,
+    body: { mode: 'replace' }
+});
+await call('url_sync_replace', 'POST', `/url-import/${url_id}/sync`, { token });
+url_src = await url_source_settled('url_sync_replace_source', url_id);
+check('url_sync_replace_ok', url_src?.last_status === 'OK', url_src);
+check('url_sync_replace_rows', (await row_count('url_sync_replace_count', url_id)) === todo_rows);
+
+// A sync that fails (no such key column in the source) is an error on the source, and the
+// table keeps its rows and stays usable
+await call('url_update_bad_key', 'PUT', `/url-import/${url_id}`, {
+    token,
+    body: { mode: 'upsert', key_column: 'no_such_column' }
+});
+await call('url_sync_bad_key', 'POST', `/url-import/${url_id}/sync`, { token });
+url_src = await url_source_settled('url_sync_bad_key_source', url_id);
+check(
+    'url_sync_bad_key_error',
+    url_src?.last_status === 'ERROR' && /no_such_column/.test(url_src?.last_error),
+    url_src
+);
+check(
+    'url_sync_bad_key_kept_rows',
+    (await row_count('url_sync_bad_key_count', url_id)) === todo_rows
+);
+const after_bad = await call('url_list_after_bad_sync', 'GET', '/file-directory', { token });
+const url_file = Array.isArray(after_bad) && after_bad.find(d => d.id === url_id);
+check('url_sync_bad_key_table_usable', url_file && !url_file.status && !url_file.locked, url_file);
+
+await call('url_import_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [url_id, json_id] }
+});
+await call('url_source_after_delete', 'GET', `/url-import/${url_id}`, { token, expectFail: true });
 
 // Onboarding checklist (#143): each account sees only its own, with its own key in the command;
 // the command runs as copied; only a login session may read or change it.

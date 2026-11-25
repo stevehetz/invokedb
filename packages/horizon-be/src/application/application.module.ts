@@ -25,6 +25,7 @@ import { DashboardService } from './dashboard/dashboard.service';
 import { AskService } from './ai/ask.service';
 import { AiService } from './ai/ai.service';
 import { EditService } from './ai/edit.service';
+import { TwoFactorService } from './two-factor/two-factor.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -51,7 +52,8 @@ import { EditService } from './ai/edit.service';
         DashboardService,
         AskService,
         AiService,
-        EditService
+        EditService,
+        TwoFactorService
     ],
     exports: [
         AuthService,
@@ -73,7 +75,8 @@ import { EditService } from './ai/edit.service';
         DashboardService,
         AskService,
         AiService,
-        EditService
+        EditService,
+        TwoFactorService
     ]
 })
 export class ApplicationModule {}

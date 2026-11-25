@@ -1,0 +1,141 @@
+<div class="page-form two-factor-form">
+    <div class="form-heading">
+        <div class="flex-2-col">
+            <div class="left">
+                <h3>Two-Factor Sign-In</h3>
+            </div>
+            <div class="right">
+                <el-button
+                    v-if="status && status.password_account && status.available && !enabled && !setup"
+                    class="two-factor-setup-button"
+                    size="small"
+                    type="primary"
+                    :disabled="busy"
+                    @click="start_setup"
+                    >Turn on</el-button
+                >
+                <el-button
+                    v-if="enabled && !show_disable"
+                    class="two-factor-disable-button"
+                    size="small"
+                    type="danger"
+                    plain
+                    @click="open_disable"
+                    >Turn off</el-button
+                >
+            </div>
+        </div>
+    </div>
+    <div class="form-body">
+        <div class="two-factor-status" v-if="loading">Loading...</div>
+        <div class="two-factor-status error" v-else-if="load_error">
+            {{ load_error }}
+        </div>
+        <template v-else-if="status">
+            <p class="two-factor-intro" v-if="!status.password_account">
+                You sign in with Google or GitHub, so two-factor sign-in is
+                handled there: turn it on in that account.
+            </p>
+            <p class="two-factor-intro" v-else-if="enabled">
+                <span class="two-factor-on">On.</span> Signing in with your
+                password also asks for a code from your authenticator app. {{
+                status.recovery_codes_left }} recovery {{
+                status.recovery_codes_left === 1 ? 'code' : 'codes' }} left.
+            </p>
+            <p class="two-factor-intro" v-else-if="!status.available">
+                Two-factor sign-in isn't available on this server yet.
+            </p>
+            <p class="two-factor-intro" v-else-if="!setup">
+                Off. Turn it on and signing in with your password will also ask
+                for a code from an authenticator app (such as Google
+                Authenticator, 1Password or Authy).
+            </p>
+
+            <div class="two-factor-box two-factor-setup" v-if="setup">
+                <p>
+                    1. Scan this QR code with your authenticator app, or enter
+                    the key by hand.
+                </p>
+                <img
+                    class="two-factor-qr"
+                    :src="setup.qr_code"
+                    alt="QR code for your authenticator app"
+                />
+                <p class="two-factor-key">
+                    Key:
+                    <code class="two-factor-secret">{{ setup.secret }}</code>
+                    <el-button link type="primary" @click="copy_secret"
+                        >Copy</el-button
+                    >
+                </p>
+                <p>2. Enter the 6-digit code the app shows.</p>
+                <div class="two-factor-row">
+                    <el-input
+                        class="two-factor-setup-code"
+                        v-model="setup_code"
+                        placeholder="123456"
+                        maxlength="7"
+                        autocomplete="one-time-code"
+                        @keyup.enter="confirm_setup"
+                    ></el-input>
+                    <el-button size="small" @click="cancel_setup"
+                        >Cancel</el-button
+                    >
+                    <el-button
+                        class="two-factor-confirm"
+                        size="small"
+                        type="primary"
+                        :disabled="busy || !setup_code.trim()"
+                        @click="confirm_setup"
+                        >Turn on</el-button
+                    >
+                </div>
+            </div>
+
+            <div
+                class="two-factor-box two-factor-recovery"
+                v-if="recovery_codes"
+            >
+                <p>
+                    <b>Save your recovery codes.</b> Each one signs you in once
+                    if you lose your phone. They're only shown now.
+                </p>
+                <pre class="two-factor-recovery-codes">{{ recovery_text }}</pre>
+                <el-button size="small" @click="copy_recovery_codes"
+                    >Copy codes</el-button
+                >
+                <el-button link type="primary" @click="recovery_codes = null"
+                    >I've saved them</el-button
+                >
+            </div>
+
+            <div class="two-factor-box two-factor-disable" v-if="show_disable">
+                <p>
+                    Enter a code from your authenticator app, or a recovery
+                    code, to turn two-factor sign-in off.
+                </p>
+                <div class="two-factor-row">
+                    <el-input
+                        class="two-factor-disable-code"
+                        v-model="disable_code"
+                        placeholder="Code"
+                        maxlength="24"
+                        autocomplete="one-time-code"
+                        @keyup.enter="disable"
+                    ></el-input>
+                    <el-button size="small" @click="show_disable = false"
+                        >Cancel</el-button
+                    >
+                    <el-button
+                        class="two-factor-disable-confirm"
+                        size="small"
+                        type="danger"
+                        :disabled="busy || !disable_code.trim()"
+                        @click="disable"
+                        >Turn off</el-button
+                    >
+                </div>
+            </div>
+        </template>
+    </div>
+</div>

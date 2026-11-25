@@ -684,6 +684,15 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     font-weight: normal;
     white-space: nowrap;
 }
+// The code step of a two-factor sign-in (#214)
+.login-page .two-factor-box {
+    min-height: 0;
+}
+.login-page .two-factor-help {
+    padding: 0 1em;
+    margin: 0;
+    font-weight: normal;
+}
 
 // Create account page
 .create-account-page {

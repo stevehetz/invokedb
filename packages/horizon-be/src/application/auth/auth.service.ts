@@ -27,6 +27,7 @@ import {
 import { verify_email_tmpl } from '@app/email/verify-email.template';
 import { signup_attempt_tmpl } from '@app/email/signup-attempt.template';
 import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
+import { TwoFactorService } from '../two-factor/two-factor.service';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -54,15 +55,34 @@ export class AuthService {
     private session_manager: SessionManager,
     private email_manager: EmailManager,
     private subscription_service: SubscriptionService,
-    private onboarding_manager: OnboardingManager
+    private onboarding_manager: OnboardingManager,
+    private two_factor_service: TwoFactorService
   ) {}
 
+    /**
+     * Password sign-in. With two-factor on (#214) the right password answers
+     * `{ two_factor_required: true, challenge }` instead of a session; `login_two_factor` trades
+     * the challenge and a code for the session.
+     */
     async login(account_dto: any) {
         const account = await this.account_manager.authenticate_account(
-            account_dto.email,
-            account_dto.password
+            account_dto?.email,
+            account_dto?.password
         );
 
+        if (await this.two_factor_service.is_enabled(account.id)) {
+            return {
+                two_factor_required: true,
+                challenge: this.two_factor_service.start_login(account.id)
+            };
+        }
+
+        return await this.session_manager.create_session(account.id);
+    }
+
+    /** The code step of a password sign-in with two-factor on (#214). Body `{ challenge, code }`. */
+    async login_two_factor(dto: any) {
+        const account = await this.two_factor_service.finish_login(dto?.challenge, dto?.code);
         return await this.session_manager.create_session(account.id);
     }
 

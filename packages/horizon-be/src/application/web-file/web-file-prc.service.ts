@@ -393,7 +393,13 @@ export class WebFilePrcService {
             if (file.locked) throw { message: file.locked_reason || 'The table is locked' };
             if (!source) throw { message: 'The table has no source URL' };
             await this.fetch_url_source(source, file_path);
-            const res = await this.url_sync_processor.sync(account, file_id, file_path, source);
+            const res = await this.url_sync_processor.sync(
+                account,
+                file_id,
+                file_path,
+                source,
+                () => this.file_directory_svc.clear_links_to_table(account_id, file_id, false)
+            );
             logger.info(
                 `URL sync of file ${file_id}: ${res.rows} rows, ${res.inserted} added, ${res.updated} updated`
             );

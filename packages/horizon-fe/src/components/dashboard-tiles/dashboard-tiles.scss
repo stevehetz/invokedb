@@ -1,9 +1,20 @@
-// Self-contained: the share link's page has neither area's global CSS
+// Self-contained: the share link's page has neither area's global CSS. Colours are CSS
+// variables with light defaults (the public page); the app's Dashboards page sets dark ones.
 .dashboard-tiles {
+    --tile-text: #191919;
+    --tile-muted: #666666;
+    --tile-bg: #ffffff;
+    --tile-border: #e6e6e6;
+    --tile-line: #ececec;
+    --tile-hover: #f0f0f0;
+    --tile-accent: #257de0;
+    --tile-error-text: #a12a2a;
+    --tile-error-bg: #fdf0f0;
+
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
-    color: #191919;
+    color: var(--tile-text);
     font-size: 14px;
 }
 
@@ -16,10 +27,10 @@
 .tiles-empty {
     grid-column: 1 / -1;
     padding: 32px;
-    color: #666666;
+    color: var(--tile-muted);
     text-align: center;
-    background-color: #ffffff;
-    border: dashed 1px #d0d0d0;
+    background-color: var(--tile-bg);
+    border: dashed 1px var(--tile-border);
     border-radius: 6px;
 }
 
@@ -28,8 +39,8 @@
     flex-direction: column;
     min-width: 0;
     padding: 14px 16px;
-    background-color: #ffffff;
-    border: solid 1px #e6e6e6;
+    background-color: var(--tile-bg);
+    border: solid 1px var(--tile-border);
     border-radius: 6px;
 }
 
@@ -39,9 +50,9 @@
 
 .tile-head {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 12px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .tile-title {
@@ -51,12 +62,13 @@
     overflow: hidden;
     font-size: 15px;
     font-weight: 600;
+    letter-spacing: normal;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
 .tile-readout {
-    color: #666666;
+    color: var(--tile-muted);
     font-size: 13px;
     white-space: nowrap;
 }
@@ -68,7 +80,7 @@
 
 .tile-action {
     padding: 2px 6px;
-    color: #666666;
+    color: var(--tile-muted);
     font-size: 12px;
     background: none;
     border: 0;
@@ -77,34 +89,37 @@
 }
 
 .tile-action:hover {
-    color: #191919;
-    background-color: #f0f0f0;
+    color: var(--tile-text);
+    background-color: var(--tile-hover);
 }
 
 .tile-error {
     padding: 12px;
-    color: #a12a2a;
-    background-color: #fdf0f0;
+    color: var(--tile-error-text);
+    background-color: var(--tile-error-bg);
     border-radius: 4px;
 }
 
 .tile-note {
     margin-top: 6px;
-    color: #666666;
+    color: var(--tile-muted);
     font-size: 13px;
 }
 
-// Stat
+// Stat: the number in the middle of its tile
 .tile-stat {
     display: flex;
     flex: 1;
     flex-direction: column;
+    align-items: center;
     justify-content: center;
+    min-height: 120px;
     padding: 8px 0;
+    text-align: center;
 }
 
 .stat-value {
-    font-size: 40px;
+    font-size: 44px;
     font-weight: 600;
     line-height: 1.1;
     font-variant-numeric: tabular-nums;
@@ -112,10 +127,10 @@
 
 .stat-caption {
     margin-top: 4px;
-    color: #666666;
+    color: var(--tile-muted);
 }
 
-// Table
+// Table: scrolls both ways inside the tile; a long cell is cut with an ellipsis
 .tile-scroll {
     max-height: 360px;
     overflow: auto;
@@ -128,18 +143,21 @@
 
 .tile-table th,
 .tile-table td {
-    padding: 4px 10px 4px 0;
+    max-width: 240px;
+    padding: 5px 12px 5px 0;
+    overflow: hidden;
     text-align: left;
     white-space: nowrap;
-    border-bottom: solid 1px #ececec;
+    text-overflow: ellipsis;
+    border-bottom: solid 1px var(--tile-line);
 }
 
 .tile-table th {
     position: sticky;
     top: 0;
-    color: #666666;
+    color: var(--tile-muted);
     font-weight: 600;
-    background-color: #ffffff;
+    background-color: var(--tile-bg);
 }
 
 .tile-table .num {
@@ -156,18 +174,18 @@
 }
 
 .chart-grid line {
-    stroke: #e6e6e6;
+    stroke: var(--tile-line);
     stroke-width: 1;
 }
 
 .chart-tick,
 .chart-label {
-    fill: #666666;
+    fill: var(--tile-muted);
     font-size: 12px;
 }
 
 .chart-legend-text {
-    fill: #191919;
+    fill: var(--tile-text);
     font-size: 13px;
 }
 
@@ -176,7 +194,7 @@
 }
 
 .chart-mark {
-    fill: #257de0;
+    fill: var(--tile-accent);
 }
 
 .chart-bar.dim .chart-mark,
@@ -185,18 +203,18 @@
 }
 
 .chart-slice {
-    stroke: #ffffff;
+    stroke: var(--tile-bg);
     stroke-width: 2;
 }
 
 .chart-line-path {
     fill: none;
-    stroke: #257de0;
+    stroke: var(--tile-accent);
     stroke-width: 2;
 }
 
 .chart-point {
-    fill: #257de0;
-    stroke: #ffffff;
+    fill: var(--tile-accent);
+    stroke: var(--tile-bg);
     stroke-width: 2;
 }

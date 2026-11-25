@@ -941,6 +941,18 @@ check(
     results.ext_query_no_table.status === 400,
     results.ext_query_no_table
 );
+// No table, or table given twice (Express makes it an array): a 400 with a message, not a 500 (#165)
+for (const [name, query] of [
+    ['ext_get_no_table', '?skip=0&limit=1'],
+    ['ext_get_two_tables', '?table=smoke_people&table=smoke_people&skip=0&limit=1']
+]) {
+    await call(name, 'GET', `/api/v1/get${query}`, { token: key, expectFail: true });
+    check(
+        `${name}_is_400`,
+        results[name].status === 400 && /'table'/.test(results[name].data?.message ?? ''),
+        results[name]
+    );
+}
 
 const created = await call('ext_create', 'POST', `/api/v1/create?table=smoke_people`, {
     token: key,

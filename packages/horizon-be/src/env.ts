@@ -53,7 +53,17 @@ const env = {
     MAILGUN_DN: process.env.MAILGUN_DN,
     // Test only (scripts/smoke-env.sh sets it): webhook receivers ("127.0.0.1:8199,...") that are
     // allowed although they're private addresses (#140). Never set it in production.
-    HORIZON_WEBHOOK_TEST_HOSTS: process.env.HORIZON_WEBHOOK_TEST_HOSTS
+    HORIZON_WEBHOOK_TEST_HOSTS: process.env.HORIZON_WEBHOOK_TEST_HOSTS,
+    // Optional. The AI features (#149) are on when it and HORIZON_AI_MONTHLY_BUDGET_USD are set;
+    // the key stays on the backend.
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    // Test only (scripts/smoke-env.sh sets it to api-smoke.mjs's stub of the Anthropic API)
+    ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL,
+    // Optional: the Claude model for the AI features (default in core/ai/ai-plan.ts)
+    HORIZON_AI_MODEL: process.env.HORIZON_AI_MODEL,
+    // What the AI features may cost the whole server per UTC month, in US dollars
+    // (docs/PRICING.md 3.5). Unset: the AI features are off.
+    HORIZON_AI_MONTHLY_BUDGET_USD: process.env.HORIZON_AI_MONTHLY_BUDGET_USD
 };
 
 export default env;

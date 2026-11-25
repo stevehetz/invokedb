@@ -21,6 +21,7 @@ import { WebhookPrcService } from './webhook/webhook-prc.service';
 import { FormService } from './form/form.service';
 import { ApiKeyService } from './api-key/api-key.service';
 import { ViewService } from './view/view.service';
+import { AskService } from './ai/ask.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -43,7 +44,8 @@ import { ViewService } from './view/view.service';
         WebhookPrcService,
         FormService,
         ApiKeyService,
-        ViewService
+        ViewService,
+        AskService
     ],
     exports: [
         AuthService,
@@ -61,7 +63,8 @@ import { ViewService } from './view/view.service';
         WebhookService,
         FormService,
         ApiKeyService,
-        ViewService
+        ViewService,
+        AskService
     ]
 })
 export class ApplicationModule {}

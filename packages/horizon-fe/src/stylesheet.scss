@@ -934,7 +934,8 @@ $nav_active_color: #ffffff;
 .h-data-grid .top .views-button,
 .h-data-grid .top .api-button,
 .h-data-grid .top .webhooks-button,
-.h-data-grid .top .forms-button {
+.h-data-grid .top .forms-button,
+.h-data-grid .top .ask-data-button {
     display: flex;
     align-items: center;
     border-left: solid 1px gray;
@@ -946,13 +947,15 @@ $nav_active_color: #ffffff;
 .h-data-grid .top .views-button .el-button.is-link,
 .h-data-grid .top .api-button .el-button.is-link,
 .h-data-grid .top .webhooks-button .el-button.is-link,
-.h-data-grid .top .forms-button .el-button.is-link {
+.h-data-grid .top .forms-button .el-button.is-link,
+.h-data-grid .top .ask-data-button .el-button.is-link {
     color: #696fe4;
 }
 .h-data-grid .top .views-button:hover .el-button.is-link,
 .h-data-grid .top .api-button:hover .el-button.is-link,
 .h-data-grid .top .webhooks-button:hover .el-button.is-link,
-.h-data-grid .top .forms-button:hover .el-button.is-link {
+.h-data-grid .top .forms-button:hover .el-button.is-link,
+.h-data-grid .top .ask-data-button:hover .el-button.is-link {
     color: #7f84ee;
 }
 .h-data-grid .top .views-button .el-button.is-disabled,
@@ -1819,6 +1822,101 @@ $nav_active_color: #ffffff;
 }
 .api-dialog .api-dialog-snippet {
     position: relative;
+}
+
+// Ask your data (#149); its top-bar button (.ask-data-button) is styled with .api-button
+.ask-dialog {
+    color: $gray500;
+}
+.ask-dialog h4 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 6px;
+    color: $gray600;
+}
+.ask-dialog code {
+    font-family: monospace;
+    background-color: #ececec;
+    padding: 0 4px;
+    border-radius: 3px;
+}
+.ask-dialog .ask-intro {
+    margin: 0 0 8px;
+}
+.ask-dialog .ask-row {
+    display: flex;
+    gap: 8px;
+}
+.ask-dialog .ask-question {
+    flex: 1;
+    padding: 4px 6px;
+    font-size: 14px;
+    border: solid 1px #b7b7b7;
+    border-radius: 3px;
+}
+.ask-dialog .ask-usage {
+    margin-top: 4px;
+    font-size: 12px;
+    color: $gray300;
+}
+.ask-dialog .ask-status {
+    padding: 10px 0;
+}
+.ask-dialog .ask-status.error {
+    color: #a03e3e;
+}
+.ask-dialog .ask-answer {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background-color: #f1f2fd;
+    border-left: solid 3px #696fe4;
+    color: $gray600;
+    white-space: pre-wrap;
+}
+.ask-dialog .ask-count {
+    font-weight: normal;
+    font-size: 12px;
+    color: $gray300;
+}
+.ask-dialog .ask-rows {
+    max-height: 260px;
+    overflow: auto;
+    border: solid 1px #e2e2e2;
+}
+.ask-dialog .ask-rows table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+}
+.ask-dialog .ask-rows th,
+.ask-dialog .ask-rows td {
+    padding: 4px 8px;
+    border-bottom: solid 1px #e2e2e2;
+    text-align: left;
+    white-space: nowrap;
+}
+.ask-dialog .ask-rows th {
+    position: sticky;
+    top: 0;
+    background-color: #f5f5f5;
+}
+.ask-dialog .ask-empty {
+    padding: 10px;
+    color: $gray300;
+}
+.ask-dialog .ask-call {
+    margin: 0;
+    padding: 10px;
+    overflow-x: auto;
+    font-size: 12px;
+    background-color: #2b2b2b;
+    color: #e6e6e6;
+    border-radius: 5px;
+}
+.ask-dialog .ask-hint {
+    margin: 4px 0 0;
+    font-size: 12px;
 }
 
 // A table's webhooks (#140); its top-bar button (.webhooks-button) is styled with .api-button

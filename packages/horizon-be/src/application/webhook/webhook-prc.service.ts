@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { WebhookDelivery, WebhookManager } from '@app/core/webhook/webhook.manager';
 import {
     SIGNATURE_HEADER,
+    TEST_EVENT,
     is_delivered,
     next_retry_at,
     parse_test_hosts,
@@ -54,7 +55,9 @@ export class WebhookPrcService {
 
     async deliver(delivery: WebhookDelivery) {
         const hook = await this.webhook_manager.get(delivery.account_id, delivery.webhook_id);
-        if (!hook) {
+        // A webhook that's gone, or disabled, gets nothing more (queued row events and their
+        // retries are dropped); the test event (ping) is sent whether it's enabled or not
+        if (!hook || (!hook.enabled && delivery.event !== TEST_EVENT)) {
             await this.webhook_manager.drop_delivery(delivery);
             return;
         }

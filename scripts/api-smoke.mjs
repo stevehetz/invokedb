@@ -12,7 +12,9 @@
 // (#140: a receiver on 127.0.0.1:8199, allowed by smoke-env.sh's HORIZON_WEBHOOK_TEST_HOSTS,
 // checks signatures; refused private URLs, a retry, demo2 locked out), checks shareable forms
 // (#145: public view and submissions, typed answers, honeypot, closing, the rate limit, deleted
-// forms and tables, demo2 locked out), checks link columns (#147: picker, grid labels, ids and
+// forms and tables, demo2 locked out), checks saved views (#146: grid views saved, renamed and
+// deleted, a kanban board and a moved card, bar/pie/line charts, demo2 and API keys locked
+// out, a deleted table's views gone), checks link columns (#147: picker, grid labels, ids and
 // `expand` on /api/v1, bad links refused, deleted rows cleared from links, no links across
 // accounts), then deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
@@ -1778,6 +1780,247 @@ await call('form_get_table_deleted', 'GET', `/form/${sform2?.id}`, { token, expe
 await call('form_public_unknown', 'GET', '/public/form/form_000000000000000000000000', {
     expectFail: true
 });
+
+// Saved views (#146), on a table made from the tasks template (Status: In progress, To do,
+// Done, To do; Owner: Sam, Ana, Sam, Kai; Estimate Hours: 4, 2, 0.5, 1). A grid view keeps
+// filters, sort and hidden columns and can be renamed and deleted; a kanban view groups rows by
+// a column, and moving a card is a row update; a chart view counts or sums per value. demo2
+// can't see, use, change or delete demo's views, nor put one on demo's table; an API key can't
+// use them; deleting the table deletes its views.
+const view_table = await call('view_table_create', 'POST', '/table-template/tasks', {
+    token,
+    body: { name: 'smoke_view_tasks' }
+});
+const view_cols = await call(
+    'view_table_cols',
+    'POST',
+    `/web-file/data_grid_column/${view_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const view_col = name => (view_cols.data || []).find(c => c.headerName === name)?.field;
+const [v_task, v_owner, v_status, v_hours, v_due] = [
+    'Task',
+    'Owner',
+    'Status',
+    'Estimate Hours',
+    'Due'
+].map(view_col);
+check('view_table_columns', !!(v_task && v_owner && v_status && v_hours && v_due), view_cols);
+
+const grid_view_body = {
+    file_id: view_table,
+    name: 'Sam smoke',
+    type: 'grid',
+    filters: [{ field: v_owner, type: 'equals', value: 'Sam' }],
+    sort: { field: v_hours, dir: 'desc' },
+    hidden_fields: [v_due]
+};
+const bad_views = {
+    view_create_no_name: { ...grid_view_body, name: ' ' },
+    view_create_unknown_column: {
+        ...grid_view_body,
+        filters: [{ field: 'zz', type: 'equals', value: 'x' }]
+    },
+    view_create_bad_filter_type: {
+        ...grid_view_body,
+        filters: [{ field: v_owner, type: 'lessThan', value: 'x' }]
+    },
+    view_create_bad_number: {
+        ...grid_view_body,
+        filters: [{ field: v_hours, type: 'equals', value: 'lots' }]
+    },
+    view_create_hide_all: {
+        ...grid_view_body,
+        hidden_fields: [v_task, v_owner, view_col('Priority'), v_status, v_hours, v_due]
+    },
+    view_create_unknown_setting: { ...grid_view_body, account_id: me.id },
+    view_create_bad_type: { ...grid_view_body, type: 'calendar' },
+    view_create_kanban_no_group: { ...grid_view_body, type: 'kanban' },
+    view_create_kanban_date: { ...grid_view_body, type: 'kanban', kanban: { group_field: v_due } },
+    view_create_chart_sum_no_value: {
+        ...grid_view_body,
+        type: 'chart',
+        chart: { kind: 'bar', group_field: v_status, agg: 'sum' }
+    },
+    view_create_no_table: { ...grid_view_body, file_id: undefined }
+};
+for (const [name, body] of Object.entries(bad_views)) {
+    await call(name, 'POST', '/view', { token, body, expectFail: true });
+}
+check(
+    'view_create_bad_is_400',
+    Object.keys(bad_views).every(n => results[n]?.status === 400),
+    Object.keys(bad_views).map(n => [n, results[n]?.status])
+);
+
+const gview = await call('view_create_grid', 'POST', '/view', { token, body: grid_view_body });
+check(
+    'view_grid_created',
+    /^view_[0-9a-f]{24}$/.test(gview?.id || '') &&
+        gview.type === 'grid' &&
+        gview.file_id === view_table &&
+        gview.filters?.[0]?.value === 'Sam' &&
+        gview.sort?.dir === 'desc' &&
+        gview.hidden_fields?.[0] === v_due &&
+        !('account_id' in gview),
+    gview
+);
+const view_list = await call('view_list', 'GET', `/view?table=${view_table}`, { token });
+check(
+    'view_listed',
+    Array.isArray(view_list?.views) &&
+        view_list.views.some(v => v.id === gview?.id) &&
+        (view_list.columns || []).some(c => c.field === v_status),
+    view_list
+);
+const renamed = await call('view_rename', 'PUT', `/view/${gview?.id}`, {
+    token,
+    body: { name: 'Sam renamed' }
+});
+check('view_renamed', renamed?.name === 'Sam renamed' && renamed?.filters?.length === 1, renamed);
+const refiltered = await call('view_update_filters', 'PUT', `/view/${gview?.id}`, {
+    token,
+    body: { filters: [{ field: v_hours, type: 'greaterThanOrEqual', value: '1' }], sort: null }
+});
+check(
+    'view_filters_updated',
+    refiltered?.filters?.[0]?.field === v_hours && refiltered?.sort === null,
+    refiltered
+);
+await call('view_change_table', 'PUT', `/view/${gview?.id}`, {
+    token,
+    body: { file_id: file_id },
+    expectFail: true
+});
+await call('view_kanban_of_grid', 'GET', `/view/${gview?.id}/kanban`, {
+    token,
+    expectFail: true
+});
+
+// Kanban: a column per Status value, then only Sam's cards
+const kview = await call('view_create_kanban', 'POST', '/view', {
+    token,
+    body: {
+        file_id: view_table,
+        name: 'Board smoke',
+        type: 'kanban',
+        kanban: { group_field: v_status },
+        sort: { field: v_hours, dir: 'asc' }
+    }
+});
+const board_counts = board =>
+    Object.fromEntries((board?.groups || []).map(g => [g.value, g.count]));
+const board = await call('view_kanban', 'GET', `/view/${kview?.id}/kanban`, { token });
+const todo = (board?.groups || []).find(g => g.value === 'To do');
+check(
+    'view_kanban_groups',
+    board?.group_field === v_status &&
+        JSON.stringify(board_counts(board)) ===
+            JSON.stringify({ Done: 1, 'In progress': 1, 'To do': 2 }) &&
+        todo?.rows?.length === 2 &&
+        todo.rows[0][v_hours] === 1 &&
+        todo.rows[1][v_hours] === 2,
+    board
+);
+await call('view_kanban_filter', 'PUT', `/view/${kview?.id}`, {
+    token,
+    body: { filters: [{ field: v_owner, type: 'equals', value: 'Sam' }] }
+});
+const sam_board = await call('view_kanban_filtered', 'GET', `/view/${kview?.id}/kanban`, {
+    token
+});
+check(
+    'view_kanban_filtered',
+    JSON.stringify(board_counts(sam_board)) === JSON.stringify({ Done: 1, 'In progress': 1 }),
+    sam_board
+);
+// Dragging the In progress card to Done is a row update
+const moving = (sam_board?.groups || []).find(g => g.value === 'In progress')?.rows?.[0];
+await call('view_kanban_move', 'PUT', `/web-file/${moving?._id}/data_grid_row/${view_table}`, {
+    token,
+    body: { _id: moving?._id, [v_status]: 'Done' }
+});
+const moved_board = await call('view_kanban_moved', 'GET', `/view/${kview?.id}/kanban`, {
+    token
+});
+check(
+    'view_kanban_moved',
+    JSON.stringify(board_counts(moved_board)) === JSON.stringify({ Done: 2 }) &&
+        (moved_board?.groups?.[0]?.rows || []).some(r => r._id === moving?._id),
+    moved_board
+);
+
+// Charts: rows per Status (bar), hours summed per Owner (pie), rows per Due day (line)
+const chart_of = async (name, chart) => {
+    const v = await call(`view_create_${name}`, 'POST', '/view', {
+        token,
+        body: { file_id: view_table, name: `Chart ${name}`, type: 'chart', chart }
+    });
+    const res = await call(`view_${name}`, 'GET', `/view/${v?.id}/chart`, { token });
+    return { view: v, res };
+};
+const points = res => (res?.points || []).map(p => `${p.label}=${p.value}`).join(',');
+const bar = await chart_of('chart_bar', { kind: 'bar', group_field: v_status, agg: 'count' });
+check('view_chart_bar', points(bar.res) === 'Done=2,To do=2' && bar.res.kind === 'bar', bar.res);
+const pie = await chart_of('chart_pie', {
+    kind: 'pie',
+    group_field: v_owner,
+    agg: 'sum',
+    value_field: v_hours
+});
+check('view_chart_pie_sum', points(pie.res) === 'Sam=4.5,Ana=2,Kai=1', pie.res);
+const line = await chart_of('chart_line', { kind: 'line', group_field: v_due, agg: 'count' });
+check(
+    'view_chart_line_dates',
+    points(line.res) === '2026-11-20=1,2026-12-01=1,2026-12-05=1,2026-12-08=1',
+    line.res
+);
+await call('view_chart_of_kanban', 'GET', `/view/${kview?.id}/chart`, {
+    token,
+    expectFail: true
+});
+
+// demo2 can't see, use, change or delete demo's views, nor put one on demo's table; an API key
+// can't use views at all
+const view_other = await call('view_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const vtoken2 = view_other.token;
+const other_view_calls = {
+    view_other_list: ['GET', `/view?table=${view_table}`],
+    view_other_get: ['GET', `/view/${kview?.id}`],
+    view_other_kanban: ['GET', `/view/${kview?.id}/kanban`],
+    view_other_chart: ['GET', `/view/${bar.view?.id}/chart`],
+    view_other_rename: ['PUT', `/view/${kview?.id}`, { name: 'mine now' }],
+    view_other_delete: ['DELETE', `/view/${kview?.id}`],
+    view_other_create: ['POST', '/view', { ...grid_view_body, name: 'on your table' }]
+};
+for (const [name, [method, path, body]] of Object.entries(other_view_calls)) {
+    await call(name, method, path, { token: vtoken2, body, expectFail: true });
+}
+await call('view_other_logout', 'GET', `/auth/logout?token=${vtoken2}`);
+await call('view_api_key_list', 'GET', `/view?table=${view_table}`, {
+    token: key,
+    expectFail: true
+});
+await call('view_api_key_get', 'GET', `/view/${kview?.id}`, { token: key, expectFail: true });
+const kview_after = await call('view_get_after_other', 'GET', `/view/${kview?.id}`, { token });
+check(
+    'view_unchanged_by_other',
+    kview_after?.name === 'Board smoke' && kview_after?.filters?.length === 1,
+    kview_after
+);
+
+// Deleted, a view is gone; deleting the table deletes the rest
+await call('view_delete', 'DELETE', `/view/${gview?.id}`, { token });
+await call('view_delete_again', 'DELETE', `/view/${gview?.id}`, { token, expectFail: true });
+check('view_deleted_is_404', results.view_delete_again?.status === 404);
+await call('view_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [view_table] }
+});
+await call('view_get_table_deleted', 'GET', `/view/${kview?.id}`, { token, expectFail: true });
+check('view_table_deleted_is_404', results.view_get_table_deleted?.status === 404);
 
 // Linked tables (#147): a "Contact" link column on a task table points at rows of a contacts
 // table. The grid gets labels and a picker; /api/v1 returns ids and expands them on request;

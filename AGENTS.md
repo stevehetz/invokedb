@@ -305,6 +305,14 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `/link-options` feed the settings dialog and picker (`h-data-grid/link-dialog`). `/api/v1`
   returns ids, or rows with `expand=<column>[,<column>]`. Deleting rows clears them from every
   link to them (owner's decision); link columns are left out of forms.
+- Saved views (#146): `src/core/view/` has the pure rules (`view.ts`: settings checked against
+  the columns, filters kept in the grid's own format `{ field, type, value }` and turned into a
+  Mongo filter, the kanban and chart aggregations) and the store (`view.manager.ts`,
+  `tracking:view` in the shared tracking DB; filter on `account_id`). Routes are `/view`
+  (session only; `GET /view/:id/kanban`, `/view/:id/chart`). A grid view is applied by the grid
+  itself (filter model, sort, hidden columns); moving a kanban card is an ordinary row update.
+  The frontend's Views menu is on the grid's top bar (`h-data-grid/views-dialog`,
+  `kanban-view`, `chart-view`, SVG with no chart library).
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

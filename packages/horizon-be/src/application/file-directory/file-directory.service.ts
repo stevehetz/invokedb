@@ -17,6 +17,7 @@ import { WebFilePrcNotifyService } from '../web-file/web-file-prc-notify.service
 import { UrlImportManager } from '@app/core/url-import/url-import.manager';
 import { WebhookManager } from '@app/core/webhook/webhook.manager';
 import { FormManager } from '@app/core/form/form.manager';
+import { ViewManager } from '@app/core/view/view.manager';
 import _c from '@app/constants';
 import logger from '@app/logger';
 
@@ -31,7 +32,8 @@ export class FileDirectoryService {
         private web_file_prc_notify_svc: WebFilePrcNotifyService,
         private url_import_manager: UrlImportManager,
         private webhook_manager: WebhookManager,
-        private form_manager: FormManager
+        private form_manager: FormManager,
+        private view_manager: ViewManager
     ) {}
 
     async get_by_id(file_directory_id: number) {
@@ -209,6 +211,11 @@ export class FileDirectoryService {
                     await this.form_manager.remove_for_table(account.id, file_directory.id);
                 } catch (ex) {
                     logger.error(`Forms of file ${file_directory.id} not removed: ${ex.message}`);
+                }
+                try {
+                    await this.view_manager.remove_for_table(account.id, file_directory.id);
+                } catch (ex) {
+                    logger.error(`Views of file ${file_directory.id} not removed: ${ex.message}`);
                 }
             }
         }

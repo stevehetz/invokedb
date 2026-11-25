@@ -48,7 +48,7 @@ export const AI_ALLOWANCES: Record<
     AiTier,
     { questions: number; rows: number; budget_usd: number }
 > = {
-    FREE: { questions: 10, rows: 0, budget_usd: 0.05 },
+    FREE: { questions: 10, rows: 50, budget_usd: 0.05 },
     STARTER: { questions: 300, rows: 1000, budget_usd: 1 },
     PRO: { questions: 2000, rows: 10000, budget_usd: 5 }
 };

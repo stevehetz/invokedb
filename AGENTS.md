@@ -342,6 +342,17 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `GET /ai/status` and `POST /ai/ask` (session only). The model is never called in tests:
   `smoke-env.sh` points `ANTHROPIC_BASE_URL` at a stub on `127.0.0.1:8197` that `api-smoke.mjs`
   and `ui-smoke.mjs` start. The frontend's dialog is the grid's Ask button (`ask-dialog`).
+  `ai-spend.ts` (`AiSpend`) is the one place that checks the server budget and charges a call
+  (account and server, with the alerts); every AI feature goes through it.
+- AI rows and tables (#148): `src/core/ai/ai.ts` has the pure rules (requests, the JSON schema
+  built from the columns, the model's rows checked against the column types, table designs made
+  valid, batches of `rows_per_call`), `AiClient.json` the structured-output call, and
+  `application/ai/ai.service.ts` the routes' logic: `POST /ai/web-file/:id/generate-rows`
+  answers a preview (nothing saved; the grid shows the rows as new rows and Save inserts them),
+  `POST /ai/table/preview` and `POST /ai/table` make a table from a description like a template.
+  Rows count against the month's row allowance (Free 50) when asked of the model, used or not;
+  rows never asked for are handed back. The smoke stubs answer structured-output requests with
+  rows made from the schema. Ask points to Generate rows when a question asks to add rows.
 - Email verification (#132): `account.email_verified` (migration marks every older account
   verified; Google/GitHub accounts are created verified). `src/core/email-verification/` has the
   rules; links are rows of `email_verification` (24 hours, one per account). `create-account`

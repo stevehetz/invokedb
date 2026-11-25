@@ -21,7 +21,7 @@ describe('ai-plan', () => {
     });
 
     it('has the allowances of docs/PRICING.md 3.5', () => {
-        expect(AI_ALLOWANCES.FREE).toEqual({ questions: 10, rows: 0, budget_usd: 0.05 });
+        expect(AI_ALLOWANCES.FREE).toEqual({ questions: 10, rows: 50, budget_usd: 0.05 });
         expect(AI_ALLOWANCES.STARTER).toEqual({ questions: 300, rows: 1000, budget_usd: 1 });
         expect(AI_ALLOWANCES.PRO).toEqual({ questions: 2000, rows: 10000, budget_usd: 5 });
     });

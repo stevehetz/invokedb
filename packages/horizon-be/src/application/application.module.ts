@@ -22,6 +22,7 @@ import { FormService } from './form/form.service';
 import { ApiKeyService } from './api-key/api-key.service';
 import { ViewService } from './view/view.service';
 import { AskService } from './ai/ask.service';
+import { AiService } from './ai/ai.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -45,7 +46,8 @@ import { AskService } from './ai/ask.service';
         FormService,
         ApiKeyService,
         ViewService,
-        AskService
+        AskService,
+        AiService
     ],
     exports: [
         AuthService,
@@ -64,7 +66,8 @@ import { AskService } from './ai/ask.service';
         FormService,
         ApiKeyService,
         ViewService,
-        AskService
+        AskService,
+        AiService
     ]
 })
 export class ApplicationModule {}

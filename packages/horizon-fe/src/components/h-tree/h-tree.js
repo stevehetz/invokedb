@@ -1,5 +1,6 @@
 import { tree_consts } from './h-tree-consts';
 import { store } from '@/store';
+import { ai_http } from '@/core/context/ai/ai-http';
 
 // The table/folder tree (an Element Plus el-tree; it was jqtree). Click "manages" (highlights)
 // an item for the delete/rename buttons; double-click "selects" it, which opens it in a tab.
@@ -30,11 +31,15 @@ export default {
             // Open folders, kept when the tree data is reloaded
             expanded_keys: [],
 
-            tree_props: { label: 'name', children: 'children' }
+            tree_props: { label: 'name', children: 'children' },
+
+            // The server has an AI model (#148): shows "Table from a description"
+            ai_enabled: false
         };
     },
 
     mounted() {
+        ai_http.enabled().then(enabled => (this.ai_enabled = enabled));
         this.account_subscription = store.subscribe('account', account => {
             this.account = account;
         });

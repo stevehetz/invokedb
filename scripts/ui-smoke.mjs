@@ -9,7 +9,9 @@
 // through its public link, then close and delete it, make (and delete) a table
 // from a template (saving a grid view of it, a kanban view where a card is dragged and a
 // chart view, #146) and one from a URL (a CSV on GitHub, so it needs internet), add a link column
-// to a tasks table, fill a cell from its picker and open the linked table (#147), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
+// to a tasks table, fill a cell from its picker and open the linked table (#147), generate rows
+// and make a table from a description (#148; only against the Anthropic stub, so skipped against
+// production), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
 //
 // URLs come from the same env vars the apps use, so load an env file first. Best run against
 // the throwaway stack described in .agents/skills/verify-frontend/SKILL.md, not your own data:
@@ -50,6 +52,8 @@ const URL_TABLE = 'ui_smoke_todo';
 // The table a link column (#147) points to, made from the tasks template
 const LINK_TABLE = 'ui_smoke_link_tasks';
 const LINKED_TASK = 'Write the launch post';
+// A table from a description (#148)
+const AI_TABLE = 'ui_smoke_ai_table';
 // A public CSV for "Table from URL" (#144): this repo's own example data on GitHub
 const URL_SOURCE =
     'https://raw.githubusercontent.com/stevehetz/invokedb/main/examples/data/todo.csv';
@@ -65,6 +69,41 @@ const CSV = 'name,age,joined\nalice,30,2020-01-02\nbob,41,2021-05-06\ncarol,25,2
 // filters), the next says how many there are.
 const AI_STUB_URL = 'http://127.0.0.1:8197';
 let ai_stub = null;
+
+// The stub's answer to a structured-output request (#148): a table design, or the rows the
+// prompt asks for ("Generate exactly N new rows."), text values "<column> <n>"
+function ai_stub_json(body) {
+    const props = body.output_config.format.schema.properties || {};
+    if (props.columns) {
+        return {
+            table_name: 'stub_table',
+            columns: [
+                { name: 'Name', type: 'string' },
+                { name: 'Amount', type: 'number' },
+                { name: 'Date', type: 'date' }
+            ]
+        };
+    }
+    const prompt = String(body.messages?.[0]?.content || '');
+    const n = Number((/exactly (\d+) new rows/.exec(prompt) || [])[1] || 0);
+    const item = props.rows.items.properties;
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+        const row = {};
+        for (const [field, schema] of Object.entries(item)) {
+            const typed = schema.anyOf[0];
+            const label = String(schema.description).split(' (')[0];
+            row[field] =
+                typed.type === 'number'
+                    ? i + 1
+                    : typed.format === 'date'
+                      ? `2026-01-0${(i % 9) + 1}`
+                      : `${label} ${i + 1}`;
+        }
+        rows.push(row);
+    }
+    return { rows };
+}
 if (env.ANTHROPIC_BASE_URL === AI_STUB_URL) {
     ai_stub = http.createServer((req, res) => {
         let raw = '';
@@ -78,14 +117,17 @@ if (env.ANTHROPIC_BASE_URL === AI_STUB_URL) {
             const result = Array.isArray(last?.content)
                 ? last.content.find(c => c.type === 'tool_result')
                 : null;
-            const content = result
-                ? [
-                      {
-                          type: 'text',
-                          text: `Stub: ${JSON.parse(result.content).total_matching} rows match`
-                      }
-                  ]
-                : [{ type: 'tool_use', id: 'toolu_ui_smoke', name: 'run_query', input: {} }];
+            const structured = !!body.output_config?.format;
+            const content = structured
+                ? [{ type: 'text', text: JSON.stringify(ai_stub_json(body)) }]
+                : result
+                  ? [
+                        {
+                            type: 'text',
+                            text: `Stub: ${JSON.parse(result.content).total_matching} rows match`
+                        }
+                    ]
+                  : [{ type: 'tool_use', id: 'toolu_ui_smoke', name: 'run_query', input: {} }];
             res.setHeader('Content-Type', 'application/json');
             res.end(
                 JSON.stringify({
@@ -94,7 +136,7 @@ if (env.ANTHROPIC_BASE_URL === AI_STUB_URL) {
                     role: 'assistant',
                     model: body.model,
                     content,
-                    stop_reason: result ? 'end_turn' : 'tool_use',
+                    stop_reason: structured || result ? 'end_turn' : 'tool_use',
                     stop_sequence: null,
                     usage: { input_tokens: 50, output_tokens: 5 }
                 })
@@ -153,11 +195,12 @@ async function delete_leftover_tables() {
         ...(await find_tables(s)),
         ...(await find_tables(s, TEMPLATE_TABLE)),
         ...(await find_tables(s, URL_TABLE)),
-        ...(await find_tables(s, LINK_TABLE))
+        ...(await find_tables(s, LINK_TABLE)),
+        ...(await find_tables(s, AI_TABLE))
     ].map(d => d.id);
     if (ids.length) {
         console.log(
-            `     removing ${ids.length} leftover "${TABLE}"/"${TEMPLATE_TABLE}"/"${URL_TABLE}"/"${LINK_TABLE}" table(s)`
+            `     removing ${ids.length} leftover "${TABLE}"/"${TEMPLATE_TABLE}"/"${URL_TABLE}"/"${LINK_TABLE}"/"${AI_TABLE}" table(s)`
         );
         await be('POST', '/file-directory/batch_delete', { token: s.token, body: { ids } });
     }
@@ -1303,6 +1346,79 @@ try {
             .waitFor({ state: 'detached' });
         check((await find_tables(be_s, LINK_TABLE)).length === 0, 'link table still exists');
     });
+
+    // AI rows and tables (#148), only against the Anthropic stub, so a run against production
+    // never calls (and pays for) the real model. "Generate rows" shows the rows in the grid as
+    // new rows and Save adds them; a table from a description is previewed in its dialog and
+    // created with its columns and rows.
+    if (!ai_stub) {
+        results.steps.ai_rows_and_table = 'skipped';
+        console.log('skip ai_rows_and_table (no Anthropic stub: not the smoke stack)');
+    } else {
+        await step('ai_rows_and_table', async () => {
+            await page.locator('.h-tree .tree-wrapper').getByText(TABLE, { exact: true }).click();
+            await page.locator('.el-tabs__item.is-active', { hasText: TABLE }).waitFor();
+            await grid().locator('.generate-rows-button button').click();
+            const gen = page.locator('.container-dialog .generate-rows-dialog');
+            await gen.locator('.ai-prompt').fill('two more people');
+            await gen.locator('.ai-count').fill('2');
+            await gen.locator('.ai-generate').click();
+            await gen.waitFor({ state: 'detached', timeout: 30000 });
+            // The stub's text values are "<column> <n>"
+            await wait_rows(r => r.some(row => row.name === 'name 2'), 'the generated rows');
+            let saved = await be_table(be_s, file_id);
+            check(!saved.rows.some(r => r.name === 'name 1'), 'generated rows saved before Save');
+            await grid().locator('.commit-controls .blue').click();
+            const end = Date.now() + 10000;
+            while (Date.now() < end && !saved.rows.some(r => r.name === 'name 2')) {
+                await sleep(250);
+                saved = await be_table(be_s, file_id);
+            }
+            const made = saved.rows.filter(r => /^name [12]$/.test(r.name));
+            results.observed.ai_rows = made;
+            check(made.length === 2, `generated rows saved: ${JSON.stringify(saved.rows)}`);
+            const types = Object.fromEntries(saved.columns.map(c => [c.name, c.type]));
+            check(
+                made.every(r =>
+                    Object.entries(r).every(
+                        ([k, v]) => v == null || types[k] !== 'number' || typeof v === 'number'
+                    )
+                ),
+                `generated rows don't fit the column types: ${JSON.stringify(made)}`
+            );
+
+            await page.locator('.h-tree-controls .title-icon').click();
+            await page
+                .locator('.h-tree-menu-popper')
+                .getByText('Table from a Description (AI)')
+                .click();
+            const dlg = page.locator('.container-dialog .ai-table-dialog');
+            await dlg.locator('.ai-description').fill('a CRM for a dog groomer');
+            await dlg.locator('.ai-count').fill('2');
+            await dlg.locator('.ai-generate').click();
+            await dlg.locator('.ai-table-name').waitFor({ timeout: 30000 });
+            check(
+                (await dlg.locator('.ai-preview-row').count()) === 2,
+                "the preview doesn't show 2 rows"
+            );
+            await dlg.locator('.ai-table-name').fill(AI_TABLE);
+            await dlg.locator('.ai-create').click();
+            await page.locator('.el-tabs__item', { hasText: AI_TABLE }).waitFor();
+            await wait_rows(r => r.length === 2, 'the new table rows');
+            const [table] = await find_tables(be_s, AI_TABLE);
+            check(!!table, `no "${AI_TABLE}" table in the backend`);
+            const ai_saved = await be_table(be_s, table.id);
+            results.observed.ai_table_columns = ai_saved.columns.map(c => `${c.name}:${c.type}`);
+            check(
+                results.observed.ai_table_columns.join() === 'Name:string,Amount:number,Date:date',
+                `AI table columns are ${results.observed.ai_table_columns}`
+            );
+            await be('POST', '/file-directory/batch_delete', {
+                token: be_s.token,
+                body: { ids: [table.id] }
+            });
+        });
+    }
 
     await step('delete_table', async () => {
         await page.locator('.h-tree .tree-wrapper').getByText(TABLE, { exact: true }).click();

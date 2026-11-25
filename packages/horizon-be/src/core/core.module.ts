@@ -27,6 +27,7 @@ import { FormManager } from './form/form.manager';
 import { ViewManager } from './view/view.manager';
 import { AiClient } from './ai/ai-client';
 import { AiUsageManager } from './ai/ai-usage.manager';
+import { AiSpend } from './ai/ai-spend';
 
 @Module({
     imports: [
@@ -60,6 +61,7 @@ import { AiUsageManager } from './ai/ai-usage.manager';
         ViewManager,
         AiClient,
         AiUsageManager,
+        AiSpend,
         WebsocketClientStore
     ],
     exports: [
@@ -78,6 +80,7 @@ import { AiUsageManager } from './ai/ai-usage.manager';
         ViewManager,
         AiClient,
         AiUsageManager,
+        AiSpend,
         WebsocketClientStore,
         TypeOrmModule
     ]

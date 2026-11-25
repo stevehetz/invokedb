@@ -25,6 +25,7 @@ import ApiDialog from './api-dialog';
 import WebhooksDialog from './webhooks-dialog';
 import FormsDialog from './forms-dialog';
 import AskDialog from './ask-dialog';
+import GenerateRowsDialog from './generate-rows-dialog';
 import { ai_http } from '@/core/context/ai/ai-http';
 import LinkDialog from './link-dialog';
 import ViewsDialog from './views-dialog';
@@ -109,7 +110,7 @@ export default {
             // Bumped to reload the kanban board or chart
             view_version: 0,
             view_icons: VIEW_TYPE_ICONS,
-            // Ask your data (#149): shown only when the server has AI set up
+            // AI is on (#148, #149): shows "Ask" and "Generate rows"
             ai_available: false
         };
     },
@@ -173,7 +174,6 @@ export default {
     mounted() {
         this.toast = this.$refs.grid_toast;
         this.setup_websocket_handler();
-        this.load_ai_status();
     },
 
     beforeUnmount() {
@@ -222,6 +222,7 @@ export default {
             this.grid_api = markRaw(params.api);
             this.load_url_source();
             this.load_views();
+            this.load_ai_status();
             if (this.file.status === 'PENDING') {
                 this.set_table_load_pending();
             } else if (this.file.status === 'ERROR') {
@@ -1036,11 +1037,8 @@ export default {
                 this.new_rows = this.new_rows.filter(
                     r => selected_indexes.indexOf(r.new_row_index) === -1
                 );
-                let data = this.add_data.concat(this.new_rows);
-                data = mgr.number_new_rows(data, this.total_rows);
-                this.set_datasource(params =>
-                    params.successCallback(data, data.length)
-                );
+                // Paged, as there can be many new rows once rows are generated (#148)
+                this.set_datasource(this.generated_rows_get_rows);
             } else {
                 this.show_top_bar_info('Saving...', 1500);
                 let ids = selected.map(s => s.data._id);
@@ -1081,20 +1079,18 @@ export default {
             });
         },
 
+        // AI on and the email verified: shows "Ask" and "Generate rows"
         async load_ai_status() {
-            try {
-                const status = await ai_http.status();
-                this.ai_available = !!(status && status.available);
-            } catch (ex) {
-                this.ai_available = false;
-            }
+            this.ai_available = await ai_http.enabled();
         },
 
         ask_btn_clicked() {
             this.$bus.$emit('container-dialog:open', {
                 title: `${table_display_name(this.file.name)}: ask your data`,
                 props: {
-                    file: this.file
+                    file: this.file,
+                    // "Add 10 rows" in Ask points here (#148)
+                    on_generate: () => this.generate_rows_btn_clicked()
                 },
                 component: AskDialog
             });
@@ -1272,38 +1268,114 @@ export default {
             this.set_datasource(this.add_row_mode_get_rows);
         },
 
+        // Add-row mode shows the table's last few rows (covered) above the new ones
+        async load_add_row_mode_data() {
+            this.show_top_bar_info('Loading...');
+            this.add_row_mode = true;
+
+            const { count } = await mgr.get_rows(
+                this.file_directory_id,
+                { startRow: 0 },
+                1
+            );
+
+            let params = mgr.get_add_row_mode_params(
+                count,
+                ADD_ROW_MODE_ROW_COUNT
+            );
+            let res = await mgr.get_rows(
+                this.file_directory_id,
+                params,
+                PAGE_SIZE
+            );
+            this.add_link_labels(res);
+            this.add_data = res.data;
+        },
+
         async add_row_mode_get_rows(params) {
             if (!this.add_row_mode) {
-                this.show_top_bar_info('Loading...');
-                this.add_row_mode = true;
-
-                const { count } = await mgr.get_rows(
-                    this.file_directory_id,
-                    { startRow: 0 },
-                    1
-                );
-
-                let params = mgr.get_add_row_mode_params(
-                    count,
-                    ADD_ROW_MODE_ROW_COUNT
-                );
-                let res = await mgr.get_rows(
-                    this.file_directory_id,
-                    params,
-                    PAGE_SIZE
-                );
-                this.add_link_labels(res);
-                this.add_data = res.data;
+                await this.load_add_row_mode_data();
             }
+            // One blank row per click, not per block of rows the grid asks for: with generated
+            // rows (#148) there can be more new rows than one block
+            if (params.startRow > 0)
+                return this.generated_rows_get_rows(params);
             let data = mgr.add_new_row(
                 this.add_data,
                 this.new_rows,
                 this.total_rows,
                 this.file_directory_id
             );
-            params.successCallback(data, data.length);
+            params.successCallback(
+                data.slice(params.startRow, params.endRow),
+                data.length
+            );
             this.hide_top_bar_msg();
         },
+
+        /*** Start: Generated rows (#148) ***/
+        generate_rows_btn_clicked() {
+            this.$bus.$emit('container-dialog:open', {
+                title: `${table_display_name(this.file.name)}: generate rows`,
+                props: {
+                    file: this.file,
+                    on_generated: rows => this.preview_generated_rows(rows)
+                },
+                component: GenerateRowsDialog
+            });
+        },
+
+        // The generated rows become new rows of add-row mode: the user can edit or delete
+        // them, then Save inserts them (row limit, locks, webhooks) or Cancel drops them.
+        async preview_generated_rows(rows) {
+            if (!this.grid_api || this.edit_column_mode) return;
+            const last = this.new_rows[this.new_rows.length - 1];
+            let index = last ? last.new_row_index + 1 : 0;
+            // An untouched blank row of add-row mode isn't kept
+            this.new_rows = this.new_rows.filter(r =>
+                Object.keys(r).some(
+                    k =>
+                        k !== 'new_row_index' &&
+                        k !== 'file_directory_id' &&
+                        k !== 'row_num'
+                )
+            );
+            rows.forEach(r =>
+                this.new_rows.push({
+                    ...r,
+                    new_row_index: index++,
+                    file_directory_id: this.file_directory_id
+                })
+            );
+            if (!this.add_row_mode) {
+                this.set_column_defs(
+                    this.col_defs().map(c => Object.assign({}, c))
+                );
+                this.show_delete_rows = false;
+            }
+            this.set_datasource(this.generated_rows_get_rows);
+            this.toast.info(
+                `${rows.length} generated rows. Edit or delete any, then Save to add them.`,
+                5000
+            );
+        },
+
+        // Like add_row_mode_get_rows, without a blank row, a block at a time
+        async generated_rows_get_rows(params) {
+            if (!this.add_row_mode) {
+                await this.load_add_row_mode_data();
+            }
+            const data = mgr.number_new_rows(
+                this.add_data.concat(this.new_rows),
+                this.total_rows
+            );
+            params.successCallback(
+                data.slice(params.startRow, params.endRow),
+                data.length
+            );
+            this.hide_top_bar_msg();
+        },
+        /*** End: Generated rows ***/
 
         cover_add_row_mode_header() {
             this.$el

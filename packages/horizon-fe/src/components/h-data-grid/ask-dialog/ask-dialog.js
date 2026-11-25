@@ -4,10 +4,22 @@
 // through `container-dialog:open` with `props: { file }`.
 import { defineComponent } from 'vue';
 import copy from 'copy-to-clipboard';
+import { bus } from '@/core/bus';
 import { ai_http } from '@/core/context/ai/ai-http';
 import { table_display_name } from '../table-name';
 
 export const MAX_QUESTION_LENGTH = 500;
+
+/**
+ * Whether a question asks to add data ("add 10 rows", "generate some records"), which Ask
+ * can't do: the dialog then points to Generate rows (#148).
+ * @param {string} question
+ */
+export function wants_rows(question) {
+    return /\b(add|create|insert|generate|make|fill|populate)\b.*\b(rows?|records?|entries|data)\b/i.test(
+        question || ''
+    );
+}
 
 /** @param {any} ex @param {string} fallback */
 function message_of(ex, fallback) {
@@ -32,6 +44,8 @@ export default defineComponent({
             error: null,
             /** @type {any} */
             result: null,
+            // The last question asked to add rows: point to Generate rows
+            write_hint: false,
             /** @type {any} */
             usage: null,
             copied: false,
@@ -99,6 +113,13 @@ export default defineComponent({
     methods: {
         cell_text,
 
+        // Closes this dialog and opens Generate rows (`props.on_generate`, from the grid)
+        open_generate() {
+            const open = this.props.on_generate;
+            bus.$emit('container-dialog:close');
+            if (open) setTimeout(open, 0);
+        },
+
         async ask() {
             if (!this.can_ask) return;
             this.asking = true;
@@ -109,6 +130,7 @@ export default defineComponent({
                     this.question.trim()
                 );
                 this.result = res;
+                this.write_hint = wants_rows(this.question);
                 if (res && res.usage) this.usage = res.usage;
             } catch (ex) {
                 this.error = message_of(ex, 'Could not answer that question');

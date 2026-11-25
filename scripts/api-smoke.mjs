@@ -20,7 +20,8 @@
 // accounts; a deleted linked table empties the cells and makes the column a string, #175),
 // checks "ask your data" (#149: a stub of the Anthropic API on 127.0.0.1:8197, set by
 // smoke-env.sh; answer, rows and the API call, bad model queries refused, the monthly cap, demo2
-// and API keys locked out), checks API keys (#138: made for each account and revoked at the end;
+// and API keys locked out; then AI rows and tables, #148: typed preview rows, the monthly row
+// allowance, demo2 locked out), checks API keys (#138: made for each account and revoked at the end;
 // read-only and table-scoped keys refused, revoked keys refused, only hashes listed, demo's
 // migrated key still works, demo2 locked out) and email verification on signup (#132: the same
 // answer for a taken email, an unverified account with no API key and no tables, resend, bad
@@ -2875,6 +2876,40 @@ const ai_requests = [];
 let ai_next_input = {};
 // What the stub says each call used (a big number tests the cost cap)
 let ai_next_usage = { input_tokens: 50, output_tokens: 5 };
+// The stub's answer to a structured-output request (#148): a table design, or the rows the
+// prompt asks for ("Generate exactly N new rows."), text values "<column> <n>"
+function ai_stub_json(body) {
+    const props = body.output_config.format.schema.properties || {};
+    if (props.columns) {
+        return {
+            table_name: 'stub_table',
+            columns: [
+                { name: 'Name', type: 'string' },
+                { name: 'Amount', type: 'number' },
+                { name: 'Date', type: 'date' }
+            ]
+        };
+    }
+    const prompt = String(body.messages?.[0]?.content || '');
+    const n = Number((/exactly (\d+) new rows/.exec(prompt) || [])[1] || 0);
+    const item = props.rows.items.properties;
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+        const row = {};
+        for (const [field, schema] of Object.entries(item)) {
+            const typed = schema.anyOf[0];
+            const label = String(schema.description).split(' (')[0];
+            row[field] =
+                typed.type === 'number'
+                    ? i + 1
+                    : typed.format === 'date'
+                      ? `2026-01-0${(i % 9) + 1}`
+                      : `${label} ${i + 1}`;
+        }
+        rows.push(row);
+    }
+    return { rows };
+}
 const ai_stub = http.createServer((req, res) => {
     let raw = '';
     req.on('data', c => (raw += c));
@@ -2889,8 +2924,12 @@ const ai_stub = http.createServer((req, res) => {
         const result = Array.isArray(last?.content)
             ? last.content.find(c => c.type === 'tool_result')
             : null;
+        // Generated rows and table designs (#148) ask for JSON in a schema
+        const structured = !!body.output_config?.format;
         let content;
-        if (!result) {
+        if (structured) {
+            content = [{ type: 'text', text: JSON.stringify(ai_stub_json(body)) }];
+        } else if (!result) {
             content = [
                 {
                     type: 'tool_use',
@@ -2913,7 +2952,7 @@ const ai_stub = http.createServer((req, res) => {
                 role: 'assistant',
                 model: body.model,
                 content,
-                stop_reason: result ? 'end_turn' : 'tool_use',
+                stop_reason: structured || result ? 'end_turn' : 'tool_use',
                 stop_sequence: null,
                 usage: ai_next_usage
             })
@@ -3177,6 +3216,196 @@ await call('ai_cost_table_delete', 'POST', '/file-directory/batch_delete', {
     body: { ids: [ai_cost_table] }
 });
 await call('ai_cost_logout', 'GET', `/auth/logout?token=${ai_cost_token}`);
+
+// AI rows and tables (#148), against the same stub. Generated rows fit the column types and
+// aren't saved until the app inserts them; every row asked for counts against the account's
+// monthly allowance (Free: 50, docs/PRICING.md 3.5); demo2 can't generate rows for demo's
+// table or read a table demo made from a description.
+const gen_count = async (name, id) =>
+    (await call(name, 'POST', `/web-file/data_grid_row/${id}?skip=0&limit=1`, { token, body: {} }))
+        ?.count;
+const gen_status = await call('gen_status', 'GET', '/ai/status', { token });
+check(
+    'gen_status_rows_and_limits',
+    gen_status?.available === true &&
+        gen_status?.limits?.max_rows_per_request === 500 &&
+        gen_status?.rows?.limit === 50,
+    gen_status
+);
+const gen_used_before = gen_status?.rows?.used ?? 0;
+const gen_rows_before = await gen_count('gen_rows_before', file_id);
+const gen = await call('gen_rows', 'POST', `/ai/web-file/${file_id}/generate-rows`, {
+    token,
+    body: { prompt: 'people with ages and join dates', count: 10 }
+});
+const gen_fits = (v, type) =>
+    type === 'number'
+        ? typeof v === 'number'
+        : type === 'date'
+          ? /^\d{4}-\d{2}-\d{2}$/.test(v)
+          : typeof v === 'string';
+const gen_cols = gen?.columns || [];
+check(
+    'gen_rows_typed',
+    Array.isArray(gen?.rows) &&
+        gen.rows.length === 10 &&
+        gen_cols.find(c => c.name === 'age')?.type === 'number' &&
+        gen.rows.every(
+            r =>
+                Object.keys(r).length === gen_cols.length &&
+                gen_cols.every(c => gen_fits(r[c.field], c.type))
+        ),
+    gen
+);
+check(
+    'gen_preview_saves_nothing',
+    (await gen_count('gen_rows_after', file_id)) === gen_rows_before
+);
+const gen_status_after = await call('gen_status_after', 'GET', '/ai/status', { token });
+check(
+    'gen_rows_counted',
+    gen_status_after?.rows?.used === gen_used_before + 10 &&
+        gen?.usage?.used === gen_used_before + 10,
+    gen_status_after
+);
+await call('gen_insert_rows', 'POST', `/web-file/batch_create/data_grid_row/${file_id}`, {
+    token,
+    body: gen?.rows || []
+});
+check(
+    'gen_rows_inserted',
+    (await gen_count('gen_rows_inserted', file_id)) === gen_rows_before + 10
+);
+for (const [name, body] of [
+    ['gen_rows_over_request_cap', { prompt: 'x', count: 501 }],
+    ['gen_rows_no_prompt', { prompt: ' ', count: 5 }],
+    ['gen_rows_bad_count', { prompt: 'x', count: 'many' }]
+]) {
+    await call(name, 'POST', `/ai/web-file/${file_id}/generate-rows`, {
+        token,
+        body,
+        expectFail: true
+    });
+    check(`${name}_400`, results[name].status === 400, results[name]);
+}
+// More than the month's allowance has left: 429, nothing asked of the model
+const gen_seen = ai_requests.length;
+await call('gen_rows_over_allowance', 'POST', `/ai/web-file/${file_id}/generate-rows`, {
+    token,
+    body: { prompt: 'x', count: 60 },
+    expectFail: true
+});
+check(
+    'gen_rows_over_allowance_429',
+    results.gen_rows_over_allowance.status === 429 && ai_requests.length === gen_seen,
+    results.gen_rows_over_allowance
+);
+await call('gen_rows_no_table', 'POST', '/ai/web-file/99999999/generate-rows', {
+    token,
+    body: { prompt: 'x', count: 1 },
+    expectFail: true
+});
+
+const gen_other = await call('gen_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const gen_token2 = gen_other.token;
+const gen_other_before = await call('gen_other_status', 'GET', '/ai/status', { token: gen_token2 });
+await call('gen_other_generate', 'POST', `/ai/web-file/${file_id}/generate-rows`, {
+    token: gen_token2,
+    body: { prompt: 'x', count: 5 },
+    expectFail: true
+});
+check(
+    'gen_other_generate_refused',
+    [403, 404].includes(results.gen_other_generate.status),
+    results.gen_other_generate
+);
+const gen_other_after = await call('gen_other_status_after', 'GET', '/ai/status', {
+    token: gen_token2
+});
+check('gen_usage_per_account', gen_other_after?.rows?.used === gen_other_before?.rows?.used, {
+    gen_other_before,
+    gen_other_after
+});
+
+const gen_preview = await call('gen_table_preview', 'POST', '/ai/table/preview', {
+    token,
+    body: { description: 'a CRM for a dog groomer', row_count: 3 }
+});
+check(
+    'gen_table_preview_shape',
+    typeof gen_preview?.table_name === 'string' &&
+        Array.isArray(gen_preview?.columns) &&
+        gen_preview.columns.length > 0 &&
+        gen_preview.columns.every(c => ['string', 'number', 'date'].includes(c.type)) &&
+        Array.isArray(gen_preview?.rows) &&
+        gen_preview.rows.length === 3 &&
+        gen_preview?.usage?.used === gen_used_before + 13,
+    gen_preview
+);
+const gen_table = await call('gen_table_create', 'POST', '/ai/table', {
+    token,
+    body: {
+        table_name: 'smoke_ai_table',
+        columns: gen_preview?.columns,
+        rows: gen_preview?.rows
+    }
+});
+const gen_table_cols = await call(
+    'gen_table_cols',
+    'POST',
+    `/web-file/data_grid_column/${gen_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+check(
+    'gen_table_columns_match',
+    JSON.stringify((gen_table_cols.data || []).map(c => [c.headerName, c.col_type])) ===
+        JSON.stringify((gen_preview?.columns || []).map(c => [c.name, c.type])),
+    gen_table_cols
+);
+const gen_table_rows = await call(
+    'gen_table_rows',
+    'POST',
+    `/web-file/data_grid_row/${gen_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const gen_num_col = (gen_table_cols.data || []).find(c => c.col_type === 'number');
+check(
+    'gen_table_rows_typed',
+    gen_table_rows?.count === 3 &&
+        (!gen_num_col ||
+            gen_table_rows.data.every(
+                r =>
+                    [null, undefined].includes(r[gen_num_col.field]) ||
+                    typeof r[gen_num_col.field] === 'number'
+            )),
+    gen_table_rows
+);
+await call('gen_table_create_bad', 'POST', '/ai/table', {
+    token,
+    body: { table_name: 'smoke ai bad', columns: [{ name: 'A', type: 'link' }] },
+    expectFail: true
+});
+check('gen_table_create_bad_400', results.gen_table_create_bad.status === 400);
+await call('gen_other_table_rows', 'POST', `/web-file/data_grid_row/${gen_table}?skip=0&limit=1`, {
+    token: gen_token2,
+    body: {},
+    expectFail: true
+});
+const gen_other_files = await call('gen_other_files', 'GET', '/file-directory', {
+    token: gen_token2
+});
+check(
+    'gen_table_not_in_other_account',
+    Array.isArray(gen_other_files) && !gen_other_files.some(d => d.id === gen_table),
+    gen_other_files
+);
+await call('gen_other_logout', 'GET', `/auth/logout?token=${gen_token2}`);
+await call('gen_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [gen_table] }
+});
 ai_stub.close();
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');
@@ -3249,6 +3478,19 @@ await call('unverified_url_import', 'POST', '/url-import', {
     },
     expectFail: true
 });
+// ...nor spend AI calls (they cost money): no allowance, and the routes answer 403
+const unv_ai = await call('unverified_ai_status', 'GET', '/ai/status', { token: unv_token });
+check(
+    'unverified_ai_none',
+    unv_ai?.usage?.verified === false && unv_ai?.usage?.limit === 0 && unv_ai?.rows?.limit === 0,
+    unv_ai
+);
+await call('unverified_ai_preview', 'POST', '/ai/table/preview', {
+    token: unv_token,
+    body: { description: 'a list of books', row_count: 3 },
+    expectFail: true
+});
+check('unverified_ai_preview_403', results.unverified_ai_preview.status === 403);
 // ...nor make an API key (#138 keys need a verified email too)
 await call('unverified_api_key_create', 'POST', '/api-key', {
     token: unv_token,

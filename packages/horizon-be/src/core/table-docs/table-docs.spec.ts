@@ -11,7 +11,13 @@ import {
     python_snippet,
     sh_quote
 } from './table-docs';
-import { QueryColumn, parse_count_query, parse_row_query } from '../web-file/row-query';
+import {
+    QueryColumn,
+    QueryColumnType,
+    parse_count_query,
+    parse_row_query
+} from '../web-file/row-query';
+import { normalize_link_value } from '../web-file/link';
 
 const input = () => ({
     table: 'people',
@@ -121,7 +127,7 @@ describe('build_table_docs', () => {
         const columns: QueryColumn[] = docs.columns.map((c, i) => ({
             name: c.name,
             field: String.fromCharCode(97 + i),
-            type: c.type
+            type: c.type as QueryColumnType
         }));
         expect(() => parse_row_query(endpoint(docs, 'query').body, columns)).not.toThrow();
         expect(() => parse_count_query(endpoint(docs, 'count').body, columns)).not.toThrow();
@@ -261,5 +267,102 @@ describe('build_openapi', () => {
         // Every $ref points at a schema that exists
         const refs = JSON.stringify(spec).match(/#\/components\/schemas\/\w+/g) || [];
         refs.forEach(r => expect(spec.components.schemas[r.split('/').pop()]).toBeDefined());
+        // No link columns, so no expand
+        const params = op => op.parameters.map(p => p.name);
+        expect(params(spec.paths['/get'].get)).not.toContain('expand');
+    });
+});
+
+// Link columns (#147, #176): an array of row ids of another table, or the rows with expand
+describe('a table with a link column', () => {
+    const contact_id = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+    const link_input = (sample = true) => ({
+        table: 'tasks',
+        base_url: 'https://api.example.com/api/v1',
+        columns: [
+            { name: 'Contact', type: 'link', link_table: 'contacts' },
+            { name: 'Task', type: 'string' },
+            { name: 'due', type: 'date' }
+        ],
+        sample_row: sample
+            ? { _id: 'abc123', Contact: [contact_id], Task: 'Call', due: '2020-01-02' }
+            : undefined
+    });
+
+    it('gives the column the link type and its table', () => {
+        expect(doc_columns(link_input().columns)).toEqual([
+            { name: 'Contact', type: 'link', link_table: 'contacts' },
+            { name: 'Task', type: 'string' },
+            { name: 'due', type: 'date' }
+        ]);
+        expect(column_type('link')).toBe('link');
+        expect(doc_columns([{ name: 'x', type: 'string', link_table: 't' }])).toEqual([
+            { name: 'x', type: 'string' }
+        ]);
+    });
+
+    it('uses arrays of row ids in the examples', () => {
+        const docs = build_table_docs(link_input());
+        expect(endpoint(docs, 'get').response.body.data[0].Contact).toEqual([contact_id]);
+        expect(endpoint(docs, 'create').body).toEqual([
+            { Contact: [contact_id], Task: 'Call', due: '2024-01-15' }
+        ]);
+        // The examples filter, sort and update on other columns
+        expect(endpoint(docs, 'search').body).toEqual({
+            Task: { type: 'contains', value: 'Call', case: 'insensitive' }
+        });
+        expect(endpoint(docs, 'query').body.sort).toEqual([{ column: 'due', dir: 'desc' }]);
+        expect(endpoint(docs, 'update').body).toEqual([{ _id: ROW_ID_PLACEHOLDER, Task: 'Call' }]);
+        expect(endpoint(docs, 'create').description).toContain('array of _ids');
+        // What the API accepts for the cell
+        expect(normalize_link_value(endpoint(docs, 'create').body[0].Contact)).toEqual([
+            contact_id
+        ]);
+    });
+
+    it('sends null rather than a made-up id when the sample row has none', () => {
+        const docs = build_table_docs(link_input(false));
+        expect(endpoint(docs, 'create').body[0].Contact).toBeNull();
+        const out = endpoint(docs, 'get').response.body.data[0].Contact;
+        expect(Array.isArray(out) && out.length).toBe(1);
+        expect(out[0]).toMatch(/^[0-9a-f]{24}$/);
+    });
+
+    it('lists expand on get, search and query', () => {
+        const docs = build_table_docs(link_input());
+        const has_expand = id => endpoint(docs, id).params.some(p => p.name === 'expand');
+        expect(['get', 'search', 'query'].filter(has_expand)).toEqual(['get', 'search', 'query']);
+        expect(['count', 'create', 'update', 'delete'].some(has_expand)).toBe(false);
+        expect(endpoint(docs, 'get').params.find(p => p.name === 'expand').description).toContain(
+            'Contact'
+        );
+        expect(endpoint(build_table_docs(input()), 'get').params.map(p => p.name)).not.toContain(
+            'expand'
+        );
+    });
+
+    it('describes the column and expand in the OpenAPI spec', () => {
+        const spec: any = build_openapi(link_input());
+        const contact = spec.components.schemas.Row.properties.Contact;
+        expect(contact).toEqual(
+            expect.objectContaining({ type: 'array', nullable: true, maxItems: 50 })
+        );
+        expect(contact.items.oneOf[0]).toEqual({ type: 'string', pattern: '^[0-9a-fA-F]{24}$' });
+        expect(contact.items.oneOf[1].required).toEqual(['_id']);
+        expect(contact.description).toContain('"contacts"');
+        expect(contact.description).toContain('expand=Contact');
+        const expand_of = op => op.parameters.find(p => p.name === 'expand');
+        expect(expand_of(spec.paths['/get'].get)).toEqual(
+            expect.objectContaining({ in: 'query', schema: { type: 'string', example: 'Contact' } })
+        );
+        expect(expand_of(spec.paths['/search'].post)).toBeDefined();
+        expect(expand_of(spec.paths['/query'].post)).toBeDefined();
+        expect(expand_of(spec.paths['/count'].post)).toBeUndefined();
+        expect(spec.paths['/get'].get.responses['200'].content['application/json'].example).toEqual(
+            {
+                count: 1,
+                data: [{ _id: 'abc123', Contact: [contact_id], Task: 'Call', due: '2020-01-02' }]
+            }
+        );
     });
 });

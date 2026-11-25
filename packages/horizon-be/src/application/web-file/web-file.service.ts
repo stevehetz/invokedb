@@ -33,6 +33,7 @@ import {
     assert_link_settings,
     collect_link_ids,
     expand_link_value,
+    is_link_column,
     link_display_column,
     parse_expand
 } from '@app/core/web-file/link';
@@ -642,10 +643,22 @@ export class WebFileService {
             sample_row = { _id: String(row._id) };
             col_defs.forEach(c => (sample_row[c.headerName] = row[c.field]));
         }
+        // A link column's table, by name (#147), from the account's own tables
+        const names = new Map<number, string>();
+        if (col_defs.some(c => is_link_column(c))) {
+            const files = await this.file_directory_svc.get_by_account_id(account_id);
+            (files || [])
+                .filter(f => f.type === 'file' && !f.deleted)
+                .forEach(f => names.set(Number(f.id), f.name));
+        }
         return {
             table: file.name,
             base_url,
-            columns: col_defs.map(c => ({ name: c.headerName, type: c.col_type })),
+            columns: col_defs.map(c => ({
+                name: c.headerName,
+                type: c.col_type,
+                link_table: is_link_column(c) ? names.get(Number(c.link_table_id)) : undefined
+            })),
             sample_row
         };
     }

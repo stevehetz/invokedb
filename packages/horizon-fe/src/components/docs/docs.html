@@ -8,6 +8,7 @@
             <a href="#create">Create</a>
             <a href="#update">Update</a>
             <a href="#delete">Delete</a>
+            <a href="#links">Link columns</a>
         </div>
         <div class="docs-body">
             <div class="docs-body-container">
@@ -59,6 +60,13 @@
                                 >sort_dir (optional)</label
                             >
                             direction to sort
+                        </p>
+                        <p>
+                            <label class="query-param-label"
+                                >expand (optional)</label
+                            >
+                            link columns to return as rows (see
+                            <a href="#links">Link columns</a>)
                         </p>
                     </div>
                     <h4 id="get-paging" class="docs-example__subtitle">
@@ -121,6 +129,13 @@
                                 >sort_dir (optional)</label
                             >
                             direction to sort
+                        </p>
+                        <p>
+                            <label class="query-param-label"
+                                >expand (optional)</label
+                            >
+                            link columns to return as rows (see
+                            <a href="#links">Link columns</a>)
                         </p>
                         <br />
                         <h4 class="overview-block-title">Body</h4>
@@ -367,6 +382,13 @@
                             >
                             camelCase or snakeCase column names
                         </p>
+                        <p>
+                            <label class="query-param-label"
+                                >expand (optional)</label
+                            >
+                            link columns to return as rows (see
+                            <a href="#links">Link columns</a>)
+                        </p>
                         <br />
                         <h4 class="overview-block-title">Body</h4>
                         <p>
@@ -586,6 +608,61 @@
                         <pre class="lang-javascript">
                             <code v-html="code['remove']"></code>
                         </pre>
+                    </div>
+                    <h3 id="links" class="overview-title">Link columns</h3>
+                    <div class="overview-block">
+                        <p>
+                            A link column points at rows of another of your
+                            tables. Its cell is an array of those rows' _id
+                            values, or null when it links to nothing (up to 50
+                            rows per cell).
+                        </p>
+                        <pre class="lang-javascript overview-code">
+                            <code>
+{
+    _id: '5f38f1a22a3a9d1db22bae3d',
+    task: 'Call back',
+    contact: ['5f38f1a22a3a9d1db22bae3e']
+}
+                            </code>
+                        </pre>
+                        <h5 class="overview-block-subtitle">Writing links</h5>
+                        <p>
+                            Create and Update take the same array of _id values
+                            (a single _id or a comma-separated string works
+                            too). Every _id must be a row of the linked table,
+                            or the request is a 400. Send null or [] to clear
+                            the cell.
+                        </p>
+                        <h5 class="overview-block-subtitle">expand</h5>
+                        <p>
+                            Get, Search and Query take
+                            <label class="query-param-label">expand</label>, a
+                            comma-separated list of link column names (as the
+                            response names them, so with format=camelCase use
+                            the camelCase name). Each named column's _id values
+                            are replaced by the linked rows, with their _id and
+                            columns. Rows that were deleted are left out. A
+                            column that isn't a link column is a 400. An
+                            expanded cell can be sent back to Update as it is.
+                        </p>
+                        <pre class="lang-javascript overview-code">
+                            <code>
+// GET {{ base_url }}/get?table=tasks&amp;skip=0&amp;limit=10&amp;expand=contact
+{
+    _id: '5f38f1a22a3a9d1db22bae3d',
+    task: 'Call back',
+    contact: [
+        { _id: '5f38f1a22a3a9d1db22bae3e', name: 'Ada', city: 'Paris' }
+    ]
+}
+                            </code>
+                        </pre>
+                        <p>
+                            Each table's API page (the API button on the grid)
+                            and its OpenAPI spec list its link columns and
+                            expand.
+                        </p>
                     </div>
                 </div>
             </div>

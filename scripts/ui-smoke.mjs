@@ -958,10 +958,13 @@ try {
             (await page.locator(`.layout .nav .el-menu-item.${cls}`).allInnerTexts()).map(t =>
                 t.trim()
             );
+        // Account is in the account menu at the top right, not the nav: no nav item stays
+        // highlighted (#189) and the account menu's button is
         results.observed.nav_active_after_docs_link = await highlighted('is-active');
         check(
-            results.observed.nav_active_after_docs_link.join() === 'Account' &&
-                (await highlighted('is-active2')).join() === 'Account',
+            results.observed.nav_active_after_docs_link.length === 0 &&
+                (await highlighted('is-active2')).length === 0 &&
+                (await page.locator('.layout .account-menu-button.active').count()) === 1,
             `after the docs' account link the nav highlights ${JSON.stringify(results.observed.nav_active_after_docs_link)}`
         );
         // Data export (#215) is offered on the same page. Only looked at: an export counts
@@ -1637,8 +1640,10 @@ try {
         check((await find_tables(be_s)).length === 0, 'table still exists in the backend');
     });
 
+    // Signing out is in the account menu at the top right
     await step('logout', async () => {
-        await page.locator('.layout .header-link .fa-sign-out-alt').click();
+        await page.locator('.layout .account-menu-button').click();
+        await page.locator('.account-menu-popper .account-menu-signout').click();
         await page.waitForURL(u => u.href.startsWith(FE_URL) && !u.pathname.startsWith('/app'), {
             timeout: 15000
         });

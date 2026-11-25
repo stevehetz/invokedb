@@ -30,6 +30,28 @@ export default {
         document.body.classList.remove('nav-popper-hidden');
     },
 
+    computed: {
+        /** The account menu's avatar: the email's first letter. @returns {string} */
+        initial() {
+            const email = (this.account && this.account.email) || '';
+            return (email.trim()[0] || '?').toUpperCase();
+        },
+
+        /**
+         * The plan under the email in the account menu (docs/PRICING.md 3.2). Until Stripe
+         * (#129) the subscription ids map as on the backend (core/ai/ai-plan.ts).
+         * @returns {string}
+         */
+        plan_name() {
+            const id = String(
+                (this.account && this.account.subscription_id) || ''
+            ).toUpperCase();
+            if (/_(PLUS|PREMIUM)$/.test(id)) return 'Pro plan';
+            if (/_BASIC$/.test(id)) return 'Starter plan';
+            return 'Free plan';
+        }
+    },
+
     watch: {
         $route() {
             this.set_active();
@@ -92,6 +114,19 @@ export default {
 
         async contact() {
             window.open('/contact', '_blank');
+        },
+
+        /** An item of the account menu. @param {string} command */
+        account_command(command) {
+            if (command === 'settings') this.$router.push('/app/account');
+            else if (command === 'api-keys') {
+                this.$router.push({
+                    path: '/app/account',
+                    query: { section: 'api-keys' }
+                });
+            } else if (command === 'contact') this.contact();
+            else if (command === 'help') window.open('/help', '_blank');
+            else if (command === 'logout') this.logout();
         },
 
         async logout() {

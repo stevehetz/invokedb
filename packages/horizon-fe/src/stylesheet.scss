@@ -278,6 +278,83 @@ p {
 .layout > .header .header-link *::selection {
     background-color: transparent;
 }
+// The account menu at the top right: the avatar (the email's initial), the email and a caret;
+// highlighted while the Account page is open
+.layout > .header .right {
+    align-items: center;
+}
+.layout > .header .account-menu {
+    height: 100%;
+}
+.layout > .header .account-menu-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 100%;
+    margin-right: 6px;
+    padding: 0 10px;
+    color: #a7a7a7;
+    font: inherit;
+    background: none;
+    border: 0;
+    border-bottom: solid 2px transparent;
+    cursor: pointer;
+}
+.layout > .header .account-menu-button:hover,
+.layout > .header .account-menu-button:focus-visible {
+    color: #ffffff;
+    outline: none;
+}
+.layout > .header .account-menu-button.active {
+    color: #ffffff;
+    border-bottom-color: #ffffff;
+}
+.layout > .header .account-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    background-color: #696fe4;
+    border-radius: 50%;
+}
+.layout > .header .account-email {
+    max-width: 220px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.layout > .header .account-caret {
+    font-size: 11px;
+}
+@media (max-width: 700px) {
+    .layout > .header .account-email {
+        display: none;
+    }
+}
+.account-menu-popper .account-menu-head {
+    padding: 10px 16px 8px;
+    max-width: 260px;
+}
+.account-menu-popper .account-menu-email {
+    overflow: hidden;
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.account-menu-popper .account-menu-plan {
+    margin-top: 2px;
+    color: #8b8b8b;
+    font-size: 12px;
+}
+.account-menu-popper .el-dropdown-menu__item i {
+    width: 18px;
+    margin-right: 6px;
+    text-align: center;
+}
 // "Confirm your email" banner for an unverified account (#132)
 .layout > .verify-email-banner {
     display: flex;

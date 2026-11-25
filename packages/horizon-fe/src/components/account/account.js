@@ -35,6 +35,25 @@ export default {
             this.account = account;
         });
         // Making a key here ticks the onboarding checklist's key step (#138, #143)
+        this.show_section();
+    },
+
+    watch: {
+        // The account menu's "API keys" opens this page at that section, also when already here
+        '$route.query.section'() {
+            this.show_section();
+        }
+    },
+
+    methods: {
+        show_section() {
+            if (this.$route.query.section !== 'api-keys') return;
+            this.$nextTick(() => {
+                const el = this.$el.querySelector('.api-key-form');
+                if (el)
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
     },
 
     beforeUnmount() {

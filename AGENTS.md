@@ -352,7 +352,11 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `POST /ai/table/preview` and `POST /ai/table` make a table from a description like a template.
   Rows count against the month's row allowance (Free 50) when asked of the model, used or not;
   rows never asked for are handed back. The smoke stubs answer structured-output requests with
-  rows made from the schema. Ask points to Generate rows when a question asks to add rows.
+  rows made from the schema. There is one AI button on the grid, **Ask AI** (#234): its model
+  has two tools, `run_query` and `propose_rows`; the second calls `AiService.preview_rows` and
+  the answer carries `proposed: { rows, columns }`, which the dialog's "Add to table" hands to
+  the grid's `preview_generated_rows` (review, then Save). The `generate-rows` route stays for
+  the API.
 - Email verification (#132): `account.email_verified` (migration marks every older account
   verified; Google/GitHub accounts are created verified). `src/core/email-verification/` has the
   rules; links are rows of `email_verification` (24 hours, one per account). `create-account`

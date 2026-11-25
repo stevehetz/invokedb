@@ -1,8 +1,10 @@
 <div class="ask-dialog">
     <p class="ask-intro">
-        Ask a question about <b>{{ table_name }}</b> in plain English. AI turns
-        it into an API query, which only reads the table, and shows the answer,
-        the rows behind it and the API call that returns them.
+        Ask about <b>{{ table_name }}</b> in plain English, or ask for new rows.
+        A question becomes an API query that only reads the table: you see the
+        answer, the rows behind it and the API call. Rows you ask for are made
+        up to fit the columns and shown here first; nothing is saved until you
+        add them and click Save.
     </p>
 
     <div class="ask-row">
@@ -11,7 +13,7 @@
             class="ask-question"
             v-model="question"
             :maxlength="max_length"
-            placeholder="e.g. Which 5 orders were the largest last month?"
+            placeholder="e.g. Which 5 orders were the largest last month? or: Add 10 sample orders"
             @keyup.enter="ask"
         />
         <el-button
@@ -25,11 +27,14 @@
         >
     </div>
     <div class="ask-usage" v-if="usage && unverified">
-        Verify your email address to ask questions about your data.
+        Verify your email address to use AI on your data.
     </div>
     <div class="ask-usage" v-else-if="usage">
-        {{ usage.used }} of {{ usage.limit }} questions used this month
-        <span v-if="used_up"
+        This month: {{ usage.used }} of {{ usage.limit }} questions<span
+            v-if="rows_usage"
+            >, {{ rows_usage.used }} of {{ rows_usage.limit }} AI rows</span
+        >
+        used<span v-if="used_up"
             >. Your plan's AI allowance is used up until next month.</span
         >
     </div>
@@ -39,11 +44,49 @@
 
     <div class="ask-result" v-if="result && !asking">
         <div class="ask-answer">{{ result.answer }}</div>
-        <div class="ask-hint" v-if="write_hint && props.on_generate">
-            Ask only reads the table. To add rows, use
-            <el-button link type="primary" @click="open_generate"
-                >Generate rows</el-button
-            >.
+
+        <div v-if="proposed">
+            <h4>
+                New rows
+                <span class="ask-count"
+                    >{{ proposed.rows.length }} to review</span
+                >
+            </h4>
+            <div class="ask-rows">
+                <table>
+                    <thead>
+                        <tr>
+                            <th v-for="c in proposed.columns" :key="c.field">
+                                {{ c.name }}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            class="ask-proposed-row"
+                            v-for="(r, i) in proposed.rows"
+                            :key="i"
+                        >
+                            <td v-for="c in proposed.columns" :key="c.field">
+                                {{ cell_text(r[c.field]) }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="ask-actions">
+                <el-button
+                    class="ask-add-rows"
+                    type="primary"
+                    size="small"
+                    @click="add_rows"
+                    >Add to table</el-button
+                >
+                <span class="ask-hint"
+                    >They show in the grid as new rows: edit or delete any, then
+                    Save.</span
+                >
+            </div>
         </div>
 
         <div v-if="result.api_call">

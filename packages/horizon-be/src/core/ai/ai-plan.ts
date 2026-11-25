@@ -4,6 +4,12 @@
 // tokens each call used, and the whole server has a monthly budget on top
 // (HORIZON_AI_MONTHLY_BUDGET_USD). Money is kept in micro-dollars (integers) so sums don't drift.
 
+// What the AI routes answer when AI is off (503), paused for the month (503), or the
+// account's email isn't verified (403)
+export const AI_OFF_MESSAGE = 'AI features are not set up on this server';
+export const AI_PAUSED_MESSAGE = 'AI features are paused until next month';
+export const AI_UNVERIFIED_MESSAGE = 'Verify your email address to use the AI features';
+
 // The model every tier uses. HORIZON_AI_MODEL overrides it.
 export const DEFAULT_AI_MODEL = 'claude-haiku-5-5';
 

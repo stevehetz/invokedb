@@ -189,18 +189,8 @@
                     </div>
                     <div class="ask-data-button" v-if="ai_available">
                         <el-button link @click="ask_btn_clicked">
-                            <i class="fa fa-comment-dots"></i>
-                            <span>Ask</span>
-                        </el-button>
-                    </div>
-                    <div class="generate-rows-button" v-if="ai_available">
-                        <el-button
-                            link
-                            @click="generate_rows_btn_clicked"
-                            :disabled="table_lock || edit_column_mode || other_view"
-                        >
                             <i class="fa fa-wand-magic-sparkles"></i>
-                            <span>Generate rows</span>
+                            <span>Ask AI</span>
                         </el-button>
                     </div>
                 </div>

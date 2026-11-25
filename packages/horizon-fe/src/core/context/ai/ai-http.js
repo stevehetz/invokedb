@@ -46,17 +46,6 @@ export const ai_http = {
     },
 
     /**
-     * Rows for a table, not saved: `{ rows (keyed by field), columns, usage }`.
-     * @param {number} file_id @param {{ prompt: string, count: number }} body
-     */
-    async generate_rows(file_id, body) {
-        return http.post(
-            http.get_url(`/ai/web-file/${file_id}/generate-rows`),
-            body
-        );
-    },
-
-    /**
      * A new table's design and rows, not saved: `{ table_name, columns, rows, usage }`.
      * @param {{ description: string, row_count: number }} body
      */

@@ -1153,35 +1153,26 @@ try {
             results.observed.kanban_columns.join() === 'Done,In progress,To do',
             `the board's columns are ${results.observed.kanban_columns}`
         );
-        // By hand rather than dragTo: its single move after mousedown starts the drag, but
-        // Chromium may not send `dragover` to the column before mouseup, and the board only
-        // accepts a drop after a dragover, so dragTo sometimes dropped nothing. Several moves,
-        // then wait for the column to show it's the drop target before letting go.
-        // Earlier steps can leave the tab pane scrolled sideways, with the first column (Done)
-        // clipped under the sidebar, so bring both into view before measuring them.
+        // The drag's events are dispatched on the card and the column (sharing one
+        // DataTransfer) rather than made with the mouse: against production, Playwright's mouse
+        // drag (dragTo, and by hand with several moves) never started a drag on the card, so
+        // the Done column got no dragover and nothing was dropped, though the board was in view
+        // and unlocked. This still runs the board's own dragstart, dragover and drop handlers.
         const card = column('In progress').locator('.kanban-card', {
             hasText: 'Write the launch post'
         });
-        await column('Done').scrollIntoViewIfNeeded();
-        await card.scrollIntoViewIfNeeded();
-        const card_box = await card.boundingBox();
-        const done_box = await column('Done').boundingBox();
-        check(card_box && done_box, 'the card or the Done column has no box');
-        const centre = b => [b.x + b.width / 2, b.y + b.height / 2];
-        await page.mouse.move(...centre(card_box));
-        await page.mouse.down();
-        await page.mouse.move(card_box.x + card_box.width / 2 + 10, card_box.y + 10, {
-            steps: 2
-        });
-        await page.mouse.move(...centre(done_box), { steps: 5 });
-        await page.mouse.move(done_box.x + done_box.width / 2 + 5, done_box.y + 20, {
-            steps: 2
-        });
+        const data_transfer = await page.evaluateHandle(() => new DataTransfer());
+        await card.dispatchEvent('dragstart', { dataTransfer: data_transfer });
+        await column('Done').dispatchEvent('dragenter', { dataTransfer: data_transfer });
+        await column('Done').dispatchEvent('dragover', { dataTransfer: data_transfer });
         await grid().locator('.kanban-column.drop-target[data-value="Done"]').waitFor();
-        await page.mouse.up();
-        await column('Done')
-            .locator('.kanban-card', { hasText: 'Write the launch post' })
-            .waitFor();
+        await column('Done').dispatchEvent('drop', { dataTransfer: data_transfer });
+        const moved_card = column('Done').locator('.kanban-card', {
+            hasText: 'Write the launch post'
+        });
+        await moved_card.waitFor();
+        await moved_card.dispatchEvent('dragend', { dataTransfer: data_transfer });
+        await data_transfer.dispose();
         const end = Date.now() + 10000;
         let moved;
         while (Date.now() < end) {

@@ -1,0 +1,156 @@
+<div class="webhooks-dialog">
+    <p class="webhooks-intro">
+        Your app gets a signed <code>POST</code> when rows of
+        <b>{{ props.file.name }}</b> are created, updated or deleted, from this
+        app or the API. Check the <code>InvokeDB-Signature</code> header (<code
+            >t=&lt;unix time&gt;,v1=&lt;hex&gt;</code
+        >: an HMAC-SHA256 of <code>&lt;t&gt;.&lt;body&gt;</code> with the
+        webhook's secret) and refuse a <code>t</code> more than 5 minutes old. A
+        delivery that doesn't get a 2xx answer is retried for about 7 hours.
+    </p>
+
+    <div class="webhooks-status" v-if="loading">Loading webhooks...</div>
+    <div class="webhooks-status error" v-if="error">{{ error }}</div>
+
+    <div class="webhooks-add">
+        <h4>Add a webhook</h4>
+        <div class="webhooks-row">
+            <input
+                class="webhooks-url"
+                v-model="new_url"
+                placeholder="https://example.com/invokedb-webhook"
+                @keyup.enter="add_webhook"
+            />
+        </div>
+        <div class="webhooks-row webhooks-events">
+            <label v-for="e in events" :key="e">
+                <input type="checkbox" :value="e" v-model="new_events" />
+                {{ e }}
+            </label>
+            <label class="webhooks-all-tables">
+                <input type="checkbox" v-model="new_all_tables" />
+                Every table
+            </label>
+        </div>
+        <el-button
+            class="webhooks-add-button"
+            type="primary"
+            size="small"
+            :loading="adding"
+            :disabled="!can_add"
+            @click="add_webhook"
+            >Add webhook</el-button
+        >
+    </div>
+
+    <div class="webhooks-empty" v-if="!loading && webhooks.length === 0">
+        No webhooks for this table yet.
+    </div>
+
+    <div
+        v-for="hook in webhooks"
+        :key="hook.id"
+        :class="['webhook', { disabled: !hook.enabled }]"
+    >
+        <div class="webhook-head">
+            <span class="webhook-url" :title="hook.url">{{ hook.url }}</span>
+            <span class="webhook-scope"
+                >{{ hook.file_id === null ? 'every table' : 'this table'
+                }}</span
+            >
+            <span
+                v-if="hook.last_delivery_status"
+                :class="['webhook-last', hook.last_delivery_status]"
+                >last: {{ hook.last_delivery_status }}</span
+            >
+        </div>
+        <div class="webhook-events">
+            <code v-for="e in hook.events" :key="e">{{ e }}</code>
+        </div>
+        <div class="webhook-secret">
+            <label>Secret</label>
+            <input
+                readonly
+                :value="shown_secret === hook.id ? hook.secret : '•'.repeat(24)"
+            />
+            <span
+                class="webhook-link no-highlight"
+                @click="
+                    shown_secret = shown_secret === hook.id ? null : hook.id
+                "
+                >{{ shown_secret === hook.id ? 'Hide' : 'Show' }}</span
+            >
+            <span class="webhook-link no-highlight" @click="copy_secret(hook)"
+                ><i class="fa fa-copy"></i> {{ copied === hook.id ? 'copied!' :
+                'Copy' }}</span
+            >
+        </div>
+        <div class="webhook-actions">
+            <el-button
+                size="small"
+                @click="send_test(hook)"
+                :loading="busy === hook.id + ':test'"
+                >Send test event</el-button
+            >
+            <el-button size="small" @click="toggle_enabled(hook)"
+                >{{ hook.enabled ? 'Disable' : 'Enable' }}</el-button
+            >
+            <el-button size="small" @click="toggle_log(hook)"
+                >{{ open_log === hook.id ? 'Hide deliveries' : 'Deliveries'
+                }}</el-button
+            >
+            <el-button size="small" type="danger" plain @click="remove(hook)"
+                >Delete</el-button
+            >
+        </div>
+
+        <div class="webhook-log" v-if="open_log === hook.id">
+            <div class="webhook-log-head">
+                <span>Newest first (kept for 7 days)</span>
+                <span class="webhook-link no-highlight" @click="load_log(hook)"
+                    ><i class="fa fa-sync"></i> Refresh</span
+                >
+            </div>
+            <div class="webhooks-status" v-if="log_loading">Loading...</div>
+            <div class="webhooks-empty" v-else-if="log.length === 0">
+                No deliveries yet.
+            </div>
+            <div class="webhook-delivery" v-for="d in log" :key="d.id">
+                <div
+                    class="webhook-delivery-head"
+                    @click="open_delivery = open_delivery === d.id ? null : d.id"
+                >
+                    <span :class="['webhook-delivery-status', d.status]"
+                        >{{ d.status }}</span
+                    >
+                    <code>{{ d.event }}</code>
+                    <span>{{ d.rows }} row{{ d.rows === 1 ? '' : 's' }}</span>
+                    <span
+                        >{{ d.attempts }} attempt{{ d.attempts === 1 ? '' : 's'
+                        }}</span
+                    >
+                    <span class="webhook-delivery-time"
+                        >{{ format_time(d.created_at) }}</span
+                    >
+                </div>
+                <div
+                    class="webhook-delivery-body"
+                    v-if="open_delivery === d.id"
+                >
+                    <div v-if="d.next_attempt_at && d.status === 'pending'">
+                        Next attempt: {{ format_time(d.next_attempt_at) }}
+                    </div>
+                    <table class="webhook-attempts" v-if="d.attempt_log.length">
+                        <tr v-for="(a, i) in d.attempt_log" :key="i">
+                            <td>{{ format_time(a.at) }}</td>
+                            <td>{{ a.status || '-' }}</td>
+                            <td>{{ a.ms }} ms</td>
+                            <td>{{ a.error || a.response || '' }}</td>
+                        </tr>
+                    </table>
+                    <pre class="webhook-payload">{{ pretty(d.payload) }}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -4,7 +4,7 @@
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
 // render the public site's pages, log in, check the onboarding checklist, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
-// open the table's API docs and "Try it" on Get, read the API key from the account page and call /api/v1 with it, make (and delete) a table
+// open the table's API docs and "Try it" on Get, add / test / disable / delete a webhook, read the API key from the account page and call /api/v1 with it, make (and delete) a table
 // from a template and one from a URL (a CSV on GitHub, so it needs internet), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
 //
 // URLs come from the same env vars the apps use, so load an env file first. Best run against
@@ -139,7 +139,9 @@ async function step(name, fn) {
         results.steps[name] = `FAIL: ${ex.message.split('\n')[0]}`;
         const shot = path.join(SHOT_DIR, `${name}.png`);
         // Masked: in CI the screenshot is a public artifact
-        const mask = page ? [page.locator('input[type=password], .api-key-form input')] : [];
+        const mask = page
+            ? [page.locator('input[type=password], .api-key-form input, .webhook-secret input')]
+            : [];
         if (page) await page.screenshot({ path: shot, mask }).catch(() => {});
         console.log(`FAIL ${name}\n      ${ex.message.split('\n').slice(0, 6).join('\n      ')}`);
         console.log(`      screenshot: ${shot}`);
@@ -602,6 +604,81 @@ try {
         check(
             await dialog.getByRole('button', { name: 'Send request' }).isDisabled(),
             'Try it on Delete is enabled without "Allow requests that change data"'
+        );
+        await page.locator('.container-dialog .el-dialog__headerbtn').click();
+        await dialog.waitFor({ state: 'detached' });
+    });
+
+    // Webhooks (#140): a private URL is refused; one added for this table shows its secret,
+    // sends a test event (it appears in its delivery log), is disabled and then deleted. Its URL
+    // is on example.com, so only that the test event was queued and logged is checked, not
+    // that example.com accepted it. Deleting the table would remove it too.
+    await step('table_webhooks', async () => {
+        await grid().locator('.webhooks-button button').click();
+        const dialog = page.locator('.container-dialog .webhooks-dialog');
+        await dialog.locator('.webhooks-add').waitFor();
+        await dialog
+            .locator('.webhooks-status', { hasText: 'Loading' })
+            .waitFor({ state: 'detached' });
+        check((await dialog.locator('.webhook').count()) === 0, 'the table already has webhooks');
+        const url_input = dialog.locator('.webhooks-url');
+        const add = dialog.getByRole('button', { name: 'Add webhook' });
+        await url_input.fill('http://127.0.0.1/hook');
+        await add.click();
+        const error = dialog.locator('.webhooks-status.error');
+        await error.waitFor();
+        results.observed.webhook_private_error = (await error.innerText()).trim();
+        check(
+            /private or internal/.test(results.observed.webhook_private_error),
+            `a loopback webhook URL showed "${results.observed.webhook_private_error}"`
+        );
+        check((await dialog.locator('.webhook').count()) === 0, 'a loopback webhook was added');
+
+        await url_input.fill('https://example.com/invokedb-ui-smoke');
+        await add.click();
+        const hook = dialog.locator('.webhook');
+        await hook.waitFor();
+        check(
+            /^whsec_/.test(await hook.locator('.webhook-secret input').inputValue()),
+            "the new webhook doesn't show its secret"
+        );
+        const listed = await be('GET', `/webhook?table=${file_id}`, { token: be_s.token });
+        const saved = (listed.webhooks || []).filter(h => h.file_id === file_id);
+        check(
+            saved.length === 1 && saved[0].enabled && saved[0].events.length === 3,
+            `the backend has ${JSON.stringify(saved)}`
+        );
+        results.observed.webhook_events = saved[0] && saved[0].events;
+
+        await hook.getByRole('button', { name: 'Send test event', exact: true }).click();
+        const delivery = hook.locator('.webhook-delivery');
+        await delivery.first().waitFor();
+        results.observed.webhook_test_event = (
+            await delivery.first().locator('code').innerText()
+        ).trim();
+        check(
+            results.observed.webhook_test_event === 'ping',
+            `the delivery log shows "${results.observed.webhook_test_event}"`
+        );
+
+        await hook.getByRole('button', { name: 'Disable', exact: true }).click();
+        await hook.getByRole('button', { name: 'Enable', exact: true }).waitFor();
+        const off = await be('GET', `/webhook?table=${file_id}`, { token: be_s.token });
+        check(
+            (off.webhooks || []).some(h => h.id === saved[0].id && h.enabled === false),
+            'Disable did not disable the webhook'
+        );
+
+        await hook.getByRole('button', { name: 'Delete', exact: true }).click();
+        await page
+            .locator('.confirm-dialog .el-dialog')
+            .getByRole('button', { name: 'Confirm' })
+            .click();
+        await hook.waitFor({ state: 'detached' });
+        const gone = await be('GET', `/webhook?table=${file_id}`, { token: be_s.token });
+        check(
+            !(gone.webhooks || []).some(h => h.id === saved[0].id),
+            'the deleted webhook is still in the backend'
         );
         await page.locator('.container-dialog .el-dialog__headerbtn').click();
         await dialog.waitFor({ state: 'detached' });

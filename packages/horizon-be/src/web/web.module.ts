@@ -14,6 +14,7 @@ import { TableTemplateController } from './http/table-template/table-template.co
 import { OnboardingController } from './http/onboarding/onboarding.controller';
 import { OnboardingInterceptor } from './http/external/onboarding.interceptor';
 import { UrlImportController } from './http/url-import/url-import.controller';
+import { WebhookController } from './http/webhook/webhook.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
@@ -32,7 +33,8 @@ import { WebsocketClient } from './ws/websocket-client';
         HealthController,
         TableTemplateController,
         OnboardingController,
-        UrlImportController
+        UrlImportController,
+        WebhookController
     ],
     providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor]
 })

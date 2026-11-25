@@ -8,10 +8,14 @@
 // (#139; Python only if python3 is installed), checks /api/v1/query and /count (#141: filters,
 // sort, fields, cursor paging, index use, 400s), imports tables from a CSV and a JSON URL (#144:
 // refused private/loopback URLs, replace and upsert re-syncs, a failed sync, demo2 locked out;
-// the URLs are this repo's files on GitHub, so it needs internet), then deletes the tables. Writes every response to out.json
+// the URLs are this repo's files on GitHub, so it needs internet), checks webhooks on row changes
+// (#140: a receiver on 127.0.0.1:8199, allowed by smoke-env.sh's HORIZON_WEBHOOK_TEST_HOSTS,
+// checks signatures; refused private URLs, a retry, demo2 locked out), then deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
+import http from 'node:http';
+import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8001';
@@ -1084,6 +1088,403 @@ if (has_python) {
         out.startsWith('200 ')
     );
 }
+
+// Webhooks on row changes (#140). A receiver on 127.0.0.1:8199 (smoke-env.sh's
+// HORIZON_WEBHOOK_TEST_HOSTS lets the backend call it, and nothing else on a private address)
+// checks every delivery's signature and timestamp. Private and loopback URLs are a 400; row
+// changes through the app and /api/v1 are delivered; a failed attempt is retried and logged;
+// a disabled webhook sends nothing; demo2 can't see, use or change demo's webhooks.
+const HOOK_HOST = '127.0.0.1:8199';
+const hook_received = [];
+let hook_fail_next = 0;
+const receiver = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', c => (body += c));
+    req.on('end', () => {
+        hook_received.push({ path: req.url, headers: req.headers, body, at: Date.now() });
+        if (hook_fail_next > 0) {
+            hook_fail_next--;
+            res.statusCode = 500;
+            res.end('try again');
+            return;
+        }
+        res.end('ok');
+    });
+});
+const receiver_up = await new Promise(resolve => {
+    receiver.once('error', err => resolve(err));
+    receiver.listen(8199, '127.0.0.1', () => resolve(true));
+});
+check('webhook_receiver_listening', receiver_up === true, String(receiver_up));
+
+// What a receiver does: HMAC-SHA256 of "<t>.<body>", and refuse a timestamp over 5 minutes off
+function verify_hook(secret, body, header, now_sec = Math.floor(Date.now() / 1000)) {
+    const parts = Object.fromEntries(
+        String(header || '')
+            .split(',')
+            .map(p => p.split('='))
+    );
+    const t = Number(parts.t);
+    if (!Number.isInteger(t) || Math.abs(now_sec - t) > 300 || !parts.v1) return false;
+    const expected = crypto.createHmac('sha256', secret).update(`${t}.${body}`).digest('hex');
+    const given = Buffer.from(parts.v1, 'hex');
+    return given.length === 32 && crypto.timingSafeEqual(given, Buffer.from(expected, 'hex'));
+}
+
+// Waits for a delivery to `path` that matches; answers it with its parsed payload
+async function hook_delivery(name, path, match, timeout_ms = 20000) {
+    const deadline = Date.now() + timeout_ms;
+    for (;;) {
+        const found = hook_received.find(d => {
+            if (d.path !== path) return false;
+            try {
+                return match(JSON.parse(d.body), d);
+            } catch {
+                return false;
+            }
+        });
+        if (found || Date.now() > deadline) {
+            check(
+                name,
+                !!found,
+                hook_received.map(d => d.path + ' ' + d.body.slice(0, 80))
+            );
+            return found ? { ...found, payload: JSON.parse(found.body) } : null;
+        }
+        await sleep(250);
+    }
+}
+
+const hooks_before = await call('webhook_list_before', 'GET', '/webhook', { token });
+const hook_count_before = hooks_before?.webhooks?.length;
+const refused_hook_urls = {
+    loopback: 'http://127.0.0.1/hook',
+    loopback_other_port: 'http://127.0.0.1:8198/hook',
+    localhost: `http://localhost:8199/hook`,
+    private_10: 'http://10.0.0.1/hook',
+    private_192: 'http://192.168.0.10/hook',
+    metadata: 'http://169.254.169.254/latest/meta-data',
+    ipv6_loopback: 'http://[::1]/hook',
+    internal_name: 'https://db.internal/hook',
+    not_http: 'ftp://example.com/hook'
+};
+for (const [name, url] of Object.entries(refused_hook_urls)) {
+    await call(`webhook_refused_${name}`, 'POST', '/webhook', {
+        token,
+        body: { url, events: ['row.created'], file_id },
+        expectFail: true
+    });
+    check(
+        `webhook_refused_${name}_is_400`,
+        results[`webhook_refused_${name}`].status === 400,
+        results[`webhook_refused_${name}`]
+    );
+}
+await call('webhook_bad_events', 'POST', '/webhook', {
+    token,
+    body: { url: `http://${HOOK_HOST}/a`, events: ['row.exploded'], file_id },
+    expectFail: true
+});
+await call('webhook_no_events', 'POST', '/webhook', {
+    token,
+    body: { url: `http://${HOOK_HOST}/a`, events: [], file_id },
+    expectFail: true
+});
+const hooks_after_refused = await call('webhook_list_after_refused', 'GET', '/webhook', { token });
+check(
+    'webhook_refused_made_nothing',
+    typeof hook_count_before === 'number' &&
+        hooks_after_refused?.webhooks?.length === hook_count_before,
+    hooks_after_refused
+);
+
+// Hook A: this table, every event. Hook B: every table, deletes only.
+const hook_a = await call('webhook_create_table', 'POST', '/webhook', {
+    token,
+    body: {
+        url: `http://${HOOK_HOST}/a`,
+        events: ['row.created', 'row.updated', 'row.deleted'],
+        file_id
+    }
+});
+const hook_b = await call('webhook_create_all_tables', 'POST', '/webhook', {
+    token,
+    body: { url: `http://${HOOK_HOST}/b`, events: ['row.deleted'], file_id: null }
+});
+check(
+    'webhook_created',
+    hook_a?.file_id === file_id &&
+        hook_a?.enabled === true &&
+        /^whsec_/.test(hook_a?.secret || '') &&
+        hook_b?.file_id === null &&
+        hook_a?.secret !== hook_b?.secret,
+    { hook_a, hook_b }
+);
+const table_hooks = await call('webhook_list_table', 'GET', `/webhook?table=${file_id}`, {
+    token
+});
+check(
+    'webhook_list_table_has_both',
+    [hook_a?.id, hook_b?.id].every(id => table_hooks?.webhooks?.some(h => h.id === id)),
+    table_hooks
+);
+
+// "Send test event"
+await call('webhook_test', 'POST', `/webhook/${hook_a?.id}/test`, { token });
+const ping = await hook_delivery('webhook_test_delivered', '/a', p => p.event === 'ping');
+check(
+    'webhook_test_signed',
+    !!ping &&
+        verify_hook(hook_a.secret, ping.body, ping.headers['invokedb-signature']) &&
+        ping.headers['invokedb-event'] === 'ping' &&
+        ping.headers['invokedb-delivery'] === ping.payload.id &&
+        ping.payload.table?.id === file_id,
+    ping && { headers: ping.headers, payload: ping.payload }
+);
+// The receiver's check isn't a rubber stamp: another body, secret or an old timestamp fail
+check(
+    'webhook_signature_check_rejects_tampering',
+    !!ping &&
+        !verify_hook(hook_a.secret, ping.body + ' ', ping.headers['invokedb-signature']) &&
+        !verify_hook(hook_b.secret, ping.body, ping.headers['invokedb-signature']) &&
+        !verify_hook(
+            hook_a.secret,
+            ping.body,
+            ping.headers['invokedb-signature'],
+            Math.floor(Date.now() / 1000) + 600
+        )
+);
+
+// Changes through the app (session routes)
+await call('webhook_ui_create', 'POST', `/web-file/batch_create/data_grid_row/${file_id}`, {
+    token,
+    body: [{ a: 'hook_ui', b: 61 }]
+});
+const ui_created = await hook_delivery(
+    'webhook_ui_created_delivered',
+    '/a',
+    p => p.event === 'row.created' && p.rows?.[0]?.name === 'hook_ui'
+);
+const ui_row_id = ui_created?.payload.rows[0]._id;
+check(
+    'webhook_ui_created_payload',
+    ui_created?.payload.rows[0].age === 61 && ui_created?.payload.table?.name === 'smoke_people',
+    ui_created?.payload
+);
+await call('webhook_ui_batch_update', 'PUT', `/web-file/batch_update/data_grid_row/${file_id}`, {
+    token,
+    body: [{ _id: ui_row_id, b: 62 }]
+});
+await hook_delivery(
+    'webhook_ui_batch_updated_delivered',
+    '/a',
+    p => p.event === 'row.updated' && p.rows?.[0]?._id === ui_row_id && p.rows[0].age === 62
+);
+await call('webhook_ui_update', 'PUT', `/web-file/${ui_row_id}/data_grid_row/${file_id}`, {
+    token,
+    body: { _id: ui_row_id, b: 63 }
+});
+await hook_delivery(
+    'webhook_ui_updated_delivered',
+    '/a',
+    p => p.event === 'row.updated' && p.rows?.[0]?._id === ui_row_id && p.rows[0].age === 63
+);
+await call('webhook_ui_delete', 'POST', `/web-file/batch_delete/data_grid_row/${file_id}`, {
+    token,
+    body: [ui_row_id]
+});
+for (const path of ['/a', '/b']) {
+    await hook_delivery(
+        `webhook_ui_deleted_delivered${path.replace('/', '_')}`,
+        path,
+        p => p.event === 'row.deleted' && p.rows?.some(r => r._id === ui_row_id)
+    );
+}
+
+// Changes through /api/v1
+await call('webhook_ext_create', 'POST', '/api/v1/create?table=smoke_people', {
+    token: key,
+    body: [{ name: 'hook_api', age: 71 }]
+});
+const api_created = await hook_delivery(
+    'webhook_ext_created_delivered',
+    '/a',
+    p => p.event === 'row.created' && p.rows?.[0]?.name === 'hook_api'
+);
+const api_row_id = api_created?.payload.rows[0]._id;
+await call('webhook_ext_update', 'PUT', '/api/v1/update?table=smoke_people', {
+    token: key,
+    body: [{ _id: api_row_id, age: 72 }]
+});
+await hook_delivery(
+    'webhook_ext_updated_delivered',
+    '/a',
+    p => p.event === 'row.updated' && p.rows?.[0]?._id === api_row_id && p.rows[0].age === 72
+);
+await call('webhook_ext_delete', 'POST', '/api/v1/delete?table=smoke_people', {
+    token: key,
+    body: [api_row_id]
+});
+for (const path of ['/a', '/b']) {
+    await hook_delivery(
+        `webhook_ext_deleted_delivered${path.replace('/', '_')}`,
+        path,
+        p => p.event === 'row.deleted' && p.rows?.some(r => r._id === api_row_id)
+    );
+}
+// B only wants deletes
+check(
+    'webhook_events_filtered',
+    hook_received
+        .filter(d => d.path === '/b')
+        .every(d => JSON.parse(d.body).event === 'row.deleted')
+);
+// Every delivery carries a valid signature from its own webhook's secret
+const secret_of = { '/a': hook_a?.secret, '/b': hook_b?.secret };
+check(
+    'webhook_all_deliveries_signed',
+    hook_received.length > 0 &&
+        hook_received.every(d =>
+            verify_hook(secret_of[d.path], d.body, d.headers['invokedb-signature'])
+        ),
+    hook_received.length
+);
+
+// A failed attempt (HTTP 500) is retried, and both attempts are in the delivery log
+hook_fail_next = 1;
+const retried = await call('webhook_test_retry', 'POST', `/webhook/${hook_a?.id}/test`, { token });
+await hook_delivery(
+    'webhook_retry_delivered',
+    '/a',
+    (p, d) =>
+        p.id === retried?.id &&
+        hook_received.filter(x => x.path === '/a' && x.body === d.body).length >= 2,
+    40000
+);
+let retry_log;
+for (let i = 0; i < 20; i++) {
+    const log = await call('webhook_deliveries', 'GET', `/webhook/${hook_a?.id}/deliveries`, {
+        token
+    });
+    retry_log = (log?.deliveries || []).find(d => d.id === retried?.id);
+    if (retry_log?.status === 'ok') break;
+    await sleep(500);
+}
+check(
+    'webhook_retry_logged',
+    retry_log?.status === 'ok' &&
+        retry_log.attempts === 2 &&
+        retry_log.attempt_log?.[0]?.status === 500 &&
+        retry_log.attempt_log?.[1]?.status === 200 &&
+        retry_log.payload?.id === retried?.id,
+    retry_log
+);
+
+// Disabled, it sends nothing
+await call('webhook_disable', 'PUT', `/webhook/${hook_a?.id}`, {
+    token,
+    body: { enabled: false }
+});
+const sent_before_off = hook_received.filter(d => d.path === '/a').length;
+await call('webhook_off_create', 'POST', '/api/v1/create?table=smoke_people', {
+    token: key,
+    body: [{ name: 'hook_off', age: 1 }]
+});
+await sleep(5000);
+check(
+    'webhook_disabled_sends_nothing',
+    hook_received.filter(d => d.path === '/a').length === sent_before_off
+);
+const off_rows = await call('webhook_off_rows', 'POST', '/api/v1/query?table=smoke_people', {
+    token: key,
+    body: { filters: [{ column: 'name', op: 'eq', value: 'hook_off' }], fields: ['name'] }
+});
+const off_ids = (off_rows?.data || []).map(r => r._id);
+if (off_ids.length) {
+    await call('webhook_off_cleanup', 'POST', '/api/v1/delete?table=smoke_people', {
+        token: key,
+        body: off_ids
+    });
+}
+
+// demo2 can't see, use or change demo's webhooks, nor hook demo's table; an API key can't
+// manage webhooks
+const other2 = await call('webhook_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const otoken2 = other2.token;
+const other_hooks = await call('webhook_other_list', 'GET', '/webhook', { token: otoken2 });
+check(
+    'webhook_other_list_is_own',
+    Array.isArray(other_hooks?.webhooks) &&
+        !other_hooks.webhooks.some(h => h.id === hook_a?.id || h.id === hook_b?.id),
+    other_hooks
+);
+await call('webhook_other_list_table', 'GET', `/webhook?table=${file_id}`, {
+    token: otoken2,
+    expectFail: true
+});
+await call('webhook_other_create_on_table', 'POST', '/webhook', {
+    token: otoken2,
+    body: { url: `http://${HOOK_HOST}/x`, events: ['row.created'], file_id },
+    expectFail: true
+});
+await call('webhook_other_update', 'PUT', `/webhook/${hook_a?.id}`, {
+    token: otoken2,
+    body: { enabled: true, url: `http://${HOOK_HOST}/stolen` },
+    expectFail: true
+});
+await call('webhook_other_test', 'POST', `/webhook/${hook_a?.id}/test`, {
+    token: otoken2,
+    expectFail: true
+});
+await call('webhook_other_deliveries', 'GET', `/webhook/${hook_a?.id}/deliveries`, {
+    token: otoken2,
+    expectFail: true
+});
+await call('webhook_other_delete', 'DELETE', `/webhook/${hook_a?.id}`, {
+    token: otoken2,
+    expectFail: true
+});
+await call('webhook_api_key_list', 'GET', '/webhook', { token: key, expectFail: true });
+await call('webhook_api_key_create', 'POST', '/webhook', {
+    token: key,
+    body: { url: `http://${HOOK_HOST}/x`, events: ['row.created'], file_id },
+    expectFail: true
+});
+const hooks_after_other = await call('webhook_list_after_other', 'GET', '/webhook', { token });
+const a_after = hooks_after_other?.webhooks?.find(h => h.id === hook_a?.id);
+check(
+    'webhook_other_changed_nothing',
+    a_after?.enabled === false && a_after?.url === `http://${HOOK_HOST}/a`,
+    a_after
+);
+check(
+    'webhook_other_never_delivered',
+    !hook_received.some(d => d.path === '/x' || d.path === '/stolen')
+);
+await call('webhook_other_logout', 'GET', `/auth/logout?token=${otoken2}`);
+
+// Deleted, they're gone with their log
+await call('webhook_delete_a', 'DELETE', `/webhook/${hook_a?.id}`, { token });
+await call('webhook_delete_b', 'DELETE', `/webhook/${hook_b?.id}`, { token });
+await call('webhook_delete_again', 'DELETE', `/webhook/${hook_a?.id}`, {
+    token,
+    expectFail: true
+});
+await call('webhook_deliveries_after_delete', 'GET', `/webhook/${hook_a?.id}/deliveries`, {
+    token,
+    expectFail: true
+});
+const hooks_after_delete = await call('webhook_list_after_delete', 'GET', '/webhook', { token });
+check(
+    'webhook_deleted',
+    hooks_after_delete?.webhooks?.length === hook_count_before &&
+        !hooks_after_delete.webhooks.some(h => h.id === hook_a?.id || h.id === hook_b?.id),
+    hooks_after_delete
+);
+receiver.closeAllConnections();
+receiver.close();
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');
 if (nameCol) {

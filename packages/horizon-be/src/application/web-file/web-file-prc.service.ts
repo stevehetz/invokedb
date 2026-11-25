@@ -15,6 +15,8 @@ import { UrlSyncProcessor } from '@app/core/web-file/url-sync-processor';
 import { fetch_source } from '@app/core/url-import/url-fetch';
 import { body_to_csv, next_sync_at } from '@app/core/url-import/url-import';
 import { URL_JOB_EVENTS, UrlImportService } from '../url-import/url-import.service';
+import { AccountExportService } from '../account-export/account-export.service';
+import { EXPORT_JOB_EVENT } from '@app/core/account-export/account-export';
 
 const fs = require('fs');
 const path = require('path');
@@ -35,7 +37,8 @@ export class WebFilePrcService {
         private _collections: MongoDbCollections,
         private url_import_manager: UrlImportManager,
         private url_sync_processor: UrlSyncProcessor,
-        private url_import_svc: UrlImportService
+        private url_import_svc: UrlImportService,
+        private account_export_svc: AccountExportService
     ) {
         if (env.IS_HORIZON_PRC) {
             this._ws_client_store.on_direct_message(_c.HORIZON_PRC_WS_CLIENT_ID, async payload =>
@@ -156,7 +159,8 @@ export class WebFilePrcService {
             'FILE_UPLOAD',
             'COLUMN_UPDATE',
             URL_JOB_EVENTS.import,
-            URL_JOB_EVENTS.sync
+            URL_JOB_EVENTS.sync,
+            EXPORT_JOB_EVENT
         ];
 
         let job;
@@ -176,6 +180,8 @@ export class WebFilePrcService {
                     await this.url_import(job);
                 } else if (job.event === URL_JOB_EVENTS.sync) {
                     await this.url_sync(job);
+                } else if (job.event === EXPORT_JOB_EVENT) {
+                    await this.account_export_svc.run(job);
                 }
             } catch (ex) {
                 logger.error(`job ${job.id} failed: ${ex && ex.message}`);

@@ -394,6 +394,16 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   are fine), its API key is rejected and `authorize`/onboarding return it as null. Routes:
   `GET /auth/verify-email?token=`, `POST /auth/resend-verification` (session). The site's page is
   `/verify-email`; the app's banner is in `components/layout`.
+- Data export (#215): `src/core/account-export/` has the pure rules (`account-export.ts`: zip
+  paths, rows as CSV and JSON by column name, settings without webhook secrets, the 24-hour
+  link, a few exports a day), a streaming zip writer (`zip-writer.ts`, `zlib` only, no ZIP64)
+  and the store (`account-export.manager.ts`, `tracking:account_export`, filter on
+  `account_id`). `POST /account-export` queues an `ACCOUNT_EXPORT` job (Postgres `job`, no
+  `file_id`); `AccountExportService.run` in the processor streams every table from Mongo
+  into `$HORIZON_FILE_SHARE/exports/<id>.zip` and removes expired zips every 15 minutes.
+  `GET /account-export/:id/download` needs the owner's session (the app fetches it as a blob).
+  Deleting data isn't part of it. A local `api-smoke.mjs` run asks for an export, so more than
+  five runs a day on the same DBs hit the 429.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

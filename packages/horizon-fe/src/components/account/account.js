@@ -3,6 +3,7 @@ import SubscriptionForm from './subscription-form';
 import ApiKeyForm from './api-key-form';
 import AccountInfoForm from './account-info-form';
 import ChangePasswordForm from './change-password-form';
+import DataExportForm from './data-export-form';
 import DeleteAccountForm from './delete-account-form';
 import { store } from '@/store';
 
@@ -14,6 +15,7 @@ export default {
         ApiKeyForm,
         AccountInfoForm,
         ChangePasswordForm,
+        DataExportForm,
         DeleteAccountForm
     },
 

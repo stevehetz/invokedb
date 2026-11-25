@@ -944,6 +944,14 @@ try {
                 (await highlighted('is-active2')).join() === 'Account',
             `after the docs' account link the nav highlights ${JSON.stringify(results.observed.nav_active_after_docs_link)}`
         );
+        // Data export (#215) is offered on the same page. Only looked at: an export counts
+        // against the account's few a day, and this test also runs against production.
+        const export_button = page.locator('.data-export-form .data-export-request');
+        await export_button.waitFor();
+        check(
+            /^(Export my data|Export again)$/.test((await export_button.innerText()).trim()),
+            `the export button says ${await export_button.innerText()}`
+        );
         await form.locator('.api-key-new-button').click();
         await form.locator('.api-key-name input').fill('ui-smoke');
         await form.locator('.api-key-scope').getByText('Only these').click();

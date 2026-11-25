@@ -37,16 +37,14 @@
             </el-menu>
         </div>
         <div class="right">
-            <a
+            <router-link
                 class="header-link help-link"
-                href="/help"
-                target="_blank"
-                rel="noopener"
+                to="/help"
                 title="Help"
                 aria-label="Help"
             >
                 <i class="header-icon fa fa-circle-question"></i>
-            </a>
+            </router-link>
             <!-- The account menu: everything about the account, at the top right -->
             <el-dropdown
                 class="account-menu"
@@ -81,23 +79,10 @@
                             <i class="fa fa-cog"></i> Account settings
                         </el-dropdown-item>
                         <el-dropdown-item
-                            class="account-menu-api-keys"
-                            command="api-keys"
-                        >
-                            <i class="fa fa-key"></i> API keys
-                        </el-dropdown-item>
-                        <el-dropdown-item
                             class="account-menu-contact"
                             command="contact"
                         >
                             <i class="fa fa-envelope"></i> Contact support
-                        </el-dropdown-item>
-                        <el-dropdown-item
-                            class="account-menu-help"
-                            command="help"
-                        >
-                            <i class="fa fa-circle-question"></i> Help &amp;
-                            docs
                         </el-dropdown-item>
                         <el-dropdown-item
                             class="account-menu-signout"

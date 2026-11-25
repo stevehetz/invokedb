@@ -280,7 +280,6 @@ p {
     font: inherit;
     background: none;
     border: 0;
-    border-bottom: solid 2px transparent;
     cursor: pointer;
 }
 .layout > .header .account-menu-button:hover,
@@ -290,7 +289,6 @@ p {
 }
 .layout > .header .account-menu-button.active {
     color: #ffffff;
-    border-bottom-color: #ffffff;
 }
 .layout > .header .account-avatar {
     display: inline-flex;

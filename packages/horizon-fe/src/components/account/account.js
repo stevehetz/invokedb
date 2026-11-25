@@ -39,23 +39,18 @@ export default {
     },
 
     watch: {
-        // The account menu's "API keys" opens this page at that section, also when already here
+        // A plan_limit notice opens this page at the usage, also when already here (#183)
         '$route.query.section'() {
             this.show_section();
         }
     },
 
     methods: {
-        // ?section=api-keys (the account menu) or ?section=usage (a plan_limit notice, #183)
+        // ?section=usage (a plan_limit notice, #183)
         show_section() {
-            const sections = {
-                'api-keys': '.api-key-form',
-                usage: '.subscription-form'
-            };
-            const selector = sections[this.$route.query.section];
-            if (!selector) return;
+            if (this.$route.query.section !== 'usage') return;
             this.$nextTick(() => {
-                const el = this.$el.querySelector(selector);
+                const el = this.$el.querySelector('.subscription-form');
                 if (el)
                     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });

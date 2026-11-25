@@ -4,6 +4,7 @@ import h_tree from '@/components/h-tree';
 import doc_container from '@/components/doc-container';
 import onboarding from '@/components/onboarding';
 import AiTableDialog from './ai-table-dialog';
+import SchemaDiagram from './schema-diagram';
 import { store } from '@/store';
 import { bus } from '@/core/bus';
 import { error_manager as err_mgr } from '@/core/error/error-manager';
@@ -344,6 +345,17 @@ export default {
                     }
                 },
                 component: AiTableDialog
+            });
+        },
+
+        // The schema diagram (#208): every table and the links between them; clicking a
+        // table opens it (through `table:open`)
+        open_schema() {
+            this.$bus.$emit('container-dialog:open', {
+                title: 'Schema diagram',
+                dialog_class: 'wide',
+                props: {},
+                component: SchemaDiagram
             });
         },
 

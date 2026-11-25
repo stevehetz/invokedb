@@ -45,6 +45,11 @@ export const tree_manager = {
         );
     },
 
+    /** Every table with its columns and the links between them, laid out (#208). */
+    async get_schema() {
+        return await http.get(http.get_url(`/file-directory/schema`));
+    },
+
     async get_templates() {
         return await http.get(http.get_url(`/table-template`));
     },

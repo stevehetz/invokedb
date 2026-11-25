@@ -1,5 +1,10 @@
 <div class="dialog container-dialog">
-    <el-dialog :title="title" v-model="dialog_visible" @close="close_handler">
+    <el-dialog
+        :title="title"
+        v-model="dialog_visible"
+        :class="dialog_class"
+        @close="close_handler"
+    >
         <component ref="test" :is="child_component" :props="props"></component>
     </el-dialog>
 </div>

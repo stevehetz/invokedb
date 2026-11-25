@@ -39,6 +39,13 @@
                 </el-sub-menu>
             </el-menu>
             <div
+                class="schema-diagram-button"
+                title="Schema diagram"
+                @click="$emit('open_schema')"
+            >
+                <i class="fa fa-diagram-project"></i>
+            </div>
+            <div
                 class="manage-items"
                 v-bind:class="{ active: managed.length > 0}"
             >

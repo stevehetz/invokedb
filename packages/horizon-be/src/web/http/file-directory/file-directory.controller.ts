@@ -24,6 +24,13 @@ export class FileDirectoryController {
         return (await this.file_directory_service.get_all(account_id)) as FileDirectoryGetDto[];
     }
 
+    // Schema diagram (#208): every table with its columns and the links between them, laid out
+    @Get('schema')
+    async file_directory_schema(@Request() req) {
+        const account_id = session_account_id(req.user);
+        return await this.file_directory_service.schema_diagram(account_id);
+    }
+
     @Post()
     async file_directory_post(@Body() create_dto: FileDirectoryCreateDto, @Request() req) {
         const account_id = session_account_id(req.user);

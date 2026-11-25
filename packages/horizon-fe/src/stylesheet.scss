@@ -634,6 +634,16 @@ $nav_active_color: #ffffff;
 .h-tree .file-directory-menu .el-sub-menu__icon-arrow {
     display: none;
 }
+.h-tree .schema-diagram-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    width: 100%;
+    font-size: 18px;
+    color: #6bcbe8;
+    cursor: pointer;
+}
 .h-tree .manage-items {
     position: absolute;
     display: flex;
@@ -2937,6 +2947,126 @@ $nav_active_color: #ffffff;
 .container-dialog .el-dialog .el-dialog__body {
     height: calc(100% - 50px);
     overflow: auto;
+}
+.container-dialog .el-dialog.wide {
+    width: 94%;
+    max-width: 1500px;
+}
+
+// Schema diagram (#208)
+.schema-diagram {
+    color: $gray500;
+}
+.schema-diagram .schema-status {
+    padding: 20px 0;
+}
+.schema-diagram .schema-status.error {
+    color: #d4584f;
+}
+.schema-diagram .schema-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.schema-diagram .schema-legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+.schema-diagram .schema-key {
+    display: inline-block;
+    width: 26px;
+    border-top: 2px solid #257de0;
+    margin-left: 8px;
+}
+.schema-diagram .schema-key.suggested {
+    border-top: 2px dashed #e0a325;
+}
+.schema-diagram .schema-hint {
+    margin-left: 12px;
+    color: #888888;
+}
+.schema-diagram .schema-zoom {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.schema-diagram .schema-zoom .el-button + .el-button {
+    margin-left: 0;
+}
+.schema-diagram .schema-zoom-level {
+    min-width: 40px;
+    text-align: center;
+    font-size: 13px;
+}
+.schema-diagram .schema-canvas {
+    max-height: 65vh;
+    overflow: auto;
+    border: 1px solid #e6e6e6;
+    border-radius: 6px;
+    background-color: #fafafa;
+}
+.schema-diagram .schema-svg {
+    display: block;
+    font-family: inherit;
+}
+.schema-diagram .schema-edge {
+    fill: none;
+    stroke: #257de0;
+    stroke-width: 1.6;
+    opacity: 0.75;
+}
+.schema-diagram .schema-edge.suggested {
+    stroke: #e0a325;
+    stroke-dasharray: 6 4;
+}
+.schema-diagram .schema-edge.active {
+    stroke-width: 2.6;
+    opacity: 1;
+}
+.schema-diagram #schema-arrow path {
+    fill: #7a7a7a;
+}
+.schema-diagram .schema-table {
+    cursor: pointer;
+}
+.schema-diagram .schema-card {
+    fill: #ffffff;
+    stroke: #d0d0d0;
+}
+.schema-diagram .schema-table.active .schema-card {
+    stroke: #257de0;
+    stroke-width: 2;
+}
+.schema-diagram .schema-card-header {
+    fill: #353535;
+}
+.schema-diagram .schema-table-name {
+    fill: #ffffff;
+    font-size: 14px;
+    font-weight: bold;
+}
+.schema-diagram .schema-column-name {
+    fill: #191919;
+    font-size: 13px;
+}
+.schema-diagram .schema-column-type,
+.schema-diagram .schema-more {
+    fill: #888888;
+    font-size: 12px;
+}
+.schema-diagram .schema-column.link .schema-column-type {
+    fill: #257de0;
+}
+.schema-diagram .schema-suggestions h4 {
+    margin: 14px 0 4px;
+    color: $gray600;
+}
+.schema-diagram .schema-suggestions p {
+    margin: 0 0 4px;
 }
 
 .menu-dropdown-popper {

@@ -314,6 +314,11 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   link to them (owner's decision); so does a replace URL re-sync (every row of the table). Deleting
   the linked table empties those cells and turns the link columns into string columns (#175,
   `FileDirectoryService.clear_links_to_table`). Link columns are left out of forms.
+- Schema diagram (#208): `src/core/schema-diagram/` (pure) turns the account's tables and
+  columns into cards, link arrows and suggested links (a column named "<table> id"), laid out
+  on a grid in SVG units; `GET /file-directory/schema` (session only) answers it. The frontend
+  only draws it (`components/home/schema-diagram`, opened by the tree's diagram button) with the
+  same card geometry, so change both together.
 - API keys (#138): Postgres `api_key` (entity `core/api-key/api-key.entity.ts`, pure rules in
   `api-key-rules.ts`): several per account, each `read` or `read_write`, for every table
   (`table_ids` null) or some, revocable. `GET /api-key` deletes the account's keys revoked more

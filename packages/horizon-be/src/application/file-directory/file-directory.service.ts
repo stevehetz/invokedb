@@ -22,6 +22,7 @@ import {
     assert_verified,
     creating_needs_verified_email
 } from '@app/core/email-verification/email-verification';
+import { build_schema_diagram } from '@app/core/schema-diagram/schema-diagram';
 import _c from '@app/constants';
 import logger from '@app/logger';
 
@@ -46,6 +47,17 @@ export class FileDirectoryService {
 
     async get_by_account_id(account_id: number) {
         return await this.file_directory_repository.findBy({ account_id, deleted: false });
+    }
+
+    /** The account's tables, their columns and the links between them, laid out (#208). */
+    async schema_diagram(account_id: number) {
+        const files = (await this.get_by_account_id(account_id)) || [];
+        const input = [];
+        for (const table of files.filter(f => f.type === 'file')) {
+            const columns = await this.web_file_manager.get_columns(account_id, table.id);
+            input.push({ id: table.id, name: table.name, columns });
+        }
+        return build_schema_diagram(input);
     }
 
     async get_all(account_id) {

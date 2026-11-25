@@ -3,17 +3,26 @@
 // Logs in as demo@invokedb.com, uploads a small CSV as table "smoke_people", exercises the
 // grid + external /api/v1 endpoints, checks that demo2@invokedb.com can't reach demo's tables
 // or account, checks each account's onboarding checklist (#143: runs its curl command, ticks,
-// dismisses demo2's), makes tables from templates, reads the table's generated API docs and
-// OpenAPI spec and runs their curl, fetch and Python snippets (#139; Python only if python3 is
-// installed), checks /api/v1/query and /count (#141: filters, sort, fields, cursor paging,
-// index use, 400s), imports tables from a CSV and a JSON URL (#144: refused private/loopback
-// URLs, replace and upsert re-syncs, a failed sync, demo2 locked out; the URLs are this repo's
-// files on GitHub, so it needs internet), then deletes the tables. Then signs up a free account
-// and checks the plan caps (a template table counts against the table cap), a (locally signed)
-// Stripe webhook upgrade and a lapse to read-only. Writes every response to out.json
+// dismisses demo2's), makes tables from templates, reads the
+// table's generated API docs and OpenAPI spec and runs their curl, fetch and Python snippets
+// (#139; Python only if python3 is installed), checks /api/v1/query and /count (#141: filters,
+// sort, fields, cursor paging, index use, 400s), imports tables from a CSV and a JSON URL (#144:
+// refused private/loopback URLs, replace and upsert re-syncs, a failed sync, demo2 locked out;
+// the URLs are this repo's files on GitHub, so it needs internet), checks webhooks on row changes
+// (#140: a receiver on 127.0.0.1:8199, allowed by smoke-env.sh's HORIZON_WEBHOOK_TEST_HOSTS,
+// checks signatures; refused private URLs, a retry, demo2 locked out), checks shareable forms
+// (#145: public view and submissions, typed answers, honeypot, closing, the rate limit, deleted
+// forms and tables, demo2 locked out), checks saved views (#146: grid views saved, renamed and
+// deleted, a kanban board and a moved card, bar/pie/line charts, demo2 and API keys locked
+// out, a deleted table's views gone), checks link columns (#147: picker, grid labels, ids and
+// `expand` on /api/v1, bad links refused, deleted rows cleared from links, no links across
+// accounts), then deletes the tables. Then signs up a free account and checks the plan caps (a
+// template table counts against the table cap), a (locally signed) Stripe webhook upgrade and a
+// lapse to read-only. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
+import http from 'node:http';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
@@ -1070,6 +1079,1365 @@ if (has_python) {
         out.startsWith('200 ')
     );
 }
+
+// Webhooks on row changes (#140). A receiver on 127.0.0.1:8199 (smoke-env.sh's
+// HORIZON_WEBHOOK_TEST_HOSTS lets the backend call it, and nothing else on a private address)
+// checks every delivery's signature and timestamp. Private and loopback URLs are a 400; row
+// changes through the app and /api/v1 are delivered; a failed attempt is retried and logged;
+// a disabled webhook sends nothing; demo2 can't see, use or change demo's webhooks.
+const HOOK_HOST = '127.0.0.1:8199';
+const hook_received = [];
+let hook_fail_next = 0;
+const receiver = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', c => (body += c));
+    req.on('end', () => {
+        hook_received.push({ path: req.url, headers: req.headers, body, at: Date.now() });
+        if (hook_fail_next > 0) {
+            hook_fail_next--;
+            res.statusCode = 500;
+            res.end('try again');
+            return;
+        }
+        res.end('ok');
+    });
+});
+const receiver_up = await new Promise(resolve => {
+    receiver.once('error', err => resolve(err));
+    receiver.listen(8199, '127.0.0.1', () => resolve(true));
+});
+check('webhook_receiver_listening', receiver_up === true, String(receiver_up));
+
+// What a receiver does: HMAC-SHA256 of "<t>.<body>", and refuse a timestamp over 5 minutes off
+function verify_hook(secret, body, header, now_sec = Math.floor(Date.now() / 1000)) {
+    const parts = Object.fromEntries(
+        String(header || '')
+            .split(',')
+            .map(p => p.split('='))
+    );
+    const t = Number(parts.t);
+    if (!Number.isInteger(t) || Math.abs(now_sec - t) > 300 || !parts.v1) return false;
+    const expected = crypto.createHmac('sha256', secret).update(`${t}.${body}`).digest('hex');
+    const given = Buffer.from(parts.v1, 'hex');
+    return given.length === 32 && crypto.timingSafeEqual(given, Buffer.from(expected, 'hex'));
+}
+
+// Waits for a delivery to `path` that matches; answers it with its parsed payload
+async function hook_delivery(name, path, match, timeout_ms = 20000) {
+    const deadline = Date.now() + timeout_ms;
+    for (;;) {
+        const found = hook_received.find(d => {
+            if (d.path !== path) return false;
+            try {
+                return match(JSON.parse(d.body), d);
+            } catch {
+                return false;
+            }
+        });
+        if (found || Date.now() > deadline) {
+            check(
+                name,
+                !!found,
+                hook_received.map(d => d.path + ' ' + d.body.slice(0, 80))
+            );
+            return found ? { ...found, payload: JSON.parse(found.body) } : null;
+        }
+        await sleep(250);
+    }
+}
+
+const hooks_before = await call('webhook_list_before', 'GET', '/webhook', { token });
+const hook_count_before = hooks_before?.webhooks?.length;
+const refused_hook_urls = {
+    loopback: 'http://127.0.0.1/hook',
+    loopback_other_port: 'http://127.0.0.1:8198/hook',
+    localhost: `http://localhost:8199/hook`,
+    private_10: 'http://10.0.0.1/hook',
+    private_192: 'http://192.168.0.10/hook',
+    metadata: 'http://169.254.169.254/latest/meta-data',
+    ipv6_loopback: 'http://[::1]/hook',
+    internal_name: 'https://db.internal/hook',
+    not_http: 'ftp://example.com/hook'
+};
+for (const [name, url] of Object.entries(refused_hook_urls)) {
+    await call(`webhook_refused_${name}`, 'POST', '/webhook', {
+        token,
+        body: { url, events: ['row.created'], file_id },
+        expectFail: true
+    });
+    check(
+        `webhook_refused_${name}_is_400`,
+        results[`webhook_refused_${name}`].status === 400,
+        results[`webhook_refused_${name}`]
+    );
+}
+await call('webhook_bad_events', 'POST', '/webhook', {
+    token,
+    body: { url: `http://${HOOK_HOST}/a`, events: ['row.exploded'], file_id },
+    expectFail: true
+});
+await call('webhook_no_events', 'POST', '/webhook', {
+    token,
+    body: { url: `http://${HOOK_HOST}/a`, events: [], file_id },
+    expectFail: true
+});
+const hooks_after_refused = await call('webhook_list_after_refused', 'GET', '/webhook', { token });
+check(
+    'webhook_refused_made_nothing',
+    typeof hook_count_before === 'number' &&
+        hooks_after_refused?.webhooks?.length === hook_count_before,
+    hooks_after_refused
+);
+
+// Hook A: this table, every event. Hook B: every table, deletes only.
+const hook_a = await call('webhook_create_table', 'POST', '/webhook', {
+    token,
+    body: {
+        url: `http://${HOOK_HOST}/a`,
+        events: ['row.created', 'row.updated', 'row.deleted'],
+        file_id
+    }
+});
+const hook_b = await call('webhook_create_all_tables', 'POST', '/webhook', {
+    token,
+    body: { url: `http://${HOOK_HOST}/b`, events: ['row.deleted'], file_id: null }
+});
+check(
+    'webhook_created',
+    hook_a?.file_id === file_id &&
+        hook_a?.enabled === true &&
+        /^whsec_/.test(hook_a?.secret || '') &&
+        hook_b?.file_id === null &&
+        hook_a?.secret !== hook_b?.secret,
+    { hook_a, hook_b }
+);
+const table_hooks = await call('webhook_list_table', 'GET', `/webhook?table=${file_id}`, {
+    token
+});
+check(
+    'webhook_list_table_has_both',
+    [hook_a?.id, hook_b?.id].every(id => table_hooks?.webhooks?.some(h => h.id === id)),
+    table_hooks
+);
+
+// "Send test event"
+await call('webhook_test', 'POST', `/webhook/${hook_a?.id}/test`, { token });
+const ping = await hook_delivery('webhook_test_delivered', '/a', p => p.event === 'ping');
+check(
+    'webhook_test_signed',
+    !!ping &&
+        verify_hook(hook_a.secret, ping.body, ping.headers['invokedb-signature']) &&
+        ping.headers['invokedb-event'] === 'ping' &&
+        ping.headers['invokedb-delivery'] === ping.payload.id &&
+        ping.payload.table?.id === file_id,
+    ping && { headers: ping.headers, payload: ping.payload }
+);
+// The receiver's check isn't a rubber stamp: another body, secret or an old timestamp fail
+check(
+    'webhook_signature_check_rejects_tampering',
+    !!ping &&
+        !verify_hook(hook_a.secret, ping.body + ' ', ping.headers['invokedb-signature']) &&
+        !verify_hook(hook_b.secret, ping.body, ping.headers['invokedb-signature']) &&
+        !verify_hook(
+            hook_a.secret,
+            ping.body,
+            ping.headers['invokedb-signature'],
+            Math.floor(Date.now() / 1000) + 600
+        )
+);
+
+// Changes through the app (session routes)
+await call('webhook_ui_create', 'POST', `/web-file/batch_create/data_grid_row/${file_id}`, {
+    token,
+    body: [{ a: 'hook_ui', b: 61 }]
+});
+const ui_created = await hook_delivery(
+    'webhook_ui_created_delivered',
+    '/a',
+    p => p.event === 'row.created' && p.rows?.[0]?.name === 'hook_ui'
+);
+const ui_row_id = ui_created?.payload.rows[0]._id;
+check(
+    'webhook_ui_created_payload',
+    ui_created?.payload.rows[0].age === 61 && ui_created?.payload.table?.name === 'smoke_people',
+    ui_created?.payload
+);
+await call('webhook_ui_batch_update', 'PUT', `/web-file/batch_update/data_grid_row/${file_id}`, {
+    token,
+    body: [{ _id: ui_row_id, b: 62 }]
+});
+await hook_delivery(
+    'webhook_ui_batch_updated_delivered',
+    '/a',
+    p => p.event === 'row.updated' && p.rows?.[0]?._id === ui_row_id && p.rows[0].age === 62
+);
+await call('webhook_ui_update', 'PUT', `/web-file/${ui_row_id}/data_grid_row/${file_id}`, {
+    token,
+    body: { _id: ui_row_id, b: 63 }
+});
+await hook_delivery(
+    'webhook_ui_updated_delivered',
+    '/a',
+    p => p.event === 'row.updated' && p.rows?.[0]?._id === ui_row_id && p.rows[0].age === 63
+);
+await call('webhook_ui_delete', 'POST', `/web-file/batch_delete/data_grid_row/${file_id}`, {
+    token,
+    body: [ui_row_id]
+});
+for (const path of ['/a', '/b']) {
+    await hook_delivery(
+        `webhook_ui_deleted_delivered${path.replace('/', '_')}`,
+        path,
+        p => p.event === 'row.deleted' && p.rows?.some(r => r._id === ui_row_id)
+    );
+}
+
+// Changes through /api/v1
+await call('webhook_ext_create', 'POST', '/api/v1/create?table=smoke_people', {
+    token: key,
+    body: [{ name: 'hook_api', age: 71 }]
+});
+const api_created = await hook_delivery(
+    'webhook_ext_created_delivered',
+    '/a',
+    p => p.event === 'row.created' && p.rows?.[0]?.name === 'hook_api'
+);
+const api_row_id = api_created?.payload.rows[0]._id;
+await call('webhook_ext_update', 'PUT', '/api/v1/update?table=smoke_people', {
+    token: key,
+    body: [{ _id: api_row_id, age: 72 }]
+});
+await hook_delivery(
+    'webhook_ext_updated_delivered',
+    '/a',
+    p => p.event === 'row.updated' && p.rows?.[0]?._id === api_row_id && p.rows[0].age === 72
+);
+await call('webhook_ext_delete', 'POST', '/api/v1/delete?table=smoke_people', {
+    token: key,
+    body: [api_row_id]
+});
+for (const path of ['/a', '/b']) {
+    await hook_delivery(
+        `webhook_ext_deleted_delivered${path.replace('/', '_')}`,
+        path,
+        p => p.event === 'row.deleted' && p.rows?.some(r => r._id === api_row_id)
+    );
+}
+// B only wants deletes
+check(
+    'webhook_events_filtered',
+    hook_received
+        .filter(d => d.path === '/b')
+        .every(d => JSON.parse(d.body).event === 'row.deleted')
+);
+// Every delivery carries a valid signature from its own webhook's secret
+const secret_of = { '/a': hook_a?.secret, '/b': hook_b?.secret };
+check(
+    'webhook_all_deliveries_signed',
+    hook_received.length > 0 &&
+        hook_received.every(d =>
+            verify_hook(secret_of[d.path], d.body, d.headers['invokedb-signature'])
+        ),
+    hook_received.length
+);
+
+// A failed attempt (HTTP 500) is retried, and both attempts are in the delivery log
+hook_fail_next = 1;
+const retried = await call('webhook_test_retry', 'POST', `/webhook/${hook_a?.id}/test`, { token });
+await hook_delivery(
+    'webhook_retry_delivered',
+    '/a',
+    (p, d) =>
+        p.id === retried?.id &&
+        hook_received.filter(x => x.path === '/a' && x.body === d.body).length >= 2,
+    40000
+);
+let retry_log;
+for (let i = 0; i < 20; i++) {
+    const log = await call('webhook_deliveries', 'GET', `/webhook/${hook_a?.id}/deliveries`, {
+        token
+    });
+    retry_log = (log?.deliveries || []).find(d => d.id === retried?.id);
+    if (retry_log?.status === 'ok') break;
+    await sleep(500);
+}
+check(
+    'webhook_retry_logged',
+    retry_log?.status === 'ok' &&
+        retry_log.attempts === 2 &&
+        retry_log.attempt_log?.[0]?.status === 500 &&
+        retry_log.attempt_log?.[1]?.status === 200 &&
+        retry_log.payload?.id === retried?.id,
+    retry_log
+);
+
+// Disabled, it sends nothing
+await call('webhook_disable', 'PUT', `/webhook/${hook_a?.id}`, {
+    token,
+    body: { enabled: false }
+});
+const sent_before_off = hook_received.filter(d => d.path === '/a').length;
+await call('webhook_off_create', 'POST', '/api/v1/create?table=smoke_people', {
+    token: key,
+    body: [{ name: 'hook_off', age: 1 }]
+});
+await sleep(5000);
+check(
+    'webhook_disabled_sends_nothing',
+    hook_received.filter(d => d.path === '/a').length === sent_before_off
+);
+const off_rows = await call('webhook_off_rows', 'POST', '/api/v1/query?table=smoke_people', {
+    token: key,
+    body: { filters: [{ column: 'name', op: 'eq', value: 'hook_off' }], fields: ['name'] }
+});
+const off_ids = (off_rows?.data || []).map(r => r._id);
+if (off_ids.length) {
+    await call('webhook_off_cleanup', 'POST', '/api/v1/delete?table=smoke_people', {
+        token: key,
+        body: off_ids
+    });
+}
+
+// demo2 can't see, use or change demo's webhooks, nor hook demo's table; an API key can't
+// manage webhooks
+const other2 = await call('webhook_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const otoken2 = other2.token;
+const other_hooks = await call('webhook_other_list', 'GET', '/webhook', { token: otoken2 });
+check(
+    'webhook_other_list_is_own',
+    Array.isArray(other_hooks?.webhooks) &&
+        !other_hooks.webhooks.some(h => h.id === hook_a?.id || h.id === hook_b?.id),
+    other_hooks
+);
+await call('webhook_other_list_table', 'GET', `/webhook?table=${file_id}`, {
+    token: otoken2,
+    expectFail: true
+});
+await call('webhook_other_create_on_table', 'POST', '/webhook', {
+    token: otoken2,
+    body: { url: `http://${HOOK_HOST}/x`, events: ['row.created'], file_id },
+    expectFail: true
+});
+await call('webhook_other_update', 'PUT', `/webhook/${hook_a?.id}`, {
+    token: otoken2,
+    body: { enabled: true, url: `http://${HOOK_HOST}/stolen` },
+    expectFail: true
+});
+await call('webhook_other_test', 'POST', `/webhook/${hook_a?.id}/test`, {
+    token: otoken2,
+    expectFail: true
+});
+await call('webhook_other_deliveries', 'GET', `/webhook/${hook_a?.id}/deliveries`, {
+    token: otoken2,
+    expectFail: true
+});
+await call('webhook_other_delete', 'DELETE', `/webhook/${hook_a?.id}`, {
+    token: otoken2,
+    expectFail: true
+});
+await call('webhook_api_key_list', 'GET', '/webhook', { token: key, expectFail: true });
+await call('webhook_api_key_create', 'POST', '/webhook', {
+    token: key,
+    body: { url: `http://${HOOK_HOST}/x`, events: ['row.created'], file_id },
+    expectFail: true
+});
+const hooks_after_other = await call('webhook_list_after_other', 'GET', '/webhook', { token });
+const a_after = hooks_after_other?.webhooks?.find(h => h.id === hook_a?.id);
+check(
+    'webhook_other_changed_nothing',
+    a_after?.enabled === false && a_after?.url === `http://${HOOK_HOST}/a`,
+    a_after
+);
+check(
+    'webhook_other_never_delivered',
+    !hook_received.some(d => d.path === '/x' || d.path === '/stolen')
+);
+await call('webhook_other_logout', 'GET', `/auth/logout?token=${otoken2}`);
+
+// Deleted, they're gone with their log
+await call('webhook_delete_a', 'DELETE', `/webhook/${hook_a?.id}`, { token });
+await call('webhook_delete_b', 'DELETE', `/webhook/${hook_b?.id}`, { token });
+await call('webhook_delete_again', 'DELETE', `/webhook/${hook_a?.id}`, {
+    token,
+    expectFail: true
+});
+await call('webhook_deliveries_after_delete', 'GET', `/webhook/${hook_a?.id}/deliveries`, {
+    token,
+    expectFail: true
+});
+const hooks_after_delete = await call('webhook_list_after_delete', 'GET', '/webhook', { token });
+check(
+    'webhook_deleted',
+    hooks_after_delete?.webhooks?.length === hook_count_before &&
+        !hooks_after_delete.webhooks.some(h => h.id === hook_a?.id || h.id === hook_b?.id),
+    hooks_after_delete
+);
+receiver.closeAllConnections();
+receiver.close();
+
+// Shareable forms (#145), on a table made from the waitlist template. The public link shows the
+// questions with their column types; a submission is checked against them and becomes a row; a
+// filled honeypot adds nothing; a closed, deleted or table-deleted form's link stops working;
+// submissions are rate-limited per IP; demo2 can't see, change or delete demo's forms, nor put
+// one on demo's table; an API key can't manage forms.
+const form_table = await call('form_table_create', 'POST', '/table-template/waitlist', {
+    token,
+    body: { name: 'smoke_form_waitlist' }
+});
+const form_cols = await call(
+    'form_table_cols',
+    'POST',
+    `/web-file/data_grid_column/${form_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const form_col = name => (form_cols.data || []).find(c => c.headerName === name)?.field;
+const [f_email, f_name, f_position, f_joined, f_status] = [
+    'Email',
+    'Name',
+    'Position',
+    'Joined',
+    'Status'
+].map(form_col);
+check('form_table_columns', !!(f_email && f_name && f_position && f_joined && f_status), form_cols);
+const form_rows = async name =>
+    (
+        await call(name, 'POST', `/web-file/data_grid_row/${form_table}?skip=0&limit=100`, {
+            token,
+            body: {}
+        })
+    )?.data || [];
+const form_rows_before = await form_rows('form_rows_before');
+
+const form_body = {
+    file_id: form_table,
+    title: 'Join the smoke waitlist',
+    description: 'A form from api-smoke.mjs',
+    fields: [
+        { field: f_email, required: true, label: 'Your email' },
+        { field: f_name },
+        { field: f_position, help: 'Any number' },
+        { field: f_joined }
+    ],
+    thank_you: 'Thanks, smoke!',
+    redirect_url: 'https://example.com/thanks'
+};
+const bad_forms = {
+    form_create_no_fields: { ...form_body, fields: [] },
+    form_create_unknown_column: { ...form_body, fields: [{ field: 'zz' }] },
+    form_create_repeated_column: { ...form_body, fields: [{ field: f_email }, { field: f_email }] },
+    form_create_no_title: { ...form_body, title: ' ' },
+    form_create_js_redirect: { ...form_body, redirect_url: 'javascript:alert(1)' },
+    form_create_unknown_setting: { ...form_body, account_id: me.id },
+    form_create_no_table: { ...form_body, file_id: undefined }
+};
+for (const [name, body] of Object.entries(bad_forms)) {
+    await call(name, 'POST', '/form', { token, body, expectFail: true });
+}
+check(
+    'form_create_bad_is_400',
+    Object.keys(bad_forms).every(n => results[n]?.status === 400),
+    Object.keys(bad_forms).map(n => [n, results[n]?.status])
+);
+const sform = await call('form_create', 'POST', '/form', { token, body: form_body });
+check(
+    'form_created',
+    /^form_[0-9a-f]{24}$/.test(sform?.id || '') &&
+        sform.open === true &&
+        sform.file_id === form_table &&
+        sform.submissions === 0 &&
+        !('account_id' in sform),
+    sform
+);
+const sform_list = await call('form_list_table', 'GET', `/form?table=${form_table}`, { token });
+check(
+    'form_listed',
+    Array.isArray(sform_list?.forms) && sform_list.forms.some(f => f.id === sform?.id),
+    sform_list
+);
+await call('form_get', 'GET', `/form/${sform?.id}`, { token });
+
+// The public link: no token
+const PUB = `/public/form/${sform?.id}`;
+const pub_view = await call('form_public_view', 'GET', PUB);
+check(
+    'form_public_view_types',
+    JSON.stringify((pub_view?.fields || []).map(f => [f.key, f.label, f.type, f.required])) ===
+        JSON.stringify([
+            [f_email, 'Your email', 'string', true],
+            [f_name, 'Name', 'string', false],
+            [f_position, 'Position', 'number', false],
+            [f_joined, 'Joined', 'date', false]
+        ]) &&
+        pub_view.title === form_body.title &&
+        pub_view.honeypot === 'website',
+    pub_view
+);
+check(
+    'form_public_view_hides_owner',
+    pub_view &&
+        !('file_id' in pub_view) &&
+        !('account_id' in pub_view) &&
+        !('thank_you' in pub_view),
+    pub_view
+);
+
+const submitted = await call('form_submit', 'POST', `${PUB}/submit`, {
+    body: {
+        values: {
+            [f_email]: 'smoke-form@example.com',
+            [f_name]: 'Smoke Form',
+            [f_position]: '42',
+            [f_joined]: '2026-11-25'
+        },
+        website: ''
+    }
+});
+check(
+    'form_submit_answer',
+    submitted?.ok === true &&
+        submitted.thank_you === 'Thanks, smoke!' &&
+        submitted.redirect_url === 'https://example.com/thanks',
+    submitted
+);
+const rows_after_submit = await form_rows('form_rows_after_submit');
+const submitted_row = rows_after_submit.find(r => r[f_email] === 'smoke-form@example.com');
+check(
+    'form_submit_added_row',
+    rows_after_submit.length === form_rows_before.length + 1 &&
+        submitted_row?.[f_name] === 'Smoke Form' &&
+        submitted_row?.[f_position] === 42 &&
+        String(submitted_row?.[f_joined]).startsWith('2026-11-25') &&
+        (submitted_row?.[f_status] ?? null) === null,
+    submitted_row
+);
+
+// Wrong answers: a 400 with each field's message, and no row
+await call('form_submit_invalid', 'POST', `${PUB}/submit`, {
+    body: { values: { [f_email]: '', [f_position]: 'lots', [f_joined]: 'someday' } },
+    expectFail: true
+});
+const invalid = results.form_submit_invalid;
+check(
+    'form_submit_invalid_fields',
+    invalid?.status === 400 &&
+        invalid.data?.errors?.[f_email] === 'This field is required' &&
+        invalid.data?.errors?.[f_position] === 'Enter a number' &&
+        invalid.data?.errors?.[f_joined] === 'Enter a date',
+    invalid
+);
+await call('form_submit_other_column', 'POST', `${PUB}/submit`, {
+    body: { values: { [f_email]: 'x@example.com', [f_status]: 'Invited' } },
+    expectFail: true
+});
+check('form_submit_other_column_400', results.form_submit_other_column?.status === 400);
+// The honeypot: answered like a submission, but nothing is added
+const spam = await call('form_submit_honeypot', 'POST', `${PUB}/submit`, {
+    body: { values: { [f_email]: 'bot@example.com' }, website: 'http://spam.example' }
+});
+check('form_submit_honeypot_ok', spam?.ok === true, spam);
+const rows_after_bad = await form_rows('form_rows_after_bad');
+check(
+    'form_submit_bad_added_nothing',
+    rows_after_bad.length === rows_after_submit.length &&
+        !rows_after_bad.some(
+            r => r[f_email] === 'bot@example.com' || r[f_email] === 'x@example.com'
+        ),
+    rows_after_bad.length
+);
+const sform_after = await call('form_get_after_submit', 'GET', `/form/${sform?.id}`, { token });
+check('form_submission_counted', sform_after?.submissions === 1, sform_after);
+
+// demo2 can't see, change, close or delete demo's form, nor put one on demo's table; an API
+// key can't manage forms. The public link is public, so that's all it can do.
+const form_other = await call('form_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const ftoken2 = form_other.token;
+const other_forms = await call('form_other_list', 'GET', '/form', { token: ftoken2 });
+check(
+    'form_other_list_is_own',
+    Array.isArray(other_forms?.forms) && !other_forms.forms.some(f => f.id === sform?.id),
+    other_forms
+);
+await call('form_other_list_table', 'GET', `/form?table=${form_table}`, {
+    token: ftoken2,
+    expectFail: true
+});
+await call('form_other_get', 'GET', `/form/${sform?.id}`, { token: ftoken2, expectFail: true });
+await call('form_other_update', 'PUT', `/form/${sform?.id}`, {
+    token: ftoken2,
+    body: { open: false, title: 'stolen' },
+    expectFail: true
+});
+await call('form_other_delete', 'DELETE', `/form/${sform?.id}`, {
+    token: ftoken2,
+    expectFail: true
+});
+await call('form_other_create_on_table', 'POST', '/form', {
+    token: ftoken2,
+    body: { ...form_body, title: 'theirs' },
+    expectFail: true
+});
+await call('form_api_key_list', 'GET', '/form', { token: key, expectFail: true });
+await call('form_api_key_create', 'POST', '/form', {
+    token: key,
+    body: form_body,
+    expectFail: true
+});
+await call('form_unauth_list', 'GET', '/form', { expectFail: true });
+const sform_after_other = await call('form_get_after_other', 'GET', `/form/${sform?.id}`, {
+    token
+});
+check(
+    'form_other_changed_nothing',
+    sform_after_other?.open === true && sform_after_other?.title === form_body.title,
+    sform_after_other
+);
+const forms_after_other = await call('form_list_after_other', 'GET', '/form', { token });
+check(
+    'form_other_created_nothing',
+    Array.isArray(forms_after_other?.forms) &&
+        !forms_after_other.forms.some(f => f.title === 'theirs'),
+    forms_after_other
+);
+await call('form_other_logout', 'GET', `/auth/logout?token=${ftoken2}`);
+
+// Closed: the link answers 410 and takes nothing; opened again, it works
+const closed = await call('form_close', 'PUT', `/form/${sform?.id}`, {
+    token,
+    body: { open: false }
+});
+check('form_closed', closed?.open === false, closed);
+await call('form_public_closed', 'GET', PUB, { expectFail: true });
+await call('form_submit_closed', 'POST', `${PUB}/submit`, {
+    body: { values: { [f_email]: 'closed@example.com' } },
+    expectFail: true
+});
+check(
+    'form_closed_is_410',
+    results.form_public_closed?.status === 410 && results.form_submit_closed?.status === 410,
+    [results.form_public_closed, results.form_submit_closed]
+);
+await call('form_reopen', 'PUT', `/form/${sform?.id}`, { token, body: { open: true } });
+await call('form_public_reopened', 'GET', PUB);
+
+// Rate limit: 10 submissions per IP per form in 10 minutes, the refused ones included. The
+// ones above used 5, so 5 more are refused for their answers (400) and the next one is a 429.
+// The counters are in memory, so a backend restart resets them.
+const form_statuses = [];
+for (let i = 0; i < 12; i++) {
+    const res = await fetch(`${BASE}${PUB}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: { [f_email]: '' } })
+    });
+    form_statuses.push(res.status);
+    if (res.status === 429) break;
+}
+results.form_rate_limit_statuses = form_statuses;
+check(
+    'form_submit_rate_limited',
+    form_statuses.at(-1) === 429 && form_statuses.slice(0, -1).every(s => s === 400),
+    form_statuses
+);
+
+// Deleted: the link is a 404
+await call('form_delete', 'DELETE', `/form/${sform?.id}`, { token });
+await call('form_delete_again', 'DELETE', `/form/${sform?.id}`, { token, expectFail: true });
+await call('form_public_deleted', 'GET', PUB, { expectFail: true });
+check('form_deleted_is_404', results.form_public_deleted?.status === 404);
+
+// A form on a table that's then deleted: its link is a 404 and the form is gone
+const sform2 = await call('form_create_second', 'POST', '/form', {
+    token,
+    body: { ...form_body, title: 'Second smoke form' }
+});
+await call('form_public_second', 'GET', `/public/form/${sform2?.id}`);
+await call('form_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [form_table] }
+});
+await call('form_public_table_deleted', 'GET', `/public/form/${sform2?.id}`, { expectFail: true });
+check('form_table_deleted_is_404', results.form_public_table_deleted?.status === 404);
+await call('form_get_table_deleted', 'GET', `/form/${sform2?.id}`, { token, expectFail: true });
+await call('form_public_unknown', 'GET', '/public/form/form_000000000000000000000000', {
+    expectFail: true
+});
+
+// Saved views (#146), on a table made from the tasks template (Status: In progress, To do,
+// Done, To do; Owner: Sam, Ana, Sam, Kai; Estimate Hours: 4, 2, 0.5, 1). A grid view keeps
+// filters, sort and hidden columns and can be renamed and deleted; a kanban view groups rows by
+// a column, and moving a card is a row update; a chart view counts or sums per value. demo2
+// can't see, use, change or delete demo's views, nor put one on demo's table; an API key can't
+// use them; deleting the table deletes its views.
+const view_table = await call('view_table_create', 'POST', '/table-template/tasks', {
+    token,
+    body: { name: 'smoke_view_tasks' }
+});
+const view_cols = await call(
+    'view_table_cols',
+    'POST',
+    `/web-file/data_grid_column/${view_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const view_col = name => (view_cols.data || []).find(c => c.headerName === name)?.field;
+const [v_task, v_owner, v_status, v_hours, v_due] = [
+    'Task',
+    'Owner',
+    'Status',
+    'Estimate Hours',
+    'Due'
+].map(view_col);
+check('view_table_columns', !!(v_task && v_owner && v_status && v_hours && v_due), view_cols);
+
+const grid_view_body = {
+    file_id: view_table,
+    name: 'Sam smoke',
+    type: 'grid',
+    filters: [{ field: v_owner, type: 'equals', value: 'Sam' }],
+    sort: { field: v_hours, dir: 'desc' },
+    hidden_fields: [v_due]
+};
+const bad_views = {
+    view_create_no_name: { ...grid_view_body, name: ' ' },
+    view_create_unknown_column: {
+        ...grid_view_body,
+        filters: [{ field: 'zz', type: 'equals', value: 'x' }]
+    },
+    view_create_bad_filter_type: {
+        ...grid_view_body,
+        filters: [{ field: v_owner, type: 'lessThan', value: 'x' }]
+    },
+    view_create_bad_number: {
+        ...grid_view_body,
+        filters: [{ field: v_hours, type: 'equals', value: 'lots' }]
+    },
+    view_create_hide_all: {
+        ...grid_view_body,
+        hidden_fields: [v_task, v_owner, view_col('Priority'), v_status, v_hours, v_due]
+    },
+    view_create_unknown_setting: { ...grid_view_body, account_id: me.id },
+    view_create_bad_type: { ...grid_view_body, type: 'calendar' },
+    view_create_kanban_no_group: { ...grid_view_body, type: 'kanban' },
+    view_create_kanban_date: { ...grid_view_body, type: 'kanban', kanban: { group_field: v_due } },
+    view_create_chart_sum_no_value: {
+        ...grid_view_body,
+        type: 'chart',
+        chart: { kind: 'bar', group_field: v_status, agg: 'sum' }
+    },
+    view_create_no_table: { ...grid_view_body, file_id: undefined }
+};
+for (const [name, body] of Object.entries(bad_views)) {
+    await call(name, 'POST', '/view', { token, body, expectFail: true });
+}
+check(
+    'view_create_bad_is_400',
+    Object.keys(bad_views).every(n => results[n]?.status === 400),
+    Object.keys(bad_views).map(n => [n, results[n]?.status])
+);
+
+const gview = await call('view_create_grid', 'POST', '/view', { token, body: grid_view_body });
+check(
+    'view_grid_created',
+    /^view_[0-9a-f]{24}$/.test(gview?.id || '') &&
+        gview.type === 'grid' &&
+        gview.file_id === view_table &&
+        gview.filters?.[0]?.value === 'Sam' &&
+        gview.sort?.dir === 'desc' &&
+        gview.hidden_fields?.[0] === v_due &&
+        !('account_id' in gview),
+    gview
+);
+const view_list = await call('view_list', 'GET', `/view?table=${view_table}`, { token });
+check(
+    'view_listed',
+    Array.isArray(view_list?.views) &&
+        view_list.views.some(v => v.id === gview?.id) &&
+        (view_list.columns || []).some(c => c.field === v_status),
+    view_list
+);
+const renamed = await call('view_rename', 'PUT', `/view/${gview?.id}`, {
+    token,
+    body: { name: 'Sam renamed' }
+});
+check('view_renamed', renamed?.name === 'Sam renamed' && renamed?.filters?.length === 1, renamed);
+const refiltered = await call('view_update_filters', 'PUT', `/view/${gview?.id}`, {
+    token,
+    body: { filters: [{ field: v_hours, type: 'greaterThanOrEqual', value: '1' }], sort: null }
+});
+check(
+    'view_filters_updated',
+    refiltered?.filters?.[0]?.field === v_hours && refiltered?.sort === null,
+    refiltered
+);
+await call('view_change_table', 'PUT', `/view/${gview?.id}`, {
+    token,
+    body: { file_id: file_id },
+    expectFail: true
+});
+await call('view_kanban_of_grid', 'GET', `/view/${gview?.id}/kanban`, {
+    token,
+    expectFail: true
+});
+
+// Kanban: a column per Status value, then only Sam's cards
+const kview = await call('view_create_kanban', 'POST', '/view', {
+    token,
+    body: {
+        file_id: view_table,
+        name: 'Board smoke',
+        type: 'kanban',
+        kanban: { group_field: v_status },
+        sort: { field: v_hours, dir: 'asc' }
+    }
+});
+const board_counts = board =>
+    Object.fromEntries((board?.groups || []).map(g => [g.value, g.count]));
+const board = await call('view_kanban', 'GET', `/view/${kview?.id}/kanban`, { token });
+const todo = (board?.groups || []).find(g => g.value === 'To do');
+check(
+    'view_kanban_groups',
+    board?.group_field === v_status &&
+        JSON.stringify(board_counts(board)) ===
+            JSON.stringify({ Done: 1, 'In progress': 1, 'To do': 2 }) &&
+        todo?.rows?.length === 2 &&
+        todo.rows[0][v_hours] === 1 &&
+        todo.rows[1][v_hours] === 2,
+    board
+);
+await call('view_kanban_filter', 'PUT', `/view/${kview?.id}`, {
+    token,
+    body: { filters: [{ field: v_owner, type: 'equals', value: 'Sam' }] }
+});
+const sam_board = await call('view_kanban_filtered', 'GET', `/view/${kview?.id}/kanban`, {
+    token
+});
+check(
+    'view_kanban_filtered',
+    JSON.stringify(board_counts(sam_board)) === JSON.stringify({ Done: 1, 'In progress': 1 }),
+    sam_board
+);
+// Dragging the In progress card to Done is a row update
+const moving = (sam_board?.groups || []).find(g => g.value === 'In progress')?.rows?.[0];
+await call('view_kanban_move', 'PUT', `/web-file/${moving?._id}/data_grid_row/${view_table}`, {
+    token,
+    body: { _id: moving?._id, [v_status]: 'Done' }
+});
+const moved_board = await call('view_kanban_moved', 'GET', `/view/${kview?.id}/kanban`, {
+    token
+});
+check(
+    'view_kanban_moved',
+    JSON.stringify(board_counts(moved_board)) === JSON.stringify({ Done: 2 }) &&
+        (moved_board?.groups?.[0]?.rows || []).some(r => r._id === moving?._id),
+    moved_board
+);
+
+// Charts: rows per Status (bar), hours summed per Owner (pie), rows per Due day (line)
+const chart_of = async (name, chart) => {
+    const v = await call(`view_create_${name}`, 'POST', '/view', {
+        token,
+        body: { file_id: view_table, name: `Chart ${name}`, type: 'chart', chart }
+    });
+    const res = await call(`view_${name}`, 'GET', `/view/${v?.id}/chart`, { token });
+    return { view: v, res };
+};
+const points = res => (res?.points || []).map(p => `${p.label}=${p.value}`).join(',');
+const bar = await chart_of('chart_bar', { kind: 'bar', group_field: v_status, agg: 'count' });
+check('view_chart_bar', points(bar.res) === 'Done=2,To do=2' && bar.res.kind === 'bar', bar.res);
+const pie = await chart_of('chart_pie', {
+    kind: 'pie',
+    group_field: v_owner,
+    agg: 'sum',
+    value_field: v_hours
+});
+check('view_chart_pie_sum', points(pie.res) === 'Sam=4.5,Ana=2,Kai=1', pie.res);
+const line = await chart_of('chart_line', { kind: 'line', group_field: v_due, agg: 'count' });
+check(
+    'view_chart_line_dates',
+    points(line.res) === '2026-11-20=1,2026-12-01=1,2026-12-05=1,2026-12-08=1',
+    line.res
+);
+await call('view_chart_of_kanban', 'GET', `/view/${kview?.id}/chart`, {
+    token,
+    expectFail: true
+});
+
+// demo2 can't see, use, change or delete demo's views, nor put one on demo's table; an API key
+// can't use views at all
+const view_other = await call('view_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const vtoken2 = view_other.token;
+const other_view_calls = {
+    view_other_list: ['GET', `/view?table=${view_table}`],
+    view_other_get: ['GET', `/view/${kview?.id}`],
+    view_other_kanban: ['GET', `/view/${kview?.id}/kanban`],
+    view_other_chart: ['GET', `/view/${bar.view?.id}/chart`],
+    view_other_rename: ['PUT', `/view/${kview?.id}`, { name: 'mine now' }],
+    view_other_delete: ['DELETE', `/view/${kview?.id}`],
+    view_other_create: ['POST', '/view', { ...grid_view_body, name: 'on your table' }]
+};
+for (const [name, [method, path, body]] of Object.entries(other_view_calls)) {
+    await call(name, method, path, { token: vtoken2, body, expectFail: true });
+}
+await call('view_other_logout', 'GET', `/auth/logout?token=${vtoken2}`);
+await call('view_api_key_list', 'GET', `/view?table=${view_table}`, {
+    token: key,
+    expectFail: true
+});
+await call('view_api_key_get', 'GET', `/view/${kview?.id}`, { token: key, expectFail: true });
+const kview_after = await call('view_get_after_other', 'GET', `/view/${kview?.id}`, { token });
+check(
+    'view_unchanged_by_other',
+    kview_after?.name === 'Board smoke' && kview_after?.filters?.length === 1,
+    kview_after
+);
+
+// Deleted, a view is gone; deleting the table deletes the rest
+await call('view_delete', 'DELETE', `/view/${gview?.id}`, { token });
+await call('view_delete_again', 'DELETE', `/view/${gview?.id}`, { token, expectFail: true });
+check('view_deleted_is_404', results.view_delete_again?.status === 404);
+await call('view_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [view_table] }
+});
+await call('view_get_table_deleted', 'GET', `/view/${kview?.id}`, { token, expectFail: true });
+check('view_table_deleted_is_404', results.view_get_table_deleted?.status === 404);
+
+// Linked tables (#147): a "Contact" link column on a task table points at rows of a contacts
+// table. The grid gets labels and a picker; /api/v1 returns ids and expands them on request;
+// a link to a row that isn't there is a 400; deleting a linked row clears the links to it.
+// demo2 can't link to, pick from or expand demo's tables, nor demo to demo2's.
+const link_contacts = await call('link_contacts_create', 'POST', '/table-template/crm', {
+    token,
+    body: { name: 'smoke_link_contacts' }
+});
+const link_tasks = await call('link_tasks_create', 'POST', '/table-template/tasks', {
+    token,
+    body: { name: 'smoke_link_tasks' }
+});
+const lc_cols = await call(
+    'link_contacts_cols',
+    'POST',
+    `/web-file/data_grid_column/${link_contacts}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const lc_name = (lc_cols.data || []).find(c => c.headerName === 'Name')?.field;
+const lc_rows = await call(
+    'link_contacts_rows',
+    'POST',
+    `/web-file/data_grid_row/${link_contacts}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const [ada, bea] = (lc_rows.data || []).map(r => ({ _id: r._id, name: r[lc_name] }));
+check('link_contacts_ready', !!(lc_name && ada && bea), lc_rows);
+
+const link_targets = await call('link_targets', 'GET', `/web-file/${link_tasks}/link-targets`, {
+    token
+});
+check(
+    'link_targets_list_own_tables',
+    Array.isArray(link_targets) &&
+        link_targets.some(
+            t => t.id === link_contacts && t.columns.some(c => c.field === lc_name)
+        ) &&
+        link_targets.some(t => t.id === link_tasks),
+    link_targets
+);
+
+const link_col = await call('link_new_column', 'GET', `/web-file/${link_tasks}/get_new_column`, {
+    token
+});
+const link_col_body = {
+    ...link_col,
+    headerName: 'Contact',
+    deleted: false,
+    col_type: 'link',
+    link_table_id: link_contacts,
+    link_display_field: lc_name
+};
+await call(
+    'link_col_no_table',
+    'PUT',
+    `/web-file/${link_col?._id}/data_grid_column/${link_tasks}`,
+    {
+        token,
+        body: { ...link_col_body, link_table_id: undefined },
+        expectFail: true
+    }
+);
+await call(
+    'link_col_unknown_table',
+    'PUT',
+    `/web-file/${link_col?._id}/data_grid_column/${link_tasks}`,
+    { token, body: { ...link_col_body, link_table_id: 999999999 }, expectFail: true }
+);
+await call('link_col_create', 'PUT', `/web-file/${link_col?._id}/data_grid_column/${link_tasks}`, {
+    token,
+    body: link_col_body
+});
+await sleep(500);
+const lt_cols = await call(
+    'link_tasks_cols',
+    'POST',
+    `/web-file/data_grid_column/${link_tasks}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const lt_contact = (lt_cols.data || []).find(c => c.headerName === 'Contact');
+check(
+    'link_col_saved',
+    lt_contact?.col_type === 'link' &&
+        lt_contact?.link_table_id === link_contacts &&
+        lt_contact?.link_display_field === lc_name,
+    lt_contact
+);
+const lf = lt_contact?.field;
+
+// The picker: rows of the contacts table matching the text, labelled by the Name column
+const link_options = await call(
+    'link_options',
+    'GET',
+    `/web-file/${link_tasks}/link-options?field=${lf}&q=${encodeURIComponent(ada?.name || '')}`,
+    { token }
+);
+check(
+    'link_options_match',
+    link_options?.table_id === link_contacts &&
+        link_options?.options?.some(o => o._id === ada?._id && o.label === ada?.name) &&
+        !link_options.options.some(o => o._id === bea?._id),
+    link_options
+);
+await call('link_options_not_link', 'GET', `/web-file/${link_tasks}/link-options?field=a`, {
+    token,
+    expectFail: true
+});
+await call('link_options_no_field', 'GET', `/web-file/${link_tasks}/link-options`, {
+    token,
+    expectFail: true
+});
+
+// Filled from the grid: ids are kept; the grid gets labels for them
+const lt_rows = await call(
+    'link_tasks_rows',
+    'POST',
+    `/web-file/data_grid_row/${link_tasks}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const task0 = lt_rows.data?.[0];
+const set_link = await call(
+    'link_set_from_grid',
+    'PUT',
+    `/web-file/${task0?._id}/data_grid_row/${link_tasks}`,
+    { token, body: { ...task0, [lf]: [ada?._id, bea?._id] } }
+);
+check(
+    'link_set_stored_ids',
+    JSON.stringify(set_link?.[lf]) === JSON.stringify([ada?._id, bea?._id]),
+    set_link
+);
+await call('link_set_unknown_row', 'PUT', `/web-file/${task0?._id}/data_grid_row/${link_tasks}`, {
+    token,
+    body: { ...task0, [lf]: ['0123456789abcdef01234567'] },
+    expectFail: true
+});
+await call('link_set_not_an_id', 'PUT', `/web-file/${task0?._id}/data_grid_row/${link_tasks}`, {
+    token,
+    body: { ...task0, [lf]: 'alice' },
+    expectFail: true
+});
+// A task row's id isn't a contact: links only reach rows of the linked table
+await call(
+    'link_set_other_table_row',
+    'PUT',
+    `/web-file/${task0?._id}/data_grid_row/${link_tasks}`,
+    {
+        token,
+        body: { ...task0, [lf]: [lt_rows.data?.[1]?._id] },
+        expectFail: true
+    }
+);
+check(
+    'link_bad_values_are_400',
+    ['link_set_unknown_row', 'link_set_not_an_id', 'link_set_other_table_row'].every(
+        n => results[n]?.status === 400
+    )
+);
+const lt_rows2 = await call(
+    'link_tasks_rows_labels',
+    'POST',
+    `/web-file/data_grid_row/${link_tasks}?skip=0&limit=50`,
+    { token, body: {} }
+);
+check(
+    'link_grid_labels',
+    lt_rows2?.link_labels?.[lf]?.[ada?._id] === ada?.name &&
+        lt_rows2?.link_labels?.[lf]?.[bea?._id] === bea?.name,
+    lt_rows2?.link_labels
+);
+
+// /api/v1: ids by default, the linked rows with expand; a bad expand is a 400
+const ext_link = await call(
+    'link_ext_get',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=50',
+    { token: key }
+);
+const ext_task0 = ext_link?.data?.find(r => r._id === task0?._id);
+check(
+    'link_ext_get_ids',
+    JSON.stringify(ext_task0?.Contact) === JSON.stringify([ada?._id, bea?._id]),
+    ext_task0
+);
+const ext_link_x = await call(
+    'link_ext_get_expand',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=50&expand=Contact',
+    { token: key }
+);
+const ext_task0_x = ext_link_x?.data?.find(r => r._id === task0?._id);
+check(
+    'link_ext_get_expanded',
+    Array.isArray(ext_task0_x?.Contact) &&
+        ext_task0_x.Contact.length === 2 &&
+        ext_task0_x.Contact[0]._id === ada?._id &&
+        ext_task0_x.Contact[0].Name === ada?.name &&
+        ext_task0_x.Contact[1].Name === bea?.name &&
+        typeof ext_task0_x.Contact[0].Email === 'string',
+    ext_task0_x
+);
+const ext_link_q = await call(
+    'link_ext_query_expand',
+    'POST',
+    '/api/v1/query?table=smoke_link_tasks&expand=Contact',
+    {
+        token: key,
+        body: {
+            filters: [
+                {
+                    column: 'Task',
+                    op: 'eq',
+                    value: task0?.[(lt_cols.data || []).find(c => c.headerName === 'Task')?.field]
+                }
+            ]
+        }
+    }
+);
+check(
+    'link_ext_query_expanded',
+    ext_link_q?.data?.length === 1 && ext_link_q.data[0].Contact?.[1]?.Name === bea?.name,
+    ext_link_q
+);
+const ext_link_s = await call(
+    'link_ext_search_expand_snake',
+    'POST',
+    '/api/v1/search?table=smoke_link_tasks&skip=0&limit=50&format=snakeCase&expand=contact',
+    { token: key, body: {} }
+);
+check(
+    'link_ext_search_expanded_snake',
+    ext_link_s?.data?.find(r => r._id === task0?._id)?.contact?.[0]?.name === ada?.name,
+    ext_link_s
+);
+await call(
+    'link_ext_expand_not_link',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=1&expand=Task',
+    {
+        token: key,
+        expectFail: true
+    }
+);
+await call('link_ext_expand_unknown', 'POST', '/api/v1/query?table=smoke_link_tasks&expand=Nope', {
+    token: key,
+    body: {},
+    expectFail: true
+});
+const ext_created = await call('link_ext_create', 'POST', '/api/v1/create?table=smoke_link_tasks', {
+    token: key,
+    body: [{ Task: 'smoke linked task', Contact: [bea?._id] }]
+});
+await call('link_ext_create_bad', 'POST', '/api/v1/create?table=smoke_link_tasks', {
+    token: key,
+    body: [{ Task: 'smoke bad link', Contact: ['0123456789abcdef01234567'] }],
+    expectFail: true
+});
+const ext_created_rows = await call(
+    'link_ext_created_rows',
+    'POST',
+    '/api/v1/search?table=smoke_link_tasks&skip=0&limit=50',
+    { token: key, body: { Task: { $ctn: 'smoke' } } }
+);
+const linked_task = ext_created_rows?.data?.find(r => r.Task === 'smoke linked task');
+check(
+    'link_ext_created',
+    JSON.stringify(linked_task?.Contact) === JSON.stringify([bea?._id]) &&
+        !ext_created_rows.data.some(r => r.Task === 'smoke bad link'),
+    [ext_created, ext_created_rows]
+);
+
+// Deleting a contact clears the links to it, from the grid and from the API
+await call('link_delete_ada', 'POST', `/web-file/batch_delete/data_grid_row/${link_contacts}`, {
+    token,
+    body: [ada?._id]
+});
+const after_ada = await call(
+    'link_after_delete_ada',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=50',
+    { token: key }
+);
+check(
+    'link_delete_cleared_one',
+    JSON.stringify(after_ada?.data?.find(r => r._id === task0?._id)?.Contact) ===
+        JSON.stringify([bea?._id]),
+    after_ada
+);
+await call('link_delete_bea', 'POST', '/api/v1/delete?table=smoke_link_contacts', {
+    token: key,
+    body: [bea?._id]
+});
+const after_bea = await call(
+    'link_after_delete_bea',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=50',
+    { token: key }
+);
+check(
+    'link_delete_cleared_all',
+    after_bea?.data?.find(r => r._id === task0?._id)?.Contact === null &&
+        after_bea.data.find(r => r._id === linked_task?._id)?.Contact === null,
+    after_bea
+);
+
+// demo2: can't read the picker or targets of demo's table, link its own table to demo's, or
+// expand demo's table; demo can't link to demo2's table
+const link_other = await call('link_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const ltoken2 = link_other.token;
+const link_other_me = await call('link_other_authorize', 'GET', `/auth/authorize?token=${ltoken2}`);
+await call('link_other_targets', 'GET', `/web-file/${link_tasks}/link-targets`, {
+    token: ltoken2,
+    expectFail: true
+});
+await call('link_other_options', 'GET', `/web-file/${link_tasks}/link-options?field=${lf}`, {
+    token: ltoken2,
+    expectFail: true
+});
+await call(
+    'link_other_ext_expand',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=1&expand=Contact',
+    { token: link_other_me.api_key, expectFail: true }
+);
+await call('link_api_key_targets', 'GET', `/web-file/${link_tasks}/link-targets`, {
+    token: key,
+    expectFail: true
+});
+// demo2 needs a table of its own: a new one if it's under the free tier's limit
+const other_link_files = await call('link_other_list', 'GET', '/file-directory', {
+    token: ltoken2
+});
+let other_table = (Array.isArray(other_link_files) ? other_link_files : []).find(
+    d => d.type === 'file'
+)?.id;
+let other_table_made = false;
+if (!other_table) {
+    other_table = await call('link_other_table_create', 'POST', '/table-template/waitlist', {
+        token: ltoken2,
+        body: { name: 'smoke_link_theirs' }
+    });
+    other_table_made = true;
+}
+const other_targets = await call(
+    'link_other_own_targets',
+    'GET',
+    `/web-file/${other_table}/link-targets`,
+    { token: ltoken2 }
+);
+check(
+    'link_other_targets_are_own',
+    Array.isArray(other_targets) &&
+        !other_targets.some(t => t.id === link_contacts || t.id === link_tasks),
+    other_targets
+);
+const other_col = await call(
+    'link_other_new_column',
+    'GET',
+    `/web-file/${other_table}/get_new_column`,
+    {
+        token: ltoken2
+    }
+);
+await call(
+    'link_other_col_to_demo',
+    'PUT',
+    `/web-file/${other_col?._id}/data_grid_column/${other_table}`,
+    {
+        token: ltoken2,
+        body: {
+            ...other_col,
+            headerName: 'Stolen',
+            deleted: false,
+            col_type: 'link',
+            link_table_id: link_contacts
+        },
+        expectFail: true
+    }
+);
+await call(
+    'link_other_batch_col_to_demo',
+    'PUT',
+    `/web-file/batch_update/data_grid_column/${other_table}`,
+    {
+        token: ltoken2,
+        body: [
+            {
+                ...other_col,
+                headerName: 'Stolen',
+                deleted: false,
+                col_type: 'link',
+                link_table_id: link_contacts
+            }
+        ],
+        expectFail: true
+    }
+);
+await call(
+    'link_col_to_other',
+    'PUT',
+    `/web-file/${link_col?._id}/data_grid_column/${link_tasks}`,
+    {
+        token,
+        body: { ...link_col_body, link_table_id: other_table },
+        expectFail: true
+    }
+);
+const lt_cols_after = await call(
+    'link_tasks_cols_after_other',
+    'POST',
+    `/web-file/data_grid_column/${link_tasks}?skip=0&limit=50`,
+    { token, body: {} }
+);
+check(
+    'link_col_still_own',
+    (lt_cols_after.data || []).find(c => c.field === lf)?.link_table_id === link_contacts,
+    lt_cols_after
+);
+if (other_table_made) {
+    await call('link_other_table_delete', 'POST', '/file-directory/batch_delete', {
+        token: ltoken2,
+        body: { ids: [other_table] }
+    });
+}
+await call('link_other_logout', 'GET', `/auth/logout?token=${ltoken2}`);
+await call('link_tables_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [link_tasks, link_contacts] }
+});
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');
 if (nameCol) {

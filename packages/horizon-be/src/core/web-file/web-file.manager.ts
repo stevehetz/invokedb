@@ -11,6 +11,18 @@ import { parse_utc_date, format_date } from '../date';
 import { assert_array_body } from '../helpers/array-body';
 import { assert_column_update } from '../helpers/column-update';
 import { RowCountQuery, RowQuery, mongo_sort } from './row-query';
+import {
+    LINK_OPTIONS_LIMIT,
+    LINK_TYPE,
+    coerce_link_value,
+    collect_link_ids,
+    is_row_id,
+    link_display_column,
+    link_label,
+    missing_link_ids,
+    new_link_ids,
+    normalize_link_value
+} from './link';
 
 const MAX_FIELD_VALUE_LENGTH = 2000;
 const MAX_COLUMN_VALUE_LENGTH = 100;
@@ -458,7 +470,8 @@ export class WebFileManager {
         };
     }
 
-    async batch_create(acct_id, file_id, web_file_type, data) {
+    // `inserted`, if given, gets the new rows as stored (with their _id), for webhooks (#140)
+    async batch_create(acct_id, file_id, web_file_type, data, inserted?: any[]) {
         data = assert_array_body(data);
         data.forEach(row => this.validate_row(row));
         file_id = parseInt(file_id, 10);
@@ -476,6 +489,7 @@ export class WebFileManager {
             });
             const row_coll = await this._collections.get_dg_row(acct_id, file_id);
             await row_coll.insertMany(formatted_data);
+            if (inserted) inserted.push(...formatted_data);
         } else if (web_file_type === _c.MongoDbCollections.data_grid_column) {
             const col_coll = await this._collections.get_dg_col(acct_id, file_id);
             await col_coll.insertMany(data);
@@ -522,14 +536,27 @@ export class WebFileManager {
         return 'done';
     }
 
-    async batch_update_row(acct_id, file_id, collection, data) {
+    // `updated`, if given, gets each row as it is after the update, for webhooks (#140)
+    async batch_update_row(acct_id, file_id, collection, data, updated?: any[]) {
         const res = [];
         if (data && Array.isArray(data)) {
             for (const row of data) {
                 res.push(await this.update(acct_id, file_id, collection, row));
             }
         }
+        if (updated) updated.push(...res.filter(Boolean));
         return res.length;
+    }
+
+    /** Which of these row ids exist in the table (as strings). */
+    async existing_row_ids(acct_id, file_id, ids: string[]) {
+        const object_ids = ids.filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+        if (object_ids.length === 0) return [];
+        const row_coll = await this._collections.get_dg_row(acct_id, file_id);
+        const docs = await row_coll
+            .find({ _id: { $in: object_ids } }, { projection: { _id: 1 } })
+            .toArray();
+        return docs.map(d => String(d._id));
     }
 
     async update(acct_id, file_id, collection, data) {
@@ -674,6 +701,8 @@ export class WebFileManager {
                 } else {
                     value = parse_utc_date(value);
                 }
+            } else if (type === LINK_TYPE) {
+                value = coerce_link_value(value);
             }
         } catch (ex) {}
 
@@ -771,6 +800,170 @@ export class WebFileManager {
             throw new Error(
                 `Field values cannot be longer than ${MAX_FIELD_VALUE_LENGTH} characters`
             );
+        }
+    }
+
+    /** The table's link columns (#147). */
+    async get_link_columns(acct_id, file_id) {
+        const col_coll = await this._collections.get_dg_col(acct_id, file_id);
+        return await col_coll.find({ col_type: LINK_TYPE, deleted: { $ne: true } }).toArray();
+    }
+
+    /** A table's live columns, as stored. */
+    async get_columns(acct_id, file_id) {
+        const col_coll = await this._collections.get_dg_col(acct_id, file_id);
+        return await col_coll.find({ deleted: { $ne: true } }).toArray();
+    }
+
+    /** These rows of a table (ids as strings; anything else is skipped), by id. */
+    async rows_by_ids(acct_id, file_id, ids: string[], projection?: any) {
+        const object_ids = ids.filter(is_row_id).map(id => new ObjectId(id));
+        const by_id = new Map<string, any>();
+        if (object_ids.length === 0) return by_id;
+        const row_coll = await this._collections.get_dg_row(acct_id, file_id);
+        const docs = await row_coll
+            .find({ _id: { $in: object_ids } }, projection ? { projection } : {})
+            .toArray();
+        docs.forEach(d => by_id.set(String(d._id), d));
+        return by_id;
+    }
+
+    /**
+     * Checks the link cells of rows about to be written (keyed by column field) and puts them
+     * in their stored form: every id must be a row of the linked table, which is in this
+     * account's own database, so a link can't reach another account. A 400 otherwise.
+     *
+     * For an update (rows carry their `_id`), only ids not already stored in that cell are
+     * checked, so a stale id (its row gone) doesn't stop the grid saving another cell.
+     */
+    async resolve_links(acct_id, file_id, rows: any[], is_update = false) {
+        if (!Array.isArray(rows) || rows.length === 0) return;
+        const link_cols = await this.get_link_columns(acct_id, file_id);
+        if (link_cols.length === 0) return;
+        let stored = new Map<string, any>();
+        if (is_update) {
+            const row_ids = rows
+                .map(row => row && typeof row === 'object' && row._id && String(row._id))
+                .filter(Boolean)
+                .map(id => id.toLowerCase());
+            const projection = {};
+            link_cols.forEach(c => (projection[c.field] = 1));
+            stored = await this.rows_by_ids(acct_id, file_id, row_ids, projection);
+        }
+        for (const col of link_cols) {
+            const name = col.headerName || col.field;
+            const ids = new Set<string>();
+            rows.forEach(row => {
+                if (!row || typeof row !== 'object' || !(col.field in row)) return;
+                row[col.field] = normalize_link_value(row[col.field], name);
+                const before =
+                    is_update && row._id ? stored.get(String(row._id).toLowerCase()) : null;
+                new_link_ids(row[col.field], before && before[col.field]).forEach(id =>
+                    ids.add(id)
+                );
+            });
+            if (ids.size === 0) continue;
+            const wanted = [...ids];
+            const found = col.link_table_id
+                ? await this.existing_row_ids(acct_id, col.link_table_id, wanted)
+                : [];
+            const missing = missing_link_ids(wanted, found);
+            if (missing.length > 0) {
+                throw new HttpException(
+                    `${name}: no row ${missing[0]} in the linked table`,
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+        }
+    }
+
+    /** What the grid shows for the link cells of these rows: `{ field: { row id: label } }`. */
+    async link_labels(acct_id, file_id, rows: any[]) {
+        const labels = {};
+        const link_cols = await this.get_link_columns(acct_id, file_id);
+        for (const col of link_cols) {
+            const ids = collect_link_ids((rows || []).map(r => r && r[col.field]));
+            if (ids.length === 0 || !col.link_table_id) continue;
+            const target_cols = await this.get_columns(acct_id, col.link_table_id);
+            const display = link_display_column(target_cols, col.link_display_field);
+            const projection = display ? { [display.field]: 1 } : { _id: 1 };
+            const by_id = await this.rows_by_ids(acct_id, col.link_table_id, ids, projection);
+            labels[col.field] = {};
+            by_id.forEach((row, id) => {
+                labels[col.field][id] = link_label(
+                    this.display_row(row, display),
+                    display && display.field
+                );
+            });
+        }
+        return labels;
+    }
+
+    // A row with its display column's date formatted as the API shows dates
+    private display_row(row, display) {
+        if (display && display.col_type === 'date' && row && row[display.field]) {
+            return { ...row, [display.field]: this.format_date_field(row[display.field]) };
+        }
+        return row;
+    }
+
+    /** Rows of a link column's table for the grid's picker, matching `q` on the display column. */
+    async link_options(acct_id, file_id, field, q) {
+        const link_cols = await this.get_link_columns(acct_id, file_id);
+        const col = link_cols.find(c => c.field === field);
+        if (!col || !col.link_table_id) {
+            throw new HttpException('Not a link column', HttpStatus.BAD_REQUEST);
+        }
+        const target_cols = await this.get_columns(acct_id, col.link_table_id);
+        const display = link_display_column(target_cols, col.link_display_field);
+        const filter: any = {};
+        if (typeof q === 'string' && q.trim() !== '' && display) {
+            const text = q.trim().slice(0, MAX_COLUMN_VALUE_LENGTH);
+            const or: any[] = [
+                { [display.field]: { $regex: new RegExp(this.escapeRegExp(text), 'i') } }
+            ];
+            if (is_row_id(text)) or.push({ _id: new ObjectId(text) });
+            filter.$or = or;
+        }
+        const row_coll = await this._collections.get_dg_row(acct_id, col.link_table_id);
+        const docs = await row_coll
+            .find(filter, display ? { projection: { [display.field]: 1 } } : {})
+            .sort({ row_index: 1 })
+            .limit(LINK_OPTIONS_LIMIT)
+            .toArray();
+        return {
+            table_id: col.link_table_id,
+            options: docs.map(d => ({
+                _id: String(d._id),
+                label: link_label(this.display_row(d, display), display && display.field)
+            }))
+        };
+    }
+
+    /**
+     * Rows of `target_id` were deleted: drop their ids from every link cell of `table_id` that
+     * points at them (an emptied cell becomes null). The owner's decision on #147: deleting a
+     * row clears the links to it; it is never refused.
+     */
+    async clear_links(acct_id, table_id, target_id, ids: string[]) {
+        const row_ids = ids.filter(is_row_id).map(id => id.toLowerCase());
+        if (row_ids.length === 0) return;
+        const col_coll = await this._collections.get_dg_col(acct_id, table_id);
+        const cols = await col_coll
+            .find({
+                col_type: LINK_TYPE,
+                link_table_id: Number(target_id),
+                deleted: { $ne: true }
+            })
+            .toArray();
+        if (cols.length === 0) return;
+        const row_coll = await this._collections.get_dg_row(acct_id, table_id);
+        for (const col of cols) {
+            const field = col.field;
+            await row_coll.updateMany({ [field]: { $in: row_ids } }, {
+                $pull: { [field]: { $in: row_ids } }
+            } as any);
+            await row_coll.updateMany({ [field]: { $size: 0 } }, { $set: { [field]: null } });
         }
     }
 

@@ -1,0 +1,170 @@
+// The public form page's own styles (scoped): it's outside both areas' shells
+.form-page {
+    box-sizing: border-box;
+    min-height: 100%;
+    padding: 40px 16px;
+    background: #f4f5fb;
+    font-family: 'Open Sans', 'Avenir', Helvetica, Arial, sans-serif;
+    color: #2c2f45;
+
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    &.embed {
+        padding: 0;
+        background: transparent;
+
+        .form-card {
+            box-shadow: none;
+            border: 1px solid #e2e4f0;
+        }
+    }
+}
+
+.form-card {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 32px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(40, 44, 90, 0.08);
+}
+
+.form-title {
+    margin: 0 0 8px;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.form-description {
+    margin: 0 0 24px;
+    color: #5b5f7a;
+    white-space: pre-line;
+}
+
+.form-field {
+    margin-bottom: 20px;
+
+    label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    input,
+    textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #cfd2e3;
+        border-radius: 6px;
+        font: inherit;
+        font-size: 15px;
+        background: #fff;
+        color: inherit;
+
+        &:focus {
+            outline: none;
+            border-color: #484ec0;
+            box-shadow: 0 0 0 2px rgba(72, 78, 192, 0.15);
+        }
+    }
+
+    &.invalid {
+        input,
+        textarea {
+            border-color: #d64545;
+        }
+    }
+}
+
+.form-required {
+    color: #d64545;
+}
+
+.form-help {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #7a7e98;
+}
+
+.form-error {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #d64545;
+}
+
+// Off-screen rather than display: none, which some bots skip
+.form-hp {
+    position: absolute;
+    left: -10000px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.form-message {
+    margin-bottom: 16px;
+    padding: 10px 12px;
+    border-radius: 6px;
+
+    &.error {
+        background: #fdecec;
+        color: #a62b2b;
+    }
+}
+
+.form-submit,
+.form-again {
+    padding: 10px 24px;
+    border: 0;
+    border-radius: 6px;
+    background: #484ec0;
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: default;
+    }
+}
+
+.form-done {
+    text-align: center;
+
+    .fa {
+        font-size: 48px;
+        color: #3a9d5d;
+    }
+
+    p {
+        margin: 16px 0 24px;
+        font-size: 17px;
+        white-space: pre-line;
+    }
+}
+
+.form-status,
+.form-unavailable h1 {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 400;
+    color: #5b5f7a;
+}
+
+.form-footer {
+    margin-top: 28px;
+    text-align: center;
+    font-size: 12px;
+    color: #9a9db3;
+
+    a {
+        color: inherit;
+    }
+}

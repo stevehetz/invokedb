@@ -682,6 +682,14 @@ $nav_active_color: #ffffff;
     background: transparent;
     border: none;
 }
+// As wide as its longest item ("Table from URL or Google Sheet" ran past the grey menu's right
+// edge): the popper is pinned at `left: 40px` above, so its own width can't be left to the
+// position Element Plus worked out for it
+.h-tree-menu-popper.el-popper,
+.h-tree-menu-popper .el-menu--popup {
+    width: max-content;
+    max-width: calc(100vw - 60px);
+}
 .h-tree-menu-popper .el-menu .el-menu-item * {
     color: #ffffff !important;
 }
@@ -877,7 +885,31 @@ $nav_active_color: #ffffff;
 .h-data-grid .top .top-bar-output .success-icon {
     color: #4df08c;
 }
-.h-data-grid .top .api-button {
+.h-data-grid .top .views-button .views-current {
+    display: inline-block;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+}
+.h-data-grid .top .views-button .fa-caret-down {
+    margin-left: 4px;
+}
+.h-data-grid .top .views-button .el-dropdown {
+    height: 100%;
+    align-items: center;
+}
+.views-menu .el-dropdown-menu__item.current {
+    font-weight: bold;
+}
+.views-menu .el-dropdown-menu__item i {
+    width: 16px;
+    margin-right: 6px;
+}
+.h-data-grid .top .views-button,
+.h-data-grid .top .api-button,
+.h-data-grid .top .webhooks-button,
+.h-data-grid .top .forms-button {
     display: flex;
     align-items: center;
     border-left: solid 1px gray;
@@ -886,16 +918,27 @@ $nav_active_color: #ffffff;
     height: 100%;
     background-color: #2b2b2b;
 }
-.h-data-grid .top .api-button .el-button.is-link {
+.h-data-grid .top .views-button .el-button.is-link,
+.h-data-grid .top .api-button .el-button.is-link,
+.h-data-grid .top .webhooks-button .el-button.is-link,
+.h-data-grid .top .forms-button .el-button.is-link {
     color: #696fe4;
 }
-.h-data-grid .top .api-button:hover .el-button.is-link {
+.h-data-grid .top .views-button:hover .el-button.is-link,
+.h-data-grid .top .api-button:hover .el-button.is-link,
+.h-data-grid .top .webhooks-button:hover .el-button.is-link,
+.h-data-grid .top .forms-button:hover .el-button.is-link {
     color: #7f84ee;
 }
-.h-data-grid .top .api-button .el-button.is-disabled {
+.h-data-grid .top .views-button .el-button.is-disabled,
+.h-data-grid .top .api-button .el-button.is-disabled,
+.h-data-grid .top .webhooks-button .el-button.is-disabled,
+.h-data-grid .top .forms-button .el-button.is-disabled {
     color: #777777;
 }
-.h-data-grid .top .api-button:hover .el-button.is-disabled {
+.h-data-grid .top .api-button:hover .el-button.is-disabled,
+.h-data-grid .top .webhooks-button:hover .el-button.is-disabled,
+.h-data-grid .top .forms-button:hover .el-button.is-disabled {
     color: #777777;
 }
 .h-data-grid .top .info {
@@ -958,6 +1001,202 @@ $nav_active_color: #ffffff;
 .h-data-grid .bottom .ag-grid-wrapper {
     width: 100%;
     height: 100%;
+}
+// A kanban or chart view (#146) is shown instead of the grid, which stays loaded behind it
+.h-data-grid .bottom .ag-grid-wrapper.behind-view {
+    visibility: hidden;
+}
+.h-data-grid .bottom .view-pane {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    overflow: auto;
+    padding: 12px;
+    background-color: $gray600;
+    color: #e9e9e9;
+}
+.h-data-grid .view-pane .view-status {
+    padding: 4px 0 10px;
+    color: $gray100;
+}
+.h-data-grid .view-pane .view-status.error {
+    color: $red200;
+}
+
+// Kanban
+.h-data-grid .kanban-board {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-height: calc(100% - 20px);
+}
+.h-data-grid .kanban-column {
+    flex: 0 0 260px;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    padding: 8px;
+    background-color: $gray500;
+    border: solid 2px transparent;
+    border-radius: 6px;
+}
+.h-data-grid .kanban-column.drop-target {
+    border-color: $blue200;
+}
+.h-data-grid .kanban-column-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px 8px;
+}
+.h-data-grid .kanban-column-name {
+    font-weight: bold;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.h-data-grid .kanban-column-count {
+    margin-left: 8px;
+    padding: 0 7px;
+    font-size: 12px;
+    color: $gray50;
+    background-color: $gray400;
+    border-radius: 9px;
+}
+.h-data-grid .kanban-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 40px;
+}
+.h-data-grid .kanban-card {
+    padding: 8px 10px;
+    background-color: $gray400;
+    border-left: solid 3px $purple200;
+    border-radius: 4px;
+    cursor: grab;
+}
+.h-data-grid .kanban-card.locked {
+    cursor: default;
+}
+.h-data-grid .kanban-card.saving {
+    opacity: 0.6;
+}
+.h-data-grid .kanban-card-title {
+    margin-bottom: 4px;
+    font-weight: bold;
+    word-break: break-word;
+}
+.h-data-grid .kanban-card-field {
+    display: flex;
+    gap: 6px;
+    font-size: 13px;
+}
+.h-data-grid .kanban-card-field-name {
+    flex: none;
+    color: $gray100;
+}
+.h-data-grid .kanban-card-field-value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.h-data-grid .kanban-more {
+    padding: 4px;
+    font-size: 13px;
+    color: $gray100;
+}
+
+// Charts: a light surface; one series is one hue, pie slices take the categorical slots
+.h-data-grid .chart-panel {
+    max-width: 800px;
+    padding: 14px 16px;
+    color: #191919;
+    background-color: #ffffff;
+    border-radius: 6px;
+}
+.h-data-grid .chart-panel .view-status {
+    color: #666666;
+}
+.h-data-grid .chart-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+.h-data-grid .chart-readout {
+    color: #666666;
+    font-size: 14px;
+}
+.h-data-grid .chart-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    font-family: inherit;
+}
+.h-data-grid .chart-grid line {
+    stroke: #e6e6e6;
+    stroke-width: 1;
+}
+.h-data-grid .chart-tick,
+.h-data-grid .chart-label,
+.h-data-grid .chart-legend-text {
+    fill: #666666;
+    font-size: 12px;
+}
+.h-data-grid .chart-legend-text {
+    fill: #191919;
+    font-size: 13px;
+}
+.h-data-grid .chart-hit {
+    fill: transparent;
+}
+.h-data-grid .chart-mark {
+    fill: #257de0;
+}
+.h-data-grid .chart-bar.dim .chart-mark,
+.h-data-grid .chart-slice.dim {
+    opacity: 0.45;
+}
+.h-data-grid .chart-slice {
+    stroke: #ffffff;
+    stroke-width: 2;
+}
+.h-data-grid .chart-line-path {
+    fill: none;
+    stroke: #257de0;
+    stroke-width: 2;
+}
+.h-data-grid .chart-point {
+    fill: #257de0;
+    stroke: #ffffff;
+    stroke-width: 2;
+}
+.h-data-grid .chart-crosshair {
+    stroke: #b4b4b4;
+    stroke-width: 1;
+}
+.h-data-grid .chart-table {
+    margin-top: 10px;
+    font-size: 14px;
+}
+.h-data-grid .chart-table summary {
+    cursor: pointer;
+    color: #666666;
+}
+.h-data-grid .chart-table table {
+    margin-top: 6px;
+    border-collapse: collapse;
+}
+.h-data-grid .chart-table th,
+.h-data-grid .chart-table td {
+    padding: 2px 12px 2px 0;
+    text-align: left;
+    border-bottom: solid 1px #ececec;
+}
+.h-data-grid .chart-table td.num {
+    text-align: right;
 }
 .h-data-grid .ag-root {
     border: 0;
@@ -1052,6 +1291,33 @@ $nav_active_color: #ffffff;
 .h-data-grid .grid-header .grid-header-type__menu__label.date {
     font-size: 12px;
     top: -2px;
+}
+.h-data-grid .grid-header .grid-header-type__menu__label.link {
+    font-size: 12px;
+    top: -2px;
+}
+/* Link cells (#147): one chip per linked row; a click opens the linked table */
+.h-data-grid .link-cell {
+    display: inline-flex;
+    gap: 4px;
+    overflow: hidden;
+    max-width: 100%;
+}
+.h-data-grid .link-chip {
+    display: inline-block;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0 6px;
+    line-height: 20px;
+    border-radius: 10px;
+    background: #ece8f7;
+    color: #4b3a8c;
+    cursor: pointer;
+}
+.h-data-grid .link-chip:hover {
+    text-decoration: underline;
 }
 .h-data-grid .grid-header .grid-header-type .active-column-type {
     height: 20px;
@@ -1529,6 +1795,432 @@ $nav_active_color: #ffffff;
 .api-dialog .api-dialog-snippet {
     position: relative;
 }
+
+// A table's webhooks (#140); its top-bar button (.webhooks-button) is styled with .api-button
+.webhooks-dialog {
+    color: $gray500;
+}
+.webhooks-dialog h4 {
+    margin: 14px 0 6px;
+    color: $gray600;
+}
+.webhooks-dialog code {
+    font-family: monospace;
+    background-color: #ececec;
+    padding: 0 4px;
+    border-radius: 3px;
+}
+.webhooks-dialog .webhooks-intro {
+    margin: 0 0 8px;
+}
+.webhooks-dialog .webhooks-status {
+    padding: 10px 0;
+}
+.webhooks-dialog .webhooks-status.error {
+    color: #a03e3e;
+}
+.webhooks-dialog .webhooks-empty {
+    padding: 10px 0;
+    color: $gray300;
+}
+.webhooks-dialog .webhooks-add {
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+    border-bottom: solid 1px #cacaca;
+}
+.webhooks-dialog .webhooks-row {
+    display: flex;
+    margin-bottom: 8px;
+}
+.webhooks-dialog .webhooks-url,
+.webhooks-dialog .webhook-secret input {
+    flex: 1;
+    padding: 4px 6px;
+    font-size: 14px;
+    font-family: monospace;
+    border: solid 1px #b7b7b7;
+    border-radius: 3px;
+}
+.webhooks-dialog .webhooks-events {
+    flex-wrap: wrap;
+    gap: 16px;
+}
+.webhooks-dialog .webhooks-all-tables {
+    margin-left: auto;
+}
+.webhooks-dialog .webhook {
+    padding: 10px 0;
+    border-bottom: solid 1px #e2e2e2;
+}
+.webhooks-dialog .webhook.disabled .webhook-url {
+    color: $gray300;
+    text-decoration: line-through;
+}
+.webhooks-dialog .webhook-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.webhooks-dialog .webhook-url {
+    font-family: monospace;
+    font-weight: bold;
+    color: $gray600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.webhooks-dialog .webhook-scope {
+    color: $gray300;
+    white-space: nowrap;
+}
+.webhooks-dialog .webhook-events {
+    display: flex;
+    gap: 6px;
+    margin: 6px 0;
+}
+.webhooks-dialog .webhook-secret {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.webhooks-dialog .webhook-link {
+    cursor: pointer;
+    color: $blue300;
+    white-space: nowrap;
+}
+.webhooks-dialog .webhook-last.ok,
+.webhooks-dialog .webhook-delivery-status.ok {
+    color: #2d8e58;
+}
+.webhooks-dialog .webhook-last.failed,
+.webhooks-dialog .webhook-delivery-status.failed {
+    color: #a03e3e;
+}
+.webhooks-dialog .webhook-delivery-status.pending,
+.webhooks-dialog .webhook-delivery-status.sending {
+    color: #b7801b;
+}
+.webhooks-dialog .webhook-log {
+    margin-top: 10px;
+}
+.webhooks-dialog .webhook-log-head {
+    display: flex;
+    justify-content: space-between;
+    color: $gray300;
+    margin-bottom: 4px;
+}
+.webhooks-dialog .webhook-delivery-head {
+    display: flex;
+    gap: 12px;
+    padding: 4px 0;
+    cursor: pointer;
+}
+.webhooks-dialog .webhook-delivery-status {
+    font-weight: bold;
+    min-width: 60px;
+}
+.webhooks-dialog .webhook-delivery-time {
+    margin-left: auto;
+    color: $gray300;
+}
+.webhooks-dialog .webhook-attempts {
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 4px 0 8px;
+}
+.webhooks-dialog .webhook-attempts td {
+    padding: 2px 12px 2px 0;
+    vertical-align: top;
+}
+.webhooks-dialog .webhook-payload {
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    max-height: 260px;
+    overflow: auto;
+    font-family: monospace;
+    font-size: 13px;
+    white-space: pre;
+    color: #e9e9e9;
+    background-color: $gray500;
+    border-radius: 5px;
+}
+
+// A link column's settings and a link cell's rows (#147)
+.link-dialog {
+    color: $gray500;
+}
+.link-dialog .link-intro {
+    margin: 0 0 12px;
+}
+.link-dialog .link-status {
+    padding: 10px 0;
+}
+.link-dialog .link-status.error {
+    color: #a03e3e;
+}
+.link-dialog .link-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.link-dialog .link-row label {
+    width: 110px;
+}
+.link-dialog .link-row .el-select,
+.link-dialog .link-row-select {
+    flex: 1;
+    width: 100%;
+}
+.link-dialog .link-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+// A table's shareable forms (#145); its top-bar button (.forms-button) is styled with .api-button
+.forms-dialog {
+    color: $gray500;
+}
+.forms-dialog h4 {
+    margin: 4px 0 10px;
+    color: $gray600;
+}
+.forms-dialog .forms-intro {
+    margin: 0 0 8px;
+}
+.forms-dialog .forms-status {
+    padding: 10px 0;
+}
+.forms-dialog .forms-status.error {
+    color: #a03e3e;
+}
+.forms-dialog .forms-empty {
+    padding: 10px 0;
+    color: $gray300;
+}
+.forms-dialog .forms-add,
+.forms-dialog .form-editor {
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+    border-bottom: solid 1px #cacaca;
+}
+.forms-dialog input:not([type='checkbox']),
+.forms-dialog textarea {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 6px;
+    font-size: 14px;
+    font-family: inherit;
+    border: solid 1px #b7b7b7;
+    border-radius: 3px;
+}
+.forms-dialog .form-editor-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.forms-dialog .form-editor-row > label,
+.forms-dialog .form-item-link > label,
+.forms-dialog .form-item-embed > label {
+    width: 130px;
+    flex: none;
+    padding-top: 4px;
+    color: $gray600;
+}
+.forms-dialog .form-editor-label {
+    display: block;
+    margin: 4px 0;
+    color: $gray600;
+}
+.forms-dialog .form-editor-columns {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+.forms-dialog .form-editor-columns th {
+    text-align: left;
+    font-weight: normal;
+    color: $gray300;
+    padding: 2px 6px;
+}
+.forms-dialog .form-editor-columns td {
+    padding: 3px 6px;
+    border-top: solid 1px #ececec;
+}
+.forms-dialog .form-editor-columns td input:not([type='checkbox']) {
+    width: 100%;
+}
+.forms-dialog .form-editor-column.off {
+    color: $gray300;
+}
+.forms-dialog .form-editor-type {
+    font-family: monospace;
+    font-size: 12px;
+    color: $gray300;
+}
+.forms-dialog .form-editor-move span {
+    cursor: pointer;
+    padding: 0 3px;
+    color: $blue300;
+}
+.forms-dialog .form-editor-actions {
+    margin-top: 6px;
+}
+.forms-dialog .form-item {
+    padding: 10px 0;
+    border-bottom: solid 1px #e2e2e2;
+}
+.forms-dialog .form-item.closed .form-item-title {
+    color: $gray300;
+}
+.forms-dialog .form-item-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.forms-dialog .form-item-title {
+    font-weight: bold;
+    color: $gray600;
+}
+.forms-dialog .form-item-state.open {
+    color: #2d8e58;
+}
+.forms-dialog .form-item-state.closed {
+    color: #a03e3e;
+}
+.forms-dialog .form-item-count {
+    margin-left: auto;
+    color: $gray300;
+}
+.forms-dialog .form-item-link,
+.forms-dialog .form-item-embed {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.forms-dialog .form-item-link input,
+.forms-dialog .form-item-embed input {
+    font-family: monospace;
+}
+.forms-dialog .form-item-action {
+    cursor: pointer;
+    color: $blue300;
+    white-space: nowrap;
+    text-decoration: none;
+}
+.forms-dialog .form-item-actions {
+    margin-top: 4px;
+}
+.views-dialog {
+    color: $gray500;
+}
+.views-dialog h4 {
+    margin: 4px 0 10px;
+    color: $gray600;
+}
+.views-dialog .views-intro {
+    margin: 0 0 8px;
+}
+.views-dialog .views-status {
+    padding: 10px 0;
+}
+.views-dialog .views-status.error {
+    color: #a03e3e;
+}
+.views-dialog .views-empty {
+    padding: 10px 0;
+    color: $gray300;
+}
+.views-dialog .views-hint {
+    margin: 4px 0 8px;
+    font-size: 13px;
+    color: $gray300;
+}
+.views-dialog .views-add .views-hint {
+    margin-left: 10px;
+}
+.views-dialog .views-add,
+.views-dialog .view-editor {
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+    border-bottom: solid 1px #cacaca;
+}
+.views-dialog input:not([type='radio']),
+.views-dialog select {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 6px;
+    font-size: 14px;
+    font-family: inherit;
+    border: solid 1px #b7b7b7;
+    border-radius: 3px;
+    background-color: #ffffff;
+}
+.views-dialog .view-editor-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.views-dialog .view-editor-row > label {
+    width: 130px;
+    flex: none;
+    color: $gray600;
+}
+.views-dialog .view-editor-types {
+    display: flex;
+    gap: 8px;
+}
+.views-dialog .view-editor-type {
+    padding: 4px 10px;
+    border: solid 1px #b7b7b7;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.views-dialog .view-editor-type.on {
+    color: #ffffff;
+    background-color: $blue300;
+    border-color: $blue300;
+}
+.views-dialog .view-editor-type input {
+    display: none;
+}
+.views-dialog .view-item {
+    padding: 10px 0;
+    border-bottom: solid 1px #e2e2e2;
+}
+.views-dialog .view-item.current .view-item-name {
+    color: $blue300;
+}
+.views-dialog .view-item-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+.views-dialog .view-item-icon {
+    color: $gray300;
+}
+.views-dialog .view-item-name {
+    font-weight: bold;
+    color: $gray600;
+}
+.views-dialog .view-item-type {
+    margin-left: auto;
+    color: $gray300;
+}
+.views-dialog .view-item-details {
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: $gray300;
+}
 .api-dialog .api-dialog-snippet .copy-snippet {
     position: absolute;
     top: 6px;
@@ -1827,6 +2519,7 @@ $nav_active_color: #ffffff;
     padding: 0;
 }
 .el-dialog .el-dialog__header {
+    position: relative;
     padding: 15px 20px 10px;
     margin-right: 0;
     background-color: $gray400;
@@ -1837,8 +2530,16 @@ $nav_active_color: #ffffff;
 .el-dialog .el-dialog__header .el-dialog__title {
     color: white;
 }
+// The × spans the title's line (the header's padding box, inset by the same padding) and is
+// centred in it, so it lines up with the title whatever the title's height. Element Plus
+// places it in a fixed 48px box from the top of the dialog, which sat below the title.
 .el-dialog .el-dialog__header .el-dialog__headerbtn {
-    top: 12px;
+    top: 15px;
+    bottom: 10px;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 24px;
 }
 .el-dialog .el-dialog__header .el-dialog__close {
@@ -1897,9 +2598,20 @@ $nav_active_color: #ffffff;
 .url-import-dialog .el-dialog .form-row:first-child {
     margin-top: 0;
 }
-.url-import-dialog .el-dialog .form-row label {
+// Only the row's own label: each el-radio is a <label> too, and a fixed 90px cut "Replace all
+// rows" off and put the next radio on top of it
+.url-import-dialog .el-dialog .form-row > label {
     width: 90px;
     flex-shrink: 0;
+}
+.url-import-dialog .el-dialog .form-row .sync-mode {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 24px;
+    min-width: 0;
+}
+.url-import-dialog .el-dialog .form-row .sync-mode .el-radio {
+    margin-right: 0;
 }
 .url-import-dialog .el-dialog .form-row .el-select {
     width: 220px;

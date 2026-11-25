@@ -66,6 +66,28 @@ export class WebFileController {
         );
     }
 
+    // Link columns (#147): the account's tables (and their columns) a column can link to
+    @Get(':file_directory_id/link-targets')
+    async web_file_link_targets(@Request() req) {
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        return await this.web_file_service.link_targets(acct_id);
+    }
+
+    // Rows of a link column's table for the grid's picker: ?field=<column field>&q=<text>
+    @Get(':file_directory_id/link-options')
+    async web_file_link_options(@Request() req) {
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        const account = await this.account_service.get(acct_id);
+        return await this.web_file_service.link_options(
+            account,
+            req.params.file_directory_id,
+            req.query.field,
+            req.query.q
+        );
+    }
+
     @Post('batch_create/:web_file_type/:file_directory_id')
     async web_file_batch_create(@Request() req) {
         const acct_id = session_account_id(req.user);

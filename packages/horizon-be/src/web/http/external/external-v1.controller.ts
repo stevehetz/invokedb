@@ -81,7 +81,8 @@ export class ExternalV1Controller {
             req.user,
             file_id,
             req.body,
-            req.query.format
+            req.query.format,
+            req.query.expand
         );
     }
 

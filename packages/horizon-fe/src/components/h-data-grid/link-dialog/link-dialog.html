@@ -1,0 +1,82 @@
+<div class="link-dialog">
+    <div class="link-status" v-if="loading">Loading...</div>
+    <div class="link-status error" v-if="error">{{ error }}</div>
+
+    <template v-if="is_settings && !loading">
+        <p class="link-intro">
+            A link column holds rows of another of your tables (or this one).
+            The grid shows each linked row by one of its columns; the API
+            returns their <code>_id</code>s, or the whole rows with
+            <code>expand=&lt;column&gt;</code>.
+        </p>
+        <div class="link-row">
+            <label>Links to table</label>
+            <el-select
+                class="link-table-select"
+                v-model="table_id"
+                placeholder="Choose a table"
+                filterable
+                @change="table_changed"
+            >
+                <el-option
+                    v-for="t in tables"
+                    :key="t.id"
+                    :label="t.name"
+                    :value="t.id"
+                ></el-option>
+            </el-select>
+        </div>
+        <div class="link-row">
+            <label>Show rows by</label>
+            <el-select
+                class="link-display-select"
+                v-model="display_field"
+                placeholder="Choose a column"
+                :disabled="!table_id || table_columns.length === 0"
+            >
+                <el-option
+                    v-for="c in table_columns"
+                    :key="c.field"
+                    :label="c.headerName"
+                    :value="c.field"
+                ></el-option>
+            </el-select>
+        </div>
+    </template>
+
+    <template v-if="!is_settings && !loading">
+        <p class="link-intro">
+            The rows of <b>{{ props.column_name }}</b> this cell links to. Type
+            to search.
+        </p>
+        <el-select
+            class="link-row-select"
+            v-model="chosen"
+            multiple
+            filterable
+            remote
+            :remote-method="search"
+            :loading="searching"
+            placeholder="Search rows"
+        >
+            <el-option
+                v-for="o in options"
+                :key="o._id"
+                :label="o.label"
+                :value="o._id"
+            ></el-option>
+        </el-select>
+    </template>
+
+    <div class="link-actions">
+        <el-button @click="cancel" :disabled="saving">Cancel</el-button>
+        <el-button
+            type="primary"
+            class="link-save"
+            @click="save"
+            :disabled="!can_save"
+        >
+            Save
+        </el-button>
+    </div>
+</div>

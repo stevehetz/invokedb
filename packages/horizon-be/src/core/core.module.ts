@@ -20,6 +20,9 @@ import { JobManager } from './job/job.manager';
 import { OnboardingManager } from './onboarding/onboarding.manager';
 import { UrlImportManager } from './url-import/url-import.manager';
 import { UrlSyncProcessor } from './web-file/url-sync-processor';
+import { WebhookManager } from './webhook/webhook.manager';
+import { FormManager } from './form/form.manager';
+import { ViewManager } from './view/view.manager';
 
 @Module({
     imports: [
@@ -46,6 +49,9 @@ import { UrlSyncProcessor } from './web-file/url-sync-processor';
         OnboardingManager,
         UrlImportManager,
         UrlSyncProcessor,
+        WebhookManager,
+        FormManager,
+        ViewManager,
         WebsocketClientStore
     ],
     exports: [
@@ -59,6 +65,9 @@ import { UrlSyncProcessor } from './web-file/url-sync-processor';
         OnboardingManager,
         UrlImportManager,
         UrlSyncProcessor,
+        WebhookManager,
+        FormManager,
+        ViewManager,
         WebsocketClientStore,
         TypeOrmModule
     ]

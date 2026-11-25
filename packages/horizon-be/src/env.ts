@@ -60,7 +60,10 @@ const env = {
     // Optional overrides of the free plan's caps (core/billing/plans.ts has the defaults)
     HORIZON_FREE_MAX_TABLES: process.env.HORIZON_FREE_MAX_TABLES,
     HORIZON_FREE_MAX_ROWS: process.env.HORIZON_FREE_MAX_ROWS,
-    HORIZON_FREE_MAX_API_CALLS: process.env.HORIZON_FREE_MAX_API_CALLS
+    HORIZON_FREE_MAX_API_CALLS: process.env.HORIZON_FREE_MAX_API_CALLS,
+    // Test only (scripts/smoke-env.sh sets it): webhook receivers ("127.0.0.1:8199,...") that are
+    // allowed although they're private addresses (#140). Never set it in production.
+    HORIZON_WEBHOOK_TEST_HOSTS: process.env.HORIZON_WEBHOOK_TEST_HOSTS
 };
 
 export default env;

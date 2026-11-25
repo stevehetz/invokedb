@@ -79,11 +79,14 @@ export default {
         },
 
         on_change_column_type(type) {
+            const previous = this.col_type.value;
             this.col_type = this.get_col_type(type);
             const { colDef } = this.params.column;
             this.params.header_type_change({
                 field: colDef.field,
-                col_type: type
+                col_type: type,
+                // A link column whose settings are cancelled goes back (#147)
+                revert: () => (this.col_type = this.get_col_type(previous))
             });
         },
 
@@ -106,6 +109,14 @@ export default {
                         value: 'date',
                         display: `<span class="grid-header-type__menu__label date">
                                     <i class= "fa fa-calendar"></i>
+                                  </span>`
+                    };
+                // A column of rows of another table (#147)
+                case 'link':
+                    return {
+                        value: 'link',
+                        display: `<span class="grid-header-type__menu__label link">
+                                    <i class="fa fa-link"></i>
                                   </span>`
                     };
                 case 'string':

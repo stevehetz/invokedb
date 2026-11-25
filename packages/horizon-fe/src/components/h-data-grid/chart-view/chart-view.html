@@ -1,0 +1,174 @@
+<div class="chart-view">
+    <div class="view-status" v-if="loading">Loading the chart...</div>
+    <div class="view-status error" v-if="error">{{ error }}</div>
+    <div class="view-status" v-if="!loading && !error && points.length === 0">
+        No rows match this view.
+    </div>
+    <div class="chart-panel" v-if="!loading && points.length > 0">
+        <div class="chart-title">
+            <b>{{ view.name }}</b>
+            <span class="chart-readout">
+                <template v-if="hover !== null && points[hover]">
+                    {{ points[hover].label }}: {{
+                    format_number(points[hover].value) }}
+                </template>
+                <template v-else>{{ value_label }} per value</template>
+            </span>
+        </div>
+
+        <svg
+            :class="['chart-svg', 'chart-' + chart.kind]"
+            :viewBox="'0 0 ' + width + ' ' + height"
+            role="img"
+            :aria-label="view.name"
+            @mouseleave="hover = null"
+        >
+            <template v-if="chart.kind === 'bar' || chart.kind === 'line'">
+                <g class="chart-grid">
+                    <template v-for="t in y_axis" :key="t.value">
+                        <line
+                            :x1="56"
+                            :x2="width - 16"
+                            :y1="t.y"
+                            :y2="t.y"
+                        ></line>
+                        <text
+                            class="chart-tick"
+                            :x="50"
+                            :y="t.y + 4"
+                            text-anchor="end"
+                        >
+                            {{ t.label }}
+                        </text>
+                    </template>
+                </g>
+            </template>
+
+            <g v-if="chart.kind === 'bar'" class="chart-bars">
+                <g
+                    v-for="(b, i) in bars"
+                    :key="b.label"
+                    :class="['chart-bar', { dim: hover !== null && hover !== i }]"
+                    @mouseenter="hover = i"
+                >
+                    <!-- A hit target taller than the bar -->
+                    <rect
+                        class="chart-hit"
+                        :x="b.cx - Math.max(b.w, 16) / 2"
+                        :y="16"
+                        :width="Math.max(b.w, 16)"
+                        :height="height - 72"
+                    ></rect>
+                    <rect
+                        class="chart-mark"
+                        :x="b.x"
+                        :y="b.y"
+                        :width="b.w"
+                        :height="b.h"
+                        rx="3"
+                    >
+                        <title>
+                            {{ b.label }}: {{ format_number(b.value) }}
+                        </title>
+                    </rect>
+                    <text
+                        class="chart-label"
+                        :x="b.cx"
+                        :y="height - 40"
+                        text-anchor="middle"
+                    >
+                        {{ b.short }}
+                    </text>
+                </g>
+            </g>
+
+            <g v-if="chart.kind === 'line'" class="chart-line">
+                <path class="chart-line-path" :d="line_path"></path>
+                <g
+                    v-for="(p, i) in line_points"
+                    :key="p.label"
+                    @mouseenter="hover = i"
+                >
+                    <line
+                        v-if="hover === i"
+                        class="chart-crosshair"
+                        :x1="p.x"
+                        :x2="p.x"
+                        :y1="16"
+                        :y2="height - 56"
+                    ></line>
+                    <circle
+                        class="chart-hit"
+                        :cx="p.x"
+                        :cy="p.y"
+                        r="12"
+                    ></circle>
+                    <circle class="chart-point" :cx="p.x" :cy="p.y" r="4">
+                        <title>
+                            {{ p.label }}: {{ format_number(p.value) }}
+                        </title>
+                    </circle>
+                </g>
+                <text
+                    v-for="p in line_labels"
+                    :key="'l' + p.label"
+                    class="chart-label"
+                    :x="p.x"
+                    :y="height - 40"
+                    text-anchor="middle"
+                >
+                    {{ p.label.length > 12 ? p.label.slice(0, 11) + '…' :
+                    p.label }}
+                </text>
+            </g>
+
+            <g v-if="chart.kind === 'pie'" class="chart-pie">
+                <path
+                    v-for="(s, i) in slices"
+                    :key="s.label"
+                    :class="['chart-slice', { dim: hover !== null && hover !== i }]"
+                    :d="s.path"
+                    :fill="s.color"
+                    @mouseenter="hover = i"
+                >
+                    <title>
+                        {{ s.label }}: {{ format_number(s.value) }} ({{
+                        s.percent }}%)
+                    </title>
+                </path>
+                <g
+                    v-for="(s, i) in slices"
+                    :key="'k' + s.label"
+                    class="chart-legend-item"
+                    :transform="'translate(300,' + (24 + i * 30) + ')'"
+                    @mouseenter="hover = i"
+                >
+                    <rect width="14" height="14" rx="3" :fill="s.color"></rect>
+                    <text class="chart-legend-text" x="22" y="12">
+                        {{ s.label.length > 30 ? s.label.slice(0, 29) + '…' :
+                        s.label }} — {{ format_number(s.value) }} ({{ s.percent
+                        }}%)
+                    </text>
+                </g>
+            </g>
+        </svg>
+
+        <div class="view-status" v-if="truncated">
+            Showing the first {{ points.length }} values.
+        </div>
+
+        <details class="chart-table">
+            <summary>Show the numbers</summary>
+            <table>
+                <tr>
+                    <th>Value</th>
+                    <th>{{ value_label }}</th>
+                </tr>
+                <tr v-for="p in points" :key="p.label">
+                    <td>{{ p.label }}</td>
+                    <td class="num">{{ format_number(p.value) }}</td>
+                </tr>
+            </table>
+        </details>
+    </div>
+</div>

@@ -37,5 +37,7 @@ STRIPE_WEBHOOK_SECRET=whsec_smoke_not_a_real_secret
 HORIZON_FREE_MAX_TABLES=1
 HORIZON_FREE_MAX_ROWS=5
 HORIZON_FREE_MAX_API_CALLS=3
+# api-smoke.mjs's webhook receiver (#140): allowed although it's on loopback
+HORIZON_WEBHOOK_TEST_HOSTS=127.0.0.1:8199
 VARS
 echo "Wrote $OUT"

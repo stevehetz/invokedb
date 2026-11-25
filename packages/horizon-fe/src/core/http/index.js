@@ -52,8 +52,7 @@ export const http = {
     },
 
     delete(path, data) {
-        // TODO
-        return path + data;
+        return request('DELETE', path, this.get_token(), data);
     },
 
     file_upload(path, file_ctx) {

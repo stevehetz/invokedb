@@ -4,8 +4,11 @@
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
 // render the public site's pages, log in, check the onboarding checklist, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
-// open the table's API docs and "Try it" on Get, read the API key from the account page and call /api/v1 with it, make (and delete) a table
-// from a template and one from a URL (a CSV on GitHub, so it needs internet), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
+// open the table's API docs and "Try it" on Get, add / test / disable / delete a webhook, read the API key from the account page and call /api/v1 with it, make a form and submit it
+// through its public link, then close and delete it, make (and delete) a table
+// from a template (saving a grid view of it, a kanban view where a card is dragged and a
+// chart view, #146) and one from a URL (a CSV on GitHub, so it needs internet), add a link column
+// to a tasks table, fill a cell from its picker and open the linked table (#147), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
 //
 // URLs come from the same env vars the apps use, so load an env file first. Best run against
 // the throwaway stack described in .agents/skills/verify-frontend/SKILL.md, not your own data:
@@ -42,6 +45,9 @@ const PASSWORD = env.SMOKE_PASSWORD || 'password';
 const TABLE = 'ui_smoke_people';
 const TEMPLATE_TABLE = 'ui_smoke_tasks';
 const URL_TABLE = 'ui_smoke_todo';
+// The table a link column (#147) points to, made from the tasks template
+const LINK_TABLE = 'ui_smoke_link_tasks';
+const LINKED_TASK = 'Write the launch post';
 // A public CSV for "Table from URL" (#144): this repo's own example data on GitHub
 const URL_SOURCE =
     'https://raw.githubusercontent.com/stevehetz/invokedb/main/examples/data/todo.csv';
@@ -97,11 +103,12 @@ async function delete_leftover_tables() {
     const ids = [
         ...(await find_tables(s)),
         ...(await find_tables(s, TEMPLATE_TABLE)),
-        ...(await find_tables(s, URL_TABLE))
+        ...(await find_tables(s, URL_TABLE)),
+        ...(await find_tables(s, LINK_TABLE))
     ].map(d => d.id);
     if (ids.length) {
         console.log(
-            `     removing ${ids.length} leftover "${TABLE}"/"${TEMPLATE_TABLE}"/"${URL_TABLE}" table(s)`
+            `     removing ${ids.length} leftover "${TABLE}"/"${TEMPLATE_TABLE}"/"${URL_TABLE}"/"${LINK_TABLE}" table(s)`
         );
         await be('POST', '/file-directory/batch_delete', { token: s.token, body: { ids } });
     }
@@ -139,7 +146,9 @@ async function step(name, fn) {
         results.steps[name] = `FAIL: ${ex.message.split('\n')[0]}`;
         const shot = path.join(SHOT_DIR, `${name}.png`);
         // Masked: in CI the screenshot is a public artifact
-        const mask = page ? [page.locator('input[type=password], .api-key-form input')] : [];
+        const mask = page
+            ? [page.locator('input[type=password], .api-key-form input, .webhook-secret input')]
+            : [];
         if (page) await page.screenshot({ path: shot, mask }).catch(() => {});
         console.log(`FAIL ${name}\n      ${ex.message.split('\n').slice(0, 6).join('\n      ')}`);
         console.log(`      screenshot: ${shot}`);
@@ -607,10 +616,101 @@ try {
         await dialog.waitFor({ state: 'detached' });
     });
 
+    // Webhooks (#140): a private URL is refused; one added for this table shows its secret,
+    // sends a test event (it appears in its delivery log), is disabled and then deleted. Its URL
+    // is on example.com, so only that the test event was queued and logged is checked, not
+    // that example.com accepted it. Deleting the table would remove it too.
+    await step('table_webhooks', async () => {
+        await grid().locator('.webhooks-button button').click();
+        const dialog = page.locator('.container-dialog .webhooks-dialog');
+        await dialog.locator('.webhooks-add').waitFor();
+        await dialog
+            .locator('.webhooks-status', { hasText: 'Loading' })
+            .waitFor({ state: 'detached' });
+        check((await dialog.locator('.webhook').count()) === 0, 'the table already has webhooks');
+        // The intro names the table as the title does, without the file's `.g` (#189)
+        const intro_name = (await dialog.locator('.webhooks-intro b').first().innerText()).trim();
+        check(intro_name === TABLE, `the webhooks intro names the table "${intro_name}"`);
+        const url_input = dialog.locator('.webhooks-url');
+        const add = dialog.getByRole('button', { name: 'Add webhook' });
+        await url_input.fill('http://127.0.0.1/hook');
+        await add.click();
+        const error = dialog.locator('.webhooks-status.error');
+        await error.waitFor();
+        results.observed.webhook_private_error = (await error.innerText()).trim();
+        check(
+            /private or internal/.test(results.observed.webhook_private_error),
+            `a loopback webhook URL showed "${results.observed.webhook_private_error}"`
+        );
+        check((await dialog.locator('.webhook').count()) === 0, 'a loopback webhook was added');
+
+        await url_input.fill('https://example.com/invokedb-ui-smoke');
+        await add.click();
+        const hook = dialog.locator('.webhook');
+        await hook.waitFor();
+        check(
+            /^whsec_/.test(await hook.locator('.webhook-secret input').inputValue()),
+            "the new webhook doesn't show its secret"
+        );
+        const listed = await be('GET', `/webhook?table=${file_id}`, { token: be_s.token });
+        const saved = (listed.webhooks || []).filter(h => h.file_id === file_id);
+        check(
+            saved.length === 1 && saved[0].enabled && saved[0].events.length === 3,
+            `the backend has ${JSON.stringify(saved)}`
+        );
+        results.observed.webhook_events = saved[0] && saved[0].events;
+
+        await hook.getByRole('button', { name: 'Send test event', exact: true }).click();
+        const delivery = hook.locator('.webhook-delivery');
+        await delivery.first().waitFor();
+        results.observed.webhook_test_event = (
+            await delivery.first().locator('code').innerText()
+        ).trim();
+        check(
+            results.observed.webhook_test_event === 'ping',
+            `the delivery log shows "${results.observed.webhook_test_event}"`
+        );
+
+        await hook.getByRole('button', { name: 'Disable', exact: true }).click();
+        await hook.getByRole('button', { name: 'Enable', exact: true }).waitFor();
+        const off = await be('GET', `/webhook?table=${file_id}`, { token: be_s.token });
+        check(
+            (off.webhooks || []).some(h => h.id === saved[0].id && h.enabled === false),
+            'Disable did not disable the webhook'
+        );
+
+        await hook.getByRole('button', { name: 'Delete', exact: true }).click();
+        await page
+            .locator('.confirm-dialog .el-dialog')
+            .getByRole('button', { name: 'Confirm' })
+            .click();
+        await hook.waitFor({ state: 'detached' });
+        const gone = await be('GET', `/webhook?table=${file_id}`, { token: be_s.token });
+        check(
+            !(gone.webhooks || []).some(h => h.id === saved[0].id),
+            'the deleted webhook is still in the backend'
+        );
+        await page.locator('.container-dialog .el-dialog__headerbtn').click();
+        await dialog.waitFor({ state: 'detached' });
+    });
+
+    // To the Account page through the API docs' "account" link (a router link, not the nav):
+    // only Account is highlighted in the nav afterwards, not Api as well (#189)
     await step('api_key_and_external_api', async () => {
-        await page.locator('.layout .nav .el-menu-item', { hasText: 'Account' }).click();
+        await page.locator('.layout .nav .el-menu-item', { hasText: 'Api' }).click();
+        await page.locator('.api-key-message a', { hasText: 'account' }).click();
         const key_input = page.locator('.api-key-form input');
         await key_input.waitFor();
+        const highlighted = async cls =>
+            (await page.locator(`.layout .nav .el-menu-item.${cls}`).allInnerTexts()).map(t =>
+                t.trim()
+            );
+        results.observed.nav_active_after_docs_link = await highlighted('is-active');
+        check(
+            results.observed.nav_active_after_docs_link.join() === 'Account' &&
+                (await highlighted('is-active2')).join() === 'Account',
+            `after the docs' account link the nav highlights ${JSON.stringify(results.observed.nav_active_after_docs_link)}`
+        );
         const end = Date.now() + 10000;
         let key = '';
         while (Date.now() < end && !(key = await key_input.inputValue())) await sleep(250);
@@ -627,6 +727,93 @@ try {
         });
         check(rows.length === 3, `/api/v1/get returned ${rows.length} rows`);
         await page.locator('.layout .nav .el-menu-item', { hasText: 'Tables' }).click();
+    });
+
+    // Shareable forms (#145): make a form from two of the table's columns (one required), open
+    // its public link in a new tab, see the required check, submit it and find the row in the
+    // backend; then close the form (its link answers "closed") and delete it (the link is gone).
+    // After the API key step, which counts the table's rows.
+    await step('table_forms', async () => {
+        await page.locator('.el-tabs__item', { hasText: TABLE }).click();
+        await grid().locator('.forms-button button').click();
+        const dialog = page.locator('.container-dialog .forms-dialog');
+        await dialog.locator('.forms-new-button').waitFor();
+        check((await dialog.locator('.form-item').count()) === 0, 'the table already has forms');
+        await dialog.getByRole('button', { name: 'New form' }).click();
+        const editor = dialog.locator('.form-editor');
+        await editor.waitFor();
+        await editor.locator('.form-editor-title').fill('UI smoke form');
+        const column_row = name => editor.locator('.form-editor-column', { hasText: name });
+        await column_row('name').locator('.form-editor-required').check();
+        await column_row('city').locator('.form-editor-ask').uncheck();
+        await editor.locator('.form-editor-thank-you').fill('Thanks from the UI smoke test');
+        await editor.getByRole('button', { name: 'Create form' }).click();
+        const item = dialog.locator('.form-item');
+        await item.waitFor();
+        await editor.waitFor({ state: 'detached' });
+        const link = await item.locator('.form-item-link input').inputValue();
+        check(
+            /\/f\/form_[0-9a-f]{24}$/.test(link) && link.startsWith(FE_URL),
+            `the form's link is "${link}"`
+        );
+        check(
+            (await item.locator('.form-item-embed input').inputValue()).includes(`${link}?embed=1`),
+            "the embed code doesn't point at the form"
+        );
+        const form_id = link.split('/f/')[1];
+        const listed = await be('GET', `/form?table=${file_id}`, { token: be_s.token });
+        const saved = (listed.forms || []).find(f => f.id === form_id);
+        results.observed.form_fields = saved && saved.fields.map(f => [f.required]);
+        check(
+            saved && saved.open && saved.fields.length === 2 && saved.fields[0].required,
+            `the backend has ${JSON.stringify(saved)}`
+        );
+
+        const visitor = await context.newPage();
+        try {
+            await visitor.goto(link);
+            await visitor.locator('.form-page .form-title', { hasText: 'UI smoke form' }).waitFor();
+            const labels = await visitor.locator('.form-field label').allInnerTexts();
+            results.observed.form_labels = labels.map(l => l.replace(/\s+/g, ' ').trim());
+            check(
+                results.observed.form_labels.join(',') === 'name *,age',
+                `the public form asks ${results.observed.form_labels}`
+            );
+            check(
+                (await visitor.locator('.form-field input').nth(1).getAttribute('type')) ===
+                    'number',
+                'the number column is not a number input'
+            );
+            await visitor.getByRole('button', { name: 'Submit' }).click();
+            await visitor.locator('.form-error', { hasText: 'required' }).waitFor();
+            await visitor.locator('.form-field input').nth(0).fill('ui-smoke-form');
+            await visitor.locator('.form-field input').nth(1).fill('7');
+            await visitor.getByRole('button', { name: 'Submit' }).click();
+            await visitor
+                .locator('.form-done', { hasText: 'Thanks from the UI smoke test' })
+                .waitFor();
+        } finally {
+            await visitor.close();
+        }
+        const after = await be_table(be_s, file_id);
+        const row = after.rows.find(r => r.name === 'ui-smoke-form');
+        check(row && row.age === 7, `the submitted row is ${JSON.stringify(row)}`);
+
+        await item.getByRole('button', { name: 'Close form' }).click();
+        await item.getByRole('button', { name: 'Reopen form' }).waitFor();
+        const closed = await fetch(`${BE_URL}/public/form/${form_id}`);
+        check(closed.status === 410, `a closed form's link answers ${closed.status}`);
+
+        await item.getByRole('button', { name: 'Delete', exact: true }).click();
+        await page
+            .locator('.confirm-dialog .el-dialog')
+            .getByRole('button', { name: 'Confirm' })
+            .click();
+        await item.waitFor({ state: 'detached' });
+        const gone = await fetch(`${BE_URL}/public/form/${form_id}`);
+        check(gone.status === 404, `a deleted form's link answers ${gone.status}`);
+        await page.locator('.container-dialog .el-dialog__headerbtn').click();
+        await dialog.waitFor({ state: 'detached' });
     });
 
     await step('table_from_template', async () => {
@@ -652,6 +839,163 @@ try {
             results.observed.template_headers.join() === saved.columns.map(c => c.name).join(),
             `grid headers are ${results.observed.template_headers}`
         );
+    });
+
+    // Saved views (#146), on the tasks table: save the grid's filter and sort as a view, switch
+    // to all rows and back (the filter row shows the view's filter), rename it; a kanban view by
+    // Status where dragging a card changes the row; a bar chart of rows per Status; then delete
+    // the views.
+    await step('table_views', async () => {
+        const [tasks] = await find_tables(be_s, TEMPLATE_TABLE);
+        const views_menu = async item => {
+            await grid().locator('.views-menu-button').click();
+            const menu = page.locator('.views-menu:visible');
+            await menu.waitFor();
+            await menu.locator('.el-dropdown-menu__item', { hasText: item }).first().click();
+        };
+        const dialog = page.locator('.container-dialog .views-dialog');
+        const open_dialog = async () => {
+            await views_menu('Save or manage views');
+            await dialog.locator('.views-new-button').waitFor();
+        };
+        const close_dialog = async () => {
+            await page.locator('.container-dialog .el-dialog__headerbtn').click();
+            await dialog.waitFor({ state: 'detached' });
+        };
+        const current = () => grid().locator('.views-button .views-current').innerText();
+        const owner_filter = grid().locator(
+            `.ag-floating-filter[col-id="${await col_id('Owner')}"] .custom-filter-text`
+        );
+
+        // A grid view: Owner contains "Sam", sorted by Estimate Hours
+        await owner_filter.pressSequentially('Sam');
+        await wait_rows(r => r.length === 2, 'Owner contains "Sam" filter');
+        await grid()
+            .locator(
+                `.ag-header-cell[col-id="${await col_id('Estimate Hours')}"] .grid-header.read`
+            )
+            .click();
+        await wait_rows(
+            r => r[0]['Task'] === 'Fix the signup email typo',
+            'ascending Estimate Hours sort'
+        );
+        await open_dialog();
+        check((await dialog.locator('.view-item').count()) === 0, 'the table already has views');
+        await dialog.locator('.views-new-button').click();
+        await dialog.locator('.view-editor-name').fill('UI smoke Sam');
+        await dialog.locator('.view-save-button').click();
+        await dialog.waitFor({ state: 'detached' });
+        check((await current()) === 'UI smoke Sam', `the current view is "${await current()}"`);
+        const listed = await be('GET', `/view?table=${tasks.id}`, { token: be_s.token });
+        const saved = (listed.views || [])[0];
+        results.observed.view_saved =
+            saved && saved.filters.map(f => [f.type, f.value]).concat([[saved.sort?.dir]]);
+        check(
+            saved &&
+                saved.type === 'grid' &&
+                saved.filters.length === 1 &&
+                saved.filters[0].value === 'Sam' &&
+                saved.sort?.dir === 'asc',
+            `the saved view is ${JSON.stringify(saved)}`
+        );
+
+        // All rows, then the view again: its filter comes back in the filter row
+        await views_menu('All rows');
+        await wait_rows(r => r.length === 4, 'all rows');
+        check((await owner_filter.inputValue()) === '', 'the Owner filter is still set');
+        await views_menu('UI smoke Sam');
+        await wait_rows(r => r.length === 2, "the view's filter");
+        check(
+            (await owner_filter.inputValue()) === 'Sam',
+            `the Owner filter shows "${await owner_filter.inputValue()}"`
+        );
+
+        // Renamed
+        await open_dialog();
+        const item = dialog.locator('.view-item', { hasText: 'UI smoke Sam' });
+        await item.locator('.view-rename-button').click();
+        await item.locator('.view-rename-input').fill('UI smoke Sam renamed');
+        await item.locator('.view-rename-save').click();
+        await dialog.locator('.view-item-name', { hasText: 'UI smoke Sam renamed' }).waitFor();
+        await close_dialog();
+        check(
+            (await current()) === 'UI smoke Sam renamed',
+            `the current view is "${await current()}" after renaming`
+        );
+
+        // Kanban by Status, from all rows: drag "Write the launch post" to Done
+        await views_menu('All rows');
+        await wait_rows(r => r.length === 4, 'all rows');
+        await open_dialog();
+        await dialog.locator('.views-new-button').click();
+        await dialog.locator('.view-editor-name').fill('UI smoke board');
+        await dialog.locator('.view-type-kanban').click();
+        await dialog.locator('.view-editor-group').selectOption({ label: 'Status' });
+        await dialog.locator('.view-save-button').click();
+        await dialog.waitFor({ state: 'detached' });
+        const column = value => grid().locator(`.kanban-column[data-value="${value}"]`);
+        await column('To do').locator('.kanban-card').nth(1).waitFor();
+        results.observed.kanban_columns = await grid()
+            .locator('.kanban-column-name')
+            .allInnerTexts();
+        check(
+            results.observed.kanban_columns.join() === 'Done,In progress,To do',
+            `the board's columns are ${results.observed.kanban_columns}`
+        );
+        await column('In progress')
+            .locator('.kanban-card', { hasText: 'Write the launch post' })
+            .dragTo(column('Done'));
+        await column('Done')
+            .locator('.kanban-card', { hasText: 'Write the launch post' })
+            .waitFor();
+        const end = Date.now() + 10000;
+        let moved;
+        while (Date.now() < end) {
+            const rows = (await be_table(be_s, tasks.id)).rows;
+            moved = rows.find(r => r.Task === 'Write the launch post');
+            if (moved && moved.Status === 'Done') break;
+            await sleep(250);
+        }
+        check(moved && moved.Status === 'Done', `the moved row is ${JSON.stringify(moved)}`);
+
+        // A bar chart of rows per Status
+        await views_menu('All rows');
+        await wait_rows(r => r.length === 4, 'all rows');
+        await open_dialog();
+        await dialog.locator('.views-new-button').click();
+        await dialog.locator('.view-editor-name').fill('UI smoke chart');
+        await dialog.locator('.view-type-chart').click();
+        await dialog.locator('.view-editor-kind').selectOption('bar');
+        await dialog.locator('.view-editor-chart-field').selectOption({ label: 'Status' });
+        await dialog.locator('.view-save-button').click();
+        await dialog.waitFor({ state: 'detached' });
+        await grid().locator('.chart-svg .chart-mark').nth(1).waitFor();
+        results.observed.chart_numbers = await grid().locator('.chart-table td').allTextContents();
+        check(
+            results.observed.chart_numbers.map(t => t.trim()).join() === 'Done,2,To do,2',
+            `the chart's numbers are ${results.observed.chart_numbers}`
+        );
+
+        // Deleted: the chart (shown) too, so the grid comes back
+        await open_dialog();
+        for (let i = 0; i < 3; i++) {
+            await dialog.locator('.view-delete-button').first().click();
+            await page
+                .locator('.confirm-dialog .el-dialog')
+                .getByRole('button', { name: 'Confirm' })
+                .click();
+            await dialog
+                .locator('.view-item')
+                .nth(2 - i)
+                .waitFor({ state: 'detached' });
+        }
+        await close_dialog();
+        check((await current()) === 'Views', `the current view is "${await current()}"`);
+        const after = await be('GET', `/view?table=${tasks.id}`, { token: be_s.token });
+        check((after.views || []).length === 0, `views left: ${JSON.stringify(after.views)}`);
+    });
+
+    await step('delete_template_table', async () => {
         // Delete it through the UI, like the uploaded table below
         await page
             .locator('.h-tree .tree-wrapper')
@@ -712,6 +1056,83 @@ try {
             .click();
         await page.locator('.el-tabs__item', { hasText: URL_TABLE }).waitFor({ state: 'detached' });
         check((await find_tables(be_s, URL_TABLE)).length === 0, 'URL table still exists');
+    });
+
+    // A link column (#147): the uploaded table gets a "task" column linking to a tasks table,
+    // one cell is filled from the picker and shows the task's name, and its chip opens the
+    // tasks table. The tasks table is then deleted through the UI.
+    await step('link_column', async () => {
+        await page.locator('.h-tree-controls .title-icon').click();
+        await page.locator('.h-tree-menu-popper').getByText('Table from Template').click();
+        const tpl = page.locator('.template-dialog .el-dialog');
+        await tpl.locator('.template-item[data-template-id="tasks"]').click();
+        await tpl.locator('.new-name input').fill(LINK_TABLE);
+        await tpl.getByRole('button', { name: 'Create' }).click();
+        await page.locator('.el-tabs__item', { hasText: LINK_TABLE }).waitFor();
+        await wait_rows(r => r.length === 4, 'the tasks table rows');
+
+        // Back to the uploaded table, and add the link column
+        await page.locator('.h-tree .tree-wrapper').getByText(TABLE, { exact: true }).click();
+        await page.locator('.el-tabs__item.is-active', { hasText: TABLE }).waitFor();
+        await grid().getByRole('button', { name: 'Edit Columns' }).click();
+        const inputs = grid().locator('.ag-header-row .grid-header.edit .grid-header-input input');
+        await inputs.first().waitFor();
+        const before = await inputs.count();
+        await grid().getByRole('button', { name: 'Add Column' }).click();
+        await inputs.nth(before).waitFor();
+        await inputs.nth(before).pressSequentially('task');
+        const header = await edit_header('task');
+        await header.locator('.active-column-type').click();
+        await page.locator('.grid-header-type__menu:visible .menu__item.link').click();
+        const settings = page.locator('.link-dialog');
+        await settings.locator('.link-table-select').click();
+        await page.locator('.el-select-dropdown__item:visible', { hasText: LINK_TABLE }).click();
+        await settings.locator('.link-save').click();
+        await settings.waitFor({ state: 'detached' });
+        await grid().locator('.commit-controls .blue').click();
+        await wait_idle();
+        await page.waitForFunction(() => !document.querySelector('.h-data-grid.edit-column-mode'));
+        const hend = Date.now() + 10000;
+        while (Date.now() < hend && !(await headers()).includes('task')) await sleep(250);
+        const link_table = (await find_tables(be_s, LINK_TABLE))[0];
+        check(!!link_table, `no "${LINK_TABLE}" table in the backend`);
+        let saved = await be_table(be_s, file_id);
+        const task_col = saved.columns.find(c => c.name === 'task');
+        check(task_col && task_col.type === 'link', `task column is ${JSON.stringify(task_col)}`);
+
+        // Fill one cell from the picker
+        const task_id = await col_id('task');
+        await grid().locator(`.ag-row[row-index="0"] .ag-cell[col-id="${task_id}"]`).dblclick();
+        const picker = page.locator('.link-dialog');
+        await picker.locator('.link-row-select').click();
+        await picker.locator('.link-row-select input').fill('launch');
+        await page.locator('.el-select-dropdown__item:visible', { hasText: LINKED_TASK }).click();
+        // A multiple select stays open; a click outside it closes it before Save
+        await picker.locator('.link-intro').click();
+        await picker.locator('.link-save').click();
+        await picker.waitFor({ state: 'detached' });
+        results.observed.link_rows = await wait_rows(
+            r => r.some(row => row.task === LINKED_TASK),
+            'the linked task in the grid'
+        );
+        saved = await be_table(be_s, file_id);
+        const linked = saved.rows.filter(r => Array.isArray(r.task) && r.task.length === 1);
+        check(linked.length === 1, `rows with a link: ${JSON.stringify(saved.rows)}`);
+
+        // Its chip opens the linked table
+        await grid().locator('.link-chip', { hasText: LINKED_TASK }).first().click();
+        await page.locator('.el-tabs__item.is-active', { hasText: LINK_TABLE }).waitFor();
+
+        await page.locator('.h-tree .tree-wrapper').getByText(LINK_TABLE, { exact: true }).click();
+        await page.locator('.h-tree .manage-items.active .remove-items').click();
+        await page
+            .locator('.confirm-dialog .el-dialog')
+            .getByRole('button', { name: 'Confirm' })
+            .click();
+        await page
+            .locator('.el-tabs__item', { hasText: LINK_TABLE })
+            .waitFor({ state: 'detached' });
+        check((await find_tables(be_s, LINK_TABLE)).length === 0, 'link table still exists');
     });
 
     await step('delete_table', async () => {

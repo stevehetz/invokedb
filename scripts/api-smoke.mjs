@@ -3,7 +3,7 @@
 // Logs in as demo@invokedb.com, uploads a small CSV as table "smoke_people", exercises the
 // grid + external /api/v1 endpoints, checks that demo2@invokedb.com can't reach demo's tables
 // or account, checks each account's onboarding checklist (#143: runs its curl command, ticks,
-// dismisses demo2's), makes tables from templates (and checks demo2's free-tier table limit), reads the
+// dismisses demo2's), makes tables from templates, reads the
 // table's generated API docs and OpenAPI spec and runs their curl, fetch and Python snippets
 // (#139; Python only if python3 is installed), checks /api/v1/query and /count (#141: filters,
 // sort, fields, cursor paging, index use, 400s), imports tables from a CSV and a JSON URL (#144:
@@ -33,7 +33,10 @@
 // again), checks data export (#215: the processor's zip has every table as CSV and JSON and the
 // settings without webhook secrets; one at a time; demo2 and API keys can't download it), checks the
 // audit log (#217: app and API key changes per table and per account, paging, demo2 and API keys
-// locked out), then deletes the tables and the new account. Writes every response to out.json
+// locked out), checks the plans (#183: public GET /plans; on demo7, put on Free with tiny caps by
+// smoke-env.sh's HORIZON_TEST_PLANS, every cap refused on each path with 403 `plan_limit`, the
+// monthly API quota with 429; demo6 on Starter; GET /usage matches and is the caller's own),
+// then deletes the tables and the new account. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -419,47 +422,19 @@ await call('other_delete_template_table', 'POST', '/file-directory/batch_delete'
     expectFail: true
 });
 
-// demo2 is on the free tier: a template table counts against its table limit (3 tables)
-const other_files = await call('other_list_before_templates', 'GET', '/file-directory', {
-    token: otoken
-});
-const free_max_tables = 3;
-const other_tpl_ids = [];
-const other_file_count = Array.isArray(other_files)
-    ? other_files.filter(d => d.type === 'file').length
-    : 0;
-for (let i = other_file_count; i < free_max_tables; i++) {
-    other_tpl_ids.push(
-        await call(`other_template_create_${i}`, 'POST', '/table-template/waitlist', {
-            token: otoken,
-            body: { name: `smoke_waitlist_${i}` }
-        })
-    );
-}
-await call('other_template_over_limit', 'POST', '/table-template/waitlist', {
-    token: otoken,
-    body: { name: 'smoke_waitlist_over' },
-    expectFail: true
-});
-check(
-    'other_template_over_limit_forbidden',
-    results.other_template_over_limit.status === 403,
-    results.other_template_over_limit
-);
+// demo2's template table is its own, not demo's. (A template at the plan's table cap is refused
+// in the plans section below, #183: the demo accounts have no caps.)
+const other_tpl_ids = [
+    await call('other_template_create', 'POST', '/table-template/waitlist', {
+        token: otoken,
+        body: { name: 'smoke_waitlist_theirs' }
+    })
+];
 const own_list_tpl = await call('own_list_after_templates', 'GET', '/file-directory', { token });
 check(
     'other_templates_not_in_own_account',
     Array.isArray(own_list_tpl) && !own_list_tpl.some(d => other_tpl_ids.includes(d.id)),
     own_list_tpl
-);
-const other_files_after = await call('other_list_after_templates', 'GET', '/file-directory', {
-    token: otoken
-});
-check(
-    'other_template_over_limit_made_nothing',
-    Array.isArray(other_files_after) &&
-        !other_files_after.some(d => d.name === 'smoke_waitlist_over'),
-    other_files_after
 );
 await call('other_template_cleanup', 'POST', '/file-directory/batch_delete', {
     token: otoken,
@@ -4238,8 +4213,8 @@ await call('col_limit_table_delete', 'POST', '/file-directory/batch_delete', {
     body: { ids: [col_table] }
 });
 
-// The /api/v1 limit is per minute and atomic: a burst of parallel calls from a Free account
-// (50 a minute) gets 429s with Retry-After. Allows for the burst straddling two minutes.
+// The account's /api/v1 rate limit (#183): a burst of parallel calls from a Free account (demo5,
+// put on Free by smoke-env.sh: 2 a second, bursts of 10) gets 429s with Retry-After.
 const rl_session = await call('rate_limit_login', 'POST', '/auth/login', {
     body: { email: 'demo5@invokedb.com', password: 'password' }
 });
@@ -4349,6 +4324,496 @@ if (temp_dir) {
 } else {
     console.log('     (no HORIZON_ENV_FILE: temp folder not checked)');
 }
+
+// Plans (#183). GET /plans is public and has the decided caps. demo7 is on Free with tiny caps
+// (smoke-env.sh's HORIZON_TEST_PLANS: 2 tables, 4 rows per table, 7 rows in all, 4 columns, 5 API
+// calls a month, query pages of 2, 300-byte uploads, 1 view per table; Free's own 1 webhook,
+// 1 form, 1 URL source with daily syncs only): each cap is allowed up to it and refused past it
+// on every path with 403 `plan_limit` (413 for an upload, 429 for the API quota). demo6 is on
+// Starter with a 1-byte storage cap. GET /usage matches and is the caller's own.
+const plan_limit_is = (name, limit, status = 403) =>
+    check(
+        `${name}_plan_limit`,
+        results[name]?.status === status &&
+            results[name]?.data?.code === 'plan_limit' &&
+            results[name]?.data?.limit === limit &&
+            /\/pricing$/.test(results[name]?.data?.upgrade_url || ''),
+        results[name]
+    );
+const pub_plans = await call('plans_public', 'GET', '/plans');
+const plan_of = id => (pub_plans?.plans || []).find(p => p.id === id);
+check(
+    'plans_public_decided',
+    JSON.stringify((pub_plans?.plans || []).map(p => p.id)) ===
+        JSON.stringify(['FREE', 'STARTER', 'PRO']) &&
+        plan_of('FREE')?.caps?.tables === 3 &&
+        plan_of('FREE')?.caps?.rows_per_account === 3000 &&
+        plan_of('STARTER')?.price_month_usd === 9 &&
+        plan_of('STARTER')?.caps?.api_calls_per_month === 250000 &&
+        plan_of('PRO')?.price_month_usd === 29 &&
+        plan_of('PRO')?.caps?.rows_per_account === 1000000,
+    pub_plans
+);
+await call('usage_no_token', 'GET', '/usage', { expectFail: true });
+
+// Leftovers of an earlier run on the same databases: tables (their views and URL sources go
+// with them), forms, webhooks and keys
+async function plan_cleanup(prefix, tok) {
+    const forms = await call(`${prefix}_cleanup_forms`, 'GET', '/form', { token: tok });
+    for (const [i, f] of (forms?.forms || []).entries()) {
+        await call(`${prefix}_cleanup_form_${i}`, 'DELETE', `/form/${f.id}`, { token: tok });
+    }
+    const hooks = await call(`${prefix}_cleanup_hooks`, 'GET', '/webhook', { token: tok });
+    for (const [i, h] of (hooks?.webhooks || []).entries()) {
+        await call(`${prefix}_cleanup_hook_${i}`, 'DELETE', `/webhook/${h.id}`, { token: tok });
+    }
+    const keys = await call(`${prefix}_cleanup_keys`, 'GET', '/api-key', { token: tok });
+    for (const [i, k] of (keys?.keys || []).filter(k => !k.revoked_datetime).entries()) {
+        await call(`${prefix}_cleanup_key_${i}`, 'DELETE', `/api-key/${k.id}`, { token: tok });
+    }
+    const dirs = await call(`${prefix}_cleanup_tables`, 'GET', '/file-directory', { token: tok });
+    const ids = (Array.isArray(dirs) ? dirs : []).filter(d => d.type === 'file').map(d => d.id);
+    if (ids.length > 0) {
+        await call(`${prefix}_cleanup_delete`, 'POST', '/file-directory/batch_delete', {
+            token: tok,
+            body: { ids }
+        });
+    }
+}
+const new_table = (tok, acct, name) => ({
+    token: tok,
+    body: { account_id: acct, name, type: 'file', web_file_type: 'data-grid' }
+});
+// Waits for an upload or URL import to be processed; answers the table
+async function plan_settled(name, tok, id) {
+    let dir;
+    for (let i = 0; i < 40; i++) {
+        const dirs = await call(`${name}_poll`, 'GET', '/file-directory', { token: tok });
+        dir = (Array.isArray(dirs) ? dirs : []).find(d => d.id === id);
+        if (dir && dir.status !== 'PENDING' && dir.status !== 'PROCESSING') break;
+        await sleep(1000);
+    }
+    return dir;
+}
+const csv_form = (name, text) => {
+    const f = new FormData();
+    f.append('file', new Blob([text], { type: 'text/csv' }), `${name}.csv`);
+    f.append('new_name', name);
+    return f;
+};
+
+const p7_session = await call('plan_free_login', 'POST', '/auth/login', {
+    body: { email: 'demo7@invokedb.com', password: 'password' }
+});
+const p7 = p7_session?.token;
+const p7_me = await call('plan_free_authorize', 'GET', `/auth/authorize?token=${p7}`);
+await plan_cleanup('plan_free', p7);
+const u7_start = await call('plan_free_usage_start', 'GET', '/usage', { token: p7 });
+check(
+    'plan_free_usage_caps',
+    u7_start?.plan?.id === 'FREE' &&
+        u7_start?.internal === false &&
+        u7_start?.usage?.tables?.cap === 2 &&
+        u7_start?.usage?.tables?.used === 0 &&
+        u7_start?.usage?.rows_per_table?.cap === 4 &&
+        u7_start?.usage?.rows_per_account?.cap === 7 &&
+        u7_start?.usage?.columns_per_table?.cap === 4 &&
+        u7_start?.usage?.api_calls_per_month?.cap === 5 &&
+        u7_start?.usage?.storage_bytes?.cap === 10 * 1024 * 1024 &&
+        u7_start?.usage?.url_sources?.cap === 1 &&
+        u7_start?.usage?.webhooks?.cap === 1 &&
+        u7_start?.usage?.forms?.cap === 1 &&
+        u7_start?.usage?.views_per_table?.cap === 1 &&
+        u7_start?.limits?.query_page === 2 &&
+        u7_start?.limits?.csv_upload_bytes === 300 &&
+        u7_start?.limits?.key_limits_and_logs === false &&
+        u7_start?.limits?.audit_keep_days === 7,
+    u7_start
+);
+
+// Tables (cap 2): one, then three in parallel at the cap - 1 make at most one
+const pa = await call(
+    'plan_table_a',
+    'POST',
+    '/file-directory',
+    new_table(p7, p7_me?.id, 'smoke_plan_a')
+);
+const par = await Promise.all(
+    [0, 1, 2].map(i =>
+        fetch(`${BASE}/file-directory`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${p7}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(new_table(p7, p7_me?.id, `smoke_plan_par_${i}`).body)
+        }).then(async r => ({ status: r.status, data: await r.json().catch(() => null) }))
+    )
+);
+results.plan_table_parallel = par.map(r => r.status);
+const par_made = par.filter(r => r.status < 300);
+check(
+    'plan_table_parallel_at_most_one',
+    par_made.length <= 1 && par.filter(r => r.status === 403).length === 3 - par_made.length,
+    par
+);
+let pb = par_made[0]?.data;
+if (!pb) {
+    pb = await call(
+        'plan_table_b',
+        'POST',
+        '/file-directory',
+        new_table(p7, p7_me?.id, 'smoke_plan_b')
+    );
+}
+// At the cap, every way of making a table is refused, and makes nothing
+await call('plan_table_app_over', 'POST', '/file-directory', {
+    ...new_table(p7, p7_me?.id, 'smoke_plan_c'),
+    expectFail: true
+});
+plan_limit_is('plan_table_app_over', 'tables');
+await call('plan_table_template_over', 'POST', '/table-template/waitlist', {
+    token: p7,
+    body: { name: 'smoke_plan_tpl' },
+    expectFail: true
+});
+plan_limit_is('plan_table_template_over', 'tables');
+await call('plan_table_csv_over', 'POST', '/web-file/file_upload', {
+    token: p7,
+    form: csv_form('smoke_plan_csv', 'x,y\n1,2\n'),
+    expectFail: true
+});
+plan_limit_is('plan_table_csv_over', 'tables');
+await call('plan_table_url_over', 'POST', '/url-import', {
+    token: p7,
+    body: { new_name: 'smoke_plan_url_over', url: `${RAW}/examples/data/todo.csv` },
+    expectFail: true
+});
+plan_limit_is('plan_table_url_over', 'tables');
+const p7_dirs = await call('plan_tables_at_cap', 'GET', '/file-directory', { token: p7 });
+check(
+    'plan_tables_refused_made_nothing',
+    Array.isArray(p7_dirs) && p7_dirs.filter(d => d.type === 'file').length === 2,
+    p7_dirs
+);
+
+// Rows: each new table has 3 rows (6 in all). A 4th in A fits (7 in all); a 5th passes the
+// per-table cap, and a 4th in B the account's
+const add_row = (name, id, opts = {}) =>
+    call(name, 'POST', `/web-file/batch_create/data_grid_row/${id}`, {
+        token: p7,
+        body: [{ a: 'x' }],
+        ...opts
+    });
+await add_row('plan_rows_a_4th', pa);
+await add_row('plan_rows_a_5th', pa, { expectFail: true });
+plan_limit_is('plan_rows_a_5th', 'rows_per_table');
+await add_row('plan_rows_b_4th', pb, { expectFail: true });
+plan_limit_is('plan_rows_b_4th', 'rows_per_account');
+
+// Columns (cap 4): A has 3. A 4th fits; a 5th is refused, made or switched on
+const new_col = (n, field) => ({
+    file_directory_id: pa,
+    col_index: n,
+    order: n,
+    field,
+    headerName: `col${n}`,
+    width: 120
+});
+await call('plan_col_4th', 'POST', `/web-file/batch_create/data_grid_column/${pa}`, {
+    token: p7,
+    body: [new_col(4, 'd')]
+});
+await call('plan_col_5th', 'POST', `/web-file/batch_create/data_grid_column/${pa}`, {
+    token: p7,
+    body: [new_col(5, 'e')],
+    expectFail: true
+});
+plan_limit_is('plan_col_5th', 'columns_per_table');
+const p7_placeholder = await call('plan_col_placeholder', 'GET', `/web-file/${pa}/get_new_column`, {
+    token: p7
+});
+await call('plan_col_save_5th', 'PUT', `/web-file/${p7_placeholder?._id}/data_grid_column/${pa}`, {
+    token: p7,
+    body: { ...p7_placeholder, headerName: 'col5', deleted: false },
+    expectFail: true
+});
+plan_limit_is('plan_col_save_5th', 'columns_per_table');
+
+// API keys: no per-key rate limit or request log on Free
+const k7 = await call('plan_free_key', 'POST', '/api-key', {
+    token: p7,
+    body: { name: 'smoke plan', access: 'read_write' }
+});
+await call('plan_free_key_rate_limit', 'POST', '/api-key', {
+    token: p7,
+    body: { name: 'smoke plan limited', access: 'read', rate_limit_per_second: 1 },
+    expectFail: true
+});
+plan_limit_is('plan_free_key_rate_limit', 'key_limits_and_logs');
+
+// The API (5 calls a month): a query page over 2 is a 400, a create over the row cap a 403, and
+// every call counts until the 429, which lasts until the 1st (UTC). A rerun in the same month
+// starts at the quota.
+const p7_calls = u7_start?.usage?.api_calls_per_month?.used ?? 0;
+// The calls made before the loop below: 3 when there was room for them
+const p7_calls_before_loop = p7_calls + 3 <= 5 ? p7_calls + 3 : p7_calls;
+const v1 = (path, init = {}) =>
+    fetch(`${BASE}/api/v1/${path}`, {
+        ...init,
+        headers: { Authorization: `Bearer ${k7?.secret}`, 'Content-Type': 'application/json' }
+    }).then(async r => ({
+        status: r.status,
+        retry_after: r.headers.get('retry-after'),
+        data: await r.json().catch(() => null)
+    }));
+if (p7_calls_before_loop > p7_calls) {
+    results.plan_api_query_over = await v1('query?table=smoke_plan_a', {
+        method: 'POST',
+        body: JSON.stringify({ limit: 3 })
+    });
+    check('plan_api_query_over_400', results.plan_api_query_over.status === 400);
+    results.plan_api_query_page = await v1('query?table=smoke_plan_a', {
+        method: 'POST',
+        body: JSON.stringify({ limit: 2 })
+    });
+    check(
+        'plan_api_query_page_2',
+        results.plan_api_query_page.status === 200 &&
+            results.plan_api_query_page.data?.data?.length === 2,
+        results.plan_api_query_page
+    );
+    results.plan_api_create_over = await v1('create?table=smoke_plan_a', {
+        method: 'POST',
+        body: JSON.stringify([{ column1: 'x' }])
+    });
+    plan_limit_is('plan_api_create_over', 'rows_per_table');
+} else {
+    console.log('     (demo7 used its API calls earlier this month: page and create not checked)');
+}
+const quota_statuses = [];
+let quota_hit = null;
+for (let i = 0; i < 8; i++) {
+    const r = await v1('get?table=smoke_plan_a&skip=0&limit=1');
+    quota_statuses.push(r.status);
+    if (r.status === 429) {
+        quota_hit = r;
+        break;
+    }
+}
+results.plan_api_quota = { statuses: quota_statuses, hit: quota_hit };
+check(
+    'plan_api_quota_429_until_next_month',
+    quota_hit?.data?.code === 'plan_limit' &&
+        quota_hit?.data?.limit === 'api_calls_per_month' &&
+        Number(quota_hit?.retry_after) >= 1 &&
+        Number(quota_hit?.retry_after) <= 31 * 24 * 3600 &&
+        quota_statuses.slice(0, -1).every(s => s === 200) &&
+        quota_statuses.length - 1 === Math.max(0, 5 - p7_calls_before_loop),
+    results.plan_api_quota
+);
+// The app's own routes don't count and still work
+await call('plan_app_after_quota', 'POST', `/web-file/data_grid_row/${pa}?skip=0&limit=1`, {
+    token: p7,
+    body: {}
+});
+
+// Forms (1), and a submission to a table at its row cap is refused
+const f7 = await call('plan_form_1', 'POST', '/form', {
+    token: p7,
+    body: { file_id: pa, title: 'smoke plan form', fields: [{ field: 'a' }] }
+});
+await call('plan_form_2', 'POST', '/form', {
+    token: p7,
+    body: { file_id: pa, title: 'smoke plan form 2', fields: [{ field: 'a' }] },
+    expectFail: true
+});
+plan_limit_is('plan_form_2', 'forms');
+await call('plan_form_submit_full', 'POST', `/public/form/${f7?.id}/submit`, {
+    body: { values: { a: 'x' }, website: '' },
+    expectFail: true
+});
+status_is('plan_form_submit_full', 403);
+
+// Views (1 per table) and webhooks (1)
+await call('plan_view_1', 'POST', '/view', {
+    token: p7,
+    body: { file_id: pa, name: 'smoke plan view', type: 'grid' }
+});
+await call('plan_view_2', 'POST', '/view', {
+    token: p7,
+    body: { file_id: pa, name: 'smoke plan view 2', type: 'grid' },
+    expectFail: true
+});
+plan_limit_is('plan_view_2', 'views_per_table');
+await call('plan_webhook_1', 'POST', '/webhook', {
+    token: p7,
+    body: { url: `http://${HOOK_HOST}/plan`, events: ['row.updated'], file_id: pa }
+});
+await call('plan_webhook_2', 'POST', '/webhook', {
+    token: p7,
+    body: { url: `http://${HOOK_HOST}/plan`, events: ['row.updated'], file_id: pa },
+    expectFail: true
+});
+plan_limit_is('plan_webhook_2', 'webhooks');
+
+// Uploads: over 300 bytes is a 413 before any table is made; with B gone, a CSV with too many
+// columns or rows makes a table whose processing is refused
+await call('plan_table_b_delete', 'POST', '/file-directory/batch_delete', {
+    token: p7,
+    body: { ids: [pb] }
+});
+await call('plan_csv_too_big', 'POST', '/web-file/file_upload', {
+    token: p7,
+    form: csv_form('smoke_plan_big', `x\n${'1\n'.repeat(200)}`),
+    expectFail: true
+});
+plan_limit_is('plan_csv_too_big', 'csv_upload_bytes', 413);
+const csv_wide = await call('plan_csv_wide', 'POST', '/web-file/file_upload', {
+    token: p7,
+    form: csv_form('smoke_plan_wide', 'a,b,c,d,e\n1,2,3,4,5\n')
+});
+const wide_dir = await plan_settled('plan_csv_wide', p7, csv_wide);
+check(
+    'plan_csv_wide_refused',
+    wide_dir?.status === 'ERROR' && /columns per table/.test(wide_dir?.status_reason || ''),
+    wide_dir
+);
+await call('plan_csv_wide_delete', 'POST', '/file-directory/batch_delete', {
+    token: p7,
+    body: { ids: [csv_wide] }
+});
+const csv_long = await call('plan_csv_long', 'POST', '/web-file/file_upload', {
+    token: p7,
+    form: csv_form('smoke_plan_long', `x\n${'1\n'.repeat(5)}`)
+});
+const long_dir = await plan_settled('plan_csv_long', p7, csv_long);
+check(
+    'plan_csv_long_refused',
+    long_dir?.status === 'ERROR' && /rows per table/.test(long_dir?.status_reason || ''),
+    long_dir
+);
+await call('plan_csv_long_delete', 'POST', '/file-directory/batch_delete', {
+    token: p7,
+    body: { ids: [csv_long] }
+});
+
+// URL sources (1, daily syncs only): an hourly one is refused before a table is made; then one,
+// and a second is refused; switching the first to hourly is refused
+await call('plan_url_hourly', 'POST', '/url-import', {
+    token: p7,
+    body: {
+        new_name: 'smoke_plan_url_h',
+        url: `${RAW}/examples/data/todo.csv`,
+        schedule: 'hourly'
+    },
+    expectFail: true
+});
+plan_limit_is('plan_url_hourly', 'url_sync_schedules');
+const p7_url = await call('plan_url_1', 'POST', '/url-import', {
+    token: p7,
+    body: { new_name: 'smoke_plan_url', url: `${RAW}/examples/data/todo.csv`, schedule: 'daily' }
+});
+await call('plan_url_2', 'POST', '/url-import', {
+    token: p7,
+    body: { new_name: 'smoke_plan_url_2', url: `${RAW}/examples/data/todo.csv` },
+    expectFail: true
+});
+plan_limit_is('plan_url_2', 'url_sources');
+await call('plan_url_to_hourly', 'PUT', `/url-import/${p7_url}`, {
+    token: p7,
+    body: { schedule: 'hourly' },
+    expectFail: true
+});
+plan_limit_is('plan_url_to_hourly', 'url_sync_schedules');
+// todo.csv has more rows than the cap: the import is refused, and the table stays
+const url_dir = await plan_settled('plan_url_1', p7, p7_url);
+check('plan_url_import_refused', url_dir?.status === 'ERROR', url_dir);
+
+// GET /usage counts what was made; another account's usage doesn't show it
+const u7 = await call('plan_free_usage_end', 'GET', '/usage', { token: p7 });
+check(
+    'plan_free_usage_matches',
+    u7?.usage?.tables?.used === 2 &&
+        u7?.usage?.rows_per_account?.used === 4 &&
+        u7?.usage?.rows_per_table?.used === 4 &&
+        u7?.usage?.columns_per_table?.used === 4 &&
+        u7?.usage?.api_calls_per_month?.used === 5 &&
+        u7?.usage?.url_sources?.used === 1 &&
+        u7?.usage?.webhooks?.used === 1 &&
+        u7?.usage?.forms?.used === 1 &&
+        u7?.usage?.views_per_table?.used === 1 &&
+        u7?.usage?.storage_bytes?.used > 0 &&
+        (u7?.tables || []).some(t => t.id === pa && t.rows === 4 && t.columns === 4),
+    u7
+);
+const p2 = (
+    await call('plan_other_login', 'POST', '/auth/login', {
+        body: { email: 'demo2@invokedb.com', password: 'password' }
+    })
+)?.token;
+const u2 = await call('plan_other_usage', 'GET', '/usage', { token: p2 });
+await call('plan_other_logout', 'GET', `/auth/logout?token=${p2}`);
+check(
+    'plan_usage_is_own',
+    u2?.internal === true &&
+        u2?.usage?.tables?.cap === null &&
+        !(u2?.tables || []).some(t => String(t.name).startsWith('smoke_plan')),
+    u2
+);
+await call('plan_usage_with_key', 'GET', '/usage', { token: k7?.secret, expectFail: true });
+await plan_cleanup('plan_free_end', p7);
+await call('plan_free_logout', 'GET', `/auth/logout?token=${p7}`);
+
+// A paid plan: demo6 on Starter has its caps and per-key limits, and a 1-byte storage cap
+// refuses every write that adds data (a new table's own empty rows are let in)
+const p6_session = await call('plan_paid_login', 'POST', '/auth/login', {
+    body: { email: 'demo6@invokedb.com', password: 'password' }
+});
+const p6 = p6_session?.token;
+const p6_me = await call('plan_paid_authorize', 'GET', `/auth/authorize?token=${p6}`);
+await plan_cleanup('plan_paid', p6);
+const u6 = await call('plan_paid_usage', 'GET', '/usage', { token: p6 });
+check(
+    'plan_paid_usage_caps',
+    u6?.plan?.id === 'STARTER' &&
+        u6?.internal === false &&
+        u6?.usage?.tables?.cap === 25 &&
+        u6?.usage?.rows_per_account?.cap === 100000 &&
+        u6?.usage?.storage_bytes?.cap === 1 &&
+        u6?.limits?.query_page === 1000 &&
+        u6?.limits?.key_limits_and_logs === true &&
+        u6?.limits?.audit_keep_days === 30,
+    u6
+);
+const p6t = await call(
+    'plan_paid_table',
+    'POST',
+    '/file-directory',
+    new_table(p6, p6_me?.id, 'smoke_plan_paid')
+);
+await call('plan_paid_row', 'POST', `/web-file/batch_create/data_grid_row/${p6t}`, {
+    token: p6,
+    body: [{ a: 'x' }],
+    expectFail: true
+});
+plan_limit_is('plan_paid_row', 'storage_bytes');
+const k6 = await call('plan_paid_key', 'POST', '/api-key', {
+    token: p6,
+    body: { name: 'smoke plan paid', access: 'read_write', rate_limit_per_second: 1 }
+});
+check('plan_paid_key_rate_limit', k6?.key?.rate_limit?.per_second === 1, k6?.key);
+results.plan_paid_api_create = await fetch(`${BASE}/api/v1/create?table=smoke_plan_paid`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${k6?.secret}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify([{ column1: 'x' }])
+}).then(async r => ({ status: r.status, data: await r.json().catch(() => null) }));
+plan_limit_is('plan_paid_api_create', 'storage_bytes');
+await call('plan_paid_csv', 'POST', '/web-file/file_upload', {
+    token: p6,
+    form: csv_form('smoke_plan_paid_csv', 'x\n1\n'),
+    expectFail: true
+});
+plan_limit_is('plan_paid_csv', 'storage_bytes');
+await plan_cleanup('plan_paid_end', p6);
+await call('plan_paid_logout', 'GET', `/auth/logout?token=${p6}`);
 
 // Two-factor sign-in (#214) on demo6: set up with a QR code and a code, then the password login
 // asks for a code; used codes (TOTP steps and recovery codes) are refused; demo2 and API keys

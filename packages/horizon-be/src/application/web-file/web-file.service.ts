@@ -9,7 +9,8 @@ import { snakeCase } from 'snake-case';
 import camelCase from 'camelcase';
 import { WebFileManager } from '@app/core/web-file/web-file.manager';
 import { FileDirectoryService } from '../file-directory/file-directory.service';
-import { TrackingManager } from '@app/core/tracking/tracking.manager';
+import { TrackingManager, estimate_bytes } from '@app/core/tracking/tracking.manager';
+import { plan_limit_error } from '@app/core/plan/plans';
 import { JobManager } from '@app/core/job/job.manager';
 import { WebFilePrcNotifyService } from './web-file-prc-notify.service';
 import env from '@app/env';
@@ -22,7 +23,6 @@ import {
     QueryColumn,
     encode_cursor,
     explain_indexes,
-    max_query_limit,
     parse_count_query,
     parse_row_query
 } from '@app/core/web-file/row-query';
@@ -408,7 +408,9 @@ export class WebFileService {
                 col: c
             }))
         );
-        const query = parse_row_query(body, columns, max_query_limit());
+        // The page size is the plan's (#183): a bigger `limit` is a 400
+        const { caps } = await this.tracking_manager.plan(account);
+        const query = parse_row_query(body, columns, caps.query_page);
         const res = await this.web_file_manager.query_rows(account.id, file_id, query);
         if (query.explain) {
             return { explain: explain_indexes(res.explain, columns) };
@@ -488,7 +490,8 @@ export class WebFileService {
         }
 
         this.validate_external_create_rows_body(body);
-        this.validate_external_save_rows_body(body, col_defs);
+        const { caps } = await this.tracking_manager.plan(account);
+        this.validate_external_save_rows_body(body, col_defs, caps.rows_per_write);
 
         const col_field_map = {};
         col_defs.forEach(col_def => {
@@ -525,7 +528,10 @@ export class WebFileService {
         }
 
         this.validate_external_update_rows_body(body);
-        this.validate_external_save_rows_body(body, col_defs);
+        const plan = await this.tracking_manager.plan(account);
+        this.validate_external_save_rows_body(body, col_defs, plan.caps.rows_per_write);
+        // Changed values can make rows bigger: refused when the account is at its storage cap
+        await this.tracking_manager.check_storage(account, estimate_bytes(body), plan);
 
         const col_field_map = {};
         col_defs.forEach(col_def => {
@@ -596,7 +602,8 @@ export class WebFileService {
         });
     }
 
-    validate_external_save_rows_body(body, col_defs) {
+    // `max_rows`: the plan's rows per /api/v1 write (#183)
+    validate_external_save_rows_body(body, col_defs, max_rows: number) {
         if (!body || !Array.isArray(body)) {
             throw new HttpException('POST body must be an Array', HttpStatus.BAD_REQUEST);
         }
@@ -605,9 +612,9 @@ export class WebFileService {
             throw new HttpException('POST body is empty', HttpStatus.BAD_REQUEST);
         }
 
-        if (body.length > 100) {
+        if (body.length > max_rows) {
             throw new HttpException(
-                'POST body cannot have a length greater than 100',
+                `POST body cannot have a length greater than ${max_rows}`,
                 HttpStatus.BAD_REQUEST
             );
         }
@@ -682,7 +689,8 @@ export class WebFileService {
                 type: c.col_type,
                 link_table: is_link_column(c) ? names.get(Number(c.link_table_id)) : undefined
             })),
-            sample_row
+            sample_row,
+            max_query_limit: (await this.tracking_manager.plan({ id: account_id })).caps.query_page
         };
     }
 
@@ -716,6 +724,7 @@ export class WebFileService {
             await this.tracking_manager.add_columns(account, { columns: [data], file_id });
             col_changes = await this.pending_column_changes(account.id, file_id, [data]);
         } else if (web_file_type === 'data_grid_row') {
+            await this.tracking_manager.check_storage(account, estimate_bytes(data));
             await this.web_file_manager.resolve_links(account.id, file_id, [data], true);
             row_columns = await this.row_update_columns(account.id, file_id, [data]);
         }
@@ -783,6 +792,7 @@ export class WebFileService {
         } else {
             let row_columns: string[] = [];
             if (web_file_type === 'data_grid_row') {
+                await this.tracking_manager.check_storage(account, estimate_bytes(data));
                 await this.web_file_manager.resolve_links(account.id, file_id, data, true);
                 row_columns = await this.row_update_columns(account.id, file_id, data);
             }
@@ -825,7 +835,9 @@ export class WebFileService {
             // row limit together (#182)
             release = await this.tracking_manager.add_rows(account, {
                 rows_to_be_added: data.length,
-                file_id
+                file_id,
+                // For the storage cap (#183)
+                bytes: estimate_bytes(data)
             });
         }
         const inserted = [];
@@ -893,6 +905,24 @@ export class WebFileService {
             await this.audit_svc.columns(account, file_id, col_changes);
         }
         return removed_rows_count;
+    }
+
+    /**
+     * A CSV upload of `size` bytes: 413 `plan_limit` past the plan's upload size, 403 when it
+     * would take the account past its storage cap (#183).
+     */
+    async check_upload(account, size: number) {
+        const plan = await this.tracking_manager.plan(account);
+        const cap = plan.caps.csv_upload_bytes;
+        if (Number.isFinite(cap) && size > cap) {
+            throw plan_limit_error(
+                'csv_upload_bytes',
+                cap,
+                plan.plan,
+                HttpStatus.PAYLOAD_TOO_LARGE
+            );
+        }
+        await this.tracking_manager.check_storage(account, size, plan);
     }
 
     async file_upload(account, form_data) {

@@ -48,6 +48,13 @@ export class UrlImportManager {
         return (doc as unknown as UrlSource) || null;
     }
 
+    /** How many tables of the account's are imported from a URL (the plan's `url_sources`). */
+    async count(account_id: number) {
+        if (!account_id) return 0;
+        const c = await this.collection();
+        return await c.countDocuments({ account_id });
+    }
+
     async create(source: UrlSource) {
         const c = await this.collection();
         await c.replaceOne(

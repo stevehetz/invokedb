@@ -46,10 +46,16 @@ export default {
     },
 
     methods: {
+        // ?section=api-keys (the account menu) or ?section=usage (a plan_limit notice, #183)
         show_section() {
-            if (this.$route.query.section !== 'api-keys') return;
+            const sections = {
+                'api-keys': '.api-key-form',
+                usage: '.subscription-form'
+            };
+            const selector = sections[this.$route.query.section];
+            if (!selector) return;
             this.$nextTick(() => {
-                const el = this.$el.querySelector('.api-key-form');
+                const el = this.$el.querySelector(selector);
                 if (el)
                     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });

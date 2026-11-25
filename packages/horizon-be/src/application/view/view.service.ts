@@ -1,14 +1,10 @@
-import {
-    BadRequestException,
-    ForbiddenException,
-    Injectable,
-    NotFoundException
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { FileDirectoryService } from '../file-directory/file-directory.service';
 import { AccountService } from '../account/account.service';
 import { TrackingManager } from '@app/core/tracking/tracking.manager';
 import { WebFileManager } from '@app/core/web-file/web-file.manager';
 import { View, ViewManager } from '@app/core/view/view.manager';
+import { assert_room } from '@app/core/plan/plans';
 import {
     VIEW_LIMITS,
     ViewColumn,
@@ -109,11 +105,8 @@ export class ViewService {
         const file = await this.owned_table(acct_id, b.file_id);
         const columns = await this.columns(acct_id, file.id);
         const settings = this.checked(() => parse_view_settings(b, columns)) as ViewSettings;
-        if ((await this.view_manager.count(acct_id, file.id)) >= VIEW_LIMITS.max_per_table) {
-            throw new ForbiddenException(
-                `A table can have at most ${VIEW_LIMITS.max_per_table} views`
-            );
-        }
+        // The plan's views per table (#183): 403 `plan_limit`
+        assert_room(account, 'views_per_table', await this.view_manager.count(acct_id, file.id));
         const now = this.now();
         const view = await this.view_manager.create({
             ...settings,

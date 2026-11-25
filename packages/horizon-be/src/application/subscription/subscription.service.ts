@@ -28,7 +28,7 @@ export class SubscriptionService {
         logger.info(
             `${account.email} has changed their subscription to ${account.subscription_id}`
         );
-        await this.tracking_manager.update_limits(account);
+        // The caps come from the plan constant (core/plan/plans.ts): nothing to copy (#183)
         await this.tracking_manager.update_account_lock(account);
         await this.tracking_manager.update_account_table_locks(account);
     }

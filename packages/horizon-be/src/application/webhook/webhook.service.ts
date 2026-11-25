@@ -1,9 +1,4 @@
-import {
-    BadRequestException,
-    ForbiddenException,
-    Injectable,
-    NotFoundException
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { FileDirectoryService } from '../file-directory/file-directory.service';
 import { AccountService } from '../account/account.service';
 import { TrackingManager } from '@app/core/tracking/tracking.manager';
@@ -13,7 +8,6 @@ import {
     DeliveryPayload,
     TEST_EVENT,
     WEBHOOK_EVENTS,
-    WEBHOOK_LIMITS,
     WebhookError,
     WebhookEvent,
     chunk_rows,
@@ -26,6 +20,7 @@ import {
     payload_row
 } from '@app/core/webhook/webhook';
 import env from '@app/env';
+import { assert_room } from '@app/core/plan/plans';
 import logger from '@app/logger';
 
 // Webhooks on row changes (#140): add, change, test and delete them, read their delivery log,
@@ -111,18 +106,15 @@ export class WebhookService {
     /** Body: `{ url, events, file_id? (null: every table), enabled? }`. */
     async create(acct_id: number, body: any) {
         const b = body && typeof body === 'object' ? body : {};
-        await this.unlocked_account(acct_id);
+        const account = await this.unlocked_account(acct_id);
         const url = this.checked(() => parse_webhook_url(b.url, this.test_hosts));
         const events = this.checked(() => parse_events(b.events));
         const file = await this.owned_table(acct_id, b.file_id);
         if (b.enabled !== undefined && typeof b.enabled !== 'boolean') {
             throw new BadRequestException('enabled must be true or false');
         }
-        if ((await this.webhook_manager.count(acct_id)) >= WEBHOOK_LIMITS.max_per_account) {
-            throw new ForbiddenException(
-                `An account can have at most ${WEBHOOK_LIMITS.max_per_account} webhooks`
-            );
-        }
+        // The plan's webhooks (#183): 403 `plan_limit`
+        assert_room(account, 'webhooks', await this.webhook_manager.count(acct_id));
         const hook = await this.webhook_manager.create({
             id: new_id('wh'),
             account_id: acct_id,

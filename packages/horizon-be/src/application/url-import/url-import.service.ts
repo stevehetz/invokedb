@@ -21,6 +21,7 @@ import {
 } from '@app/core/url-import/url-import';
 import { validate_file_dir_name, validate_file_dir_msg } from '@app/core/helpers/validators';
 import _c from '@app/constants';
+import { assert_room, assert_sync_schedule } from '@app/core/plan/plans';
 
 export const URL_JOB_EVENTS = { import: 'URL_IMPORT', sync: 'URL_SYNC' };
 
@@ -76,12 +77,15 @@ export class UrlImportService {
     /** Body: `{ new_name, url, parent_id?, mode?, key_column?, schedule? }`. Answers the table id. */
     async create(acct_id: number, body: any) {
         const b = body && typeof body === 'object' ? body : {};
-        await this.account(acct_id);
+        const account = await this.account(acct_id);
         const name = b.new_name;
         if (typeof name !== 'string' || !validate_file_dir_name(name)) {
             throw new HttpException(validate_file_dir_msg(), HttpStatus.BAD_REQUEST);
         }
         const settings = this.settings(b);
+        // The plan's URL sources and sync schedules (#183): 403 `plan_limit`, no table made
+        assert_room(account, 'url_sources', await this.url_import_manager.count(acct_id));
+        assert_sync_schedule(account, settings.schedule);
         const url = await this.checked_url(b.url);
         const parent_id =
             b.parent_id !== undefined && b.parent_id !== null ? Number(b.parent_id) : null;
@@ -133,6 +137,9 @@ export class UrlImportService {
         if (!source) throw new NotFoundException('This table was not imported from a URL');
         const b = body && typeof body === 'object' ? body : {};
         const settings = this.settings(b, source);
+        if (settings.schedule !== source.schedule) {
+            assert_sync_schedule(await this.account_svc.get(acct_id), settings.schedule);
+        }
         const changes: Partial<UrlSource> = { ...settings };
         if (b.url !== undefined && b.url !== source.url) {
             Object.assign(changes, await this.checked_url(b.url));

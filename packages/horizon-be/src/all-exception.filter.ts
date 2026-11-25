@@ -62,6 +62,15 @@ export class AllExceptionFilter implements ExceptionFilter {
             json_response.errors = errors;
         }
 
+        // A refusal at a plan's cap (#183): which limit, the cap and where to upgrade
+        if (response && response.code === 'plan_limit') {
+            json_response.code = 'plan_limit';
+            json_response.limit = response.limit;
+            json_response.cap = response.cap;
+            json_response.plan = response.plan;
+            json_response.upgrade_url = response.upgrade_url;
+        }
+
         // How long to wait, for a rate limit that knows (the /api/v1 request limit, #182)
         const res = ctx.getResponse<Response>();
         const retry_after = response && response.retry_after;

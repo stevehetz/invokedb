@@ -18,7 +18,7 @@ describe('WebFileService deletes on a locked account', () => {
 
     beforeEach(() => {
         // The real lock check, with no databases behind it
-        tracking = new TrackingManager({} as any, {} as any, {} as any, {} as any);
+        tracking = new TrackingManager({} as any, {} as any, {} as any);
         jest.spyOn(tracking, 'update_req_count').mockResolvedValue(undefined);
         jest.spyOn(tracking, 'check_table_lock').mockResolvedValue(undefined);
         jest.spyOn(tracking, 'deleted_rows').mockResolvedValue(undefined);

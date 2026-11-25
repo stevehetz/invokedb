@@ -6,6 +6,7 @@ import {
     actor_of,
     api_key_change,
     audit_cutoff,
+    audit_prune_steps,
     column_changes,
     encode_audit_cursor,
     form_actor,
@@ -150,8 +151,27 @@ describe('audit paging', () => {
         expect(a < b).toBe(true);
     });
 
-    it('keeps 90 days', () => {
+    it('keeps 90 days at most, and a plan its own', () => {
         const now = Date.UTC(2026, 10, 25);
         expect(now - audit_cutoff(now)).toBe(90 * 24 * 60 * 60 * 1000);
+        expect(now - audit_cutoff(now, 7)).toBe(7 * 24 * 60 * 60 * 1000);
+    });
+
+    it("prunes each plan's entries after its own days (7 / 30 / 90)", () => {
+        const longer = [
+            { account_id: 1, keep_days: 30 },
+            { account_id: 2, keep_days: 90 },
+            { account_id: 3, keep_days: 90 }
+        ];
+        expect(audit_prune_steps(longer, 7)).toEqual([
+            { days: 7, except: [1, 2, 3] },
+            { days: 30, except: [2, 3] },
+            { days: 90, except: [] }
+        ]);
+        // Only Free accounts: everyone's after 7 days, and the 90-day sweep
+        expect(audit_prune_steps([], 7)).toEqual([
+            { days: 7, except: [] },
+            { days: 90, except: [] }
+        ]);
     });
 });

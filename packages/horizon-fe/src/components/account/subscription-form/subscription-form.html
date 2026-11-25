@@ -2,26 +2,47 @@
     <div class="form-heading">
         <div class="flex-2-col">
             <div class="left">
-                <h3>Subscription</h3>
+                <h3>Plan and Usage</h3>
             </div>
             <div class="right"></div>
         </div>
     </div>
-    <div class="form-body loading" v-if="loading">
-        Loading subscription info...
-    </div>
+    <div class="form-body loading" v-if="loading">Loading your usage...</div>
     <div class="form-body" v-if="!loading">
         <div class="subscription-tier">
-            <label> Subscription Tier: </label>
-            <span class="" v-if="account">
-                {{account.subscription ? account.subscription.name + ' - $' +
-                account.subscription.price : 'Free'}}
-            </span>
+            <label> Plan: </label>
+            <span class="plan-name">{{ plan_name }}</span>
+        </div>
+        <p class="usage-error" v-if="error">{{ error }}</p>
+        <div class="usage-meters" v-if="usage">
+            <div
+                class="usage-meter"
+                :class="'usage-' + m.key"
+                v-for="m in meters"
+                :key="m.key"
+            >
+                <div class="usage-meter__label">
+                    <span>{{ m.label }}</span>
+                    <span class="usage-meter__text">{{ m.text }}</span>
+                </div>
+                <el-progress
+                    :percentage="m.percent"
+                    :status="m.status"
+                    :show-text="false"
+                    :stroke-width="8"
+                ></el-progress>
+            </div>
+            <p class="usage-note">
+                API calls count from the 1st of each month (UTC). Up to {{
+                count_label(usage.limits.query_page) }} rows per query page, CSV
+                uploads up to {{ bytes_label(usage.limits.csv_upload_bytes) }},
+                history kept {{ usage.limits.audit_keep_days }} days.
+            </p>
         </div>
         <div class="links">
-            <a :href="pricing_link" class="pricing-link">
-                Go to Pricing Page
-            </a>
+            <router-link to="/pricing" class="pricing-link">
+                Compare plans
+            </router-link>
         </div>
         <div class="locked-message" v-if="account_locked">
             <span>Account Locked</span>

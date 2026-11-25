@@ -34,33 +34,36 @@
                 </div>
             </div>
         </div>
-        <div class="pricing-body mobile">
+        <!-- Every number below comes from GET /plans: the backend's plan constant (#183) -->
+        <div class="pricing-body pricing-status" v-if="loading || error">
+            <p v-if="loading">
+                <i class="fa fa-spinner fa-spin"></i> Loading the plans...
+            </p>
+            <p v-else class="pricing-error">{{ error }}</p>
+        </div>
+        <div class="pricing-body mobile" v-if="plans.length">
             <div class="pricing-body__wrapper">
-                <div class="pricing-block">
-                    <p class="title">Free</p>
+                <div
+                    class="pricing-block"
+                    v-for="(plan, p) in plans"
+                    :key="plan.id"
+                >
+                    <p class="title">{{ plan.name }}</p>
                     <p class="price">
-                        $0 <span class="price__subtitle">per month</span>
+                        {{ price_label(plan) }}
+                        <span class="price__subtitle">per month</span>
                     </p>
+                    <p class="cancel-anytime" v-if="plan.price_year_usd">
+                        or ${{ plan.price_year_usd }} a year, cancel anytime
+                    </p>
+                    <p class="cancel-anytime" v-else>no card needed</p>
                     <p class="section__heading">Resources</p>
-                    <p class="item">3 Tables</p>
-                    <p class="item">150,000 Rows per table</p>
-                    <p class="item">52 Columns per table</p>
-                    <p class="item">50 API requests per minute</p>
-                    <p class="section__heading">Resources</p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Create new tables
+                    <p class="item" v-for="row in rows" :key="row.label">
+                        {{ row.label }}: {{ row.values[p] }}
                     </p>
-                    <p class="item"><i class="fa fa-check"></i> Row editing</p>
-                    <p class="item"><i class="fa fa-check"></i> CSV upload</p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Column filtering
-                    </p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Column indexing
-                    </p>
-                    <p class="item"><i class="fa fa-check"></i> Column types</p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Column sorting
+                    <p class="section__heading">Every plan</p>
+                    <p class="item" v-for="feature in features" :key="feature">
+                        <i class="fa fa-check"></i> {{ feature }}
                     </p>
                     <router-link
                         to="/create-account"
@@ -69,415 +72,99 @@
                         >Get Started</router-link
                     >
                 </div>
-                <div class="pricing-block">
-                    <p class="title">Basic</p>
-                    <p class="price">
-                        $9.99 <span class="price__subtitle">per month</span>
-                    </p>
-                    <p class="cancel-anytime">cancel anytime</p>
-                    <p class="section__heading">Resources</p>
-                    <p class="item">50 Tables</p>
-                    <p class="item">500,000 Rows per table</p>
-                    <p class="item">52 Columns per table</p>
-                    <p class="item">1,000 API requests per minute</p>
-                    <p class="section__heading">Resources</p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Create new tables
-                    </p>
-                    <p class="item"><i class="fa fa-check"></i> Row editing</p>
-                    <p class="item"><i class="fa fa-check"></i> CSV upload</p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Column filtering
-                    </p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Column indexing
-                    </p>
-                    <p class="item"><i class="fa fa-check"></i> Column types</p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Column sorting
-                    </p>
-                    <router-link
-                        to="/create-account"
-                        class="pricing-button"
-                        v-if="!account"
-                        >Get Started</router-link
-                    >
-                </div>
-                <div class="pricing-block">
-                    <p class="title">Plus</p>
-                    <p class="price">
-                        $29.99 <span class="price__subtitle">per month</span>
-                    </p>
-                    <p class="cancel-anytime">cancel anytime</p>
-                    <p class="section__heading">Resources</p>
-                    <p class="item">200 Tables</p>
-                    <p class="item">1,000,000 Rows per table</p>
-                    <p class="item">52 Columns per table</p>
-                    <p class="item">10,000 API requests per minute</p>
-                    <p class="section__heading">Resources</p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Create new tables
-                    </p>
-                    <p class="item"><i class="fa fa-check"></i> Row editing</p>
-                    <p class="item"><i class="fa fa-check"></i> CSV upload</p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Column filtering
-                    </p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Column indexing
-                    </p>
-                    <p class="item"><i class="fa fa-check"></i> Column types</p>
-                    <p class="item">
-                        <i class="fa fa-check"></i> Column sorting
-                    </p>
-                    <router-link
-                        to="/create-account"
-                        class="pricing-button"
-                        v-if="!account"
-                        >Get Started</router-link
-                    >
-                </div>
-                <!-- <div class="pricing-block">
-                    <p class="title">Premium</p>
-                    <p class="price">$99.99 <span class="price__subtitle">per month</span></p>
-                    <p class="cancel-anytime">cancel anytime</p>
-                    <p class="section__heading">Resources</p>
-                    <p class="item">5000 Tables</p>
-                    <p class="item">10,000,000 Rows per table</p>
-                    <p class="item">52 Columns per table</p>
-                    <p class="item">100,000 API requests per minute</p>
-                    <p class="section__heading">Resources</p>
-                    <p class="item"><i class="fa fa-check"></i> Create new tables</p>
-                    <p class="item"><i class="fa fa-check"></i> Row editing</p>
-                    <p class="item"><i class="fa fa-check"></i> CSV upload</p>
-                    <p class="item"><i class="fa fa-check"></i> Column filtering</p>
-                    <p class="item"><i class="fa fa-check"></i> Column indexing</p>
-                    <p class="item"><i class="fa fa-check"></i> Column types</p>
-                    <p class="item"><i class="fa fa-check"></i> Column sorting</p>
-                    <router-link to="/create-account"
-                                 class="pricing-button"
-                                 v-if="!account">Get Started</router-link>                </div> -->
             </div>
         </div>
-        <div class="pricing-body desktop">
+        <div class="pricing-body desktop" v-if="plans.length">
             <div class="pricing-body__wrapper">
                 <div class="flex-row pricing-body__row pricing-body__header">
                     <div class="col col-25"></div>
-                    <div class="col col-20">
-                        <span>Free</span>
+                    <div
+                        class="col col-20"
+                        v-for="plan in plans"
+                        :key="plan.id"
+                    >
+                        <span>{{ plan.name }}</span>
+                        <span class="cancel-anytime"
+                            >{{ plan_note(plan) }}</span
+                        >
                     </div>
-                    <div class="col col-20">
-                        <span>Basic</span>
-                        <span class="cancel-anytime">cancel anytime</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>Plus</span>
-                        <span class="cancel-anytime">cancel anytime</span>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <span>Premium</span>
-                        <span class="cancel-anytime">cancel anytime</span>
-                    </div> -->
                 </div>
                 <div class="flex-row pricing-body__row">
                     <div class="col col-25"></div>
-                    <div class="col col-20">
-                        <span class="price">$0</span>
+                    <div
+                        class="col col-20"
+                        v-for="plan in plans"
+                        :key="plan.id"
+                    >
+                        <span class="price">{{ price_label(plan) }}</span>
                         <span>per month</span>
                     </div>
-                    <div class="col col-20">
-                        <span class="price">$9.99</span>
-                        <span>per month</span>
-                    </div>
-                    <div class="col col-20">
-                        <span class="price">$29.99</span>
-                        <span>per month</span>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <span class="price">$99.99</span>
-                        <span>per month</span>
-                    </div> -->
                 </div>
                 <div class="flex-row pricing-body__row section">
                     <div class="col col-25">
                         <span><b>Resources</b></span>
                     </div>
-                    <div class="col col-20"></div>
-                    <div class="col col-20"></div>
-                    <div class="col col-20"></div>
-                    <!-- <div class="col col-20">
-                    </div> -->
+                    <div
+                        class="col col-20"
+                        v-for="plan in plans"
+                        :key="plan.id"
+                    ></div>
                 </div>
-                <div class="flex-row pricing-body__row">
+                <div
+                    class="flex-row pricing-body__row"
+                    v-for="row in rows"
+                    :key="row.label"
+                >
                     <div class="col col-25">
-                        <span>Tables</span>
+                        <span>{{ row.label }}</span>
                     </div>
-                    <div class="col col-20">
-                        <span>3</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>50</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>200</span>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <span>5000</span>
-                    </div> -->
-                </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>Rows per table</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>150,000</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>500,000</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>1,000,000</span>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <span>10,000,000</span>
-                    </div> -->
-                </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>Columns per table</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>52</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>52</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>52</span>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <span>52</span>
-                    </div> -->
-                </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>External API - Requests Per Minute</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>50</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>1,000</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>10,000</span>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <span>100,000</span>
-                    </div> -->
-                </div>
-                <!-- <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>Trash - Lifespan</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>1 day</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>14 days</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>30 days</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>60 days</span>
+                    <div
+                        class="col col-20"
+                        v-for="(value, p) in row.values"
+                        :key="p"
+                    >
+                        <span>{{ value }}</span>
                     </div>
                 </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>Trash - Capacity</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>10 Tables</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>50 Tables</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>100 Tables</span>
-                    </div>
-                    <div class="col col-20">
-                        <span>1,000 Tables</span>
-                    </div>
-                </div> -->
                 <div class="flex-row pricing-body__row section">
                     <div class="col col-25">
-                        <span><b>Table Administration</b></span>
+                        <span><b>Every plan</b></span>
                     </div>
-                    <div class="col col-20"></div>
-                    <div class="col col-20"></div>
-                    <div class="col col-20"></div>
-                    <!--  <div class="col col-20">
-                    </div> -->
+                    <div
+                        class="col col-20"
+                        v-for="plan in plans"
+                        :key="plan.id"
+                    ></div>
                 </div>
-                <div class="flex-row pricing-body__row">
+                <div
+                    class="flex-row pricing-body__row"
+                    v-for="feature in features"
+                    :key="feature"
+                >
                     <div class="col col-25">
-                        <span>Create New Tables</span>
+                        <span>{{ feature }}</span>
                     </div>
-                    <div class="col col-20">
+                    <div
+                        class="col col-20"
+                        v-for="plan in plans"
+                        :key="plan.id"
+                    >
                         <i class="fa fa-check"></i>
                     </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div> -->
-                </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>Row Editing</span>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div> -->
-                </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>CSV Upload</span>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div> -->
-                </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>Column Filtering</span>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <!--  <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div> -->
-                </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>Column Editing</span>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div> -->
-                </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>Column Indexing</span>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div> -->
-                </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>Column Types</span>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <!--  <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div> -->
-                </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span>Column Sorting</span>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div>
-                    <!-- <div class="col col-20">
-                        <i class="fa fa-check"></i>
-                    </div> -->
                 </div>
                 <div class="flex-row pricing-body__row">
                     <div class="col col-25">
                         <span></span>
                     </div>
-                    <div class="col col-20">
+                    <div
+                        class="col col-20"
+                        v-for="plan in plans"
+                        :key="plan.id"
+                    >
                         <router-link to="/create-account" v-if="!account"
                             >Get Started</router-link
                         >
                     </div>
-                    <div class="col col-20">
-                        <router-link to="/create-account" v-if="!account"
-                            >Get Started</router-link
-                        >
-                    </div>
-                    <div class="col col-20">
-                        <router-link to="/create-account" v-if="!account"
-                            >Get Started</router-link
-                        >
-                    </div>
-                    <!-- <div class="col col-20">
-                        <router-link to="/create-account"
-                                     v-if="!account">Get Started</router-link>                    </div> -->
                 </div>
             </div>
         </div>

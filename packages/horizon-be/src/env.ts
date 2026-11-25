@@ -58,6 +58,10 @@ const env = {
     // Test only (scripts/smoke-env.sh sets it): webhook receivers ("127.0.0.1:8199,...") that are
     // allowed although they're private addresses (#140). Never set it in production.
     HORIZON_WEBHOOK_TEST_HOSTS: process.env.HORIZON_WEBHOOK_TEST_HOSTS,
+    // Test only (scripts/smoke-env.sh sets it): puts accounts on a plan by email with shrunken
+    // caps, `{"demo7@invokedb.com": {"plan": "FREE", "caps": {"tables": 2}}}` (#183). Read by
+    // core/plan/plans.ts. Never set it in production.
+    HORIZON_TEST_PLANS: process.env.HORIZON_TEST_PLANS,
     // Optional. The AI features (#149) are on when it and HORIZON_AI_MONTHLY_BUDGET_USD are set;
     // the key stays on the backend.
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,

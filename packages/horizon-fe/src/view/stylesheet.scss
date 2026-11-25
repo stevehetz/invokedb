@@ -922,6 +922,14 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     font-size: 14px;
     margin-top: 5px;
 }
+// While GET /plans loads, or if it fails (#183)
+.pricing-page .pricing-body.pricing-status {
+    text-align: center;
+    color: gray;
+}
+.pricing-page .pricing-error {
+    color: #e44949;
+}
 .pricing-page .pricing-body {
     padding: 50px 20px;
     flex: 1;

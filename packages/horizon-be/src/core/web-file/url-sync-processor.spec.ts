@@ -71,6 +71,7 @@ function setup(max_rows = 100) {
     };
     const tracking: any = {
         refreshed: 0,
+        async check_storage() {},
         async validate_row_count(_a, n) {
             if (n > max_rows) throw new Error('Row count limit exceeded for current subscription');
         },

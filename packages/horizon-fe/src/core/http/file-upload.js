@@ -1,3 +1,5 @@
+import { bus } from '@/core/bus';
+
 function getError(url, file_ctx, xhr) {
     let msg;
     if (xhr.response) {
@@ -64,6 +66,10 @@ export default function upload(url, file_ctx) {
 
     xhr.onload = function onload() {
         if (xhr.status < 200 || xhr.status >= 300) {
+            // Over the plan's upload size or storage (#183): the app's notice links to the usage
+            const body = getBody(xhr);
+            if (body && body.code === 'plan_limit')
+                bus.$emit('plan_limit', body);
             return file_ctx.onError(getError(url, file_ctx, xhr));
         }
 

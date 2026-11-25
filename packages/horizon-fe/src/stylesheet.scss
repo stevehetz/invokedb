@@ -3926,6 +3926,62 @@ $page_nav_active_color: #dcb467;
     margin-top: 15px;
 }
 
+// Plan and usage (#183): a meter per cap
+.account-page .subscription-form .usage-meters {
+    width: 100%;
+    max-width: 640px;
+}
+.account-page .subscription-form .usage-meter {
+    margin-bottom: 10px;
+}
+.account-page .subscription-form .usage-meter__label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 3px;
+}
+.account-page .subscription-form .usage-meter__text {
+    color: $gray400;
+}
+.account-page .subscription-form .usage-note {
+    color: $gray400;
+    margin: 5px 0 10px;
+}
+.account-page .subscription-form .usage-error {
+    color: #e44949;
+}
+
+// A refusal at the plan's cap (#183), over the bottom of the app
+.plan-limit-notice {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: calc(100vw - 40px);
+    padding: 12px 16px;
+    border-radius: 5px;
+    background-color: #fff;
+    border: solid 1px #e44949;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+.plan-limit-notice > .fa-exclamation-circle {
+    color: #e44949;
+}
+.plan-limit-notice__usage,
+.plan-limit-notice__plans {
+    color: #449744;
+    white-space: nowrap;
+}
+.plan-limit-notice__close {
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: $gray400;
+}
+
 .account-page .data-export-form .form-body {
     padding: 0 1em;
 }

@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ViewService } from './view.service';
 import { VIEW_LIMITS } from '@app/core/view/view';
+import { PLANS, PLAN_IDS, PLAN_SUBSCRIPTIONS, PlanId } from '@app/core/plan/plans';
 
 // Stand-ins below; the real ones pull in TypeORM and ESM-only packages
 jest.mock('../file-directory/file-directory.service', () => ({}));
@@ -9,7 +10,8 @@ jest.mock('../account/account.service', () => ({}));
 const ACCT = 7;
 const OTHER = 8;
 
-function setup() {
+// The account is on Pro unless a test says otherwise, so the tests can make several views
+function setup(plan_id: PlanId = 'PRO') {
     const views: any[] = [];
     const files = {
         11: { id: 11, account_id: ACCT, name: 'tasks', type: 'file', deleted: false },
@@ -24,7 +26,9 @@ function setup() {
             return f;
         })
     };
-    const account_svc = { get: jest.fn(async id => ({ id })) };
+    const account_svc = {
+        get: jest.fn(async id => ({ id, subscription_id: PLAN_SUBSCRIPTIONS[plan_id] }))
+    };
     const tracking_manager = { check_account_lock: jest.fn(async () => undefined) };
     const web_file_manager = {
         get_all: jest.fn(async () => ({
@@ -116,15 +120,23 @@ describe('ViewService', () => {
         await expect(svc.create(ACCT, { name: 'x' })).rejects.toThrow(BadRequestException);
     });
 
-    it('caps the views per table and checks the account lock', async () => {
-        const { svc, views, tracking_manager } = setup();
-        for (let i = 0; i < VIEW_LIMITS.max_per_table; i++) {
-            views.push({ id: `v${i}`, account_id: ACCT, file_id: 11 });
-        }
-        await expect(svc.create(ACCT, { file_id: 11, name: 'one more' })).rejects.toThrow(
-            ForbiddenException
-        );
-        expect(tracking_manager.check_account_lock).toHaveBeenCalled();
+    describe.each(PLAN_IDS)('on %s', plan_id => {
+        it("caps the views per table at the plan's and checks the account lock", async () => {
+            const { svc, views, tracking_manager } = setup(plan_id);
+            const cap = PLANS[plan_id].caps.views_per_table;
+            for (let i = 0; i < cap - 1; i++) {
+                views.push({ id: `v${i}`, account_id: ACCT, file_id: 11 });
+            }
+            await expect(svc.create(ACCT, { file_id: 11, name: 'last' })).resolves.toBeTruthy();
+            const err = await svc.create(ACCT, { file_id: 11, name: 'one more' }).catch(e => e);
+            expect(err.getStatus()).toBe(403);
+            expect(err.getResponse()).toMatchObject({
+                code: 'plan_limit',
+                limit: 'views_per_table',
+                cap
+            });
+            expect(tracking_manager.check_account_lock).toHaveBeenCalled();
+        });
     });
 
     it('reads a kanban board, a column per value', async () => {

@@ -10,8 +10,8 @@ of every tier).
 **Decided (owner, 2026-11-25): the tiers, caps and prices of 3.2, the behaviour of 3.4 and no
 trial (3.3), as recommended**, plus the AI allowances of 3.5. Earlier: a permanent free tier,
 very limited, so people can try things out (2026-11-24, on #137); free accounts need no card
-and no Stripe customer until they upgrade. The code enforces them through #183 and #184; until
-those merge it still enforces the old numbers.
+and no Stripe customer until they upgrade. #183 enforces the caps of 3.2 from one plan constant
+(`core/plan/plans.ts`); #184 brings the read-only state and idle deletion of 3.4.
 
 Line numbers are as of commit `8e89efe` (2026-11-25). Paths are under `packages/horizon-be/src/`
 unless they say otherwise.

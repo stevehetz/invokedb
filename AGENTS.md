@@ -275,8 +275,24 @@ token starts no CI, and a dispatched CI run doesn't count toward a PR's required
 - Richer queries (#141): `POST /api/v1/query` and `/count` take `{ filters, match, sort, fields,
 limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body against the table's
   columns and builds the Mongo find (cursor = keyset on the sort columns + `_id`). The page cap
-  is `max_query_limit()`, one value until #137 sets per-plan limits. `/get` and `/search` are
-  unchanged.
+  is the plan's `query_page` (#183). `/get` and `/search` are unchanged.
+- Plans (#183, `docs/PRICING.md` 3.2): `src/core/plan/plans.ts` is the one constant with every
+  cap of Free, Starter and Pro (tables, rows per account and per table, storage, columns, API
+  calls a month and per second, query page, CSV size, URL sources and schedules, webhooks,
+  forms, views, audit days, per-key limits, AI allowances); **nothing else hard-codes a plan
+  limit**. Subscription ids map as FREE → Free, BASIC → Starter, PLUS/PREMIUM → Pro until Stripe
+  (#129). `INTERNAL_EMAILS` (demo*, e2e, verified) have no counted caps. `TrackingManager.plan()`
+  gives an account's caps and enforces them (reservations against races; account rows summed
+  from each table's metadata; storage from `dbStats` `dataSize`, cached 30 s; the API quota is an
+  atomic `$inc` per UTC month in `tracking:api_month`, the rate limit an in-memory token bucket);
+  `assert_room` covers webhooks, forms, views and URL sources. A refusal is 403 (413 for an
+  upload, 429 for the quota/rate) with `code: 'plan_limit'`, `limit`, `cap`, `upgrade_url`
+  (`AllExceptionFilter` passes them on); the frontend's `request.js` emits `plan_limit` on the
+  bus and `components/plan-limit-notice` links to the usage. `GET /plans` is public (the pricing
+  page is built from it); `GET /usage` (session only, `core/plan/usage.ts`) feeds the Account
+  page's meters. Deleting rows or tables never locks anything (only a plan change would; the
+  read-only state is #184). `HORIZON_TEST_PLANS` (set only by `smoke-env.sh`, never in
+  production) puts demo5, demo6 and demo7 on plans with tiny caps for `api-smoke.mjs`.
 - Onboarding checklist (#143): `src/core/onboarding/` (pure logic + a manager storing one
   `tracking:onboarding:acct_<id>` document in the tracking DB, no Postgres change),
   `GET /onboarding`, `PUT /onboarding/steps/:step`, `PUT /onboarding/dismiss` (session only).
@@ -339,7 +355,8 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   any more: the smoke tests and `examples/setup.mjs` make their own keys, and the onboarding
   command has a `YOUR_API_KEY` placeholder the app fills with a key made in the same visit.
 - Per-key limits and request logs (#216): a key may have its own rate limit, set when it's made
-  (`rate_limit_per_second`, `rate_limit_burst`; none means only the account's per-minute limit).
+  (`rate_limit_per_second`, `rate_limit_burst`; none means only the account's limits). Starter
+  and Pro only (#183): on Free a rate limit is refused and nothing is logged.
   `ApiKeyUsageGuard` (after the bearer guard on `/api/v1`) applies it with an in-memory token
   bucket (`core/api-key/key-rate-limit.ts`; 429 + `Retry-After`) and logs every key call on
   `finish` (time, method, path without query, status, duration) into `tracking:api_key_request`,
@@ -403,8 +420,8 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   `/verify-email`; the app's banner is in `components/layout`.
 - Audit log (#217): `src/core/audit/` has the pure rules (`audit.ts`: the actor, the user's
   email or an API key's name and prefix from `key_scope`, or a form; entry summaries; which column
-  changes count (name, type, index, link, delete, not widths or order); paging; 90 days on every
-  tier) and the store (`audit.manager.ts`, `tracking:audit` in the shared tracking DB; filter on
+  changes count (name, type, index, link, delete, not widths or order); paging; kept the plan's
+  `audit_keep_days`, 7 / 30 / 90, #183) and the store (`audit.manager.ts`, `tracking:audit` in the shared tracking DB; filter on
   `account_id`, except the prune). `AuditService` records row creates/updates/deletes and column
   changes (from `WebFileService`, so the app, `/api/v1`, forms and AI edits), table
   create/rename/delete (`FileDirectoryService`) and API key create/revoke; recording never fails

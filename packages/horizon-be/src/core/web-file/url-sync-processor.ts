@@ -197,8 +197,10 @@ export class UrlSyncProcessor {
         const row_coll = await this._collections.get_dg_row(account.id, file_id);
         // The keys the table already has: those rows are updated, the others added
         const existing_keys = new Set<string>();
+        // Nothing is written when the account is already at its storage cap (#183)
+        await this._tracking_manager.check_storage(account);
         if (plan.key_index === -1) {
-            await this._tracking_manager.validate_row_count(account, source_rows);
+            await this._tracking_manager.validate_row_count(account, source_rows, file_id);
         } else {
             const key_field = plan.fields[plan.key_index];
             const values = [...keys.values()];
@@ -210,7 +212,8 @@ export class UrlSyncProcessor {
             const existing = await row_coll.countDocuments();
             await this._tracking_manager.validate_row_count(
                 account,
-                existing + values.length - existing_keys.size
+                existing + values.length - existing_keys.size,
+                file_id
             );
         }
 

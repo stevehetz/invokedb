@@ -5,41 +5,28 @@ import { Repository } from 'typeorm';
 import { ObjectId } from 'mongodb';
 import { Account } from '../account/account.entity';
 import { FileDirectory } from '../file-directory/file-directory.entity';
-import { Subscription } from '../subscription/subscription.entity';
+import { KeyRateLimiter } from '../api-key/key-rate-limit';
+import {
+    AccountPlan,
+    MAX_COLUMNS,
+    account_plan,
+    plan_limit_error,
+    quota_month,
+    seconds_to_next_month
+} from '../plan/plans';
 import env from '@app/env';
 
-const EXCEPTIONS = {
-    TABLE_LIMIT_EXCEEDED: 'Table limit exceeded for current subscription',
-    ROW_COUNT_EXCEEDED: 'Row count limit exceeded for current subscription',
-    COL_COUNT_EXCEEDED: 'Column count limit exceeded for current subscription',
-    REQ_COUNT_EXCEEDED: 'External API request limit exceeded for current subscription'
-};
+// The reason of a lock this code sets on an account over its table cap (and only lifts that one)
+export const TABLE_LOCK_REASON = 'Table limit exceeded for current subscription';
 
-export const MAX_COLUMNS = 52;
-
-// `/api/v1` calls are counted in fixed one-minute windows (#182)
-export const REQUEST_WINDOW_MS = 60 * 1000;
-// The Free plan's limit, for a plan with none: a missing limit must not mean unlimited (#182)
-export const DEFAULT_MAX_REQUESTS_PER_MINUTE = 50;
+export { MAX_COLUMNS };
 
 // How long a reservation holds tables or rows if the write that made it never releases it
 // (the process died mid-write). Writes release theirs as soon as they finish.
 export const RESERVATION_TTL_MS = 10 * 60 * 1000;
 
-/** The window `now` falls in, and the seconds until the next one starts (for `Retry-After`). */
-export function request_window(now: number) {
-    const start = Math.floor(now / REQUEST_WINDOW_MS) * REQUEST_WINDOW_MS;
-    const retry_after_s = Math.max(1, Math.ceil((start + REQUEST_WINDOW_MS - now) / 1000));
-    return { start, retry_after_s };
-}
-
-/** A plan's requests per minute; a missing or non-positive limit falls back to Free's. */
-export function requests_per_minute(limit: unknown) {
-    const n = Number(limit);
-    return limit !== null && limit !== undefined && Number.isFinite(n) && n > 0
-        ? n
-        : DEFAULT_MAX_REQUESTS_PER_MINUTE;
-}
+// How long an account's storage (dbStats) is reused before it's read again
+export const STORAGE_CACHE_MS = 30 * 1000;
 
 /**
  * What the table count does to the account's lock. The account has one `locked` flag, so this
@@ -52,31 +39,44 @@ export function account_lock_change(
     over_table_limit: boolean
 ): 'lock' | 'unlock' | null {
     if (over_table_limit) return locked ? null : 'lock';
-    if (locked && locked_reason === EXCEPTIONS.TABLE_LIMIT_EXCEEDED) return 'unlock';
+    if (locked && locked_reason === TABLE_LOCK_REASON) return 'unlock';
     return null;
 }
 
+/** A rough size in bytes of rows about to be written (their JSON), for the storage cap. */
+export function estimate_bytes(rows: unknown): number {
+    try {
+        return Buffer.byteLength(JSON.stringify(rows ?? null) || '', 'utf8');
+    } catch {
+        return 0;
+    }
+}
+
+interface Hold {
+    key: string;
+    amount: number;
+}
+
+// Enforces the plan's caps (core/plan/plans.ts, #183) on every write that adds something:
+// tables, rows (per table and for the whole account), storage, columns, and `/api/v1` calls
+// (a monthly quota and a per-second rate limit per account).
 @Injectable()
 export class TrackingManager {
+    private readonly rate_limiter: KeyRateLimiter;
+    private readonly storage_cache = new Map<number, { bytes: number; at: number }>();
+
     constructor(
         private _collections: MongoDbCollections,
         @InjectRepository(Account)
         private readonly account_repository: Repository<Account>,
-        @InjectRepository(Subscription)
-        private readonly subscription_repository: Repository<Subscription>,
         @InjectRepository(FileDirectory)
         private readonly file_directory_repository: Repository<FileDirectory>
-    ) {}
+    ) {
+        this.rate_limiter = new KeyRateLimiter(() => this.now());
+    }
 
     // The clock, replaceable in tests
     now: () => number = () => Date.now();
-
-    async get_tracking_limits_collection(account) {
-        return await this._collections.get_collection(account.id, 'tracking:limits', {
-            db_name: env.HORIZON_MONGO_TRACKING_DB,
-            mongo_uri: env.HORIZON_MONGO_TRACKING_URI
-        });
-    }
 
     async get_tracking_row_count_collection(account) {
         return await this._collections.get_collection(account.id, 'tracking:row_count', {
@@ -85,8 +85,9 @@ export class TrackingManager {
         });
     }
 
-    async get_tracking_request_count_collection(account) {
-        return await this._collections.get_collection(account.id, 'tracking:req_count', {
+    // One document per UTC month (`_id` "2026-11") with the account's `/api/v1` call count
+    private async get_api_month_collection(account) {
+        return await this._collections.get_collection(account.id, 'tracking:api_month', {
             db_name: env.HORIZON_MONGO_TRACKING_DB,
             mongo_uri: env.HORIZON_MONGO_TRACKING_URI
         });
@@ -100,37 +101,59 @@ export class TrackingManager {
     }
 
     /**
-     * Holds `amount` of a limit (tables, or one table's rows) while a write runs, so parallel
-     * writes can't pass the cap together (#182). The hold is written first, then `check` gets
-     * the sum of every live hold on the key, its own included, to add to the saved count. Of
-     * two racing writes, the later hold sees the earlier one, or (once that is released) its
-     * saved rows, so near the cap both may be refused but never both let through. Answers the
-     * release, which the caller awaits once its write has finished or failed.
+     * The account's plan and caps. The request's account is usually the whole entity; one
+     * without its email (only an id) is read again.
+     */
+    async plan(account): Promise<AccountPlan> {
+        if (account && account.email === undefined && account.id && this.account_repository) {
+            const saved = await this.account_repository.findOneBy({ id: account.id });
+            if (saved) return account_plan(saved);
+        }
+        return account_plan(account);
+    }
+
+    /**
+     * Holds amounts of some limits (tables, a table's rows, the account's rows) while a write
+     * runs, so parallel writes can't pass a cap together (#182). The holds are written first,
+     * then `check` gets the sum of every live hold on each key, its own included, to add to the
+     * saved count. Of two racing writes, the later hold sees the earlier one, or (once that is
+     * released) its saved rows, so near the cap both may be refused but never both let through.
+     * Answers the release, which the caller awaits once its write has finished or failed.
      */
     private async reserve(
         account,
-        key: string,
-        amount: number,
-        check: (held: number) => Promise<void>
+        holds: Hold[],
+        check: (held: Record<string, number>) => Promise<void>
     ): Promise<() => Promise<void>> {
         const c = await this.get_tracking_reservation_collection(account);
         const now = this.now();
         await c.deleteMany({ at: { $lte: now - RESERVATION_TTL_MS } });
-        const { insertedId } = await c.insertOne({ key, amount, at: now });
+        const ids = [];
         let released = false;
         const release = async () => {
             if (released) return;
             released = true;
-            try {
-                await c.deleteOne({ _id: insertedId });
-            } catch (ex) {
-                // Never fails the write it follows: a hold left behind expires on its own
-                console.error(`Reservation ${key} not released: ${ex.message}`);
+            for (const _id of ids) {
+                try {
+                    await c.deleteOne({ _id });
+                } catch (ex) {
+                    // Never fails the write it follows: a hold left behind expires on its own
+                    console.error(`Reservation not released: ${ex.message}`);
+                }
             }
         };
         try {
-            const holds = await c.find({ key, at: { $gt: now - RESERVATION_TTL_MS } }).toArray();
-            const held = holds.reduce((sum, h) => sum + (Number(h.amount) || 0), 0);
+            for (const h of holds) {
+                const { insertedId } = await c.insertOne({ key: h.key, amount: h.amount, at: now });
+                ids.push(insertedId);
+            }
+            const held: Record<string, number> = {};
+            for (const h of holds) {
+                const live = await c
+                    .find({ key: h.key, at: { $gt: now - RESERVATION_TTL_MS } })
+                    .toArray();
+                held[h.key] = live.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+            }
             await check(held);
         } catch (ex) {
             await release();
@@ -147,32 +170,91 @@ export class TrackingManager {
         return await this._collections.get_dg_collection('data_grid_column', account.id, file_id);
     }
 
-    private async get_subscription(account) {
-        if (account.subscription_id) {
-            return await this.subscription_repository.findOneBy({
-                id: account.subscription_id
-            });
-        } else {
-            return await this.subscription_repository.findOneBy({
-                id: 'SUB_FREE'
-            });
-        }
-    }
-
-    private async get_limits(account) {
-        const collection = await this.get_tracking_limits_collection(account);
-        const limits = await collection.findOne();
-
-        if (limits) return limits;
-
-        return await this.update_limits(account);
-    }
-
     private async get_row_count(account, file_id) {
         // Each table has its own row collection, so its size is the row count: read from the
         // collection's metadata rather than by scanning it on every write (#182)
         const row_c = await this.get_row_collection(account, file_id);
         return await row_c.estimatedDocumentCount();
+    }
+
+    /** The account's tables (not folders, not deleted). */
+    private async tables(account) {
+        return await this.file_directory_repository.findBy({
+            account_id: account.id,
+            type: 'file',
+            deleted: false
+        });
+    }
+
+    /** Rows per table of the account's tables, from each collection's metadata. */
+    async table_row_counts(account): Promise<{ file_id: number; rows: number }[]> {
+        const tables = await this.tables(account);
+        if (tables.length === 0) return [];
+        const db = await this._collections.get_mongo_db(this._collections.get_db_name(account.id));
+        return await Promise.all(
+            tables.map(async t => {
+                const name = `${this._collections.get_dg_collection_name('data_grid_row', t.id)}:acct_${account.id}`;
+                // A collection that doesn't exist yet counts 0
+                const rows = await db.collection(name).estimatedDocumentCount();
+                return { file_id: t.id, rows };
+            })
+        );
+    }
+
+    /** Each table's name, rows and (live) columns, for `GET /usage`. */
+    async table_usage(account) {
+        const tables = await this.tables(account);
+        if (tables.length === 0) return [];
+        const db = await this._collections.get_mongo_db(this._collections.get_db_name(account.id));
+        const name = (type: string, id: number) =>
+            `${this._collections.get_dg_collection_name(type, id)}:acct_${account.id}`;
+        return await Promise.all(
+            tables.map(async t => ({
+                id: t.id,
+                name: t.name,
+                rows: await db.collection(name('data_grid_row', t.id)).estimatedDocumentCount(),
+                columns: await db
+                    .collection(name('data_grid_column', t.id))
+                    .countDocuments({ deleted: { $in: [null, false] } })
+            }))
+        );
+    }
+
+    /** Rows in all the account's tables together, leaving out `except_file_id`. */
+    async account_row_count(account, except_file_id?: number) {
+        const counts = await this.table_row_counts(account);
+        return counts
+            .filter(c => except_file_id === undefined || c.file_id !== Number(except_file_id))
+            .reduce((sum, c) => sum + c.rows, 0);
+    }
+
+    /** The account's storage in bytes (its Mongo database's `dataSize`), cached briefly. */
+    async storage_bytes(account, fresh = false) {
+        const now = this.now();
+        const cached = this.storage_cache.get(account.id);
+        if (!fresh && cached && now - cached.at < STORAGE_CACHE_MS) return cached.bytes;
+        const db = await this._collections.get_mongo_db(this._collections.get_db_name(account.id));
+        const stats = await db.stats();
+        const bytes = Number(stats && stats.dataSize) || 0;
+        this.storage_cache.set(account.id, { bytes, at: now });
+        return bytes;
+    }
+
+    /**
+     * 403 `plan_limit` when `adding` more bytes would take the account past its storage cap.
+     * A write let through is added to the cached figure, so a burst of writes can't all pass
+     * on one stale reading.
+     */
+    async check_storage(account, adding = 0, plan?: AccountPlan) {
+        plan = plan || (await this.plan(account));
+        const cap = plan.caps.storage_bytes;
+        if (!Number.isFinite(cap)) return;
+        const bytes = await this.storage_bytes(account);
+        if (bytes + Math.max(0, adding) > cap) {
+            throw plan_limit_error('storage_bytes', cap, plan.plan);
+        }
+        const cached = this.storage_cache.get(account.id);
+        if (cached) cached.bytes += Math.max(0, adding);
     }
 
     private async update_row_count(account, file_id, row_count) {
@@ -196,21 +278,27 @@ export class TrackingManager {
         await this.file_directory_repository.update({ id: file_id }, data);
     }
 
-    private async update_table_lock(account, file_id, row_count) {
+    // A table under its plan's rows-per-table cap is unlocked. One over it is locked only on a
+    // plan change (`may_lock`): deleting rows never locks a table, since a table locked at the
+    // cap would refuse reads too (writes are refused at the cap anyway; the read-only state of
+    // an account over its caps is #184).
+    private async update_table_lock(account, file_id, row_count, may_lock = false) {
         try {
-            await this.validate_row_count(account, row_count);
+            await this.check_table_rows(account, row_count);
             await this.unlock_table(file_id);
         } catch (ex) {
             if (ex.status === HttpStatus.FORBIDDEN) {
-                await this.lock_table(file_id, ex.message);
+                if (may_lock) await this.lock_table(file_id, ex.message);
             } else {
                 throw ex;
             }
         }
     }
 
-    private async validate_table_count(account, tables_to_be_added = 0) {
-        const limits = await this.get_limits(account);
+    private async validate_table_count(account, tables_to_be_added = 0, plan?: AccountPlan) {
+        plan = plan || (await this.plan(account));
+        const cap = plan.caps.tables;
+        if (!Number.isFinite(cap)) return;
 
         let table_count = await this.file_directory_repository.countBy({
             account_id: account.id,
@@ -220,29 +308,14 @@ export class TrackingManager {
 
         table_count += tables_to_be_added;
 
-        if (table_count > limits.max_tables) {
-            throw new HttpException(EXCEPTIONS.TABLE_LIMIT_EXCEEDED, HttpStatus.FORBIDDEN);
+        if (table_count > cap) {
+            throw plan_limit_error('tables', cap, plan.plan);
         }
     }
 
-    public async update_limits(account) {
-        const subscription = await this.get_subscription(account);
-        const collection = await this.get_tracking_limits_collection(account);
-        const curr_limits = await collection.findOne();
-        const new_limits = {
-            max_tables: subscription.max_tables,
-            max_rows: subscription.max_rows,
-            max_requests_per_minute: subscription.max_requests_per_minute
-        };
-        if (curr_limits) {
-            await collection.updateOne({ _id: curr_limits._id }, { $set: new_limits });
-        } else {
-            await collection.insertOne(new_limits);
-        }
-        return new_limits;
-    }
-
-    public async update_account_lock(account) {
+    // Like update_table_lock: lifts the table-limit lock under the cap; locks only on a plan
+    // change (`may_lock`), never because a table was deleted
+    public async update_account_lock(account, may_lock = true) {
         const query = { id: account.id };
         let over = false;
         try {
@@ -255,10 +328,10 @@ export class TrackingManager {
         const current = await this.account_repository.findOneBy(query);
         if (!current) return;
         const change = account_lock_change(!!current.locked, current.locked_reason, over);
-        if (change === 'lock') {
+        if (change === 'lock' && may_lock) {
             await this.account_repository.update(query, {
                 locked: true,
-                locked_reason: EXCEPTIONS.TABLE_LIMIT_EXCEEDED
+                locked_reason: TABLE_LOCK_REASON
             });
         } else if (change === 'unlock') {
             await this.account_repository.update(query, {
@@ -269,7 +342,6 @@ export class TrackingManager {
     }
 
     public async update_account_table_locks(account) {
-        const limits = await this.get_limits(account);
         const tables = await this.file_directory_repository.findBy({
             account_id: account.id,
             deleted: false
@@ -277,71 +349,130 @@ export class TrackingManager {
         for (const table of tables) {
             try {
                 const row_count = await this.get_row_count(account, table.id);
-                await this.validate_row_count(account, row_count, limits);
-                await this.unlock_table(table.id);
+                await this.update_table_lock(account, table.id, row_count, true);
             } catch (ex) {
-                if (ex.status === 403) {
-                    await this.lock_table(table.id, ex.message);
-                } else {
-                    console.error(ex);
-                }
+                console.error(ex);
             }
         }
     }
 
-    // Counts an `/api/v1` call in this minute's window with one atomic `$inc`, so parallel calls
-    // are all counted, and answers 429 with `Retry-After` past the plan's limit (#182). The
-    // window's document has the window's start as its `_id`.
+    /**
+     * Counts an `/api/v1` call (#183): first the account's per-second rate limit (a token
+     * bucket in memory; there is one API process), then this UTC month's quota with one atomic
+     * `$inc` that only passes under the cap, so parallel calls can't pass it together. Either
+     * answers 429 with `Retry-After`; the quota's lasts until the 1st (UTC). A call refused by
+     * the rate limit isn't counted. The app's own routes never come here.
+     */
     public async update_req_count(account) {
-        const limits = await this.get_limits(account);
-        const max = requests_per_minute(limits.max_requests_per_minute);
-        const { start, retry_after_s } = request_window(this.now());
-        const c = await this.get_tracking_request_count_collection(account);
-        const count_call = () =>
-            c.findOneAndUpdate(
-                { _id: start as any },
+        const plan = await this.plan(account);
+        const { caps } = plan;
+        if (Number.isFinite(caps.api_rate_per_second) && Number.isFinite(caps.api_rate_burst)) {
+            const taken = this.rate_limiter.take(account.id, {
+                per_second: caps.api_rate_per_second,
+                burst: caps.api_rate_burst
+            });
+            if ('retry_after_s' in taken) {
+                const err = plan_limit_error(
+                    'api_rate_per_second',
+                    caps.api_rate_per_second,
+                    plan.plan,
+                    HttpStatus.TOO_MANY_REQUESTS
+                );
+                throw new HttpException(
+                    { ...(err.getResponse() as object), retry_after: taken.retry_after_s },
+                    HttpStatus.TOO_MANY_REQUESTS
+                );
+            }
+        }
+
+        const now = this.now();
+        const month = quota_month(now);
+        const cap = caps.api_calls_per_month;
+        const c = await this.get_api_month_collection(account);
+        const under = Number.isFinite(cap) ? { count: { $lt: cap } } : {};
+        let doc;
+        try {
+            doc = await c.findOneAndUpdate(
+                { _id: month as any, ...under },
                 { $inc: { count: 1 } },
                 { upsert: true, returnDocument: 'after' }
             );
-        let doc;
-        try {
-            doc = await count_call();
         } catch (ex) {
-            // 11000 = duplicate key: a parallel call made this window's document first
+            // 11000 = duplicate key: the month's document exists and is at the cap (the upsert
+            // tried to make another), or a parallel call made it first. Try once more without
+            // the upsert: no match means the cap is reached.
             if (ex.code !== 11000) throw ex;
-            doc = await count_call();
+            doc = await c.findOneAndUpdate(
+                { _id: month as any, ...under },
+                { $inc: { count: 1 } },
+                { returnDocument: 'after' }
+            );
         }
-        // The first call of a window drops the earlier windows (and the old single document,
-        // whose `_id` is an ObjectId). Only older ones: a slow call from the minute before can
-        // re-create its window after the current one has started, and must not delete it.
-        if (doc && doc.count === 1) {
-            await c.deleteMany({
-                $or: [{ _id: { $lt: start as any } }, { _id: { $type: 'objectId' } }]
-            });
-        }
-        if (doc && doc.count > max) {
+        if (!doc) {
+            const err = plan_limit_error(
+                'api_calls_per_month',
+                cap,
+                plan.plan,
+                HttpStatus.TOO_MANY_REQUESTS
+            );
             throw new HttpException(
-                { message: EXCEPTIONS.REQ_COUNT_EXCEEDED, retry_after: retry_after_s },
+                { ...(err.getResponse() as object), retry_after: seconds_to_next_month(now) },
                 HttpStatus.TOO_MANY_REQUESTS
             );
         }
     }
 
-    public async validate_row_count(account, total_rows, limits?) {
-        limits = limits || (await this.get_limits(account));
-        if (total_rows > limits.max_rows) {
-            throw new HttpException(EXCEPTIONS.ROW_COUNT_EXCEEDED, HttpStatus.FORBIDDEN);
+    /** The account's `/api/v1` calls this UTC month. */
+    async api_calls_this_month(account) {
+        const c = await this.get_api_month_collection(account);
+        const doc = await c.findOne({ _id: quota_month(this.now()) as any });
+        return Number(doc && doc.count) || 0;
+    }
+
+    /** 403 `plan_limit` when a table would hold more rows than the plan allows per table. */
+    public async check_table_rows(account, total_rows, plan?: AccountPlan) {
+        plan = plan || (await this.plan(account));
+        const cap = plan.caps.rows_per_table;
+        if (Number.isFinite(cap) && total_rows > cap) {
+            throw plan_limit_error('rows_per_table', cap, plan.plan);
         }
     }
 
+    /** 403 `plan_limit` when the account would hold more rows than its plan allows. */
+    public async check_account_rows(account, total_rows, plan?: AccountPlan) {
+        plan = plan || (await this.plan(account));
+        const cap = plan.caps.rows_per_account;
+        if (Number.isFinite(cap) && total_rows > cap) {
+            throw plan_limit_error('rows_per_account', cap, plan.plan);
+        }
+    }
+
+    /**
+     * A bulk write that sets table `file_id`'s row count to `total_rows` (a CSV upload, a URL
+     * import or re-sync): 403 `plan_limit` past the rows-per-table cap, or when the account's
+     * other tables plus these would pass the rows-per-account cap.
+     */
+    public async validate_row_count(account, total_rows, file_id?) {
+        const plan = await this.plan(account);
+        await this.check_table_rows(account, total_rows, plan);
+        if (!Number.isFinite(plan.caps.rows_per_account)) return;
+        const others =
+            file_id === undefined || file_id === null
+                ? await this.account_row_count(account)
+                : await this.account_row_count(account, Number(file_id));
+        await this.check_account_rows(account, others + total_rows, plan);
+    }
+
     public async validate_column_count(account, file_id, cols_to_be_added) {
+        const plan = await this.plan(account);
+        const cap = Math.min(plan.caps.columns_per_table, MAX_COLUMNS);
         const col_c = await this.get_col_collection(account, file_id);
         // The collection holds this table's columns only (a column made through batch create
         // needn't carry `file_directory_id`)
         const curr_col_count = await col_c.countDocuments({ deleted: { $in: [null, false] } });
         const total = cols_to_be_added + curr_col_count;
-        if (total > MAX_COLUMNS) {
-            throw new HttpException(EXCEPTIONS.COL_COUNT_EXCEEDED, HttpStatus.FORBIDDEN);
+        if (total > cap) {
+            throw plan_limit_error('columns_per_table', cap, plan.plan);
         }
     }
 
@@ -365,6 +496,8 @@ export class TrackingManager {
         const new_row_count = await this.get_row_count(account, file_id);
         await this.update_row_count(account, file_id, new_row_count);
         await this.update_table_lock(account, file_id, new_row_count);
+        // Deletes free storage; read it again next time
+        this.storage_cache.delete(account.id);
     }
 
     // Recounts a table's rows after a bulk change (a URL re-sync, #144) and locks or unlocks it
@@ -373,16 +506,28 @@ export class TrackingManager {
     }
 
     /**
-     * Reserves room for `rows_to_be_added` rows, or answers 403 when they'd take the table past
-     * its row limit. Answers the release: await it once the rows are written (or not).
+     * Reserves room for `rows_to_be_added` rows, or answers 403 `plan_limit` when they'd take
+     * the table past its rows-per-table cap, the account past its rows-per-account cap, or the
+     * account past its storage cap (`bytes`: their estimated size). Answers the release: await
+     * it once the rows are written (or not).
      */
     public async add_rows(account, data): Promise<() => Promise<void>> {
         const file_id = parseInt(data.file_id, 10);
         const rows_to_be_added = Number(data.rows_to_be_added) || 0;
-        const limits = await this.get_limits(account);
-        return await this.reserve(account, `rows:${file_id}`, rows_to_be_added, async held => {
+        const plan = await this.plan(account);
+        const holds: Hold[] = [{ key: `rows:${file_id}`, amount: rows_to_be_added }];
+        const account_capped = Number.isFinite(plan.caps.rows_per_account);
+        if (account_capped) holds.push({ key: 'rows:account', amount: rows_to_be_added });
+        return await this.reserve(account, holds, async held => {
             const saved = await this.get_row_count(account, file_id);
-            await this.validate_row_count(account, saved + held, limits);
+            await this.check_table_rows(account, saved + held[`rows:${file_id}`], plan);
+            if (account_capped) {
+                const all = await this.account_row_count(account);
+                await this.check_account_rows(account, all + held['rows:account'], plan);
+            }
+            if (rows_to_be_added > 0) {
+                await this.check_storage(account, Number(data.bytes) || 0, plan);
+            }
         });
     }
 
@@ -427,16 +572,18 @@ export class TrackingManager {
     }
 
     /**
-     * Reserves a table, or answers 403 when one more would pass the plan's table limit. Answers
-     * the release: await it once the table is saved (or not).
+     * Reserves a table, or answers 403 `plan_limit` when one more would pass the plan's table
+     * cap. Answers the release: await it once the table is saved (or not).
      */
     public async add_table(account): Promise<() => Promise<void>> {
-        return await this.reserve(account, 'tables', 1, async held => {
-            await this.validate_table_count(account, held);
+        const plan = await this.plan(account);
+        return await this.reserve(account, [{ key: 'tables', amount: 1 }], async held => {
+            await this.validate_table_count(account, held.tables, plan);
         });
     }
 
     public async deleted_table(account) {
-        await this.update_account_lock(account);
+        await this.update_account_lock(account, false);
+        this.storage_cache.delete(account.id);
     }
 }

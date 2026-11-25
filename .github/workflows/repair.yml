@@ -49,10 +49,18 @@ jobs:
           RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
         run: |
           set -euo pipefail
+          # A dispatched repair starts while the E2E job that asked for it is still finishing:
+          # wait for the run to complete before reading its conclusion and logs (up to 10 min)
+          for i in $(seq 60); do
+            [ "$(gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --json status --jq .status)" = completed ] && break
+            sleep 10
+          done
           gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --json databaseId,workflowName,headBranch,headSha,url,conclusion \
             --jq '"id=\(.databaseId)\nworkflow=\(.workflowName)\nbranch=\(.headBranch)\nsha=\(.headSha)\nurl=\(.url)\nconclusion=\(.conclusion)"' \
             >> "$GITHUB_OUTPUT"
           cat "$GITHUB_OUTPUT"
+          c=$(sed -n 's/^conclusion=//p' "$GITHUB_OUTPUT" | tail -1)
+          if [ "$c" != failure ]; then echo "::notice::Run $RUN_ID ended '$c', not 'failure': nothing to repair"; fi
       - uses: actions/checkout@v7
         if: steps.run.outputs.conclusion == 'failure'
         with:

@@ -268,6 +268,11 @@ export class TrackingManager {
         await this.update_table_lock(account, file_id, new_row_count);
     }
 
+    // Recounts a table's rows after a bulk change (a URL re-sync, #144) and locks or unlocks it
+    public async refresh_row_count(account, file_id) {
+        await this.deleted_rows(account, { file_id });
+    }
+
     public async add_rows(account, data) {
         const file_id = parseInt(data.file_id, 10);
         const rows_to_be_added = data.rows_to_be_added;

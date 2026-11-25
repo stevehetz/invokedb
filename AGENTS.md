@@ -269,6 +269,16 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `GET /onboarding`, `PUT /onboarding/steps/:step`, `PUT /onboarding/dismiss` (session only).
   `OnboardingInterceptor` on `/api/v1` ticks "call the API" after a successful call with the key.
   The frontend's checklist is `components/onboarding`, on the Tables page.
+- Import from a URL (#144): `src/core/url-import/` has the pure rules (`url-import.ts`: allowed
+  URLs, Google Sheet links → CSV export, private-address ranges, JSON → CSV, sync settings), the
+  fetcher (`url-fetch.ts`: checks every address it connects to, redirects, 10 MB, 30 s) and the
+  source store (`url-import.manager.ts`, one `tracking:url_source` collection in the tracking DB
+  shared by all accounts, so always filter on `account_id`). Routes are `/url-import` (session
+  only). The fetch runs in the job processor (`URL_IMPORT`, `URL_SYNC` jobs in
+  `WebFilePrcService`, which also queues hourly/daily syncs); re-syncs go through
+  `web-file/url-sync-processor.ts` (replace, or upsert on a key column; everything is checked
+  before anything is written). The API and UI smoke tests import this repo's files from
+  raw.githubusercontent.com, so they need internet.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

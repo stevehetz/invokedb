@@ -5,7 +5,7 @@
 // render the public site's pages, log in, check the onboarding checklist, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
 // open the table's API docs and "Try it" on Get, read the API key from the account page and call /api/v1 with it, make (and delete) a table
-// from a template, then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
+// from a template and one from a URL (a CSV on GitHub, so it needs internet), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
 //
 // URLs come from the same env vars the apps use, so load an env file first. Best run against
 // the throwaway stack described in .agents/skills/verify-frontend/SKILL.md, not your own data:
@@ -41,6 +41,10 @@ const EMAIL = env.SMOKE_EMAIL || 'demo@invokedb.com';
 const PASSWORD = env.SMOKE_PASSWORD || 'password';
 const TABLE = 'ui_smoke_people';
 const TEMPLATE_TABLE = 'ui_smoke_tasks';
+const URL_TABLE = 'ui_smoke_todo';
+// A public CSV for "Table from URL" (#144): this repo's own example data on GitHub
+const URL_SOURCE =
+    'https://raw.githubusercontent.com/stevehetz/invokedb/main/examples/data/todo.csv';
 const OUT = opt('--out');
 const ARTIFACTS = opt('--artifacts');
 if (ARTIFACTS) fs.mkdirSync(ARTIFACTS, { recursive: true });
@@ -90,11 +94,15 @@ async function find_tables(s, name = TABLE) {
 
 async function delete_leftover_tables() {
     const s = await be_session();
-    const ids = [...(await find_tables(s)), ...(await find_tables(s, TEMPLATE_TABLE))].map(
-        d => d.id
-    );
+    const ids = [
+        ...(await find_tables(s)),
+        ...(await find_tables(s, TEMPLATE_TABLE)),
+        ...(await find_tables(s, URL_TABLE))
+    ].map(d => d.id);
     if (ids.length) {
-        console.log(`     removing ${ids.length} leftover "${TABLE}"/"${TEMPLATE_TABLE}" table(s)`);
+        console.log(
+            `     removing ${ids.length} leftover "${TABLE}"/"${TEMPLATE_TABLE}"/"${URL_TABLE}" table(s)`
+        );
         await be('POST', '/file-directory/batch_delete', { token: s.token, body: { ids } });
     }
     await be('GET', `/auth/logout?token=${s.token}`);
@@ -661,6 +669,49 @@ try {
             (await find_tables(be_s, TEMPLATE_TABLE)).length === 0,
             'template table still exists in the backend'
         );
+    });
+
+    // Table from a URL (#144): the server fetches the CSV; the grid's Sync button opens its source
+    await step('table_from_url', async () => {
+        await page.locator('.h-tree-controls .title-icon').click();
+        await page
+            .locator('.h-tree-menu-popper')
+            .getByText('Table from URL or Google Sheet')
+            .click();
+        const dlg = page.locator('.url-import-dialog .el-dialog');
+        await dlg.locator('.new-name input').fill(URL_TABLE);
+        await dlg.locator('.source-url input').fill(URL_SOURCE);
+        await dlg.getByRole('button', { name: 'Import' }).click();
+        await page.locator('.el-tabs__item', { hasText: URL_TABLE }).waitFor();
+        await wait_rows(
+            r => r[0].name === 'Renew car registration',
+            'the rows fetched from the URL',
+            45000
+        );
+        const tables = await find_tables(be_s, URL_TABLE);
+        check(tables.length === 1, `expected 1 "${URL_TABLE}" table, found ${tables.length}`);
+        const saved = await be_table(be_s, tables[0].id);
+        results.observed.url_columns = saved.columns.map(c => c.name);
+        check(
+            results.observed.url_columns.join() === 'name,is_complete,priority,due_date',
+            `URL table columns are ${results.observed.url_columns}`
+        );
+        check(saved.rows.length === 24, `URL table has ${saved.rows.length} rows, not 24`);
+
+        await grid().locator('.url-source-button').click();
+        const source_url = await dlg.locator('.source-url input').inputValue();
+        check(source_url === URL_SOURCE, `the source dialog shows ${source_url}`);
+        await dlg.getByRole('button', { name: 'Cancel' }).click();
+        await dlg.waitFor({ state: 'hidden' });
+
+        await page.locator('.h-tree .tree-wrapper').getByText(URL_TABLE, { exact: true }).click();
+        await page.locator('.h-tree .manage-items.active .remove-items').click();
+        await page
+            .locator('.confirm-dialog .el-dialog')
+            .getByRole('button', { name: 'Confirm' })
+            .click();
+        await page.locator('.el-tabs__item', { hasText: URL_TABLE }).waitFor({ state: 'detached' });
+        check((await find_tables(be_s, URL_TABLE)).length === 0, 'URL table still exists');
     });
 
     await step('delete_table', async () => {

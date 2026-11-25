@@ -51,6 +51,16 @@ export class MongoDbCollections {
         return db.collection(name);
     }
 
+    // A collection shared by every account in the tracking database (no `:acct_<id>` suffix),
+    // such as `tracking:url_source` (#144). Every query on it must filter on account_id.
+    async get_shared_tracking_collection(name: string) {
+        const db = await this.get_mongo_db(
+            env.HORIZON_MONGO_TRACKING_DB,
+            env.HORIZON_MONGO_TRACKING_URI
+        );
+        return db.collection(name);
+    }
+
     async get_dg_row(acct_id, file_id) {
         return this.get_dg_collection('data_grid_row', acct_id, file_id);
     }

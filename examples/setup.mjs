@@ -182,7 +182,6 @@ fs.writeFileSync(
     configPath,
     JSON.stringify({ apiKey: api_key, baseUrl: `${BASE}/api/v1` }, null, 2) + '\n'
 );
-console.log(
-    `\nAPI key (${KEY_NAME}): ${api_key.slice(0, 6)}… (the full key is in the config file)`
-);
+// Never print the key, not even part of it: it's in the config file below
+console.log(`\nMade the API key "${KEY_NAME}".`);
 console.log(`Wrote ${path.relative(process.cwd(), configPath)}`);

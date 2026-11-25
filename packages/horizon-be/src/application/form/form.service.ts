@@ -25,6 +25,7 @@ import {
     public_form
 } from '@app/core/form/form';
 import logger from '@app/logger';
+import { form_actor } from '@app/core/audit/audit';
 
 export const FORM_NOT_FOUND = "This form doesn't exist or has been deleted.";
 export const FORM_CLOSED = 'This form is closed.';
@@ -190,10 +191,15 @@ export class FormService {
         const account = await this.account_svc.get(form.account_id);
         if (!account) throw new NotFoundException(FORM_NOT_FOUND);
         try {
-            // The account and table locks and the plan's row limit, then the webhooks (#140)
-            await this.web_file_svc.batch_create_internal(account, form.file_id, 'data_grid_row', [
-                submission.row
-            ]);
+            // The account and table locks and the plan's row limit, then the webhooks (#140);
+            // the audit log (#217) says the form added the row
+            await this.web_file_svc.batch_create_internal(
+                account,
+                form.file_id,
+                'data_grid_row',
+                [submission.row],
+                form_actor(form.id, form.title)
+            );
         } catch (ex) {
             if (ex instanceof HttpException && ex.getStatus() === HttpStatus.FORBIDDEN) {
                 // The owner's plan or lock isn't the visitor's business

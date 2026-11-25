@@ -29,6 +29,7 @@ import { DashboardManager } from './dashboard/dashboard.manager';
 import { AiClient } from './ai/ai-client';
 import { AiUsageManager } from './ai/ai-usage.manager';
 import { AiSpend } from './ai/ai-spend';
+import { AuditManager } from './audit/audit.manager';
 
 @Module({
     imports: [
@@ -64,6 +65,7 @@ import { AiSpend } from './ai/ai-spend';
         AiClient,
         AiUsageManager,
         AiSpend,
+        AuditManager,
         WebsocketClientStore
     ],
     exports: [
@@ -84,6 +86,7 @@ import { AiSpend } from './ai/ai-spend';
         AiClient,
         AiUsageManager,
         AiSpend,
+        AuditManager,
         WebsocketClientStore,
         TypeOrmModule
     ]

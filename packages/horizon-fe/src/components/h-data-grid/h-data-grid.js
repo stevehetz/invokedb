@@ -24,6 +24,7 @@ import GridToast from './grid-toast';
 import ApiDialog from './api-dialog';
 import WebhooksDialog from './webhooks-dialog';
 import FormsDialog from './forms-dialog';
+import AuditLog from '../audit-log';
 import AskDialog from './ask-dialog';
 import { ai_http } from '@/core/context/ai/ai-http';
 import LinkDialog from './link-dialog';
@@ -1079,6 +1080,22 @@ export default {
                     file: this.file
                 },
                 component: FormsDialog
+            });
+        },
+
+        // The top bar's More menu: room for table tools without widening the bar
+        more_command(command) {
+            if (command === 'history') this.history_btn_clicked();
+        },
+
+        // Who changed what in this table (#217)
+        history_btn_clicked() {
+            this.$bus.$emit('container-dialog:open', {
+                title: `${table_display_name(this.file.name)}: history`,
+                props: {
+                    file: this.file
+                },
+                component: AuditLog
             });
         },
 

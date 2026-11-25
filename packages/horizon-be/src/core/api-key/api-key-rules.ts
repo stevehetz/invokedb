@@ -30,6 +30,9 @@ export interface ApiKeyScope {
     access: ApiKeyAccess;
     // null: every table of the account, now and later
     table_ids: number[] | null;
+    // Who made a change, in the audit log (#217); never the key itself
+    name?: string;
+    prefix?: string;
 }
 
 export interface NewApiKey {

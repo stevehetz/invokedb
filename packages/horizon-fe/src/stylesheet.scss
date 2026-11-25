@@ -955,7 +955,8 @@ $nav_active_color: #ffffff;
 .h-data-grid .top .api-button,
 .h-data-grid .top .webhooks-button,
 .h-data-grid .top .forms-button,
-.h-data-grid .top .ask-data-button {
+.h-data-grid .top .ask-data-button,
+.h-data-grid .top .more-button {
     display: flex;
     align-items: center;
     border-left: solid 1px gray;
@@ -968,26 +969,39 @@ $nav_active_color: #ffffff;
 .h-data-grid .top .api-button .el-button.is-link,
 .h-data-grid .top .webhooks-button .el-button.is-link,
 .h-data-grid .top .forms-button .el-button.is-link,
-.h-data-grid .top .ask-data-button .el-button.is-link {
+.h-data-grid .top .ask-data-button .el-button.is-link,
+.h-data-grid .top .more-button .el-button.is-link {
     color: #696fe4;
 }
 .h-data-grid .top .views-button:hover .el-button.is-link,
 .h-data-grid .top .api-button:hover .el-button.is-link,
 .h-data-grid .top .webhooks-button:hover .el-button.is-link,
 .h-data-grid .top .forms-button:hover .el-button.is-link,
-.h-data-grid .top .ask-data-button:hover .el-button.is-link {
+.h-data-grid .top .ask-data-button:hover .el-button.is-link,
+.h-data-grid .top .more-button:hover .el-button.is-link {
     color: #7f84ee;
 }
 .h-data-grid .top .views-button .el-button.is-disabled,
 .h-data-grid .top .api-button .el-button.is-disabled,
 .h-data-grid .top .webhooks-button .el-button.is-disabled,
-.h-data-grid .top .forms-button .el-button.is-disabled {
+.h-data-grid .top .forms-button .el-button.is-disabled,
+.h-data-grid .top .more-button .el-button.is-disabled {
     color: #777777;
 }
 .h-data-grid .top .api-button:hover .el-button.is-disabled,
 .h-data-grid .top .webhooks-button:hover .el-button.is-disabled,
-.h-data-grid .top .forms-button:hover .el-button.is-disabled {
+.h-data-grid .top .forms-button:hover .el-button.is-disabled,
+.h-data-grid .top .more-button:hover .el-button.is-disabled {
     color: #777777;
+}
+// The More menu (#217): icon only, so it barely widens the bar
+.h-data-grid .top .more-button .el-dropdown {
+    height: 100%;
+    align-items: center;
+}
+.more-menu .el-dropdown-menu__item i {
+    width: 16px;
+    margin-right: 6px;
 }
 .h-data-grid .top .info {
     color: white;
@@ -2129,6 +2143,60 @@ $nav_active_color: #ffffff;
 .ask-dialog .ask-edit-done {
     margin-top: 8px;
     color: $gray600;
+}
+
+// The audit log (#217): a table's (the grid's More menu) or the account's (Account page)
+.audit-log {
+    color: $gray500;
+}
+.audit-log .audit-log-intro {
+    margin: 0 0 10px;
+    color: $gray400;
+}
+.audit-log .audit-log-status {
+    padding: 10px 0;
+}
+.audit-log .audit-log-status.error {
+    color: #a03e3e;
+}
+.audit-log .audit-log-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+.audit-log .audit-log-entry {
+    padding: 8px 0;
+    border-bottom: solid 1px #e4e4e4;
+}
+.audit-log .audit-log-summary {
+    color: $gray600;
+    overflow-wrap: anywhere;
+}
+.audit-log .audit-log-table {
+    color: $gray400;
+}
+.audit-log .audit-log-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin-top: 2px;
+    font-size: 12px;
+    color: $gray400;
+}
+.audit-log .audit-log-actor i {
+    margin-right: 3px;
+}
+.audit-log .audit-log-more {
+    padding-top: 10px;
+}
+.account-page .audit-log-form {
+    margin-bottom: 20px;
+}
+.account-page .audit-log-form .form-body {
+    padding-left: 20px;
+    max-width: 800px;
 }
 
 // A table's webhooks (#140); its top-bar button (.webhooks-button) is styled with .api-button

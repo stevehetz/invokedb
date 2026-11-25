@@ -399,6 +399,16 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   are fine), its API key is rejected and `authorize`/onboarding return it as null. Routes:
   `GET /auth/verify-email?token=`, `POST /auth/resend-verification` (session). The site's page is
   `/verify-email`; the app's banner is in `components/layout`.
+- Audit log (#217): `src/core/audit/` has the pure rules (`audit.ts`: the actor, the user's
+  email or an API key's name and prefix from `key_scope`, or a form; entry summaries; which column
+  changes count (name, type, index, link, delete, not widths or order); paging; 90 days on every
+  tier) and the store (`audit.manager.ts`, `tracking:audit` in the shared tracking DB; filter on
+  `account_id`, except the prune). `AuditService` records row creates/updates/deletes and column
+  changes (from `WebFileService`, so the app, `/api/v1`, forms and AI edits), table
+  create/rename/delete (`FileDirectoryService`) and API key create/revoke; recording never fails
+  the request. Not reads, CSV uploads or URL syncs. The processor role prunes old entries
+  hourly. Route `GET /audit?table=&limit=&cursor=` (session only). The frontend's
+  `components/audit-log` is the grid's More menu → History and the Account page's History.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

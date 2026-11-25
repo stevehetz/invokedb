@@ -33,7 +33,8 @@ describe('WebFileService deletes on a locked account', () => {
             web_file_manager,
             tracking,
             {} as any,
-            webhook_svc
+            webhook_svc,
+            { rows: jest.fn(async () => {}), columns: jest.fn(async () => {}) } as any
         );
     });
 

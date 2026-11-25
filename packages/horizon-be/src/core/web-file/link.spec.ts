@@ -9,6 +9,7 @@ import {
     link_display_column,
     link_label,
     missing_link_ids,
+    new_link_ids,
     normalize_link_value,
     parse_expand
 } from './link';
@@ -152,6 +153,14 @@ describe('helpers', () => {
 
     it('missing_link_ids', () => {
         expect(missing_link_ids([A, B, C], [B.toUpperCase()])).toEqual([A, C]);
+    });
+
+    it('new_link_ids leaves out ids already stored in the cell', () => {
+        expect(new_link_ids([A, B], [A])).toEqual([B]);
+        expect(new_link_ids([A, B], [A.toUpperCase(), B])).toEqual([]);
+        expect(new_link_ids([A], null)).toEqual([A]);
+        expect(new_link_ids([A], 'not a cell')).toEqual([A]);
+        expect(new_link_ids(null, [A])).toEqual([]);
     });
 
     it('link_display_column is the named live column, else the first', () => {

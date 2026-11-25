@@ -666,7 +666,7 @@ export class WebFileService {
             data = assert_column_update(data);
             await this.assert_link_columns(account.id, [data]);
         } else if (web_file_type === 'data_grid_row') {
-            await this.web_file_manager.resolve_links(account.id, file_id, [data]);
+            await this.web_file_manager.resolve_links(account.id, file_id, [data], true);
         }
         const res = await this.web_file_manager.update(account.id, file_id, web_file_type, data);
         if (web_file_type === 'data_grid_row' && res) {
@@ -723,7 +723,7 @@ export class WebFileService {
             }
         } else {
             if (web_file_type === 'data_grid_row') {
-                await this.web_file_manager.resolve_links(account.id, file_id, data);
+                await this.web_file_manager.resolve_links(account.id, file_id, data, true);
             }
             const updated = [];
             const res = await this.web_file_manager.batch_update_row(

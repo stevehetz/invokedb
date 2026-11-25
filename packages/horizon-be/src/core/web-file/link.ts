@@ -140,6 +140,16 @@ export function missing_link_ids(ids: string[], existing: string[]): string[] {
 }
 
 /**
+ * The ids of a link cell about to be written that aren't already stored in it, so only those
+ * need checking: an id that's in the cell already (even one whose row is gone) doesn't stop
+ * the rest of the row from being saved.
+ */
+export function new_link_ids(ids: string[] | null, stored: unknown): string[] {
+    const kept = new Set(collect_link_ids([stored]).map(id => id.toLowerCase()));
+    return (ids || []).filter(id => !kept.has(id));
+}
+
+/**
  * The column of the linked table that labels its rows: the one the link column names, if it
  * still exists, else the table's first column.
  */

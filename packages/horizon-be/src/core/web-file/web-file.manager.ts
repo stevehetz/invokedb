@@ -20,6 +20,7 @@ import {
     link_display_column,
     link_label,
     missing_link_ids,
+    new_link_ids,
     normalize_link_value
 } from './link';
 
@@ -831,17 +832,35 @@ export class WebFileManager {
      * Checks the link cells of rows about to be written (keyed by column field) and puts them
      * in their stored form: every id must be a row of the linked table, which is in this
      * account's own database, so a link can't reach another account. A 400 otherwise.
+     *
+     * For an update (rows carry their `_id`), only ids not already stored in that cell are
+     * checked, so a stale id (its row gone) doesn't stop the grid saving another cell.
      */
-    async resolve_links(acct_id, file_id, rows: any[]) {
+    async resolve_links(acct_id, file_id, rows: any[], is_update = false) {
         if (!Array.isArray(rows) || rows.length === 0) return;
         const link_cols = await this.get_link_columns(acct_id, file_id);
+        if (link_cols.length === 0) return;
+        let stored = new Map<string, any>();
+        if (is_update) {
+            const row_ids = rows
+                .map(row => row && typeof row === 'object' && row._id && String(row._id))
+                .filter(Boolean)
+                .map(id => id.toLowerCase());
+            const projection = {};
+            link_cols.forEach(c => (projection[c.field] = 1));
+            stored = await this.rows_by_ids(acct_id, file_id, row_ids, projection);
+        }
         for (const col of link_cols) {
             const name = col.headerName || col.field;
             const ids = new Set<string>();
             rows.forEach(row => {
                 if (!row || typeof row !== 'object' || !(col.field in row)) return;
                 row[col.field] = normalize_link_value(row[col.field], name);
-                (row[col.field] || []).forEach(id => ids.add(id));
+                const before =
+                    is_update && row._id ? stored.get(String(row._id).toLowerCase()) : null;
+                new_link_ids(row[col.field], before && before[col.field]).forEach(id =>
+                    ids.add(id)
+                );
             });
             if (ids.size === 0) continue;
             const wanted = [...ids];

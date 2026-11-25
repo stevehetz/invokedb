@@ -66,6 +66,21 @@
             </div>
         </div>
     </div>
+    <div
+        class="verify-email-banner"
+        v-if="account && account.email_verified === false"
+    >
+        <i class="fa fa-envelope"></i>
+        <span>
+            Confirm your email address to create tables and use your API key. We
+            sent a link to <b>{{ account.email }}</b>.
+        </span>
+        <span v-if="resend.sent" class="done">Sent. Check your inbox.</span>
+        <a v-else href="" @click.prevent="resend_verification">
+            {{ resend.sending ? 'Sending…' : 'Resend the email' }}
+        </a>
+        <span v-if="resend.error" class="error">{{ resend.error }}</span>
+    </div>
     <div class="body">
         <slot class="body-container" name="body">404 - Route not found</slot>
     </div>

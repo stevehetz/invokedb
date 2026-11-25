@@ -1,5 +1,6 @@
 import { store } from '@/store';
 import { account_manager } from '@/core/context/account/account-manager';
+import { auth_http } from '@/core/context/account/auth-http';
 
 export default {
     name: 'Layout',
@@ -10,7 +11,9 @@ export default {
             show_submenu_timeout: 0,
             hide_submenu_timeout: 200,
             submenu_timeout: null,
-            nav_listeners: []
+            nav_listeners: [],
+            // The "confirm your email" banner's Resend link (#132)
+            resend: { sending: false, sent: false, error: '' }
         };
     },
 
@@ -65,6 +68,26 @@ export default {
                 listen(popper, 'mouseenter', keep_open);
                 listen(popper, 'mouseleave', hide_later);
             });
+        },
+
+        async resend_verification() {
+            if (this.resend.sending) return;
+            this.resend.sending = true;
+            this.resend.error = '';
+            try {
+                const res = await auth_http.resend_verification();
+                if (res && res.email_verified) {
+                    // Verified in another tab meanwhile: the banner goes away
+                    await account_manager.refresh_account_store();
+                } else {
+                    this.resend.sent = true;
+                }
+            } catch (ex) {
+                this.resend.error =
+                    (ex && ex.message) || 'Could not send the email';
+            } finally {
+                this.resend.sending = false;
+            }
         },
 
         async contact() {

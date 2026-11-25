@@ -11,6 +11,7 @@ import { TrackingManager } from './tracking/tracking.manager';
 import { Account } from './account/account.entity';
 import { FileDirectory } from './file-directory/file-directory.entity';
 import { ResetPassword } from './reset-password/reset-password.entity';
+import { EmailVerification } from './email-verification/email-verification.entity';
 import { Session } from './session/session.entity';
 import { Subscription } from './subscription/subscription.entity';
 import { WebsocketClientStore } from '@app/websocket/client.store';
@@ -33,6 +34,7 @@ import { ViewManager } from './view/view.manager';
             AccountIdentity,
             FileDirectory,
             ResetPassword,
+            EmailVerification,
             Session,
             Subscription,
             Job

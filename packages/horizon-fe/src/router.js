@@ -11,7 +11,6 @@ const Home = () => import('@/components/home');
 const Account = () => import('@/components/account');
 const Docs = () => import('@/components/docs');
 const Guide = () => import('@/components/guide');
-const Dashboards = () => import('@/components/dashboards');
 
 // Public site (marketing, login, signup)
 const SiteHome = () => import('@/view/pages/home');
@@ -37,8 +36,6 @@ const Site = () => import(/* webpackChunkName: "site" */ '@/view/site.vue');
 // A shareable form's public page (#145), also shown in other sites' iframes. It's in neither
 // shell (no site nav, no app), so it carries its own scoped CSS.
 const FormPage = () => import('@/view/form-page');
-// A dashboard's read-only share link (#209), likewise outside both shells
-const DashboardPage = () => import('@/view/dashboard-page');
 const App = () =>
     import(/* webpackChunkName: "signed-in" */ '@/components/app.vue');
 
@@ -71,13 +68,6 @@ const router = createRouter({
                             }
                         },
                         {
-                            path: 'dashboards',
-                            name: 'dashboards',
-                            components: {
-                                page_overlay: Dashboards
-                            }
-                        },
-                        {
                             path: 'guide',
                             name: 'guide',
                             components: {
@@ -93,7 +83,6 @@ const router = createRouter({
             ]
         },
         { path: '/f/:id', name: 'form', component: FormPage },
-        { path: '/d/:token', name: 'dashboard', component: DashboardPage },
         {
             path: '/',
             component: Site,

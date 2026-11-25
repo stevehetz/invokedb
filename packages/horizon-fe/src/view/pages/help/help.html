@@ -559,45 +559,7 @@ function verify(secret, raw_body, header) {
                             but not drawn.
                         </li>
                     </ul>
-                    <p>
-                        Every view can have filters of its own. Charts can also
-                        be put on
-                        <router-link to="/help/dashboards"
-                            >dashboards</router-link
-                        >.
-                    </p>
-                </section>
-
-                <!-- Dashboards -->
-                <section v-if="topic.id === 'dashboards'">
-                    <h1>Dashboards</h1>
-                    <p>
-                        A dashboard puts numbers, charts and tables from any of
-                        your tables on one page. Open <b>Dashboards</b> in the
-                        app's menu and make one, then add tiles:
-                    </p>
-                    <ul>
-                        <li>
-                            <b>Stat</b>: one number from a table or a view:
-                            count, sum, average, min or max of a column.
-                        </li>
-                        <li><b>Chart</b>: a chart view.</li>
-                        <li>
-                            <b>Table</b>: the first rows of a table or a view.
-                        </li>
-                    </ul>
-                    <p>
-                        Tiles read the data each time the dashboard is opened,
-                        so they're always current. A tile whose table or view
-                        was deleted shows an error instead.
-                    </p>
-                    <h2>Sharing</h2>
-                    <p>
-                        <b>Share by link</b> makes a read-only link
-                        (<code>/d/...</code>) that anyone can open without an
-                        account. <b>New link</b> replaces it and turns the old
-                        one off, and you can turn sharing off at any time.
-                    </p>
+                    <p>Every view can have filters of its own.</p>
                 </section>
 
                 <!-- Ask AI -->
@@ -723,10 +685,6 @@ function verify(secret, raw_body, header) {
                             <tr>
                                 <td>Webhooks</td>
                                 <td>10</td>
-                            </tr>
-                            <tr>
-                                <td>Dashboards</td>
-                                <td>20, with up to 24 tiles each</td>
                             </tr>
                             <tr>
                                 <td>Import from a URL</td>

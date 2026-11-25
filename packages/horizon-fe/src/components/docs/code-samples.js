@@ -250,6 +250,54 @@ res.data =
 
 `;
 
+export const query = `
+// Note: This example uses the axios library for http
+
+const table = 'contacts';
+const headers = { Authorization: \`Bearer your_api_key\` };
+
+const url = \`https://api.invokedb.com/v1/query?table=\${table}\`;
+
+const body = {
+    filters: [
+        { column: 'age', op: 'gte', value: 21 },
+        { column: 'email', op: 'empty', value: false }
+    ],
+    sort: ['last_name', '-age'],
+    fields: ['first_name', 'last_name', 'email'],
+    limit: 100
+};
+
+let res = await axios.post(url, body, { headers });
+// { data: { data: [...], next_cursor: 'eyJz...' } }
+
+while (res.data.next_cursor) {
+    res = await axios.post(
+        url,
+        { ...body, cursor: res.data.next_cursor },
+        { headers }
+    );
+}
+
+`;
+
+export const count = `
+// Note: This example uses the axios library for http
+
+const table = 'contacts';
+const headers = { Authorization: \`Bearer your_api_key\` };
+
+const url = \`https://api.invokedb.com/v1/count?table=\${table}\`;
+
+const body = {
+    filters: [{ column: 'city', op: 'in', value: ['Paris', 'Rome'] }]
+};
+
+const res = await axios.post(url, body, { headers });
+// { data: { count: 42 } }
+
+`;
+
 export const create = `
 // Note: This example uses the axios library for http
 

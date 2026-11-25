@@ -5,6 +5,7 @@ import {
     Post,
     HttpStatus,
     HttpException,
+    HttpCode,
     Put,
     UseGuards
 } from '@nestjs/common';
@@ -26,6 +27,12 @@ export class ExternalV1Controller {
 
     async get_file_id(user, file_name) {
         const account = api_key_account(user);
+        if (typeof file_name !== 'string' || file_name.length === 0) {
+            throw new HttpException(
+                `The 'table' query parameter is required`,
+                HttpStatus.BAD_REQUEST
+            );
+        }
         const file_directories = await this.file_dir_service.get_by_account_id(account.id);
         let file_directory;
         if (file_directories && file_directories.length > 0) {
@@ -59,6 +66,32 @@ export class ExternalV1Controller {
         params.filters = req.body;
 
         return await this.web_file_service.external_get_rows(req.user, file_id, params, format);
+    }
+
+    // Filters, sort, field selection and cursor paging in a JSON body (#141)
+    @Post('query')
+    @HttpCode(HttpStatus.OK)
+    async query_rows(@Request() req) {
+        const file_id = await this.get_file_id(req.user, req.query.table);
+        return await this.web_file_service.external_query_rows(
+            req.user,
+            file_id,
+            req.body,
+            req.query.format
+        );
+    }
+
+    // The number of rows matching the same filters as /query (#141)
+    @Post('count')
+    @HttpCode(HttpStatus.OK)
+    async count_rows(@Request() req) {
+        const file_id = await this.get_file_id(req.user, req.query.table);
+        return await this.web_file_service.external_count_rows(
+            req.user,
+            file_id,
+            req.body,
+            req.query.format
+        );
     }
 
     @Post('create')

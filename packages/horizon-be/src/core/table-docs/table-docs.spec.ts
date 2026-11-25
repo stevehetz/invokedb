@@ -11,6 +11,7 @@ import {
     python_snippet,
     sh_quote
 } from './table-docs';
+import { QueryColumn, parse_count_query, parse_row_query } from '../web-file/row-query';
 
 const input = () => ({
     table: 'people',
@@ -49,12 +50,14 @@ describe('doc_columns', () => {
 });
 
 describe('build_table_docs', () => {
-    it('lists the five endpoints with their methods and URLs', () => {
+    it('lists the seven endpoints with their methods and URLs', () => {
         const docs = build_table_docs(input());
         expect(docs.base_url).toBe('https://api.example.com/api/v1');
         expect(docs.endpoints.map(e => [e.id, e.method, e.read_only])).toEqual([
             ['get', 'GET', true],
             ['search', 'POST', true],
+            ['query', 'POST', true],
+            ['count', 'POST', true],
             ['create', 'POST', false],
             ['update', 'PUT', false],
             ['delete', 'POST', false]
@@ -92,6 +95,36 @@ describe('build_table_docs', () => {
             { _id: ROW_ID_PLACEHOLDER, 'Full Name': 'Alice' }
         ]);
         expect(endpoint(docs, 'delete').body).toEqual([ROW_ID_PLACEHOLDER]);
+    });
+
+    it('builds the query and count examples (#141) in a form parse_row_query accepts', () => {
+        const docs = build_table_docs(input());
+        const filters = [{ column: 'Full Name', op: 'contains', value: 'Alice' }];
+        expect(endpoint(docs, 'query').body).toEqual({
+            filters,
+            sort: [{ column: 'age', dir: 'desc' }],
+            fields: ['Full Name', 'age', 'joined'],
+            limit: 10
+        });
+        expect(endpoint(docs, 'query').url).toBe(
+            'https://api.example.com/api/v1/query?table=people'
+        );
+        expect(endpoint(docs, 'query').response.body).toEqual({
+            data: [
+                { _id: 'abc123', 'Full Name': 'Alice', age: 30, joined: '2020-01-02 12:00:00 AM' }
+            ],
+            next_cursor: null
+        });
+        expect(endpoint(docs, 'count').body).toEqual({ filters });
+        expect(endpoint(docs, 'query').snippets.client).toContain('table.query({');
+        expect(endpoint(docs, 'count').snippets.client).toContain('table.count({');
+        const columns: QueryColumn[] = docs.columns.map((c, i) => ({
+            name: c.name,
+            field: String.fromCharCode(97 + i),
+            type: c.type
+        }));
+        expect(() => parse_row_query(endpoint(docs, 'query').body, columns)).not.toThrow();
+        expect(() => parse_count_query(endpoint(docs, 'count').body, columns)).not.toThrow();
     });
 
     it('falls back to values by type without a sample row', () => {
@@ -210,6 +243,8 @@ describe('build_openapi', () => {
         expect(Object.keys(spec.paths)).toEqual([
             '/get',
             '/search',
+            '/query',
+            '/count',
             '/create',
             '/update',
             '/delete'

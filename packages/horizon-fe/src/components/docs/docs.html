@@ -3,6 +3,8 @@
         <div class="docs-nav">
             <a href="#get">Get</a>
             <a href="#search">Search</a>
+            <a href="#query">Query</a>
+            <a href="#count">Count</a>
             <a href="#create">Create</a>
             <a href="#update">Update</a>
             <a href="#delete">Delete</a>
@@ -348,6 +350,125 @@
                         <pre class="lang-javascript">
                                                 <code v-html="code['search_group']"></code>
                                             </pre>
+                    </div>
+                    <h3 id="query" class="overview-title">[POST] Query</h3>
+                    <div class="overview-block">
+                        <h4 class="overview-block-title">URL</h4>
+                        <p>{{ base_url }}/query?table={table}</p>
+                        <br />
+                        <h4 class="overview-block-title">Query Params</h4>
+                        <p>
+                            <label class="query-param-label">table</label> name
+                            of the table
+                        </p>
+                        <p>
+                            <label class="query-param-label"
+                                >format (optional)</label
+                            >
+                            camelCase or snakeCase column names
+                        </p>
+                        <br />
+                        <h4 class="overview-block-title">Body</h4>
+                        <p>
+                            A JSON object. Every key is optional; send {} for
+                            the first page of every row.
+                        </p>
+                        <pre class="lang-javascript overview-code">
+                            <code>
+{
+    // Rows must match every filter ("match": "any" for any of them)
+    filters: [
+        { column: 'age', op: 'gte', value: 21 },
+        { column: 'city', op: 'in', value: ['Paris', 'Rome'] }
+    ],
+    match: 'all',
+    // Column names, "-name" for descending, or { column, dir }
+    sort: ['-age', 'last_name'],
+    // Only these columns come back (with _id)
+    fields: ['first_name', 'last_name', 'age'],
+    // 1 to 1000, default 100
+    limit: 50,
+    // next_cursor from the previous page, for the next one
+    cursor: null
+}
+                            </code>
+                        </pre>
+                        <h5 class="overview-block-subtitle">Operators</h5>
+                        <p>
+                            <label class="query-param-label">eq, ne</label>
+                            equals, not equals. On text, eq is exact and
+                            case-sensitive
+                        </p>
+                        <p>
+                            <label class="query-param-label"
+                                >gt, gte, lt, lte</label
+                            >
+                            greater than (or equal), less than (or equal)
+                        </p>
+                        <p>
+                            <label class="query-param-label">in</label> any of
+                            an array of up to 100 values
+                        </p>
+                        <p>
+                            <label class="query-param-label">contains</label>
+                            text columns only; case-insensitive unless the
+                            filter has case: 'sensitive'
+                        </p>
+                        <p>
+                            <label class="query-param-label">empty</label> true
+                            for empty cells, false for filled ones
+                        </p>
+                        <p>
+                            Values must match the column's type: a number for
+                            Number columns, a date string such as 2024-01-15 for
+                            Date columns, text for Text columns. _id takes eq,
+                            ne and in. A wrong column, operator or value is a
+                            400 with a message saying which.
+                        </p>
+                        <br />
+                        <h4 class="overview-block-title">Response</h4>
+                        <p>
+                            { data: [...rows], next_cursor }. next_cursor is
+                            null on the last page. Send the same body with
+                            cursor set to it for the next page: unlike skip,
+                            pages stay in order when rows are added or deleted.
+                            Rows are ordered by the sort columns, then _id.
+                        </p>
+                        <p>
+                            Filters on a column marked Indexed (Edit Columns)
+                            use its index. Send "explain": true to check: the
+                            response is { explain: { uses_index, index_columns }
+                            } instead of rows.
+                        </p>
+                    </div>
+                    <h4 id="query-example" class="docs-example__subtitle">
+                        Example - [POST] Query - filters, sort and paging
+                    </h4>
+                    <div class="docs-example__code-block">
+                        <div class="language-setting">JS</div>
+                        <pre class="lang-javascript">
+                            <code v-html="code['query']"></code>
+                        </pre>
+                    </div>
+                    <h3 id="count" class="overview-title">[POST] Count</h3>
+                    <div class="overview-block">
+                        <h4 class="overview-block-title">URL</h4>
+                        <p>{{ base_url }}/count?table={table}</p>
+                        <br />
+                        <h4 class="overview-block-title">Body</h4>
+                        <p>
+                            filters and match, as for Query. {} counts every
+                            row. The response is { count }.
+                        </p>
+                    </div>
+                    <h4 id="count-example" class="docs-example__subtitle">
+                        Example - [POST] Count
+                    </h4>
+                    <div class="docs-example__code-block">
+                        <div class="language-setting">JS</div>
+                        <pre class="lang-javascript">
+                            <code v-html="code['count']"></code>
+                        </pre>
                     </div>
                     <h3 id="create" class="overview-title">[POST] Create</h3>
                     <div class="overview-block">

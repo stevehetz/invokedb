@@ -10,6 +10,7 @@ import logger from '@app/logger';
 import { parse_utc_date, format_date } from '../date';
 import { assert_array_body } from '../helpers/array-body';
 import { assert_column_update } from '../helpers/column-update';
+import { RowCountQuery, RowQuery, mongo_sort } from './row-query';
 
 const MAX_FIELD_VALUE_LENGTH = 2000;
 const MAX_COLUMN_VALUE_LENGTH = 100;
@@ -380,6 +381,24 @@ export class WebFileManager {
                 $gte: filter.value
             };
         }
+    }
+
+    // /api/v1/query (#141): one page of rows, plus one more to tell whether there's a next page
+    async query_rows(acct_id, file_id, query: RowQuery) {
+        const rows = await this._collections.get_dg_row(acct_id, file_id);
+        const cursor = rows
+            .find(query.filter, { projection: query.projection })
+            .sort(mongo_sort(query.sort))
+            .limit(query.limit + 1);
+        if (query.explain) {
+            return { docs: [], explain: await cursor.explain('queryPlanner') };
+        }
+        return { docs: await cursor.toArray(), explain: null };
+    }
+
+    async count_rows(acct_id, file_id, query: RowCountQuery) {
+        const rows = await this._collections.get_dg_row(acct_id, file_id);
+        return await rows.countDocuments(query.filter);
     }
 
     has_paging(params) {

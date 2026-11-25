@@ -1,13 +1,16 @@
 import { createApp } from 'vue';
 
-// The only global CSS outside the two shells (see router.js): both areas use these, and they
-// only style their own classes (`fa*`, `hljs*`), so they can't clash with either area's CSS.
-// Font Awesome is also the loading spinner in index.html. They were CDN links in index.html.
+// The only global CSS outside the two shells (see router.js): both areas use these.
+// Font Awesome and highlight.js only style their own classes (`fa*`, `hljs*`). Font Awesome is
+// also the loading spinner in index.html. They were CDN links in index.html.
 import '@fortawesome/fontawesome-free/css/all.css';
 // highlight.js 11 moved the dark Atelier Plateau theme to `styles/base16/`.
 import 'highlight.js/styles/base16/atelier-plateau.css';
+// Element Plus's default theme, for both areas. It's here, in the entry chunk, so it always
+// comes before the areas' own CSS. The app area overrides its colours (element-theme.scss).
+import 'element-plus/dist/index.css';
 
-// Element Plus (each area loads its own theme CSS; see router.js). Only the components the
+// Element Plus. Only the components the
 // templates use are registered, each imported from its own module: importing from
 // 'element-plus' itself keeps the whole library in the bundle (its index reads the all-in-one
 // installer at load time, so nothing can be tree-shaken). Using a new `<el-*>` component means

@@ -1,0 +1,8 @@
+// The public site's global CSS, scoped to `<html class="site-area">` (router.js sets the class)
+// so it can be on the page with the app's (app-area.scss, which explains how). The site uses
+// Element Plus's default theme, which main.js loads for both areas.
+@use 'sass:meta';
+
+:where(html.site-area) {
+    @include meta.load-css('stylesheet');
+}

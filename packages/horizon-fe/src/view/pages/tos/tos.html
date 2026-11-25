@@ -24,15 +24,10 @@
                         <span>Sign In</span>
                         <i class="fa fa-arrow-right"></i>
                     </router-link>
-                    <a
-                        href=""
-                        class="sign-in"
-                        v-if="account"
-                        @click="go_to_database"
-                    >
+                    <router-link to="/app" class="sign-in" v-if="account">
                         <span>Database</span>
                         <i class="fa fa-arrow-right"></i>
-                    </a>
+                    </router-link>
                 </div>
             </div>
         </div>

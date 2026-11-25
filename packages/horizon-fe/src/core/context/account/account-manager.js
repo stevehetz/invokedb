@@ -17,7 +17,9 @@ export const account_manager = {
 
     async get_account(token) {
         let account = store.get('account');
-        if (!account) {
+        // The site may have stored another session's account (sign-in moves to the app
+        // through the router, so the store survives it)
+        if (!account || account.token !== token) {
             const url = http.get_url(`/auth/authorize?token=${token}`);
             account = await http.get(url);
             store.set('account', account);

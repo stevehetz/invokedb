@@ -35,11 +35,6 @@ export default {
     },
 
     methods: {
-        go_to_database(e) {
-            e.preventDefault();
-            window.location.href = '/app';
-        },
-
         highlight() {
             highlight_code_blocks();
         },

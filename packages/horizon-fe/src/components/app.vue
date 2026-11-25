@@ -1,10 +1,7 @@
 <script>
-// The signed-in app's shell (route /app). It owns the app's global CSS; see router.js for why.
-// No 'element-plus/dist/index.css' here: element-theme.scss compiles the whole Element theme
-// (with the app's colours) itself. Importing both put the default theme in a shared chunk that
-// Vite's production build loaded after the app's styles, overriding the app's nav styles.
-import '@/element-theme.scss';
-import '@/stylesheet.scss';
+// The signed-in app's shell (route /app). It owns the app's global CSS, scoped to
+// <html class="app-area">, including its Element Plus colours; see router.js.
+import '@/app-area.scss';
 
 import ViewBusContainer from '@/components/view-bus/view-bus-container';
 import Layout from '@/components/layout';
@@ -29,9 +26,14 @@ export default {
     },
 
     async created() {
+        this.$bus.$on('logout', this.logout);
         this.env = store.get('env');
         await this.set_account();
-        this.set_handlers();
+    },
+
+    beforeUnmount() {
+        // Links to the public site use the router, so the shell can unmount and come back
+        this.$bus.$off('logout', this.logout);
     },
 
     methods: {
@@ -47,17 +49,17 @@ export default {
             }
 
             if (!this.account) {
-                window.location.href = '/login'; // the public site: a full page load
+                this.$router.replace('/login');
             } else {
                 this.loading = false;
             }
         },
 
-        set_handlers() {
-            this.$bus.$on('logout', async () => {
-                await account_manager.logout();
-                window.location.href = '/';
-            });
+        async logout() {
+            await account_manager.logout();
+            // A full page load on purpose: it drops everything the app holds in memory for
+            // this account and closes the websocket
+            window.location.href = '/';
         }
     }
 };

@@ -1,0 +1,11 @@
+// The signed-in app's global CSS, scoped to `<html class="app-area">` (router.js sets the class)
+// so it can be on the page with the site's (view/site-area.scss). `:where()` adds no
+// specificity, so every rule wins and loses exactly as it did unscoped. The class is on <html>
+// so it also covers what Element Plus teleports to <body> (dialogs, dropdowns, tooltips).
+// The `html` rules in stylesheet.scss no longer match; index.html has the same ones.
+@use 'sass:meta';
+@use 'element-theme';
+
+:where(html.app-area) {
+    @include meta.load-css('stylesheet');
+}

@@ -6,6 +6,17 @@ The one place that lists every outside service and automation production depends
 one does, where it's configured, which secrets it uses (names only), who it alerts, and how to
 check it works. The details live next to the code; this file links to them instead of copying.
 
+Two diagrams give the picture at a glance (keep them in step with this file):
+
+- [Runtime](images/infrastructure-runtime.svg): DNS, the firewall, the droplet's containers,
+  backups, email, sign-in, monitoring and alerts.
+- [Delivery](images/infrastructure-delivery.svg): PR → CI + review → auto-merge → CD → E2E,
+  the workflows around it, and where the secrets live.
+
+![Runtime: what runs InvokeDB in production](images/infrastructure-runtime.svg)
+
+![Delivery: from pull request to production](images/infrastructure-delivery.svg)
+
 - `deploy/README.md`: the server, deploys, email and backups, step by step.
 - `deploy/email-worker/README.md`: inbound email and the Cloudflare Worker.
 - The comment at the top of each `.github/workflows/*.yml`: what that workflow does and when.

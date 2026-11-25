@@ -116,7 +116,10 @@ Agent playbooks ("skills") are in `.agents/skills`, and `AGENTS.md` says when to
 ## Production
 
 Production is one server running `docker compose`, set up and driven by the scripts in
-`deploy/`. See `deploy/README.md`.
+`deploy/`. See `deploy/README.md`, and `docs/OPERATIONS.md` for every outside service and
+workflow.
+
+![What runs InvokeDB in production](docs/images/infrastructure-runtime.svg)
 
 ## Licence
 

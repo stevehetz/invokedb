@@ -1,0 +1,198 @@
+<div class="views-dialog">
+    <p class="views-intro">
+        Save the grid's filters, sort and hidden columns as a named view of
+        <b>{{ props.file.name }}</b>, shown as the grid, as kanban cards grouped
+        by a column, or as a chart.
+    </p>
+
+    <div class="views-status" v-if="loading">Loading views...</div>
+    <div class="views-status error" v-if="error">{{ error }}</div>
+
+    <div class="view-editor" v-if="draft">
+        <h4>New view</h4>
+        <div class="view-editor-row">
+            <label>Name</label>
+            <input
+                class="view-editor-name"
+                v-model="draft.name"
+                maxlength="100"
+                placeholder="e.g. Open tasks"
+                @keyup.enter="save"
+            />
+        </div>
+        <div class="view-editor-row">
+            <label>Show as</label>
+            <div class="view-editor-types">
+                <label
+                    v-for="(label, type) in type_labels"
+                    :key="type"
+                    :class="['view-editor-type', 'view-type-' + type, { on: draft.type === type }]"
+                >
+                    <input type="radio" :value="type" v-model="draft.type" />
+                    <i :class="type_icons[type]"></i> {{ label }}
+                </label>
+            </div>
+        </div>
+
+        <div class="view-editor-row" v-if="draft.type === 'kanban'">
+            <label>Group cards by</label>
+            <select class="view-editor-group" v-model="draft.group_field">
+                <option
+                    v-for="c in group_columns"
+                    :key="c.field"
+                    :value="c.field"
+                >
+                    {{ c.name }}
+                </option>
+            </select>
+        </div>
+        <div
+            class="views-hint"
+            v-if="draft.type === 'kanban' && group_columns.length === 0"
+        >
+            A kanban view needs a text or number column.
+        </div>
+
+        <template v-if="draft.type === 'chart'">
+            <div class="view-editor-row">
+                <label>Chart</label>
+                <select class="view-editor-kind" v-model="draft.kind">
+                    <option value="bar">Bar</option>
+                    <option value="line">Line</option>
+                    <option value="pie">Pie</option>
+                </select>
+            </div>
+            <div class="view-editor-row">
+                <label>Over the column</label>
+                <select
+                    class="view-editor-chart-field"
+                    v-model="draft.chart_field"
+                >
+                    <option
+                        v-for="c in chart_columns"
+                        :key="c.field"
+                        :value="c.field"
+                    >
+                        {{ c.name }}
+                    </option>
+                </select>
+            </div>
+            <div class="view-editor-row">
+                <label>Value</label>
+                <select class="view-editor-agg" v-model="draft.agg">
+                    <option value="count">Count of rows</option>
+                    <option value="sum" :disabled="number_columns.length === 0">
+                        Sum of a number column
+                    </option>
+                </select>
+                <select
+                    class="view-editor-value-field"
+                    v-if="draft.agg === 'sum'"
+                    v-model="draft.value_field"
+                >
+                    <option
+                        v-for="c in number_columns"
+                        :key="c.field"
+                        :value="c.field"
+                    >
+                        {{ c.name }}
+                    </option>
+                </select>
+            </div>
+        </template>
+
+        <div class="views-hint">
+            Uses the grid's current settings: {{ state_summary }}.
+        </div>
+        <div class="view-editor-actions">
+            <el-button
+                class="view-save-button"
+                type="primary"
+                size="small"
+                :loading="saving"
+                :disabled="!can_save"
+                @click="save"
+                >Save view</el-button
+            >
+            <el-button size="small" @click="cancel">Cancel</el-button>
+        </div>
+    </div>
+
+    <div class="views-add" v-else-if="!loading">
+        <el-button
+            class="views-new-button"
+            type="primary"
+            size="small"
+            :disabled="columns.length === 0"
+            @click="new_view"
+            >Save current view</el-button
+        >
+        <span class="views-hint">{{ state_summary }}</span>
+    </div>
+
+    <div class="views-empty" v-if="!loading && views.length === 0 && !draft">
+        No saved views for this table yet.
+    </div>
+
+    <div
+        v-for="view in views"
+        :key="view.id"
+        :class="['view-item', { current: view.id === props.current_id }]"
+    >
+        <div class="view-item-head">
+            <i :class="['view-item-icon', type_icons[view.type]]"></i>
+            <template v-if="renaming === view.id">
+                <input
+                    class="view-rename-input"
+                    v-model="rename_value"
+                    maxlength="100"
+                    @keyup.enter="rename(view)"
+                    @keyup.esc="renaming = null"
+                />
+                <el-button
+                    class="view-rename-save"
+                    size="small"
+                    type="primary"
+                    @click="rename(view)"
+                    >Save</el-button
+                >
+            </template>
+            <span class="view-item-name" v-else>{{ view.name }}</span>
+            <span class="view-item-type">{{ type_labels[view.type] }}</span>
+        </div>
+        <div class="view-item-details">
+            {{ summary(view) }}<template v-if="describe(view)"
+                >; {{ describe(view) }}</template
+            >
+            <span class="view-item-updated" v-if="updated === view.id">
+                (updated)</span
+            >
+        </div>
+        <div class="view-item-actions">
+            <el-button size="small" type="primary" plain @click="open(view)"
+                >Open</el-button
+            >
+            <el-button
+                class="view-rename-button"
+                size="small"
+                @click="start_rename(view)"
+                >Rename</el-button
+            >
+            <el-button
+                class="view-update-button"
+                size="small"
+                @click="update_filters(view)"
+                title="Save the grid's current filters, sort and hidden columns into this view"
+                >Use current filters</el-button
+            >
+            <el-button
+                class="view-delete-button"
+                size="small"
+                type="danger"
+                plain
+                @click="remove(view)"
+                >Delete</el-button
+            >
+        </div>
+    </div>
+</div>

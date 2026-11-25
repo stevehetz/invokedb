@@ -6,7 +6,8 @@
 // columns, change a column type (a background job whose progress arrives over the websocket),
 // open the table's API docs and "Try it" on Get, add / test / disable / delete a webhook, read the API key from the account page and call /api/v1 with it, make a form and submit it
 // through its public link, then close and delete it, make (and delete) a table
-// from a template and one from a URL (a CSV on GitHub, so it needs internet), add a link column
+// from a template (saving a grid view of it, a kanban view where a card is dragged and a
+// chart view, #146) and one from a URL (a CSV on GitHub, so it needs internet), add a link column
 // to a tasks table, fill a cell from its picker and open the linked table (#147), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
 //
 // URLs come from the same env vars the apps use, so load an env file first. Best run against
@@ -822,6 +823,163 @@ try {
             results.observed.template_headers.join() === saved.columns.map(c => c.name).join(),
             `grid headers are ${results.observed.template_headers}`
         );
+    });
+
+    // Saved views (#146), on the tasks table: save the grid's filter and sort as a view, switch
+    // to all rows and back (the filter row shows the view's filter), rename it; a kanban view by
+    // Status where dragging a card changes the row; a bar chart of rows per Status; then delete
+    // the views.
+    await step('table_views', async () => {
+        const [tasks] = await find_tables(be_s, TEMPLATE_TABLE);
+        const views_menu = async item => {
+            await grid().locator('.views-menu-button').click();
+            const menu = page.locator('.views-menu:visible');
+            await menu.waitFor();
+            await menu.locator('.el-dropdown-menu__item', { hasText: item }).first().click();
+        };
+        const dialog = page.locator('.container-dialog .views-dialog');
+        const open_dialog = async () => {
+            await views_menu('Save or manage views');
+            await dialog.locator('.views-new-button').waitFor();
+        };
+        const close_dialog = async () => {
+            await page.locator('.container-dialog .el-dialog__headerbtn').click();
+            await dialog.waitFor({ state: 'detached' });
+        };
+        const current = () => grid().locator('.views-button .views-current').innerText();
+        const owner_filter = grid().locator(
+            `.ag-floating-filter[col-id="${await col_id('Owner')}"] .custom-filter-text`
+        );
+
+        // A grid view: Owner contains "Sam", sorted by Estimate Hours
+        await owner_filter.pressSequentially('Sam');
+        await wait_rows(r => r.length === 2, 'Owner contains "Sam" filter');
+        await grid()
+            .locator(
+                `.ag-header-cell[col-id="${await col_id('Estimate Hours')}"] .grid-header.read`
+            )
+            .click();
+        await wait_rows(
+            r => r[0]['Task'] === 'Fix the signup email typo',
+            'ascending Estimate Hours sort'
+        );
+        await open_dialog();
+        check((await dialog.locator('.view-item').count()) === 0, 'the table already has views');
+        await dialog.locator('.views-new-button').click();
+        await dialog.locator('.view-editor-name').fill('UI smoke Sam');
+        await dialog.locator('.view-save-button').click();
+        await dialog.waitFor({ state: 'detached' });
+        check((await current()) === 'UI smoke Sam', `the current view is "${await current()}"`);
+        const listed = await be('GET', `/view?table=${tasks.id}`, { token: be_s.token });
+        const saved = (listed.views || [])[0];
+        results.observed.view_saved =
+            saved && saved.filters.map(f => [f.type, f.value]).concat([[saved.sort?.dir]]);
+        check(
+            saved &&
+                saved.type === 'grid' &&
+                saved.filters.length === 1 &&
+                saved.filters[0].value === 'Sam' &&
+                saved.sort?.dir === 'asc',
+            `the saved view is ${JSON.stringify(saved)}`
+        );
+
+        // All rows, then the view again: its filter comes back in the filter row
+        await views_menu('All rows');
+        await wait_rows(r => r.length === 4, 'all rows');
+        check((await owner_filter.inputValue()) === '', 'the Owner filter is still set');
+        await views_menu('UI smoke Sam');
+        await wait_rows(r => r.length === 2, "the view's filter");
+        check(
+            (await owner_filter.inputValue()) === 'Sam',
+            `the Owner filter shows "${await owner_filter.inputValue()}"`
+        );
+
+        // Renamed
+        await open_dialog();
+        const item = dialog.locator('.view-item', { hasText: 'UI smoke Sam' });
+        await item.locator('.view-rename-button').click();
+        await item.locator('.view-rename-input').fill('UI smoke Sam renamed');
+        await item.locator('.view-rename-save').click();
+        await dialog.locator('.view-item-name', { hasText: 'UI smoke Sam renamed' }).waitFor();
+        await close_dialog();
+        check(
+            (await current()) === 'UI smoke Sam renamed',
+            `the current view is "${await current()}" after renaming`
+        );
+
+        // Kanban by Status, from all rows: drag "Write the launch post" to Done
+        await views_menu('All rows');
+        await wait_rows(r => r.length === 4, 'all rows');
+        await open_dialog();
+        await dialog.locator('.views-new-button').click();
+        await dialog.locator('.view-editor-name').fill('UI smoke board');
+        await dialog.locator('.view-type-kanban').click();
+        await dialog.locator('.view-editor-group').selectOption({ label: 'Status' });
+        await dialog.locator('.view-save-button').click();
+        await dialog.waitFor({ state: 'detached' });
+        const column = value => grid().locator(`.kanban-column[data-value="${value}"]`);
+        await column('To do').locator('.kanban-card').nth(1).waitFor();
+        results.observed.kanban_columns = await grid()
+            .locator('.kanban-column-name')
+            .allInnerTexts();
+        check(
+            results.observed.kanban_columns.join() === 'Done,In progress,To do',
+            `the board's columns are ${results.observed.kanban_columns}`
+        );
+        await column('In progress')
+            .locator('.kanban-card', { hasText: 'Write the launch post' })
+            .dragTo(column('Done'));
+        await column('Done')
+            .locator('.kanban-card', { hasText: 'Write the launch post' })
+            .waitFor();
+        const end = Date.now() + 10000;
+        let moved;
+        while (Date.now() < end) {
+            const rows = (await be_table(be_s, tasks.id)).rows;
+            moved = rows.find(r => r.Task === 'Write the launch post');
+            if (moved && moved.Status === 'Done') break;
+            await sleep(250);
+        }
+        check(moved && moved.Status === 'Done', `the moved row is ${JSON.stringify(moved)}`);
+
+        // A bar chart of rows per Status
+        await views_menu('All rows');
+        await wait_rows(r => r.length === 4, 'all rows');
+        await open_dialog();
+        await dialog.locator('.views-new-button').click();
+        await dialog.locator('.view-editor-name').fill('UI smoke chart');
+        await dialog.locator('.view-type-chart').click();
+        await dialog.locator('.view-editor-kind').selectOption('bar');
+        await dialog.locator('.view-editor-chart-field').selectOption({ label: 'Status' });
+        await dialog.locator('.view-save-button').click();
+        await dialog.waitFor({ state: 'detached' });
+        await grid().locator('.chart-svg .chart-mark').nth(1).waitFor();
+        results.observed.chart_numbers = await grid().locator('.chart-table td').allTextContents();
+        check(
+            results.observed.chart_numbers.map(t => t.trim()).join() === 'Done,2,To do,2',
+            `the chart's numbers are ${results.observed.chart_numbers}`
+        );
+
+        // Deleted: the chart (shown) too, so the grid comes back
+        await open_dialog();
+        for (let i = 0; i < 3; i++) {
+            await dialog.locator('.view-delete-button').first().click();
+            await page
+                .locator('.confirm-dialog .el-dialog')
+                .getByRole('button', { name: 'Confirm' })
+                .click();
+            await dialog
+                .locator('.view-item')
+                .nth(2 - i)
+                .waitFor({ state: 'detached' });
+        }
+        await close_dialog();
+        check((await current()) === 'Views', `the current view is "${await current()}"`);
+        const after = await be('GET', `/view?table=${tasks.id}`, { token: be_s.token });
+        check((after.views || []).length === 0, `views left: ${JSON.stringify(after.views)}`);
+    });
+
+    await step('delete_template_table', async () => {
         // Delete it through the UI, like the uploaded table below
         await page
             .locator('.h-tree .tree-wrapper')

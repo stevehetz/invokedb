@@ -59,7 +59,7 @@
                                 class="green edit-column-button"
                                 @click="edit_columns_clicked"
                                 v-if="!edit_column_mode"
-                                :disabled="saving_columns || add_row_mode || table_lock"
+                                :disabled="saving_columns || add_row_mode || table_lock || other_view"
                             >
                                 <i class="fa fa-pencil-alt"></i>
                                 <span>Edit Columns</span>
@@ -68,7 +68,7 @@
                                 link
                                 class="orange"
                                 @click="add_row_clicked"
-                                :disabled="saving_columns || edit_column_mode || table_lock"
+                                :disabled="saving_columns || edit_column_mode || table_lock || other_view"
                             >
                                 <i class="fa fa-plus-square"></i>
                                 <span>Add Row</span>
@@ -108,6 +108,55 @@
                         total_rows_with_row_filter.toLocaleString() :
                         total_rows.toLocaleString() }}
                     </p>
+                    <div class="views-button">
+                        <el-dropdown
+                            trigger="click"
+                            :disabled="table_lock || edit_column_mode || add_row_mode"
+                            @command="view_command"
+                        >
+                            <el-button
+                                link
+                                class="views-menu-button"
+                                :disabled="table_lock || edit_column_mode || add_row_mode"
+                            >
+                                <i
+                                    :class="current_view ? view_icons[current_view.type] : 'fa fa-eye'"
+                                ></i>
+                                <span class="views-current"
+                                    >{{ current_view ? current_view.name :
+                                    'Views' }}</span
+                                >
+                                <i class="fa fa-caret-down"></i>
+                            </el-button>
+                            <template #dropdown>
+                                <el-dropdown-menu class="views-menu">
+                                    <el-dropdown-item
+                                        command="grid"
+                                        :class="{ current: !current_view }"
+                                    >
+                                        <i class="fa fa-table"></i> All rows
+                                    </el-dropdown-item>
+                                    <el-dropdown-item
+                                        v-for="v in views"
+                                        :key="v.id"
+                                        :command="v.id"
+                                        :class="['views-menu-item', { current: current_view && current_view.id === v.id }]"
+                                    >
+                                        <i :class="view_icons[v.type]"></i>
+                                        {{ v.name }}
+                                    </el-dropdown-item>
+                                    <el-dropdown-item
+                                        divided
+                                        command="manage"
+                                        class="views-manage"
+                                    >
+                                        <i class="fa fa-cog"></i> Save or manage
+                                        views...
+                                    </el-dropdown-item>
+                                </el-dropdown-menu>
+                            </template>
+                        </el-dropdown>
+                    </div>
                     <div class="api-button">
                         <el-button
                             link
@@ -150,7 +199,25 @@
             <i class="fa fa-sync fa-spin"></i>
             <span>Table is updating...</span>
         </div>
-        <ag-grid-vue class="ag-grid-wrapper" :gridOptions="grid_options">
+        <div class="view-pane" v-if="other_view">
+            <kanban-view
+                v-if="current_view.type === 'kanban'"
+                :key="current_view.id + ':' + view_version"
+                :view="current_view"
+                :file_directory_id="file_directory_id"
+                :locked="table_lock || processing"
+                @saved="view_row_saved"
+            ></kanban-view>
+            <chart-view
+                v-if="current_view.type === 'chart'"
+                :key="current_view.id + ':' + view_version"
+                :view="current_view"
+            ></chart-view>
+        </div>
+        <ag-grid-vue
+            :class="['ag-grid-wrapper', { 'behind-view': other_view }]"
+            :gridOptions="grid_options"
+        >
         </ag-grid-vue>
     </div>
 </div>

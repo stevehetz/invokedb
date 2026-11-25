@@ -145,10 +145,27 @@ export default {
             menu.addEventListener('click', on_menu_mouse_click);
         },
 
+        // The filter set from outside this input, such as by a saved view (#146): show its value
+        // and type. The model's `filter` is the JSON update_filter() writes.
         onParentModelChanged(parentModel) {
-            // note that the filter could be anything here, but our purposes we're assuming a greater than filter only,
-            // so just read off the value and use that
-            this.currentValue = !parentModel ? null : parentModel.filter;
+            // Mid-typing, the input already shows what's coming
+            if (this.loading) return;
+            if (!parentModel || !parentModel.filter) {
+                this.input_value = null;
+                return;
+            }
+            try {
+                const f = JSON.parse(parentModel.filter);
+                const col_type = this.params.column.colDef.col_type;
+                const types =
+                    col_type === 'number' || col_type === 'date'
+                        ? number_filter_types
+                        : string_filter_types;
+                if (types[f.filter_type]) this.selected_type = f.filter_type;
+                this.input_value = f.filter_value;
+            } catch (ex) {
+                console.log(ex);
+            }
         }
     }
 };

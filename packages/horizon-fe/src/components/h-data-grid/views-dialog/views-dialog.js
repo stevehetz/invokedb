@@ -7,6 +7,7 @@
 import { defineComponent } from 'vue';
 import { bus } from '@/core/bus';
 import { view_http } from '@/core/context/view/view-http';
+import { table_display_name } from '../table-name';
 
 /** @param {any} ex @param {string} fallback */
 function message_of(ex, fallback) {
@@ -51,6 +52,14 @@ export default defineComponent({
     },
 
     computed: {
+        /**
+         * The table's name as the dialog's title shows it (no `.g`)
+         * @returns {string}
+         */
+        table_name() {
+            return table_display_name(this.props.file.name);
+        },
+
         /** @returns {any} */
         state() {
             const s = this.props.state ? this.props.state() : null;

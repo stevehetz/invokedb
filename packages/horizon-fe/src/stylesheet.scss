@@ -275,6 +275,31 @@ p {
 .layout > .header .header-link *::selection {
     background-color: transparent;
 }
+// "Confirm your email" banner for an unverified account (#132)
+.layout > .verify-email-banner {
+    display: flex;
+    flex-shrink: 0;
+    flex-grow: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75em;
+    padding: 8px 14px;
+    background-color: #fff4d6;
+    border-bottom: solid 1px #f0d58c;
+    color: #5c4a12;
+    font-size: 13px;
+}
+.layout > .verify-email-banner a {
+    color: #2f6fd1;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.layout > .verify-email-banner .done {
+    color: #2e7d55;
+}
+.layout > .verify-email-banner .error {
+    color: #c0392b;
+}
 .layout > .body {
     position: relative;
     z-index: 43;
@@ -681,6 +706,14 @@ $nav_active_color: #ffffff;
 .h-tree-menu-popper.el-popper {
     background: transparent;
     border: none;
+}
+// As wide as its longest item ("Table from URL or Google Sheet" ran past the grey menu's right
+// edge): the popper is pinned at `left: 40px` above, so its own width can't be left to the
+// position Element Plus worked out for it
+.h-tree-menu-popper.el-popper,
+.h-tree-menu-popper .el-menu--popup {
+    width: max-content;
+    max-width: calc(100vw - 60px);
 }
 .h-tree-menu-popper .el-menu .el-menu-item * {
     color: #ffffff !important;
@@ -2590,6 +2623,7 @@ $nav_active_color: #ffffff;
     padding: 0;
 }
 .el-dialog .el-dialog__header {
+    position: relative;
     padding: 15px 20px 10px;
     margin-right: 0;
     background-color: $gray400;
@@ -2600,8 +2634,16 @@ $nav_active_color: #ffffff;
 .el-dialog .el-dialog__header .el-dialog__title {
     color: white;
 }
+// The × spans the title's line (the header's padding box, inset by the same padding) and is
+// centred in it, so it lines up with the title whatever the title's height. Element Plus
+// places it in a fixed 48px box from the top of the dialog, which sat below the title.
 .el-dialog .el-dialog__header .el-dialog__headerbtn {
-    top: 12px;
+    top: 15px;
+    bottom: 10px;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 24px;
 }
 .el-dialog .el-dialog__header .el-dialog__close {
@@ -2660,9 +2702,20 @@ $nav_active_color: #ffffff;
 .url-import-dialog .el-dialog .form-row:first-child {
     margin-top: 0;
 }
-.url-import-dialog .el-dialog .form-row label {
+// Only the row's own label: each el-radio is a <label> too, and a fixed 90px cut "Replace all
+// rows" off and put the next radio on top of it
+.url-import-dialog .el-dialog .form-row > label {
     width: 90px;
     flex-shrink: 0;
+}
+.url-import-dialog .el-dialog .form-row .sync-mode {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 24px;
+    min-width: 0;
+}
+.url-import-dialog .el-dialog .form-row .sync-mode .el-radio {
+    margin-right: 0;
 }
 .url-import-dialog .el-dialog .form-row .el-select {
     width: 220px;

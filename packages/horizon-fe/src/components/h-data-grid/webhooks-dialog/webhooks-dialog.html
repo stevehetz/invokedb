@@ -1,8 +1,8 @@
 <div class="webhooks-dialog">
     <p class="webhooks-intro">
         Your app gets a signed <code>POST</code> when rows of
-        <b>{{ props.file.name }}</b> are created, updated or deleted, from this
-        app or the API. Check the <code>InvokeDB-Signature</code> header (<code
+        <b>{{ table_name }}</b> are created, updated or deleted, from this app
+        or the API. Check the <code>InvokeDB-Signature</code> header (<code
             >t=&lt;unix time&gt;,v1=&lt;hex&gt;</code
         >: an HMAC-SHA256 of <code>&lt;t&gt;.&lt;body&gt;</code> with the
         webhook's secret) and refuse a <code>t</code> more than 5 minutes old. A

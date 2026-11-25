@@ -23,7 +23,20 @@
         <div class="main-body-wrapper">
             <div class="panel-box">
                 <div class="top">
-                    <form>
+                    <div v-if="sent_to" class="create-account-message">
+                        <h3 class="panel-title">Check your email</h3>
+                        <p>
+                            We've sent an email to <b>{{ sent_to }}</b>. Click
+                            the link in it to confirm your address; the link
+                            works for 24 hours.
+                        </p>
+                        <p>
+                            You can sign in now and look around, but you'll need
+                            to confirm your email before you can create tables
+                            or use your API key.
+                        </p>
+                    </div>
+                    <form v-else>
                         <h3 class="panel-title">
                             Create your InvokeDB account
                         </h3>
@@ -65,7 +78,12 @@
                     <div class="control-box">
                         <div class="flex-2-col">
                             <div class="left"></div>
-                            <div class="right">
+                            <div class="right" v-if="sent_to">
+                                <router-link to="/login" class="create-button"
+                                    >Sign In <i class="fa fa-arrow-right"></i
+                                ></router-link>
+                            </div>
+                            <div class="right" v-else>
                                 <a
                                     href=""
                                     class="create-button"

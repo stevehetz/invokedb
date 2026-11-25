@@ -72,7 +72,11 @@
                             >Account page</router-link
                         >.
                     </p>
-                    <div class="onboarding-code" v-if="key_shown">
+                    <p v-if="!api_key">
+                        You'll get it once you confirm your email address (see
+                        the banner at the top).
+                    </p>
+                    <div class="onboarding-code" v-else-if="key_shown">
                         <code>{{ api_key }}</code>
                     </div>
                     <el-button v-else size="small" @click="show_key"

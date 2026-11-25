@@ -156,7 +156,17 @@ jobs:
             # Only if the owner added the label (anyone who can label could otherwise queue work)
             by=$(gh api "repos/$R/issues/$n/events" --paginate \
               --jq '.[] | select(.event == "labeled" and .label.name == "agent") | .actor.login' | tail -n 1)
-            if [ "$by" != "$OWNER" ]; then echo "#$n: agent label not added by $OWNER, skipped"; continue; fi
+            if [ "$by" != "$OWNER" ]; then
+              # The workflows label agent-found bugs themselves (#196): accept that only for an issue
+              # the Claude app opened with agent-found + bug and no security label
+              meta=$(gh issue view "$n" -R "$R" --json author,labels \
+                --jq '"\(.author.login) ,\([.labels[].name] | join(",")),"')
+              if ! { [ "$by" = "github-actions[bot]" ] && [[ $meta == "app/claude "* ]] &&
+                     [[ $meta == *,agent-found,* ]] && [[ $meta == *,bug,* ]] &&
+                     [[ $meta != *,security,* ]]; }; then
+                echo "#$n: agent label not added by $OWNER, skipped"; continue
+              fi
+            fi
             gh workflow run implement.yml -R "$R" --ref main -f issue="$n"
             echo "Started implement.yml on #$n"
             sleep 20 # so a queue run right after this one sees the implement run

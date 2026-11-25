@@ -17,7 +17,9 @@
 // out, a deleted table's views gone), checks link columns (#147: picker, grid labels, ids and
 // `expand` on /api/v1, bad links refused, deleted rows cleared from links, no links across
 // accounts), checks AI rows and tables (#148: smoke-env.sh's stand-in model, typed preview rows,
-// usage counted per account, caps, demo2 locked out), then deletes the tables. Writes every response to out.json
+// usage counted per account, caps, demo2 locked out), checks email verification on signup (#132:
+// the same answer for a taken email, an unverified account with no API key and no tables, resend,
+// bad links), then deletes the tables and the new account. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -2642,6 +2644,123 @@ if (nameCol) {
         body: [nameCol._id]
     });
 }
+// Email verification on signup (#132). The demo accounts (made before it) count as verified.
+check(
+    'demo_account_verified',
+    me && me.email_verified === true && typeof me.api_key === 'string' && me.api_key.length > 0,
+    me && { email_verified: me.email_verified, has_key: !!me.api_key }
+);
+// A new address each run (the signup rate limit counts per email)
+const signup_email = `smoke-${crypto.randomUUID().slice(0, 8)}@example.com`;
+const signup_password = 'Sm0ke-pass!';
+const signup_new = await call('signup_new', 'POST', '/auth/create-account', {
+    body: { email: signup_email, password: signup_password }
+});
+// The same address again, in other case: it has an account now, and the answer must not say so
+const signup_taken = await call('signup_existing', 'POST', '/auth/create-account', {
+    body: { email: signup_email.toUpperCase(), password: 'Other-pass1!' }
+});
+check(
+    'signup_same_answer_for_existing_email',
+    JSON.stringify(signup_new) === JSON.stringify(signup_taken) &&
+        results.signup_new.status === results.signup_existing.status,
+    { signup_new, signup_taken }
+);
+await call('signup_bad_password', 'POST', '/auth/create-account', {
+    body: { email: `x${signup_email}`, password: 'short' },
+    expectFail: true
+});
+// An unverified account can sign in and look around...
+const unv_session = await call('unverified_login', 'POST', '/auth/login', {
+    body: { email: signup_email, password: signup_password }
+});
+await call('signup_existing_kept_password', 'POST', '/auth/login', {
+    body: { email: signup_email, password: 'Other-pass1!' },
+    expectFail: true
+});
+const unv_token = unv_session?.token;
+const unv_me = await call('unverified_authorize', 'GET', `/auth/authorize?token=${unv_token}`);
+check(
+    'unverified_no_api_key',
+    unv_me && unv_me.email_verified === false && !unv_me.api_key,
+    unv_me && { email_verified: unv_me.email_verified, has_key: !!unv_me.api_key }
+);
+await call('unverified_list', 'GET', '/file-directory', { token: unv_token });
+await call('unverified_templates', 'GET', '/table-template', { token: unv_token });
+// ...but can't make a table, by any route (a folder is fine)
+await call('unverified_create_table', 'POST', '/file-directory', {
+    token: unv_token,
+    body: { account_id: unv_me?.id, name: 'smoke_unv', type: 'file', web_file_type: 'data-grid' },
+    expectFail: true
+});
+check('unverified_create_table_403', results.unverified_create_table.status === 403);
+await call('unverified_template_create', 'POST', '/table-template/tasks', {
+    token: unv_token,
+    body: { name: 'smoke_unv_tasks' },
+    expectFail: true
+});
+await call('unverified_url_import', 'POST', '/url-import', {
+    token: unv_token,
+    body: {
+        new_name: 'smoke_unv_url',
+        url: `${RAW}/examples/data/todo.csv`
+    },
+    expectFail: true
+});
+const unv_dir = await call('unverified_create_folder', 'POST', '/file-directory', {
+    token: unv_token,
+    body: { account_id: unv_me?.id, name: 'smoke_unv_dir', type: 'dir' }
+});
+const unv_list = await call('unverified_list_after', 'GET', '/file-directory', {
+    token: unv_token
+});
+check(
+    'unverified_made_no_table',
+    Array.isArray(unv_list) && !unv_list.some(d => d.type === 'file'),
+    unv_list
+);
+const unv_onboarding = await call('unverified_onboarding', 'GET', '/onboarding', {
+    token: unv_token
+});
+check(
+    'unverified_onboarding_no_key',
+    !JSON.stringify(unv_onboarding ?? '').includes('Bearer '),
+    unv_onboarding
+);
+const resent = await call('unverified_resend', 'POST', '/auth/resend-verification', {
+    token: unv_token
+});
+check('unverified_resend_sent', resent && resent.sent === true, resent);
+await call('verified_resend_noop', 'POST', '/auth/resend-verification', { token });
+check(
+    'verified_resend_sent_nothing',
+    results.verified_resend_noop.data?.email_verified === true &&
+        !results.verified_resend_noop.data?.sent,
+    results.verified_resend_noop.data
+);
+await call('resend_no_session', 'POST', '/auth/resend-verification', { expectFail: true });
+await call('resend_api_key', 'POST', '/auth/resend-verification', {
+    token: me.api_key,
+    expectFail: true
+});
+await call('verify_email_unknown', 'GET', `/auth/verify-email?token=${crypto.randomUUID()}`, {
+    expectFail: true
+});
+await call('verify_email_not_uuid', 'GET', '/auth/verify-email?token=nope', { expectFail: true });
+await call('verify_email_no_token', 'GET', '/auth/verify-email', { expectFail: true });
+if (unv_dir) {
+    await call('unverified_folder_delete', 'POST', '/file-directory/batch_delete', {
+        token: unv_token,
+        body: { ids: [unv_dir] }
+    });
+}
+if (unv_me?.id) {
+    await call('unverified_delete_account', 'PUT', `/account/delete_account/${unv_me.id}`, {
+        token: unv_token
+    });
+}
+await call('unverified_logout', 'GET', `/auth/logout?token=${unv_token}`);
+
 await call('support', 'POST', '/support/request', {
     token,
     body: { email: 'x@y.z', message: 'smoke' }

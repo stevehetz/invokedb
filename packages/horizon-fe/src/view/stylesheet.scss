@@ -721,6 +721,41 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     color: #ffffff;
     text-decoration: underline;
 }
+// "Check your email" after a signup (#132)
+.create-account-page .create-account-message {
+    padding: 0 1em;
+    color: rgb(55, 55, 55);
+    font-size: 15px;
+}
+.create-account-page .create-account-message p {
+    margin: 0 0 1em;
+}
+
+// Verify email page (#132): the link in the verification email
+.verify-email-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: $blue400;
+    color: #ffffff;
+}
+.verify-email-page .control-box {
+    padding: 1em;
+    display: flex;
+    justify-content: center;
+}
+.verify-email-page .control-box a {
+    color: $blue400;
+}
+.verify-email-page .verify-email-message {
+    text-align: center;
+    padding: 1em;
+    color: rgb(55, 55, 55);
+    font-size: 17px;
+}
+.verify-email-page .verify-email-message.done {
+    color: #44a97a;
+}
 
 // Forgot password page
 .forgot-password-page {

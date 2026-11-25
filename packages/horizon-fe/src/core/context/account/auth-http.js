@@ -19,6 +19,17 @@ export const auth_http = {
         return http.post(http.get_url('/auth/create-account'), data);
     },
 
+    // The link in the verification email (#132)
+    verify_email(token) {
+        const url = http.get_url('/auth/verify-email');
+        return http.get(`${url}?token=${encodeURIComponent(token)}`);
+    },
+
+    // Sends the signed-in account a new verification link (the app's banner)
+    resend_verification() {
+        return http.post(http.get_url('/auth/resend-verification'));
+    },
+
     change_password(data) {
         return http.post(http.get_url('/auth/change-password'), data);
     },

@@ -3,26 +3,35 @@
 # branch that failed; it never pushes to main), or, when the cause isn't in the code (e.g. the
 # deploy couldn't reach the server), opens an issue with its diagnosis. Runs on claude/ branches
 # are skipped, so a failing fix can't start a loop. Auth as in review.yml.
+#
+# e2e.yml starts it by hand (workflow_dispatch with the run id) when the production E2E fails
+# (#198): E2E runs are started with the workflow token, so workflow_run never fires for them.
 name: Repair
 
 on:
   workflow_run:
     workflows: [CI, CD]
     types: [completed]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: The failed run to repair (e2e.yml passes its own)
+        required: true
 
 permissions: {}
 
 concurrency:
-  group: repair-${{ github.event.workflow_run.head_branch }}
+  group: repair-${{ github.event.workflow_run.head_branch || 'dispatch' }}
   cancel-in-progress: false
 
 jobs:
   repair:
     if: >-
-      github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
-      !startsWith(github.event.workflow_run.head_branch, 'claude/') &&
-      !startsWith(github.event.workflow_run.head_branch, 'dependabot/')
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       !startsWith(github.event.workflow_run.head_branch, 'claude/') &&
+       !startsWith(github.event.workflow_run.head_branch, 'dependabot/'))
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
@@ -31,66 +40,95 @@ jobs:
       issues: write
       actions: read # read the failed logs
       id-token: write
-    env:
-      FAILED_WORKFLOW: ${{ github.event.workflow_run.name }}
-      FAILED_BRANCH: ${{ github.event.workflow_run.head_branch }}
-      FAILED_SHA: ${{ github.event.workflow_run.head_sha }}
-      FAILED_RUN: ${{ github.event.workflow_run.html_url }}
     steps:
+      # The same details for both triggers
+      - name: Find the failed run
+        id: run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id }}
+        run: |
+          set -euo pipefail
+          # A dispatched repair starts while the E2E job that asked for it is still finishing:
+          # wait for the run to complete before reading its conclusion and logs (up to 10 min)
+          for i in $(seq 60); do
+            [ "$(gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --json status --jq .status)" = completed ] && break
+            sleep 10
+          done
+          gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --json databaseId,workflowName,headBranch,headSha,url,conclusion \
+            --jq '"id=\(.databaseId)\nworkflow=\(.workflowName)\nbranch=\(.headBranch)\nsha=\(.headSha)\nurl=\(.url)\nconclusion=\(.conclusion)"' \
+            >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+          c=$(sed -n 's/^conclusion=//p' "$GITHUB_OUTPUT" | tail -1)
+          if [ "$c" != failure ]; then echo "::notice::Run $RUN_ID ended '$c', not 'failure': nothing to repair"; fi
       - uses: actions/checkout@v7
+        if: steps.run.outputs.conclusion == 'failure'
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ steps.run.outputs.sha }}
           fetch-depth: 0
           # Keep the workflow token out of git so Claude's push uses the Claude app's token,
           # which starts CI and the review (see resolve.yml)
           persist-credentials: false
       - uses: actions/setup-node@v7
+        if: steps.run.outputs.conclusion == 'failure'
         with:
           node-version-file: .nvmrc
       # Kept inside .git so it can never be committed
       - name: Collect the failed jobs' logs
+        if: steps.run.outputs.conclusion == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh run view ${{ github.event.workflow_run.id }} -R "$GITHUB_REPOSITORY" --log-failed \
+          gh run view ${{ steps.run.outputs.id }} -R "$GITHUB_REPOSITORY" --log-failed \
             | tail -c 80000 > .git/failed-run.log
           wc -c .git/failed-run.log
       - uses: anthropics/claude-code-action@v1
+        if: steps.run.outputs.conclusion == 'failure'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # e2e.yml starts the dispatched runs with the workflow token
+          allowed_bots: github-actions
           additional_permissions: |
             actions: read
           prompt: |
-            The "${{ env.FAILED_WORKFLOW }}" workflow failed on branch `${{ env.FAILED_BRANCH }}`
-            at commit ${{ env.FAILED_SHA }} (${{ env.FAILED_RUN }}). That commit is checked
+            The "${{ steps.run.outputs.workflow }}" workflow failed on branch `${{ steps.run.outputs.branch }}`
+            at commit ${{ steps.run.outputs.sha }} (${{ steps.run.outputs.url }}). That commit is checked
             out. The failed jobs' logs (the last 80 kB) are in .git/failed-run.log.
 
             Read AGENTS.md first (project rules), then .github/workflows/ for what the failed
             job runs. Find the root cause from the logs and the code.
 
+            If the failed workflow is "E2E": it runs scripts/ui-smoke.mjs against production
+            (https://invokedb.com) as a test account (e2e.yml). The cause is either the app (a
+            real bug that's live) or the test (a step that doesn't match the app). Decide which
+            from the code; the failing step's screenshot is in the run's `e2e` artifact
+            (`gh run download ${{ steps.run.outputs.id }} -n e2e -D .git/e2e`). Fix the app if it's broken,
+            otherwise the test. You can't run it against production; check with the frontend
+            build, lint and typecheck (and the backend's, if you change it).
+
             If the cause is in this repo's code or config and you can fix it:
-            1. `git switch -c claude/fix-${{ github.event.workflow_run.id }}`
+            1. `git switch -c claude/fix-${{ steps.run.outputs.id }}`
             2. Make the smallest fix. Reproduce the failing command where you can (CI runs
                `npm ci` + build + lint in packages/horizon-be with --omit=optional, the same in
                packages/horizon-fe, and `npx prettier --check .` at the root after
                `npm ci --ignore-scripts`) and check it now passes.
             3. Run `npx prettier --write` on the files you changed, commit with a clear
                message, and `git push -u origin HEAD`.
-            4. `gh pr create --base ${{ env.FAILED_BRANCH }}` with a title starting
-               "Fix ${{ env.FAILED_WORKFLOW }}:" and a body giving the cause, the fix, how you
+            4. `gh pr create --base ${{ steps.run.outputs.branch }}` with a title starting
+               "Fix ${{ steps.run.outputs.workflow }}:" and a body giving the cause, the fix, how you
                checked it, and a link to the failed run.
 
             If the cause is outside the code (the server, the firewall, DNS, GitHub, a
             dependency registry, a flaky network call) or you can't fix it safely, change no
             files and open an issue with `gh issue create` titled
-            "${{ env.FAILED_WORKFLOW }} failed on ${{ env.FAILED_BRANCH }}: <short cause>",
+            "${{ steps.run.outputs.workflow }} failed on ${{ steps.run.outputs.branch }}: <short cause>",
             with your diagnosis, the evidence from the logs, and what a person should do.
 
-            Never push to main or to `${{ env.FAILED_BRANCH }}` directly, never touch secrets
+            Never push to main or to `${{ steps.run.outputs.branch }}` directly, never touch secrets
             or deploy/prod.env, and never weaken a check (skip a lint rule, delete a test,
             loosen CI) to make it pass. Add no AI attribution anywhere: no Co-Authored-By
             trailer in commits and no "Generated with" line in the PR or issue.
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(gh pr create:*),Bash(gh issue create:*),Bash(gh run view:*)"
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(gh pr create:*),Bash(gh issue create:*),Bash(gh run view:*),Bash(gh run download:*)"

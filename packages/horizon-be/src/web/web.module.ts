@@ -11,6 +11,8 @@ import { BillingController, StripeWebhookController } from './http/billing/billi
 import { SupportController } from './http/support/support.controller';
 import { HealthController } from './http/health/health.controller';
 import { TableTemplateController } from './http/table-template/table-template.controller';
+import { OnboardingController } from './http/onboarding/onboarding.controller';
+import { OnboardingInterceptor } from './http/external/onboarding.interceptor';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
@@ -28,8 +30,9 @@ import { WebsocketClient } from './ws/websocket-client';
         StripeWebhookController,
         SupportController,
         HealthController,
-        TableTemplateController
+        TableTemplateController,
+        OnboardingController
     ],
-    providers: [WebsocketServer, WebsocketClient]
+    providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor]
 })
 export class WebModule {}

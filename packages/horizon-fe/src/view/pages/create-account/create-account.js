@@ -1,6 +1,7 @@
 import { auth_http } from '@/core/context/account/auth-http';
 import cookies from 'js-cookie';
 import SsoButtons from '@/view/sso/sso-buttons.vue';
+import { APP_PATH } from '@/router';
 
 export default {
     name: 'CreateAccount',
@@ -40,7 +41,7 @@ export default {
                     password: this.password
                 });
                 cookies.set('token', session.token);
-                window.location.href = '/app'; // the app: a full page load
+                this.$router.push(APP_PATH);
             } catch (ex) {
                 this.error.message = ex.message || 'Server error';
             }

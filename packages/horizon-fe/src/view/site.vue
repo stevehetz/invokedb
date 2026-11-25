@@ -4,10 +4,9 @@
     </div>
 </template>
 <script>
-// The public site's shell (marketing, login, signup). It owns the site's global CSS;
-// see router.js for why.
-import 'element-plus/dist/index.css';
-import './stylesheet.scss';
+// The public site's shell (marketing, login, signup). It owns the site's global CSS, scoped
+// to <html class="site-area">; see router.js.
+import './site-area.scss';
 
 import cookies from 'js-cookie';
 import { store } from '@/store';

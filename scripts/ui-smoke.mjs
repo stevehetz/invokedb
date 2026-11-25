@@ -2,7 +2,7 @@
 //   node scripts/ui-smoke.mjs [--out out.json] [--headed] [--keep] [--bundled] [--artifacts dir] [--trace]
 //
 // Drives the installed Chrome (Playwright, no browser download) through the main user flows:
-// render the public site's pages, log in, upload a CSV, sort / filter / edit cells in the grid, add and remove
+// render the public site's pages, log in, check the onboarding checklist, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
 // open the table's API docs and "Try it" on Get, read the API key from the account page and call /api/v1 with it, make (and delete) a table
 // from a template, then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
@@ -222,22 +222,71 @@ async function edit_header(name) {
     return cells.nth(i);
 }
 
-// Selectors from each area's global stylesheet that are on the page. The site and the app must
-// never have each other's CSS loaded (see router.js in horizon-fe).
-async function loaded_css(markers) {
-    return page.evaluate(markers => {
-        const text = [];
-        for (const sheet of document.styleSheets) {
-            try {
-                for (const rule of sheet.cssRules) text.push(rule.selectorText || '');
-            } catch {} // cross-origin CDN sheets
-        }
-        const all = text.join(' ');
-        return markers.filter(m => all.includes(m));
-    }, markers);
-}
+// Each area's global stylesheet is scoped to a class on <html> that the router sets, so both can
+// be on the page at once (see router.js in horizon-fe). Returns the area class, the Element Plus
+// primary colour, which marker selectors are loaded, and any rule with a marker that isn't
+// scoped to its area.
 const SITE_CSS = '.panel-box'; // only in the site stylesheet
 const APP_CSS = '.h-data-grid'; // only in the app stylesheet
+const SCOPES = { [SITE_CSS]: ':where(html.site-area) ', [APP_CSS]: ':where(html.app-area) ' };
+async function css_state() {
+    return page.evaluate(scopes => {
+        const loaded = new Set();
+        const unscoped = [];
+        // Split a selector list on its top-level commas (not those inside :where(), :not(), ...)
+        const split = text => {
+            const out = [];
+            let depth = 0;
+            let start = 0;
+            for (let i = 0; i < text.length; i++) {
+                if (text[i] === '(') depth++;
+                else if (text[i] === ')') depth--;
+                else if (text[i] === ',' && depth === 0) {
+                    out.push(text.slice(start, i).trim());
+                    start = i + 1;
+                }
+            }
+            out.push(text.slice(start).trim());
+            return out;
+        };
+        const walk = rules => {
+            for (const rule of rules) {
+                if (rule.cssRules) walk(rule.cssRules); // @media
+                if (!rule.selectorText) continue;
+                for (const selector of split(rule.selectorText)) {
+                    for (const [marker, scope] of Object.entries(scopes)) {
+                        if (!selector.includes(marker)) continue;
+                        loaded.add(marker);
+                        if (!selector.startsWith(scope)) unscoped.push(selector);
+                    }
+                }
+            }
+        };
+        for (const sheet of document.styleSheets) {
+            try {
+                walk(sheet.cssRules);
+            } catch {} // cross-origin CDN sheets
+        }
+        const html = document.documentElement;
+        return {
+            area: ['site-area', 'app-area'].filter(c => html.classList.contains(c)).join(),
+            primary: getComputedStyle(html).getPropertyValue('--el-color-primary').trim(),
+            loaded: [...loaded].sort(),
+            unscoped: unscoped.slice(0, 5)
+        };
+    }, SCOPES);
+}
+function check_css(state, where, area, primary, marker) {
+    check(state.area === area, `${where}: <html> has area class "${state.area}" (want ${area})`);
+    check(
+        state.primary === primary,
+        `${where}: Element primary is ${state.primary} (want ${primary})`
+    );
+    check(state.loaded.includes(marker), `${where}: its own CSS (${marker}) isn't loaded`);
+    check(!state.unscoped.length, `${where}: unscoped area CSS: ${state.unscoped}`);
+}
+const SITE_PRIMARY = '#409eff'; // Element Plus's default
+const APP_PRIMARY = '#6858ab'; // element-theme.scss
 
 function ws_events_since(i) {
     return results.ws_events.slice(i).map(e => e.event);
@@ -292,11 +341,8 @@ try {
         for (const [p, root] of Object.entries(pages)) {
             await page.goto(FE_URL + p);
             await page.locator(root).first().waitFor();
-            results.observed.public_pages[p] = await loaded_css([SITE_CSS, APP_CSS]);
-            check(
-                results.observed.public_pages[p].join() === SITE_CSS,
-                `${p} has CSS ${results.observed.public_pages[p]} (want only the site's)`
-            );
+            results.observed.public_pages[p] = await css_state();
+            check_css(results.observed.public_pages[p], p, 'site-area', SITE_PRIMARY, SITE_CSS);
         }
         // Signed out, the app sends you to the login page
         await page.goto(APP_URL);
@@ -307,16 +353,58 @@ try {
         await page.goto(`${FE_URL}/login`);
         await page.getByPlaceholder('Email').fill(EMAIL);
         await page.getByPlaceholder('Password').fill(PASSWORD);
+        // Gone after a full page load: signing in should move to the app through the router
+        await page.evaluate(() => (window.__ui_smoke_same_page = true));
         await page.locator('.login-button').click();
         await page.waitForURL(u => u.href.startsWith(APP_URL), { timeout: 30000 });
         await page.locator('.layout .header-text', { hasText: EMAIL }).waitFor();
         results.observed.token_in_url = page.url().includes('token');
         check(!results.observed.token_in_url, `session token is in the URL: ${page.url()}`);
-        results.observed.app_css = await loaded_css([SITE_CSS, APP_CSS]);
-        check(
-            results.observed.app_css.join() === APP_CSS,
-            `the app has CSS ${results.observed.app_css} (want only the app's)`
+        results.observed.login_same_page = await page.evaluate(
+            () => window.__ui_smoke_same_page === true
         );
+        check(results.observed.login_same_page, 'signing in reloaded the page (want the router)');
+        // Both areas' CSS is on the page now; only the app's applies
+        results.observed.app_css = await css_state();
+        check_css(results.observed.app_css, 'the app', 'app-area', APP_PRIMARY, APP_CSS);
+        check(
+            results.observed.app_css.loaded.includes(SITE_CSS),
+            `the site's CSS isn't loaded after signing in (have ${results.observed.app_css.loaded})`
+        );
+    });
+
+    // The onboarding checklist (#143), unless this account dismissed it: four steps, the key and
+    // the command (with that key) are shown, then it's folded away so it covers nothing below
+    await step('onboarding_checklist', async () => {
+        const s = await be_session();
+        const view = await be('GET', '/onboarding', { token: s.token });
+        await be('GET', `/auth/logout?token=${s.token}`).catch(() => {});
+        results.observed.onboarding_shown = view.show;
+        const box = page.locator('.onboarding');
+        if (!view.show) {
+            await sleep(1000);
+            check((await box.count()) === 0, 'the dismissed checklist is on the page');
+            return;
+        }
+        await box.waitFor();
+        const steps = await box
+            .locator('.onboarding-step')
+            .evaluateAll(els => els.map(el => el.getAttribute('data-step')));
+        results.observed.onboarding_steps = steps;
+        check(
+            steps.join() === 'create_table,view_api_key,copy_command,call_api',
+            `checklist steps are ${steps}`
+        );
+        const key_step = box.locator('.onboarding-step[data-step="view_api_key"]');
+        await key_step.getByRole('button', { name: 'Show key' }).click();
+        const key = (await key_step.locator('code').textContent()).trim();
+        check(key.length >= 32, 'the checklist shows no API key');
+        if (view.first_call) {
+            const cmd = await box.locator('.onboarding-command').textContent();
+            check(cmd.includes(key), "the checklist's command doesn't carry the key");
+        }
+        await box.locator('.onboarding-toggle').click();
+        await box.locator('.onboarding-steps').waitFor({ state: 'detached' });
     });
 
     await step('upload_csv', async () => {

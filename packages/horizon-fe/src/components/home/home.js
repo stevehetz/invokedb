@@ -2,6 +2,7 @@
 import Split from 'split.js';
 import h_tree from '@/components/h-tree';
 import doc_container from '@/components/doc-container';
+import onboarding from '@/components/onboarding';
 import { store } from '@/store';
 import { bus } from '@/core/bus';
 import { error_manager as err_mgr } from '@/core/error/error-manager';
@@ -18,7 +19,8 @@ export default {
 
     components: {
         'h-tree': h_tree,
-        'doc-container': doc_container
+        'doc-container': doc_container,
+        onboarding
     },
 
     data: function () {

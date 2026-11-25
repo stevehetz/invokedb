@@ -13,7 +13,7 @@ export default {
                 callback: async () => {
                     await account_manager.delete_account(this.account.id);
                     await account_manager.logout();
-                    window.location.href = '/';
+                    window.location.href = '/'; // a full page load, like logout
                 }
             });
         }

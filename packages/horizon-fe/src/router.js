@@ -24,9 +24,11 @@ const Tos = () => import('@/view/pages/tos');
 const Privacy = () => import('@/view/pages/privacy');
 
 // The public site and the app were separate apps with separate global stylesheets that clash
-// (.page, .home-page, .flex-*, Element UI theme). Each area's shell imports its own CSS and is
-// loaded lazily, and moving between the areas is a full page load (window.location), so the
-// two stylesheets are never on the page together. Within an area, use the router as normal.
+// (.page, .home-page, .flex-*, Element theme colours). Each area's shell imports its own CSS
+// (view/site-area.scss, app-area.scss) and is loaded lazily. Each stylesheet is scoped to a
+// class on <html> that afterEach below sets for the current area, so both can be on the page
+// and links between the areas use the router like any other. Logging out is still a full page
+// load, on purpose (components/layout/layout.js).
 const Site = () => import(/* webpackChunkName: "site" */ '@/view/site.vue');
 const App = () =>
     import(/* webpackChunkName: "signed-in" */ '@/components/app.vue');
@@ -109,8 +111,17 @@ const router = createRouter({
     }
 });
 
-router.afterEach(to => {
-    if (to.path.startsWith(APP_PATH)) toggle_page_overlay(to.path);
+router.afterEach((to, from, failure) => {
+    const in_app = to.path.startsWith(APP_PATH);
+    // The class that scopes each area's global CSS (see above), unless the navigation failed
+    // (the page didn't change). afterEach runs before the new route renders, so the page never
+    // shows one area with the other's styles.
+    if (!failure) {
+        const html = document.documentElement.classList;
+        html.toggle('app-area', in_app);
+        html.toggle('site-area', !in_app);
+    }
+    if (in_app) toggle_page_overlay(to.path);
 });
 
 export default router;

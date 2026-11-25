@@ -15,6 +15,7 @@ import { BillingService } from '@app/application/billing/billing.service';
 import { stripe_client_provider } from '@app/application/billing/stripe-client';
 import { JobService } from './job/job.service';
 import { TableTemplateService } from './table-template/table-template.service';
+import { OnboardingService } from './onboarding/onboarding.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -31,7 +32,8 @@ import { TableTemplateService } from './table-template/table-template.service';
         BillingService,
         stripe_client_provider,
         JobService,
-        TableTemplateService
+        TableTemplateService,
+        OnboardingService
     ],
     exports: [
         AuthService,
@@ -43,7 +45,8 @@ import { TableTemplateService } from './table-template/table-template.service';
         AccountService,
         BillingService,
         JobService,
-        TableTemplateService
+        TableTemplateService,
+        OnboardingService
     ]
 })
 export class ApplicationModule {}

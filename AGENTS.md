@@ -297,6 +297,14 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `WebFileService.batch_create_internal` (row limit, locks, webhooks). 404 for a deleted form or
   table, 410 for a closed one. The frontend's public page is `/f/:id` (`view/form-page`, outside
   both shells, scoped CSS; `?embed=1` for iframes); the owner's dialog is the grid's Forms button.
+- Link columns (#147): `col_type: 'link'` with `link_table_id` (a table of the same account,
+  checked by `WebFileService` when the column is saved) and `link_display_field`; a cell is an
+  array of row ids or null. `src/core/web-file/link.ts` has the pure rules (values, `expand`);
+  `WebFileManager.resolve_links` refuses ids that aren't rows of the linked table, before the row
+  count goes up. Grid row pages carry `link_labels`; `/web-file/:id/link-targets` and
+  `/link-options` feed the settings dialog and picker (`h-data-grid/link-dialog`). `/api/v1`
+  returns ids, or rows with `expand=<column>[,<column>]`. Deleting rows clears them from every
+  link to them (owner's decision); link columns are left out of forms.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

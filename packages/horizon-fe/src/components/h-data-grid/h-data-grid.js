@@ -24,6 +24,7 @@ import GridToast from './grid-toast';
 import ApiDialog from './api-dialog';
 import WebhooksDialog from './webhooks-dialog';
 import FormsDialog from './forms-dialog';
+import LinkDialog from './link-dialog';
 
 // Since ag-grid 33 every feature is a module that has to be registered. Only the ones the grid
 // uses are, so the rest of ag-grid is left out of the bundle (AllCommunityModule was 1.3 MB).
@@ -100,6 +101,8 @@ export default {
         this.cached_col_defs = [];
         this.add_data = [];
         this.new_rows = [];
+        // What link cells (#147) show: { field: { row id: label } }, from the row pages
+        this.link_labels = {};
         this.grid_options = markRaw({
             theme: grid_theme,
             rowData: null,
@@ -300,9 +303,13 @@ export default {
 
             try {
                 // Get Columns
-                await mgr.get_columns(this.file_directory_id, this.grid_api, {
-                    ...ROW_INDEX_COLUMN
-                });
+                this.link_labels = {};
+                await mgr.get_columns(
+                    this.file_directory_id,
+                    this.grid_api,
+                    { ...ROW_INDEX_COLUMN },
+                    this.render_link_cell
+                );
                 this.cache_columns();
 
                 this.edit_column_changes = {};
@@ -412,6 +419,7 @@ export default {
                 PAGE_SIZE,
                 col_defs
             );
+            this.add_link_labels(res);
             this.total_rows = res.count;
             let last_row = res.count <= params.endRow ? res.count : -1;
             params.successCallback(res.data, last_row);
@@ -487,8 +495,142 @@ export default {
 
         cell_clicked(e) {},
 
-        cell_double_clicked(e) {},
+        cell_double_clicked(e) {
+            if (e.colDef && e.colDef.col_type === 'link') this.pick_links(e);
+        },
         /*** End: AgGrid - event handlers ***/
+
+        /*** Start: Link columns (#147) ***/
+        add_link_labels(res) {
+            const labels = (res && res.link_labels) || {};
+            Object.keys(labels).forEach(field => {
+                this.link_labels[field] = Object.assign(
+                    this.link_labels[field] || {},
+                    labels[field]
+                );
+            });
+        },
+
+        // A link cell: one chip per linked row, labelled by its display column. Clicking a
+        // chip opens the linked table; double-clicking the cell picks its rows.
+        render_link_cell(params) {
+            const cell = document.createElement('span');
+            cell.className = 'link-cell';
+            const ids = Array.isArray(params.value) ? params.value : [];
+            const field = params.colDef.field;
+            const labels = this.link_labels[field] || {};
+            ids.forEach(id => {
+                const chip = document.createElement('span');
+                chip.className = 'link-chip';
+                chip.textContent = labels[id] || id;
+                chip.title = 'Open the linked table';
+                chip.addEventListener('click', ev => {
+                    ev.stopPropagation();
+                    this.open_linked_table(params.colDef);
+                });
+                cell.appendChild(chip);
+            });
+            return cell;
+        },
+
+        open_linked_table(col_def) {
+            if (col_def && col_def.link_table_id) {
+                this.$bus.$emit('table:open', col_def.link_table_id);
+            }
+        },
+
+        pick_links(e) {
+            if (
+                this.edit_column_mode ||
+                this.table_lock ||
+                this.saving_columns
+            ) {
+                return;
+            }
+            const field = e.colDef.field;
+            const is_new = this.add_row_mode || !e.data._id;
+            if (this.add_row_mode && !is_new) return;
+            const labels = this.link_labels[field] || {};
+            const current = Array.isArray(e.data[field]) ? e.data[field] : [];
+            this.$bus.$emit('container-dialog:open', {
+                title: `${e.colDef.headerName}: linked rows`,
+                props: {
+                    mode: 'pick',
+                    file: this.file,
+                    field,
+                    column_name: e.colDef.headerName,
+                    selected: current.map(id => ({
+                        _id: id,
+                        label: labels[id] || id
+                    })),
+                    on_save: async chosen => {
+                        const ids = chosen.map(c => c._id);
+                        this.link_labels[field] = this.link_labels[field] || {};
+                        chosen.forEach(
+                            c => (this.link_labels[field][c._id] = c.label)
+                        );
+                        const value = ids.length > 0 ? ids : null;
+                        if (is_new) {
+                            // Saved with the other new rows
+                            e.data[field] = value;
+                            this.grid_api.refreshCells({
+                                rowNodes: [e.node],
+                                columns: [field],
+                                force: true
+                            });
+                            return;
+                        }
+                        const row = await mgr.update_row(
+                            this.file_directory_id,
+                            {
+                                ...e.data,
+                                [field]: value
+                            }
+                        );
+                        if (row && row._id) {
+                            row.row_num = e.data.row_num;
+                            e.node.setData(row);
+                        }
+                        this.show_top_bar_success('Saved', 1000);
+                    }
+                },
+                component: LinkDialog
+            });
+        },
+
+        // Which table a link column points to, and which of its columns names a row
+        edit_link_settings(field, revert) {
+            const col_def = this.col_defs().find(c => c.field === field) || {};
+            const change = this.edit_column_changes[field] || {};
+            this.$bus.$emit('container-dialog:open', {
+                title: 'Link column',
+                props: {
+                    mode: 'settings',
+                    file: this.file,
+                    link_table_id:
+                        change.link_table_id || col_def.link_table_id,
+                    link_display_field:
+                        change.link_display_field || col_def.link_display_field,
+                    on_save: settings => {
+                        this.edit_column_changes[field] =
+                            this.edit_column_changes[field] || {};
+                        Object.assign(this.edit_column_changes[field], {
+                            col_type: 'link',
+                            link_table_id: settings.link_table_id,
+                            link_display_field: settings.link_display_field
+                        });
+                        this.edit_column_count = Object.keys(
+                            this.edit_column_changes
+                        ).length;
+                    },
+                    on_cancel: () => {
+                        if (revert) revert();
+                    }
+                },
+                component: LinkDialog
+            });
+        },
+        /*** End: Link columns ***/
 
         /*** Start: Header controls - event handlers ***/
         refresh_clicked() {
@@ -647,6 +789,11 @@ export default {
                     if (edit_map[field].col_type) {
                         colDef.col_type = edit_map[field].col_type;
                     }
+                    if (edit_map[field].link_table_id) {
+                        colDef.link_table_id = edit_map[field].link_table_id;
+                        colDef.link_display_field =
+                            edit_map[field].link_display_field;
+                    }
                     if (edit_map[field].indexed === true) {
                         colDef.indexed = true;
                     } else {
@@ -702,6 +849,11 @@ export default {
 
         header_type_change(data) {
             const { field, col_type } = data;
+            // A link column needs its table first; the change counts once that's saved
+            if (col_type === 'link') {
+                this.edit_link_settings(field, data.revert);
+                return;
+            }
             this.edit_column_changes[field] =
                 this.edit_column_changes[field] || {};
             this.edit_column_changes[field].col_type = col_type;
@@ -742,6 +894,12 @@ export default {
                 if (col_def.field === 'row_num') {
                     col_def.sortable = !lock;
                     col_def.filter = !lock;
+                } else if (col_def.col_type === 'link') {
+                    // Picked in a dialog (double-click), not typed, sorted or filtered
+                    col_def.lockPosition = lock;
+                    col_def.sortable = false;
+                    col_def.filter = false;
+                    col_def.editable = false;
                 } else {
                     col_def.lockPosition = lock;
                     col_def.sortable = !lock;
@@ -842,6 +1000,7 @@ export default {
                     params,
                     PAGE_SIZE
                 );
+                this.add_link_labels(res);
                 this.add_data = res.data;
             }
             let data = mgr.add_new_row(

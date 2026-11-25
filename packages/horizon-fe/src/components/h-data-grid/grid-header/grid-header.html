@@ -11,7 +11,8 @@
                 string: col_type.value === 'string',
                 number: col_type.value === 'number',
                 boolean: col_type.value === 'boolean',
-                date: col_type.value === 'date'
+                date: col_type.value === 'date',
+                link: col_type.value === 'link'
             }"
             v-if="params.column.colDef.field !== 'row_num'"
         >
@@ -53,7 +54,8 @@
                 string: col_type.value === 'string',
                 number: col_type.value === 'number',
                 boolean: col_type.value === 'boolean',
-                date: col_type.value === 'date'
+                date: col_type.value === 'date',
+                link: col_type.value === 'link'
             }"
             v-if="params.column.colDef.field !== 'row_num'"
         >
@@ -86,6 +88,13 @@
                 </span>
                 -
                 <span class="grid-header-type__menu__text">Date</span>
+            </div>
+            <div class="menu__item link" @click="on_change_column_type('link')">
+                <span class="grid-header-type__menu__label link">
+                    <i class="fa fa-link"></i>
+                </span>
+                -
+                <span class="grid-header-type__menu__text">Link</span>
             </div>
         </div>
         <el-tooltip

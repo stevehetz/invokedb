@@ -95,15 +95,19 @@ export function is_form_id(id: unknown): id is string {
 
 /** A table's column definitions (as stored) as form columns, in the grid's order. */
 export function form_columns(col_defs: any[]): FormColumn[] {
-    return (Array.isArray(col_defs) ? col_defs : [])
-        .filter(c => c && !c.deleted && typeof c.field === 'string' && c.field !== '')
-        .slice()
-        .sort((a, b) => (a.order ?? a.col_index ?? 0) - (b.order ?? b.col_index ?? 0))
-        .map(c => ({
-            field: c.field,
-            name: typeof c.headerName === 'string' ? c.headerName : '',
-            type: c.col_type === 'number' || c.col_type === 'date' ? c.col_type : 'string'
-        }));
+    return (
+        (Array.isArray(col_defs) ? col_defs : [])
+            .filter(c => c && !c.deleted && typeof c.field === 'string' && c.field !== '')
+            // A link column (#147) holds row ids, which a public form can't pick
+            .filter(c => c.col_type !== 'link')
+            .slice()
+            .sort((a, b) => (a.order ?? a.col_index ?? 0) - (b.order ?? b.col_index ?? 0))
+            .map(c => ({
+                field: c.field,
+                name: typeof c.headerName === 'string' ? c.headerName : '',
+                type: c.col_type === 'number' || c.col_type === 'date' ? c.col_type : 'string'
+            }))
+    );
 }
 
 function text(value: unknown, name: string, max: number, required = false): string {

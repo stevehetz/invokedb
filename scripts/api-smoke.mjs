@@ -12,7 +12,9 @@
 // (#140: a receiver on 127.0.0.1:8199, allowed by smoke-env.sh's HORIZON_WEBHOOK_TEST_HOSTS,
 // checks signatures; refused private URLs, a retry, demo2 locked out), checks shareable forms
 // (#145: public view and submissions, typed answers, honeypot, closing, the rate limit, deleted
-// forms and tables, demo2 locked out), then deletes the tables. Writes every response to out.json
+// forms and tables, demo2 locked out), checks link columns (#147: picker, grid labels, ids and
+// `expand` on /api/v1, bad links refused, deleted rows cleared from links, no links across
+// accounts), then deletes the tables. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -1775,6 +1777,438 @@ check('form_table_deleted_is_404', results.form_public_table_deleted?.status ===
 await call('form_get_table_deleted', 'GET', `/form/${sform2?.id}`, { token, expectFail: true });
 await call('form_public_unknown', 'GET', '/public/form/form_000000000000000000000000', {
     expectFail: true
+});
+
+// Linked tables (#147): a "Contact" link column on a task table points at rows of a contacts
+// table. The grid gets labels and a picker; /api/v1 returns ids and expands them on request;
+// a link to a row that isn't there is a 400; deleting a linked row clears the links to it.
+// demo2 can't link to, pick from or expand demo's tables, nor demo to demo2's.
+const link_contacts = await call('link_contacts_create', 'POST', '/table-template/crm', {
+    token,
+    body: { name: 'smoke_link_contacts' }
+});
+const link_tasks = await call('link_tasks_create', 'POST', '/table-template/tasks', {
+    token,
+    body: { name: 'smoke_link_tasks' }
+});
+const lc_cols = await call(
+    'link_contacts_cols',
+    'POST',
+    `/web-file/data_grid_column/${link_contacts}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const lc_name = (lc_cols.data || []).find(c => c.headerName === 'Name')?.field;
+const lc_rows = await call(
+    'link_contacts_rows',
+    'POST',
+    `/web-file/data_grid_row/${link_contacts}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const [ada, bea] = (lc_rows.data || []).map(r => ({ _id: r._id, name: r[lc_name] }));
+check('link_contacts_ready', !!(lc_name && ada && bea), lc_rows);
+
+const link_targets = await call('link_targets', 'GET', `/web-file/${link_tasks}/link-targets`, {
+    token
+});
+check(
+    'link_targets_list_own_tables',
+    Array.isArray(link_targets) &&
+        link_targets.some(
+            t => t.id === link_contacts && t.columns.some(c => c.field === lc_name)
+        ) &&
+        link_targets.some(t => t.id === link_tasks),
+    link_targets
+);
+
+const link_col = await call('link_new_column', 'GET', `/web-file/${link_tasks}/get_new_column`, {
+    token
+});
+const link_col_body = {
+    ...link_col,
+    headerName: 'Contact',
+    deleted: false,
+    col_type: 'link',
+    link_table_id: link_contacts,
+    link_display_field: lc_name
+};
+await call(
+    'link_col_no_table',
+    'PUT',
+    `/web-file/${link_col?._id}/data_grid_column/${link_tasks}`,
+    {
+        token,
+        body: { ...link_col_body, link_table_id: undefined },
+        expectFail: true
+    }
+);
+await call(
+    'link_col_unknown_table',
+    'PUT',
+    `/web-file/${link_col?._id}/data_grid_column/${link_tasks}`,
+    { token, body: { ...link_col_body, link_table_id: 999999999 }, expectFail: true }
+);
+await call('link_col_create', 'PUT', `/web-file/${link_col?._id}/data_grid_column/${link_tasks}`, {
+    token,
+    body: link_col_body
+});
+await sleep(500);
+const lt_cols = await call(
+    'link_tasks_cols',
+    'POST',
+    `/web-file/data_grid_column/${link_tasks}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const lt_contact = (lt_cols.data || []).find(c => c.headerName === 'Contact');
+check(
+    'link_col_saved',
+    lt_contact?.col_type === 'link' &&
+        lt_contact?.link_table_id === link_contacts &&
+        lt_contact?.link_display_field === lc_name,
+    lt_contact
+);
+const lf = lt_contact?.field;
+
+// The picker: rows of the contacts table matching the text, labelled by the Name column
+const link_options = await call(
+    'link_options',
+    'GET',
+    `/web-file/${link_tasks}/link-options?field=${lf}&q=${encodeURIComponent(ada?.name || '')}`,
+    { token }
+);
+check(
+    'link_options_match',
+    link_options?.table_id === link_contacts &&
+        link_options?.options?.some(o => o._id === ada?._id && o.label === ada?.name) &&
+        !link_options.options.some(o => o._id === bea?._id),
+    link_options
+);
+await call('link_options_not_link', 'GET', `/web-file/${link_tasks}/link-options?field=a`, {
+    token,
+    expectFail: true
+});
+await call('link_options_no_field', 'GET', `/web-file/${link_tasks}/link-options`, {
+    token,
+    expectFail: true
+});
+
+// Filled from the grid: ids are kept; the grid gets labels for them
+const lt_rows = await call(
+    'link_tasks_rows',
+    'POST',
+    `/web-file/data_grid_row/${link_tasks}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const task0 = lt_rows.data?.[0];
+const set_link = await call(
+    'link_set_from_grid',
+    'PUT',
+    `/web-file/${task0?._id}/data_grid_row/${link_tasks}`,
+    { token, body: { ...task0, [lf]: [ada?._id, bea?._id] } }
+);
+check(
+    'link_set_stored_ids',
+    JSON.stringify(set_link?.[lf]) === JSON.stringify([ada?._id, bea?._id]),
+    set_link
+);
+await call('link_set_unknown_row', 'PUT', `/web-file/${task0?._id}/data_grid_row/${link_tasks}`, {
+    token,
+    body: { ...task0, [lf]: ['0123456789abcdef01234567'] },
+    expectFail: true
+});
+await call('link_set_not_an_id', 'PUT', `/web-file/${task0?._id}/data_grid_row/${link_tasks}`, {
+    token,
+    body: { ...task0, [lf]: 'alice' },
+    expectFail: true
+});
+// A task row's id isn't a contact: links only reach rows of the linked table
+await call(
+    'link_set_other_table_row',
+    'PUT',
+    `/web-file/${task0?._id}/data_grid_row/${link_tasks}`,
+    {
+        token,
+        body: { ...task0, [lf]: [lt_rows.data?.[1]?._id] },
+        expectFail: true
+    }
+);
+check(
+    'link_bad_values_are_400',
+    ['link_set_unknown_row', 'link_set_not_an_id', 'link_set_other_table_row'].every(
+        n => results[n]?.status === 400
+    )
+);
+const lt_rows2 = await call(
+    'link_tasks_rows_labels',
+    'POST',
+    `/web-file/data_grid_row/${link_tasks}?skip=0&limit=50`,
+    { token, body: {} }
+);
+check(
+    'link_grid_labels',
+    lt_rows2?.link_labels?.[lf]?.[ada?._id] === ada?.name &&
+        lt_rows2?.link_labels?.[lf]?.[bea?._id] === bea?.name,
+    lt_rows2?.link_labels
+);
+
+// /api/v1: ids by default, the linked rows with expand; a bad expand is a 400
+const ext_link = await call(
+    'link_ext_get',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=50',
+    { token: key }
+);
+const ext_task0 = ext_link?.data?.find(r => r._id === task0?._id);
+check(
+    'link_ext_get_ids',
+    JSON.stringify(ext_task0?.Contact) === JSON.stringify([ada?._id, bea?._id]),
+    ext_task0
+);
+const ext_link_x = await call(
+    'link_ext_get_expand',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=50&expand=Contact',
+    { token: key }
+);
+const ext_task0_x = ext_link_x?.data?.find(r => r._id === task0?._id);
+check(
+    'link_ext_get_expanded',
+    Array.isArray(ext_task0_x?.Contact) &&
+        ext_task0_x.Contact.length === 2 &&
+        ext_task0_x.Contact[0]._id === ada?._id &&
+        ext_task0_x.Contact[0].Name === ada?.name &&
+        ext_task0_x.Contact[1].Name === bea?.name &&
+        typeof ext_task0_x.Contact[0].Email === 'string',
+    ext_task0_x
+);
+const ext_link_q = await call(
+    'link_ext_query_expand',
+    'POST',
+    '/api/v1/query?table=smoke_link_tasks&expand=Contact',
+    {
+        token: key,
+        body: {
+            filters: [
+                {
+                    column: 'Task',
+                    op: 'eq',
+                    value: task0?.[(lt_cols.data || []).find(c => c.headerName === 'Task')?.field]
+                }
+            ]
+        }
+    }
+);
+check(
+    'link_ext_query_expanded',
+    ext_link_q?.data?.length === 1 && ext_link_q.data[0].Contact?.[1]?.Name === bea?.name,
+    ext_link_q
+);
+const ext_link_s = await call(
+    'link_ext_search_expand_snake',
+    'POST',
+    '/api/v1/search?table=smoke_link_tasks&skip=0&limit=50&format=snakeCase&expand=contact',
+    { token: key, body: {} }
+);
+check(
+    'link_ext_search_expanded_snake',
+    ext_link_s?.data?.find(r => r._id === task0?._id)?.contact?.[0]?.name === ada?.name,
+    ext_link_s
+);
+await call(
+    'link_ext_expand_not_link',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=1&expand=Task',
+    {
+        token: key,
+        expectFail: true
+    }
+);
+await call('link_ext_expand_unknown', 'POST', '/api/v1/query?table=smoke_link_tasks&expand=Nope', {
+    token: key,
+    body: {},
+    expectFail: true
+});
+const ext_created = await call('link_ext_create', 'POST', '/api/v1/create?table=smoke_link_tasks', {
+    token: key,
+    body: [{ Task: 'smoke linked task', Contact: [bea?._id] }]
+});
+await call('link_ext_create_bad', 'POST', '/api/v1/create?table=smoke_link_tasks', {
+    token: key,
+    body: [{ Task: 'smoke bad link', Contact: ['0123456789abcdef01234567'] }],
+    expectFail: true
+});
+const ext_created_rows = await call(
+    'link_ext_created_rows',
+    'POST',
+    '/api/v1/search?table=smoke_link_tasks&skip=0&limit=50',
+    { token: key, body: { Task: { $ctn: 'smoke' } } }
+);
+const linked_task = ext_created_rows?.data?.find(r => r.Task === 'smoke linked task');
+check(
+    'link_ext_created',
+    JSON.stringify(linked_task?.Contact) === JSON.stringify([bea?._id]) &&
+        !ext_created_rows.data.some(r => r.Task === 'smoke bad link'),
+    [ext_created, ext_created_rows]
+);
+
+// Deleting a contact clears the links to it, from the grid and from the API
+await call('link_delete_ada', 'POST', `/web-file/batch_delete/data_grid_row/${link_contacts}`, {
+    token,
+    body: [ada?._id]
+});
+const after_ada = await call(
+    'link_after_delete_ada',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=50',
+    { token: key }
+);
+check(
+    'link_delete_cleared_one',
+    JSON.stringify(after_ada?.data?.find(r => r._id === task0?._id)?.Contact) ===
+        JSON.stringify([bea?._id]),
+    after_ada
+);
+await call('link_delete_bea', 'POST', '/api/v1/delete?table=smoke_link_contacts', {
+    token: key,
+    body: [bea?._id]
+});
+const after_bea = await call(
+    'link_after_delete_bea',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=50',
+    { token: key }
+);
+check(
+    'link_delete_cleared_all',
+    after_bea?.data?.find(r => r._id === task0?._id)?.Contact === null &&
+        after_bea.data.find(r => r._id === linked_task?._id)?.Contact === null,
+    after_bea
+);
+
+// demo2: can't read the picker or targets of demo's table, link its own table to demo's, or
+// expand demo's table; demo can't link to demo2's table
+const link_other = await call('link_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const ltoken2 = link_other.token;
+const link_other_me = await call('link_other_authorize', 'GET', `/auth/authorize?token=${ltoken2}`);
+await call('link_other_targets', 'GET', `/web-file/${link_tasks}/link-targets`, {
+    token: ltoken2,
+    expectFail: true
+});
+await call('link_other_options', 'GET', `/web-file/${link_tasks}/link-options?field=${lf}`, {
+    token: ltoken2,
+    expectFail: true
+});
+await call(
+    'link_other_ext_expand',
+    'GET',
+    '/api/v1/get?table=smoke_link_tasks&skip=0&limit=1&expand=Contact',
+    { token: link_other_me.api_key, expectFail: true }
+);
+await call('link_api_key_targets', 'GET', `/web-file/${link_tasks}/link-targets`, {
+    token: key,
+    expectFail: true
+});
+// demo2 needs a table of its own: a new one if it's under the free tier's limit
+const other_link_files = await call('link_other_list', 'GET', '/file-directory', {
+    token: ltoken2
+});
+let other_table = (Array.isArray(other_link_files) ? other_link_files : []).find(
+    d => d.type === 'file'
+)?.id;
+let other_table_made = false;
+if (!other_table) {
+    other_table = await call('link_other_table_create', 'POST', '/table-template/waitlist', {
+        token: ltoken2,
+        body: { name: 'smoke_link_theirs' }
+    });
+    other_table_made = true;
+}
+const other_targets = await call(
+    'link_other_own_targets',
+    'GET',
+    `/web-file/${other_table}/link-targets`,
+    { token: ltoken2 }
+);
+check(
+    'link_other_targets_are_own',
+    Array.isArray(other_targets) &&
+        !other_targets.some(t => t.id === link_contacts || t.id === link_tasks),
+    other_targets
+);
+const other_col = await call(
+    'link_other_new_column',
+    'GET',
+    `/web-file/${other_table}/get_new_column`,
+    {
+        token: ltoken2
+    }
+);
+await call(
+    'link_other_col_to_demo',
+    'PUT',
+    `/web-file/${other_col?._id}/data_grid_column/${other_table}`,
+    {
+        token: ltoken2,
+        body: {
+            ...other_col,
+            headerName: 'Stolen',
+            deleted: false,
+            col_type: 'link',
+            link_table_id: link_contacts
+        },
+        expectFail: true
+    }
+);
+await call(
+    'link_other_batch_col_to_demo',
+    'PUT',
+    `/web-file/batch_update/data_grid_column/${other_table}`,
+    {
+        token: ltoken2,
+        body: [
+            {
+                ...other_col,
+                headerName: 'Stolen',
+                deleted: false,
+                col_type: 'link',
+                link_table_id: link_contacts
+            }
+        ],
+        expectFail: true
+    }
+);
+await call(
+    'link_col_to_other',
+    'PUT',
+    `/web-file/${link_col?._id}/data_grid_column/${link_tasks}`,
+    {
+        token,
+        body: { ...link_col_body, link_table_id: other_table },
+        expectFail: true
+    }
+);
+const lt_cols_after = await call(
+    'link_tasks_cols_after_other',
+    'POST',
+    `/web-file/data_grid_column/${link_tasks}?skip=0&limit=50`,
+    { token, body: {} }
+);
+check(
+    'link_col_still_own',
+    (lt_cols_after.data || []).find(c => c.field === lf)?.link_table_id === link_contacts,
+    lt_cols_after
+);
+if (other_table_made) {
+    await call('link_other_table_delete', 'POST', '/file-directory/batch_delete', {
+        token: ltoken2,
+        body: { ids: [other_table] }
+    });
+}
+await call('link_other_logout', 'GET', `/auth/logout?token=${ltoken2}`);
+await call('link_tables_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [link_tasks, link_contacts] }
 });
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');

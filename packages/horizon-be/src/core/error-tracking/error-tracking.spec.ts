@@ -76,6 +76,18 @@ describe('clean_message and clean_stack', () => {
         expect(clean_stack('')).toBeNull();
         expect(clean_stack(42)).toBeNull();
     });
+
+    it('trims the end of each line and drops blank ones', () => {
+        expect(clean_stack('Error: x \t\r\n   \n    at f (a.js:1:1)  ')).toBe(
+            'Error: x\n    at f (a.js:1:1)'
+        );
+    });
+
+    it('stays fast on a long run of spaces', () => {
+        const started = Date.now();
+        clean_stack('a' + ' '.repeat(100_000) + 'b');
+        expect(Date.now() - started).toBeLessThan(1000);
+    });
 });
 
 describe('top_frame', () => {

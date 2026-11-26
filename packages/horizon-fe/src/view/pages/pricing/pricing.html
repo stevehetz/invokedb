@@ -76,38 +76,47 @@
         </div>
         <div class="pricing-body desktop" v-if="plans.length">
             <div class="pricing-body__wrapper">
-                <div class="flex-row pricing-body__row pricing-body__header">
-                    <div class="col col-25"></div>
-                    <div
-                        class="col col-20"
-                        v-for="plan in plans"
-                        :key="plan.id"
-                    >
-                        <span>{{ plan.name }}</span>
-                        <span class="cancel-anytime"
-                            >{{ plan_note(plan) }}</span
-                        >
-                    </div>
+                <div class="pricing-intro">
+                    <h1>Simple pricing</h1>
+                    <p>
+                        Start free and upgrade when your app grows. Every plan
+                        has the full API.
+                    </p>
                 </div>
-                <div class="flex-row pricing-body__row">
+                <!-- Each plan's card: name, price and button; its column runs on below -->
+                <div class="flex-row pricing-body__row pricing-body__plans">
                     <div class="col col-25"></div>
                     <div
-                        class="col col-20"
                         v-for="plan in plans"
                         :key="plan.id"
+                        :class="['col', 'col-20', 'plan-head', { featured: is_featured(plan) }]"
                     >
-                        <span class="price">{{ price_label(plan) }}</span>
-                        <span>per month</span>
+                        <span class="plan-badge" v-if="is_featured(plan)"
+                            >Most popular</span
+                        >
+                        <span class="plan-name">{{ plan.name }}</span>
+                        <span class="plan-tagline">{{ tagline(plan) }}</span>
+                        <span class="plan-price">
+                            <span class="amount">{{ price_label(plan) }}</span>
+                            <span class="per">/month</span>
+                        </span>
+                        <span class="plan-note">{{ year_note(plan) }}</span>
+                        <router-link
+                            to="/create-account"
+                            class="plan-cta"
+                            v-if="!account"
+                            >{{ cta_label(plan) }}</router-link
+                        >
                     </div>
                 </div>
                 <div class="flex-row pricing-body__row section">
                     <div class="col col-25">
-                        <span><b>Resources</b></span>
+                        <span>Resources</span>
                     </div>
                     <div
-                        class="col col-20"
                         v-for="plan in plans"
                         :key="plan.id"
+                        :class="['col', 'col-20', { featured: is_featured(plan) }]"
                     ></div>
                 </div>
                 <div
@@ -119,9 +128,9 @@
                         <span>{{ row.label }}</span>
                     </div>
                     <div
-                        class="col col-20"
                         v-for="(value, p) in row.values"
                         :key="p"
+                        :class="['col', 'col-20', { featured: is_featured(plans[p]) }]"
                     >
                         <span :class="{ none: value === '—' }"
                             >{{ value }}</span
@@ -130,12 +139,12 @@
                 </div>
                 <div class="flex-row pricing-body__row section">
                     <div class="col col-25">
-                        <span><b>Every plan</b></span>
+                        <span>Every plan</span>
                     </div>
                     <div
-                        class="col col-20"
                         v-for="plan in plans"
                         :key="plan.id"
+                        :class="['col', 'col-20', { featured: is_featured(plan) }]"
                     ></div>
                 </div>
                 <div
@@ -147,27 +156,32 @@
                         <span>{{ feature }}</span>
                     </div>
                     <div
-                        class="col col-20"
                         v-for="plan in plans"
                         :key="plan.id"
+                        :class="['col', 'col-20', { featured: is_featured(plan) }]"
                     >
-                        <i class="fa fa-check"></i>
+                        <i class="fa fa-check" aria-label="Included"></i>
                     </div>
                 </div>
-                <div class="flex-row pricing-body__row">
-                    <div class="col col-25">
-                        <span></span>
-                    </div>
+                <div class="flex-row pricing-body__row pricing-body__foot">
+                    <div class="col col-25"></div>
                     <div
-                        class="col col-20"
                         v-for="plan in plans"
                         :key="plan.id"
+                        :class="['col', 'col-20', { featured: is_featured(plan) }]"
                     >
-                        <router-link to="/create-account" v-if="!account"
-                            >Get Started</router-link
+                        <router-link
+                            to="/create-account"
+                            class="plan-cta"
+                            v-if="!account"
+                            >{{ cta_label(plan) }}</router-link
                         >
                     </div>
                 </div>
+                <p class="pricing-more">
+                    Need more than Pro?
+                    <router-link to="/contact">Contact us</router-link>.
+                </p>
             </div>
         </div>
         <div class="footer">

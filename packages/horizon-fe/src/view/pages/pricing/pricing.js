@@ -2,6 +2,17 @@ import { store } from '@/store';
 import { plan_http } from '@/core/context/plan/plan-http';
 import { price_label, pricing_rows } from '@/core/context/plan/plan';
 
+// The plan highlighted as "Most popular"
+const FEATURED_PLAN = 'STARTER';
+
+// One line under each plan's name (docs/PRICING.md 3.2, "Why these numbers")
+/** @type {Record<string, string>} */
+const TAGLINES = {
+    FREE: 'For trying it out and building a small app',
+    STARTER: 'For an app in production',
+    PRO: 'For more data and heavier API use'
+};
+
 export default {
     name: 'Pricing',
 
@@ -46,9 +57,28 @@ export default {
     methods: {
         price_label,
 
-        /** Under the plan's name: paid plans can be cancelled, Free needs no card */
-        plan_note(plan) {
-            return plan.price_year_usd ? 'cancel anytime' : 'no card needed';
+        /** The plan the page points people to */
+        is_featured(plan) {
+            return !!plan && plan.id === FEATURED_PLAN;
+        },
+
+        tagline(plan) {
+            return TAGLINES[plan.id] || '';
+        },
+
+        cta_label(plan) {
+            return plan.price_month_usd ? 'Get started' : 'Start free';
+        },
+
+        /** Under the price: the yearly price and what it saves, or that Free needs no card */
+        year_note(plan) {
+            const month = plan.price_month_usd;
+            const year = plan.price_year_usd;
+            if (!month || !year) return 'Free forever, no card needed';
+            const saved = month * 12 - year;
+            return saved > 0
+                ? `or $${year} a year (save $${saved}), cancel anytime`
+                : `or $${year} a year, cancel anytime`;
         }
     }
 };

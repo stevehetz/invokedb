@@ -1571,6 +1571,9 @@ $nav_active_color: var(--h-chrome-text);
     height: 30px !important;
     top: 35px !important;
     border-top: solid 1px var(--h-grid-header-line);
+    // The filter row covers .ag-header's own bottom border; without it the filters run
+    // straight into the first row
+    border-bottom: solid 1px var(--h-grid-header-line);
 }
 .h-data-grid .ag-header-row:last-child .ag-header-cell {
     padding: 0;

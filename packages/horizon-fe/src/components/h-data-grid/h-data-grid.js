@@ -851,8 +851,6 @@ export default {
                 this.file_directory_id,
                 pending
             );
-            new_col.edit_mode = true;
-
             col_defs.push(new_col);
 
             this.set_column_defs(col_defs);

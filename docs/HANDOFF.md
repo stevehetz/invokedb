@@ -1,6 +1,6 @@
 # InvokeDB: handoff
 
-_Last updated 2026-11-26 (late night)_
+_Last updated 2026-11-27 (early morning UTC)_
 
 InvokeDB ("horizon") is an **agentic web database**, "the database for you and your AI agents":
 tables people edit like a spreadsheet and code and AI agents use through an API (and soon an MCP
@@ -25,8 +25,18 @@ Elsewhere:
 
 ## Where things stand (2026-11-26, night)
 
-Production is green (CD and E2E passed for `main` at `9e6509c`, ~16:55 UTC on 2026-11-26). No
-PRs are open. Everything below is merged and deployed. Details: `gh pr list --state merged`.
+Production is green (CD and E2E passed for `main` at `9e6509c`, ~16:55 UTC on 2026-11-26).
+Everything below is merged and deployed unless it says otherwise. Details:
+`gh pr list --state merged`.
+
+- **Open PRs (2026-11-27):**
+  - **#312** (closes #311): the agent queue now takes `agent` issues the Claude app opened
+    without `agent-found`, i.e. the ones `repair.yml` opens for failed CI/CD/E2E runs (#268 sat
+    with `agent` and the queue logged "The queue is empty"). CI passed, `review-ok`,
+    `needs-owner` (it touches `.github/`): **the owner merges it**
+    (`gh pr merge 312 --merge`).
+  - **#313**: security fix for CodeQL alert #19 (a quadratic regex in `clean_stack`);
+    `review-ok`, should auto-merge.
 
 - **Shipped 2026-11-26 (owner session):**
   - **Light and dark theme** (#290, reached `main` inside **#301**; #290 closed by hand). In light mode the app header
@@ -66,9 +76,11 @@ PRs are open. Everything below is merged and deployed. Details: `gh pr list --st
 - **#184 shipped** (#280: read-only over-cap accounts, deleting idle free accounts).
 - **Billing shipped, off in production** (#129, **#310** merged 2026-11-26; replaced #153,
   closed): see "Stripe and going live" below.
-- **Queue (`agent`):** #268 (E2E transient 502) and **#279** (delete an account's data on account
-  deletion). #279 is still `agent-stuck` from when it waited on #280, which has merged: remove
-  `agent-stuck` to let the agent retry it (its PR must open with `hold`: it deletes data).
+- **Queue (`agent`):** **#279** (delete an account's data on account deletion) is being worked by
+  the cloud agent (`agent-stuck` removed, `implement.yml` started ~23:52 UTC 2026-11-26). Its PR
+  must open with `hold` (it deletes data): check, and add `hold` before CI and the review finish
+  if it didn't. Next is **#268** (E2E transient 502), once #312 is merged and #279's PR merges or
+  is parked.
 - **Ideas the rebrand points to** (not issues yet): more agent features on top of the MCP
   server, e.g. MCP tools for views or table creation, an agent-friendly quickstart page.
 - **Incident (2026-11-25), fixed:** a stale local `prod.env` was pushed to Dropbox and the
@@ -145,6 +157,11 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
   really moves on events (a PR merged, closed or labelled, an issue labelled). If a run sees an
   agent PR a moment before it's parked, it waits and nothing else wakes it; it once sat idle for
   six hours. If nothing has started for a while, `gh workflow run agent-queue.yml`.
+- **Until #312 merges, an `agent` issue opened by the Claude app is only picked up with
+  `agent-found`** (the candidate filter). After it, any Claude-app issue counts; the owner must
+  still have added `agent`.
+- **Removing `agent-stuck` doesn't wake the queue** (that run is skipped): run
+  `gh workflow run agent-queue.yml` after it.
 - **An issue that isn't on the board is never picked up** (#277 was missed by the board's
   auto-add). Check with the GraphQL items query, and add it with `addProjectV2ItemById` and
   `updateProjectV2ItemPosition` (top) and set Status to Todo.

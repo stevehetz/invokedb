@@ -146,12 +146,14 @@ export default defineComponent({
             this.$router.replace({ query: rest });
 
             if (billing === 'success') {
-                this.billing_note =
-                    'Thanks! Your new plan shows here as soon as Stripe confirms the payment.';
-                this.poll_for_plan(
-                    this.usage && this.usage.plan.id,
-                    POLL_TIMES
-                );
+                // The webhook often lands before the page loads
+                if (this.subscription) {
+                    this.billing_note = `Thanks! You're on ${this.usage.plan.name} now.`;
+                } else {
+                    this.billing_note =
+                        'Thanks! Your new plan shows here as soon as Stripe confirms the payment.';
+                    this.poll_for_plan(POLL_TIMES);
+                }
             } else if (billing === 'cancel') {
                 this.billing_note =
                     'Checkout was cancelled: nothing was charged.';
@@ -164,17 +166,20 @@ export default defineComponent({
             }
         },
 
-        /** Loads the plan again until it isn't `from` any more (the webhook has landed) */
-        poll_for_plan(from, times) {
-            if (times <= 0) return;
+        /** Loads the plan again until the subscription shows (the webhook has landed) */
+        poll_for_plan(times) {
+            if (times <= 0) {
+                this.billing_note =
+                    'Stripe has the payment, but it hasn’t reached us yet: reload this page in a minute.';
+                return;
+            }
             this.poll_timer = setTimeout(async () => {
                 await this.load();
-                const now = this.usage && this.usage.plan.id;
-                if (now && now !== from) {
-                    this.billing_note = `You're on ${this.usage.plan.name} now.`;
+                if (this.subscription) {
+                    this.billing_note = `Thanks! You're on ${this.usage.plan.name} now.`;
                     return;
                 }
-                this.poll_for_plan(from, times - 1);
+                this.poll_for_plan(times - 1);
             }, POLL_MS);
         },
 

@@ -216,6 +216,16 @@
                                     >
                                         <i class="fa fa-history"></i> History
                                     </el-dropdown-item>
+                                    <el-dropdown-item
+                                        v-if="ai_available"
+                                        command="ai_columns"
+                                        class="more-ai-columns"
+                                    >
+                                        <i
+                                            class="fa fa-wand-magic-sparkles"
+                                        ></i>
+                                        AI columns
+                                    </el-dropdown-item>
                                 </el-dropdown-menu>
                             </template>
                         </el-dropdown>

@@ -1,0 +1,143 @@
+<div class="ai-column-dialog">
+    <p class="ai-column-intro">
+        An AI column is filled in by the AI, row by row, from the columns you
+        pick: "summarise the notes", "classify the feedback as positive, neutral
+        or negative". Once filled, a row's cell is worked out again whenever the
+        columns it reads change. Every cell the AI fills uses one of your plan's
+        AI rows for the month.
+    </p>
+
+    <div class="ai-column-status" v-if="loading">Loading...</div>
+    <div class="ai-column-status error" v-if="error">{{ error }}</div>
+
+    <div class="ai-column-empty" v-if="!loading && ai_columns.length === 0">
+        This table has no AI columns yet.
+    </div>
+
+    <div v-for="c in ai_columns" :key="c.field" class="ai-column">
+        <div class="ai-column-head">
+            <span class="ai-column-name">
+                <i class="fa fa-wand-magic-sparkles"></i>
+                {{ column_name(c.field) }}
+            </span>
+            <span class="ai-column-reads"
+                >reads {{ c.inputs.map(f => column_name(f)).join(', ') }}</span
+            >
+        </div>
+        <div class="ai-column-prompt">{{ c.prompt }}</div>
+        <div :class="['ai-column-state', c.state]">{{ status(c) }}</div>
+        <div class="ai-column-actions">
+            <el-button
+                class="ai-column-fill-button"
+                size="small"
+                type="primary"
+                :loading="busy === c.field"
+                @click="ask_fill(c)"
+                >Fill</el-button
+            >
+            <el-button size="small" @click="edit(c)">Change</el-button>
+            <el-button size="small" :disabled="!!busy" @click="remove(c)"
+                >Stop using AI</el-button
+            >
+        </div>
+        <div
+            class="ai-column-confirm"
+            v-if="confirm && confirm.field === c.field"
+        >
+            <template v-if="!confirm.available">
+                The AI isn't available for this account: verify your email
+                address first.
+            </template>
+            <template v-else-if="confirm.rows === 0">
+                Every cell is up to date: nothing to fill.
+                <el-button size="small" link @click="confirm = null"
+                    >OK</el-button
+                >
+            </template>
+            <template v-else-if="confirm.left === 0">
+                This needs {{ confirm.rows }} AI {{ confirm.rows === 1 ? 'row' :
+                'rows' }}, and this month's {{ confirm.limit }} are used up.
+                They renew on the 1st.
+                <el-button size="small" link @click="confirm = null"
+                    >OK</el-button
+                >
+            </template>
+            <template v-else>
+                <p>
+                    Filling this column uses
+                    <b>{{ confirm.rows }}</b> AI {{ confirm.rows === 1 ? 'row' :
+                    'rows' }} ({{ confirm.left }} of this month's {{
+                    confirm.limit }} are left).
+                    <span v-if="confirm.rows > confirm.left">
+                        Only the first {{ confirm.left }} will be filled; the
+                        rest stay empty with a note until your AI rows renew.
+                    </span>
+                </p>
+                <el-button
+                    class="ai-column-confirm-button"
+                    size="small"
+                    type="primary"
+                    :loading="busy === c.field"
+                    @click="fill"
+                    >Fill {{ Math.min(confirm.rows, confirm.left) }} {{
+                    Math.min(confirm.rows, confirm.left) === 1 ? 'row' : 'rows'
+                    }}</el-button
+                >
+                <el-button size="small" @click="confirm = null"
+                    >Cancel</el-button
+                >
+            </template>
+        </div>
+    </div>
+
+    <div class="ai-column-form">
+        <h4>{{ editing ? 'Change the AI column' : 'Add an AI column' }}</h4>
+        <div class="ai-column-row">
+            <label>Column to fill</label>
+            <select v-model="field" @change="field_changed">
+                <option value="" disabled>Pick a column</option>
+                <option
+                    v-for="c in plain_columns"
+                    :key="c.field"
+                    :value="c.field"
+                >
+                    {{ c.headerName }}
+                </option>
+            </select>
+        </div>
+        <div class="ai-column-row" v-if="field">
+            <label>Columns it reads</label>
+            <div class="ai-column-inputs">
+                <label v-for="c in input_choices" :key="c.field">
+                    <input type="checkbox" :value="c.field" v-model="inputs" />
+                    {{ c.headerName }}
+                </label>
+            </div>
+        </div>
+        <div class="ai-column-row" v-if="field">
+            <label>What to put in it</label>
+            <textarea
+                v-model="prompt"
+                rows="3"
+                :maxlength="limits.max_prompt_length"
+                placeholder="Classify the feedback as positive, neutral or negative"
+            ></textarea>
+        </div>
+        <p class="ai-column-hint" v-if="field">
+            The column's current values are replaced. Changing the prompt or the
+            columns it reads needs a new fill.
+        </p>
+        <el-button
+            class="ai-column-save-button"
+            type="primary"
+            size="small"
+            :loading="saving"
+            :disabled="!can_save"
+            @click="save"
+            >{{ editing ? 'Save' : 'Add AI column' }}</el-button
+        >
+        <el-button v-if="field" size="small" @click="new_column"
+            >Clear</el-button
+        >
+    </div>
+</div>

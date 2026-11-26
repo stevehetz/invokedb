@@ -3290,6 +3290,15 @@ function ai_stub_json(body) {
     const props = body.output_config.format.schema.properties || {};
     // A cleanup scan (#206): what the test sets
     if (props.spellings) return ai_next_cleanup;
+    // An AI column (#205): "AI: <the row's first value>" for every numbered row of the prompt
+    if (props.values) {
+        const prompt = String(body.messages?.[0]?.content || '');
+        const values = [...prompt.matchAll(/^(\d+): (\{.*\})$/gm)].map(m => ({
+            row: Number(m[1]),
+            value: `AI: ${Object.values(JSON.parse(m[2]))[0]}`
+        }));
+        return { values };
+    }
     if (props.columns) {
         return {
             table_name: 'stub_table',
@@ -4320,6 +4329,235 @@ check(
 await call('import_other_logout', 'GET', `/auth/logout?token=${imp_other.token}`);
 check('import_text_refused_never_called_model', ai_requests.length === imp_bad_seen);
 ai_next_import = { rows: [] };
+
+// AI columns (#205): a column filled per row from a prompt over other columns, by the
+// processor (every few seconds). Bad settings are 400s; the estimate counts the rows a fill
+// uses; a fill computes every row (one AI row each, through the stub); editing a row's input
+// recomputes only that row; the API never shows the rows' AI state; demo2 and API keys can't
+// see or use another account's AI columns; deleting the table deletes them.
+const aic_table = await call('ai_column_table', 'POST', '/table-template/tasks', {
+    token,
+    body: { name: 'smoke_ai_column' }
+});
+const aic_cols = await call(
+    'ai_column_table_cols',
+    'POST',
+    `/web-file/data_grid_column/${aic_table}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const aic_col = name => (aic_cols?.data || []).find(c => c.headerName === name)?.field;
+const [aic_task, aic_priority] = [aic_col('Task'), aic_col('Priority')];
+check('ai_column_table_columns', !!(aic_task && aic_priority), aic_cols);
+const aic_rows = async name =>
+    (
+        await call(name, 'POST', `/web-file/data_grid_row/${aic_table}?skip=0&limit=100`, {
+            token,
+            body: {}
+        })
+    )?.data || [];
+const aic_before = await aic_rows('ai_column_rows_before');
+const aic_body = {
+    table: aic_table,
+    field: aic_priority,
+    prompt: 'Rate how urgent the task is',
+    inputs: [aic_task]
+};
+const aic_bad = {
+    ai_column_save_itself: { ...aic_body, inputs: [aic_priority] },
+    ai_column_save_unknown_column: { ...aic_body, field: 'zz9' },
+    ai_column_save_no_prompt: { ...aic_body, prompt: '  ' },
+    ai_column_save_no_inputs: { ...aic_body, inputs: [] }
+};
+for (const [name, body] of Object.entries(aic_bad)) {
+    await call(name, 'PUT', '/ai-column', { token, body, expectFail: true });
+    check(`${name}_400`, results[name]?.status === 400, results[name]);
+}
+const aic_saved = await call('ai_column_save', 'PUT', '/ai-column', { token, body: aic_body });
+check(
+    'ai_column_saved_not_filling',
+    aic_saved?.column?.field === aic_priority && aic_saved.column.auto === false,
+    aic_saved
+);
+const aic_list = await call('ai_column_list', 'GET', `/ai-column?table=${aic_table}`, { token });
+check(
+    'ai_column_listed',
+    aic_list?.columns?.length === 1 && aic_list.columns[0].inputs[0] === aic_task,
+    aic_list
+);
+const aic_with_task = aic_before.filter(r => r[aic_task]);
+const aic_estimate = await call(
+    'ai_column_estimate',
+    'GET',
+    `/ai-column/${aic_table}/${aic_priority}/estimate`,
+    { token }
+);
+check(
+    'ai_column_estimate_counts_rows',
+    aic_with_task.length > 0 &&
+        aic_estimate?.rows === aic_with_task.length &&
+        aic_estimate.available === true &&
+        aic_estimate.left >= aic_estimate.rows,
+    { aic_estimate, rows: aic_before.length }
+);
+
+// demo2 and an API key can't see, change, fill or remove demo's AI columns
+const aic_other = await call('ai_column_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const aic_otoken = aic_other.token;
+const aic_refused = [
+    ['ai_column_other_list', 'GET', `/ai-column?table=${aic_table}`],
+    ['ai_column_other_save', 'PUT', '/ai-column', aic_body],
+    ['ai_column_other_estimate', 'GET', `/ai-column/${aic_table}/${aic_priority}/estimate`],
+    ['ai_column_other_fill', 'POST', `/ai-column/${aic_table}/${aic_priority}/fill`],
+    ['ai_column_other_delete', 'DELETE', `/ai-column/${aic_table}/${aic_priority}`]
+];
+for (const [name, method, path, body] of aic_refused) {
+    await call(name, method, path, { token: aic_otoken, body, expectFail: true });
+    check(`${name}_refused`, [401, 403, 404].includes(results[name]?.status), results[name]);
+}
+await call('ai_column_other_logout', 'GET', `/auth/logout?token=${aic_otoken}`);
+await call('ai_column_api_key', 'GET', `/ai-column?table=${aic_table}`, {
+    token: key,
+    expectFail: true
+});
+check(
+    'ai_column_api_key_refused',
+    [401, 403].includes(results.ai_column_api_key?.status),
+    results.ai_column_api_key
+);
+await call('ai_column_no_token', 'GET', `/ai-column?table=${aic_table}`, { expectFail: true });
+await call('ai_column_list_no_table', 'GET', '/ai-column', { token, expectFail: true });
+check('ai_column_list_no_table_400', results.ai_column_list_no_table?.status === 400);
+const aic_still = await call('ai_column_list_unchanged', 'GET', `/ai-column?table=${aic_table}`, {
+    token
+});
+check(
+    'ai_column_unchanged_by_other',
+    aic_still?.columns?.length === 1 &&
+        aic_still.columns[0].auto === false &&
+        aic_still.columns[0].prompt === aic_body.prompt,
+    aic_still
+);
+
+// Waits (up to 40 s) for the processor to fill the cells `want` says are done
+const aic_wait = async (name, want) => {
+    let rows = [];
+    for (let i = 0; i < 40; i++) {
+        rows = await aic_rows(`${name}_${i}`);
+        if (want(rows)) return rows;
+        await sleep(1000);
+    }
+    return rows;
+};
+const aic_rows_used = async name => (await call(name, 'GET', '/ai/status', { token }))?.rows?.used;
+const aic_used_before = await aic_rows_used('ai_column_usage_before');
+const aic_seen = ai_requests.length;
+const aic_fill = await call(
+    'ai_column_fill',
+    'POST',
+    `/ai-column/${aic_table}/${aic_priority}/fill`,
+    {
+        token
+    }
+);
+check('ai_column_fill_started', aic_fill?.column?.auto === true, aic_fill);
+const aic_filled = await aic_wait('ai_column_rows_filled', rows =>
+    rows.filter(r => r[aic_task]).every(r => r[aic_priority] === `AI: ${r[aic_task]}`)
+);
+const aic_calls = ai_requests
+    .slice(aic_seen)
+    .filter(r => r.body?.output_config?.format?.schema?.properties?.values);
+check(
+    'ai_column_filled_every_row',
+    aic_filled.filter(r => r[aic_task]).length === aic_with_task.length &&
+        aic_filled
+            .filter(r => r[aic_task])
+            .every(r => r[aic_priority] === `AI: ${r[aic_task]}` && r._ai?.[aic_priority]?.h) &&
+        aic_calls.length >= 1 &&
+        aic_calls.every(
+            r => r.body.model === 'claude-haiku-5-5' && r.body.output_config.effort === 'low'
+        ),
+    { rows: aic_filled.slice(0, 3), calls: aic_calls.length }
+);
+// A moment for the processor to charge the last call
+await sleep(500);
+const aic_used_after = await aic_rows_used('ai_column_usage_after');
+check(
+    'ai_column_counts_one_ai_row_per_cell',
+    aic_used_after === aic_used_before + aic_with_task.length,
+    { aic_used_before, aic_used_after, rows: aic_with_task.length }
+);
+// The API shows the column's values, never the rows' AI state
+const aic_api = await call(
+    'ai_column_api_rows',
+    'GET',
+    `/api/v1/get?table=smoke_ai_column&skip=0&limit=50`,
+    {
+        token: key
+    }
+);
+check(
+    'ai_column_api_hides_state',
+    (aic_api?.data || []).length > 0 &&
+        aic_api.data.every(r => !('_ai' in r)) &&
+        aic_api.data.some(r => String(r.Priority).startsWith('AI: ')),
+    aic_api
+);
+
+// Editing a row's input recomputes that row only (the grid sends the row's AI state back with
+// it; that's ignored)
+const aic_edit_row = aic_filled.find(r => r[aic_task]);
+const aic_edit_seen = ai_requests.length;
+await call('ai_column_edit_input', 'PUT', `/web-file/batch_update/data_grid_row/${aic_table}`, {
+    token,
+    body: [
+        { ...aic_edit_row, [aic_task]: 'Smoke edited task', _ai: { [aic_priority]: { h: 'x' } } }
+    ]
+});
+const aic_refreshed = await aic_wait('ai_column_rows_refreshed', rows =>
+    rows.some(r => r._id === aic_edit_row._id && r[aic_priority] === 'AI: Smoke edited task')
+);
+const aic_edit_calls = ai_requests
+    .slice(aic_edit_seen)
+    .filter(r => r.body?.output_config?.format?.schema?.properties?.values);
+check(
+    'ai_column_refreshed_on_edit',
+    aic_refreshed.some(
+        r => r._id === aic_edit_row._id && r[aic_priority] === 'AI: Smoke edited task'
+    ) &&
+        aic_edit_calls.length === 1 &&
+        (String(aic_edit_calls[0].body.messages[0].content).match(/^\d+: /gm) || []).length === 1,
+    { calls: aic_edit_calls.length, row: aic_refreshed.find(r => r._id === aic_edit_row._id) }
+);
+const aic_used_edit = await aic_rows_used('ai_column_usage_after_edit');
+check('ai_column_edit_counts_one_row', aic_used_edit === aic_used_after + 1, {
+    aic_used_after,
+    aic_used_edit
+});
+
+// Changing the prompt needs a new fill (its cost wasn't confirmed)
+const aic_changed = await call('ai_column_change_prompt', 'PUT', '/ai-column', {
+    token,
+    body: { ...aic_body, prompt: 'Something else' }
+});
+check('ai_column_change_stops_filling', aic_changed?.column?.auto === false, aic_changed);
+
+// Removing it makes it an ordinary column with its values; deleting the table deletes it
+await call('ai_column_delete', 'DELETE', `/ai-column/${aic_table}/${aic_priority}`, { token });
+const aic_gone = await call('ai_column_list_after_delete', 'GET', `/ai-column?table=${aic_table}`, {
+    token
+});
+check('ai_column_deleted', aic_gone?.columns?.length === 0, aic_gone);
+await call('ai_column_save_again', 'PUT', '/ai-column', { token, body: aic_body });
+await call('ai_column_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [aic_table] }
+});
+await call('ai_column_list_table_gone', 'GET', `/ai-column?table=${aic_table}`, {
+    token,
+    expectFail: true
+});
 ai_stub.close();
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');

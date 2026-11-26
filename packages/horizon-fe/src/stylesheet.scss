@@ -2309,6 +2309,104 @@ $nav_active_color: #ffffff;
     max-width: 800px;
 }
 
+// AI columns (#205): the grid's cells and the dialog (More → AI columns)
+.ag-cell.ai-cell {
+    background-color: #f7f5fd;
+}
+.ai-cell-note {
+    color: $gray300;
+    font-style: italic;
+}
+.ai-column-dialog {
+    color: $gray500;
+}
+.ai-column-dialog h4 {
+    margin: 14px 0 6px;
+    color: $gray600;
+}
+.ai-column-dialog .ai-column-intro {
+    margin: 0 0 8px;
+}
+.ai-column-dialog .ai-column-status {
+    padding: 10px 0;
+}
+.ai-column-dialog .ai-column-status.error {
+    color: #a03e3e;
+}
+.ai-column-dialog .ai-column-empty {
+    padding: 10px 0;
+    color: $gray300;
+}
+.ai-column-dialog .ai-column {
+    padding: 10px 0;
+    border-bottom: solid 1px #e2e2e2;
+}
+.ai-column-dialog .ai-column-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.ai-column-dialog .ai-column-name {
+    font-weight: bold;
+    color: $gray600;
+}
+.ai-column-dialog .ai-column-reads {
+    color: $gray300;
+}
+.ai-column-dialog .ai-column-prompt {
+    margin: 6px 0;
+    white-space: pre-wrap;
+}
+.ai-column-dialog .ai-column-state {
+    margin-bottom: 6px;
+    color: $gray300;
+}
+.ai-column-dialog .ai-column-state.stopped {
+    color: #b7801b;
+}
+.ai-column-dialog .ai-column-state.done {
+    color: #2d8e58;
+}
+.ai-column-dialog .ai-column-confirm {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background-color: #f7f5fd;
+    border-radius: 3px;
+}
+.ai-column-dialog .ai-column-confirm p {
+    margin: 0 0 8px;
+}
+.ai-column-dialog .ai-column-form {
+    margin-top: 8px;
+}
+.ai-column-dialog .ai-column-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.ai-column-dialog .ai-column-row > label {
+    flex: 0 0 140px;
+    padding-top: 4px;
+}
+.ai-column-dialog .ai-column-row select,
+.ai-column-dialog .ai-column-row textarea {
+    flex: 1;
+    padding: 4px 6px;
+    font-size: 14px;
+    border: solid 1px #b7b7b7;
+    border-radius: 3px;
+}
+.ai-column-dialog .ai-column-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    padding-top: 4px;
+}
+.ai-column-dialog .ai-column-hint {
+    margin: 0 0 8px;
+    color: $gray300;
+}
+
 // A table's webhooks (#140); its top-bar button (.webhooks-button) is styled with .api-button
 .webhooks-dialog {
     color: $gray500;

@@ -618,6 +618,31 @@ function verify(secret, raw_body, header) {
                         the Tables page, designs a new table, with columns and
                         sample rows, from a sentence.
                     </p>
+                    <h2>AI columns</h2>
+                    <p>
+                        An AI column is a column the AI fills in for you, row by
+                        row, from other columns of the row: "summarise the
+                        notes", "classify the feedback as positive, neutral or
+                        negative", "score the lead from 1 to 5". Open a table,
+                        then <b>More</b> (<i class="fa fa-ellipsis-h"></i>) →
+                        <b>AI columns</b>: pick the column to fill, the columns
+                        it reads and what to put in it.
+                    </p>
+                    <p>
+                        Before it fills, it tells you how many AI rows it will
+                        use: one for every cell it fills (rows whose columns are
+                        empty are left empty for free). It fills in the
+                        background, and the grid shows the cells as they're
+                        done. After that, when a row is added or the columns the
+                        AI column reads change (in the app, through the API or a
+                        form), that row's cell is filled again by itself;
+                        changes to other columns don't use anything. Changing
+                        the prompt or the columns it reads asks you to fill it
+                        again. If your AI rows run out, the column stops: the
+                        cells left show a note, and you can fill them once your
+                        allowance renews. <b>Stop using AI</b> keeps the column
+                        and its values as an ordinary column.
+                    </p>
                     <h2>Allowance</h2>
                     <p>
                         Each plan includes a number of AI questions and AI rows

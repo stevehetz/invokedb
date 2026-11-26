@@ -2,9 +2,11 @@
 // what an entry says about a change, which column changes are worth an entry, paging and how
 // long entries are kept. audit.manager.ts stores the entries; AuditService records and lists them.
 import { ObjectId } from 'mongodb';
+import { PLANS, PLAN_IDS } from '../plan/plans';
 
-// Kept this long on every tier for now (owner's decision); the processor deletes older entries
-export const AUDIT_KEEP_DAYS = 90;
+// Each plan keeps entries for its `audit_keep_days` (core/plan/plans.ts: 7, 30, 90 days, #183);
+// the processor deletes older ones. This is the longest, for every account.
+export const AUDIT_KEEP_DAYS = Math.max(...PLAN_IDS.map(id => PLANS[id].caps.audit_keep_days));
 export const AUDIT_PAGE_DEFAULT = 50;
 export const AUDIT_PAGE_MAX = 100;
 // Row ids kept on one entry; a bigger change keeps the count and the first ids
@@ -296,6 +298,32 @@ export function parse_audit_page(query: any): AuditPage {
 }
 
 /** Entries made before this are deleted. */
-export function audit_cutoff(now: number): number {
-    return now - AUDIT_KEEP_DAYS * 24 * 60 * 60 * 1000;
+export function audit_cutoff(now: number, keep_days = AUDIT_KEEP_DAYS): number {
+    return now - keep_days * 24 * 60 * 60 * 1000;
+}
+
+export interface AuditPruneStep {
+    // Entries older than this many days are deleted...
+    days: number;
+    // ...except those of these accounts, which keep them longer
+    except: number[];
+}
+
+/**
+ * How the prune deletes old entries per plan: one step per retention, shortest first. Accounts
+ * not in `longer` keep `default_days` (Free's); `longer` lists the others (paid plans, internal
+ * accounts) with theirs. Every account's entries go after AUDIT_KEEP_DAYS.
+ */
+export function audit_prune_steps(
+    longer: { account_id: number; keep_days: number }[],
+    default_days: number
+): AuditPruneStep[] {
+    const days = [
+        ...new Set([default_days, ...longer.map(l => l.keep_days), AUDIT_KEEP_DAYS])
+    ].filter(d => d >= default_days && d <= AUDIT_KEEP_DAYS);
+    days.sort((a, b) => a - b);
+    return days.map(d => ({
+        days: d,
+        except: longer.filter(l => l.keep_days > d).map(l => l.account_id)
+    }));
 }

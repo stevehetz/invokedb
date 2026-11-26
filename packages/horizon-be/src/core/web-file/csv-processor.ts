@@ -66,7 +66,8 @@ export class CsvProcessor {
             if (total_rows === -1) {
                 throw { message: 'No data to process' };
             }
-            await this._tracking_manager.validate_row_count(account, total_rows);
+            // The plan's rows per table and rows per account (#183); the table is new
+            await this._tracking_manager.validate_row_count(account, total_rows, file_id);
             const first_line = await this.read_first_line(file_path);
             await this.process_columns(job, first_line);
             await this.read_and_process_rows(job);

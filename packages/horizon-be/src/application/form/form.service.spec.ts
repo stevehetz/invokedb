@@ -6,7 +6,8 @@ import {
     NotFoundException
 } from '@nestjs/common';
 import { FORM_CLOSED, FORM_NOT_FOUND, FORM_UNAVAILABLE, FormService } from './form.service';
-import { FORM_LIMITS, HONEYPOT_FIELD } from '@app/core/form/form';
+import { HONEYPOT_FIELD } from '@app/core/form/form';
+import { PLANS, PLAN_IDS, PLAN_SUBSCRIPTIONS, PlanId } from '@app/core/plan/plans';
 
 jest.mock('@app/logger', () => ({
     __esModule: true,
@@ -20,7 +21,8 @@ jest.mock('../web-file/web-file.service', () => ({}));
 const ACCT = 7;
 const OTHER = 8;
 
-function setup() {
+// The account is on Pro unless a test says otherwise, so the tests can make several forms
+function setup(plan_id: PlanId = 'PRO') {
     const forms: any[] = [];
     const rows: any[] = [];
     const files = {
@@ -37,7 +39,9 @@ function setup() {
             return f;
         })
     };
-    const account_svc = { get: jest.fn(async id => ({ id })) };
+    const account_svc = {
+        get: jest.fn(async id => ({ id, subscription_id: PLAN_SUBSCRIPTIONS[plan_id] }))
+    };
     const tracking_manager = { check_account_lock: jest.fn(async () => undefined) };
     const web_file_manager = {
         get_all: jest.fn(async () => ({
@@ -129,12 +133,19 @@ describe('FormService (owner)', () => {
         ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('caps the forms per account', async () => {
-        const { svc, forms } = setup();
-        for (let i = 0; i < FORM_LIMITS.max_per_account; i++) {
-            forms.push({ id: `f${i}`, account_id: ACCT });
-        }
-        await expect(svc.create(ACCT, NEW_FORM)).rejects.toBeInstanceOf(ForbiddenException);
+    describe.each(PLAN_IDS)('on %s', plan_id => {
+        it("caps the forms per account at the plan's", async () => {
+            const { svc, forms } = setup(plan_id);
+            const cap = PLANS[plan_id].caps.forms;
+            for (let i = 0; i < cap - 1; i++) {
+                forms.push({ id: `f${i}`, account_id: ACCT });
+            }
+            await expect(svc.create(ACCT, NEW_FORM)).resolves.toBeTruthy();
+            const err = await svc.create(ACCT, NEW_FORM).catch(e => e);
+            expect(err).toBeInstanceOf(HttpException);
+            expect(err.getStatus()).toBe(403);
+            expect(err.getResponse()).toMatchObject({ code: 'plan_limit', limit: 'forms', cap });
+        });
     });
 
     it('keeps each account to its own forms', async () => {

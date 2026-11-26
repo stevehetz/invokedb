@@ -9,6 +9,7 @@ import { Account } from '@app/core/account/account.entity';
 import { KeyRateLimiter } from '@app/core/api-key/key-rate-limit';
 import { key_request_entry } from '@app/core/api-key/key-request-log';
 import { KeyRequestLogManager } from '@app/core/api-key/key-request-log.manager';
+import { account_plan } from '@app/core/plan/plans';
 
 export const KEY_RATE_LIMIT_MESSAGE = 'Request limit exceeded for this API key';
 
@@ -17,7 +18,7 @@ export const KEY_RATE_LIMIT_MESSAGE = 'Request limit exceeded for this API key';
 //   it was, including this guard's own 429 and errors thrown later, and
 // - applies the key's own rate limit, if it has one: 429 with `Retry-After` (set by
 //   AllExceptionsFilter from `retry_after`). A refused call isn't counted against the account's
-//   per-minute limit, which WebFileService checks later.
+//   rate limit and monthly quota, which WebFileService checks later.
 // Logging never fails or delays the call.
 @Injectable()
 export class ApiKeyUsageGuard implements CanActivate {
@@ -32,6 +33,9 @@ export class ApiKeyUsageGuard implements CanActivate {
         const user = req.user;
         const scope = user instanceof Account ? user.key_scope : undefined;
         if (!scope) return true;
+        // Per-key limits and request logs are for Starter and Pro (#183); on Free a key has
+        // only the account's limits, which WebFileService applies
+        if (!account_plan(user).caps.key_limits_and_logs) return true;
 
         const started_at = Date.now();
         res.once('finish', () => {

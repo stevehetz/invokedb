@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { WebhookService } from './webhook.service';
-import { WEBHOOK_LIMITS } from '@app/core/webhook/webhook';
+import { PLANS, PLAN_IDS, PLAN_SUBSCRIPTIONS, PlanId } from '@app/core/plan/plans';
 
 jest.mock('@app/logger', () => ({ __esModule: true, default: { error: jest.fn() } }));
 // Stand-ins below; the real ones pull in TypeORM and ESM-only packages
@@ -10,7 +10,8 @@ jest.mock('../account/account.service', () => ({}));
 const ACCT = 7;
 const OTHER = 8;
 
-function setup() {
+// The accounts are on Pro unless a test says otherwise, so the tests can make several webhooks
+function setup(plan_id: PlanId = 'PRO') {
     const hooks: any[] = [];
     const deliveries: any[] = [];
     const files = {
@@ -26,7 +27,9 @@ function setup() {
             return f;
         })
     };
-    const account_svc = { get: jest.fn(async id => ({ id })) };
+    const account_svc = {
+        get: jest.fn(async id => ({ id, subscription_id: PLAN_SUBSCRIPTIONS[plan_id] }))
+    };
     const tracking_manager = { check_account_lock: jest.fn(async () => undefined) };
     const web_file_manager = {
         get_all: jest.fn(async () => ({
@@ -98,13 +101,18 @@ describe('WebhookService', () => {
         expect(hooks).toHaveLength(0);
     });
 
-    it('caps the webhooks per account', async () => {
-        const { svc } = setup();
-        const body = { url: 'https://hooks.example.com/in', events: ['row.created'] };
-        for (let i = 0; i < WEBHOOK_LIMITS.max_per_account; i++) await svc.create(ACCT, body);
-        await expect(svc.create(ACCT, body)).rejects.toThrow(ForbiddenException);
-        // Another account has its own allowance
-        await expect(svc.create(OTHER, body)).resolves.toBeTruthy();
+    describe.each(PLAN_IDS)('on %s', plan_id => {
+        it("caps the webhooks per account at the plan's", async () => {
+            const { svc } = setup(plan_id);
+            const body = { url: 'https://hooks.example.com/in', events: ['row.created'] };
+            const cap = PLANS[plan_id].caps.webhooks;
+            for (let i = 0; i < cap; i++) await svc.create(ACCT, body);
+            const err = await svc.create(ACCT, body).catch(e => e);
+            expect(err.getStatus()).toBe(403);
+            expect(err.getResponse()).toMatchObject({ code: 'plan_limit', limit: 'webhooks', cap });
+            // Another account has its own allowance
+            await expect(svc.create(OTHER, body)).resolves.toBeTruthy();
+        });
     });
 
     it("can't read, change, test or delete another account's webhook", async () => {

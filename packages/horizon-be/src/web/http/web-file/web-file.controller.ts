@@ -25,10 +25,25 @@ import _c from '@app/constants';
 import { session_account_id } from '@app/web/http/_auth/request-account';
 import { public_api_base_url } from '@app/web/http/public-api-url';
 import { parse_pending_ids } from '@app/core/web-file/column-placeholder';
+import { SERVER_MAX_UPLOAD_BYTES } from '@app/core/plan/plans';
+import { unlink } from 'fs/promises';
+import { resolve, sep } from 'path';
+
+// Where multer writes uploads before they're processed
+const UPLOAD_TEMP_DIR = resolve(`${env.HORIZON_FILE_SHARE}/temp`);
+
+/** Deletes an upload's temp file, only ever inside UPLOAD_TEMP_DIR. */
+async function remove_upload_temp(file_path: unknown) {
+    if (typeof file_path !== 'string') return;
+    const path = resolve(file_path);
+    if (!path.startsWith(UPLOAD_TEMP_DIR + sep)) return;
+    await unlink(path).catch(() => undefined);
+}
 
 // The largest CSV an upload takes, for every plan (#182). Past it multer stops reading, deletes
-// the partial temp file and Nest answers 413, before the handler makes a table.
-export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+// the partial temp file and Nest answers 413, before the handler makes a table. Each plan's own
+// (smaller) cap is checked in the handler (#183).
+export const MAX_UPLOAD_BYTES = SERVER_MAX_UPLOAD_BYTES;
 
 @Controller('web-file')
 @UseGuards(AuthGuard('bearer'))
@@ -202,6 +217,15 @@ export class WebFileController {
         }
         const acct_id = session_account_id(req.user);
         const account = await this.account_service.get(acct_id);
+
+        // The plan's upload size and storage (#183): refused before a table is made, and the
+        // temp file goes
+        try {
+            await this.web_file_service.check_upload(account, file ? file.size : 0);
+        } catch (ex) {
+            if (file) await remove_upload_temp(file.path);
+            throw ex;
+        }
 
         // Create new record in postgres
         if (!validate_file_dir_name(body.new_name)) {

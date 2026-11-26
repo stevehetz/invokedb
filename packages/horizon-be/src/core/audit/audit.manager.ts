@@ -52,10 +52,15 @@ export class AuditManager {
         return docs as unknown as AuditEntry[];
     }
 
-    /** Deletes every account's entries made before `cutoff`; answers how many. */
-    async prune(cutoff: number) {
+    /**
+     * Deletes the entries made before `cutoff` of every account but `except_account_ids` (which
+     * keep theirs longer, #183); answers how many.
+     */
+    async prune(cutoff: number, except_account_ids: number[] = []) {
         const coll = await this.entries();
-        const res = await coll.deleteMany({ created_at: { $lt: cutoff } });
+        const filter: any = { created_at: { $lt: cutoff } };
+        if (except_account_ids.length > 0) filter.account_id = { $nin: except_account_ids };
+        const res = await coll.deleteMany(filter);
         return res.deletedCount || 0;
     }
 }

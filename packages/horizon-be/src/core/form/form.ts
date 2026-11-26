@@ -38,8 +38,7 @@ export interface FormSettings {
 }
 
 export const FORM_LIMITS = {
-    // Per account, until the plans in #137 set their own
-    max_per_account: 50,
+    // Forms per account are the plan's (`forms`, core/plan/plans.ts)
     max_title_length: 200,
     max_description_length: 2000,
     max_label_length: 200,

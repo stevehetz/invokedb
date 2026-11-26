@@ -30,6 +30,8 @@ export interface TableDocsInput {
     columns: Array<{ name: string; type?: string; link_table?: string }>;
     // One row of the table, by column name, so the examples use real values
     sample_row?: Record<string, unknown>;
+    // The account's plan's query page (#183); the largest of any plan when not given
+    max_query_limit?: number;
 }
 
 export type Language = 'curl' | 'fetch' | 'client' | 'python';
@@ -410,7 +412,8 @@ export function build_table_docs(input: TableDocsInput): TableDocs {
                 'one or more columns, with only the columns in fields. Operators: eq, ne, gt, ' +
                 'gte, lt, lte, in (an array), contains (text, case-insensitive unless "case": ' +
                 '"sensitive") and empty (true or false). eq on text is exact and case-sensitive. ' +
-                `limit is 1 to ${MAX_QUERY_LIMIT} (default ${DEFAULT_QUERY_LIMIT}). For the next ` +
+                `limit is 1 to ${input.max_query_limit ?? MAX_QUERY_LIMIT} ` +
+                `(default ${DEFAULT_QUERY_LIMIT}). For the next ` +
                 'page, send the same body with "cursor" set to next_cursor; it is null on the ' +
                 'last page. Pages stay in order when rows are added. "explain": true returns ' +
                 'whether the query uses a column index instead of rows.',
@@ -864,7 +867,7 @@ export function build_openapi(input: TableDocsInput) {
                         limit: {
                             type: 'integer',
                             minimum: 1,
-                            maximum: MAX_QUERY_LIMIT,
+                            maximum: input.max_query_limit ?? MAX_QUERY_LIMIT,
                             default: DEFAULT_QUERY_LIMIT
                         },
                         cursor: { type: 'string', nullable: true },

@@ -1,6 +1,8 @@
 // JSON requests with a bearer token. Replaces the old `$.ajax` calls and keeps their contract:
 // resolves with the parsed body (JSON when the response says so, else text), and rejects with
 // the parsed JSON error body (`{ status, message, rules? }` from the backend) or undefined.
+import { bus } from '@/core/bus';
+
 /** @returns {Promise<any>} */
 export async function request(method, url, token, data) {
     /** @type {RequestInit} */
@@ -34,6 +36,8 @@ export async function request(method, url, token, data) {
         }
     }
 
+    // A refusal at the plan's cap (#183): the app shows a notice that links to the usage
+    if (body && body.code === 'plan_limit') bus.$emit('plan_limit', body);
     if (!res.ok) throw is_json ? body : undefined;
     // Some endpoints answer 200 with an error object
     if (body && body.status >= 400) throw body;

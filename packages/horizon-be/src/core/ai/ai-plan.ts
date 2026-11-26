@@ -3,6 +3,8 @@
 // capped twice, by a count (what the app shows) and by a dollar budget worked out from the
 // tokens each call used, and the whole server has a monthly budget on top
 // (HORIZON_AI_MONTHLY_BUDGET_USD). Money is kept in micro-dollars (integers) so sums don't drift.
+// The allowances themselves are in the plan constant (core/plan/plans.ts).
+import { AiCaps, PLANS, PlanId, plan_id_of } from '../plan/plans';
 
 // What the AI routes answer when AI is off (503), paused for the month (503), or the
 // account's email isn't verified (403)
@@ -35,7 +37,7 @@ export const UNKNOWN_MODEL_PRICE: ModelPrice = {
     cache_write: 12.5
 };
 
-export type AiTier = 'FREE' | 'STARTER' | 'PRO';
+export type AiTier = PlanId;
 
 export interface AiAllowance {
     tier: AiTier;
@@ -49,22 +51,11 @@ export interface AiAllowance {
     verified: boolean;
 }
 
-// Per account and UTC month (docs/PRICING.md 3.5)
-export const AI_ALLOWANCES: Record<
-    AiTier,
-    { questions: number; rows: number; budget_usd: number }
-> = {
-    FREE: { questions: 10, rows: 50, budget_usd: 0.05 },
-    STARTER: { questions: 300, rows: 1000, budget_usd: 1 },
-    PRO: { questions: 2000, rows: 10000, budget_usd: 5 }
-};
-
-// Today's plans until #183 brings the new plan constant
-const PLAN_TIERS: Record<string, AiTier> = {
-    FREE: 'FREE',
-    BASIC: 'STARTER',
-    PLUS: 'PRO',
-    PREMIUM: 'PRO'
+// Per account and UTC month (docs/PRICING.md 3.5), from the plan constant (#183)
+export const AI_ALLOWANCES: Record<AiTier, AiCaps> = {
+    FREE: PLANS.FREE.caps.ai,
+    STARTER: PLANS.STARTER.caps.ai,
+    PRO: PLANS.PRO.caps.ai
 };
 
 // Share of the server-wide budget at which the owner is told (Telegram)
@@ -74,11 +65,7 @@ export const usd_to_micros = (usd: number) => Math.round(usd * 1_000_000);
 
 /** The AI tier of a subscription id: SUB_FREE, SUB_TEST_PLUS, SUB_LIVE_BASIC... */
 export function ai_tier(subscription_id: string | null | undefined): AiTier {
-    if (!subscription_id) return 'FREE';
-    const plan = String(subscription_id)
-        .replace(/^SUB_(TEST_|LIVE_)?/, '')
-        .toUpperCase();
-    return PLAN_TIERS[plan] || 'FREE';
+    return plan_id_of(subscription_id);
 }
 
 /** What an account may use this month. An unverified account gets nothing. */

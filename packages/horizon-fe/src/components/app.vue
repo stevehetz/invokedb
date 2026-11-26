@@ -5,6 +5,7 @@ import '@/app-area.scss';
 
 import ViewBusContainer from '@/components/view-bus/view-bus-container';
 import Layout from '@/components/layout';
+import PlanLimitNotice from '@/components/plan-limit-notice';
 import { store } from '@/store';
 import { account_manager } from '@/core/context/account/account-manager';
 import { socket_service } from '@/core/ws/socket-service';
@@ -22,7 +23,8 @@ export default {
 
     components: {
         layout: Layout,
-        'view-bus-container': ViewBusContainer
+        'view-bus-container': ViewBusContainer,
+        'plan-limit-notice': PlanLimitNotice
     },
 
     async created() {
@@ -73,6 +75,7 @@ export default {
             </template>
         </layout>
         <view-bus-container></view-bus-container>
+        <plan-limit-notice v-if="account && !loading"></plan-limit-notice>
         <div v-if="!account && !loading" class="load-error">
             There was an error loading the page. Are you logged in?
         </div>

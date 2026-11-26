@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import { FileDirectory } from '@app/core/file-directory/file-directory.entity';
+import { Account } from '@app/core/account/account.entity';
+import { INTERNAL_EMAILS, PLANS, account_plan, parse_test_plans } from '@app/core/plan/plans';
 import { AuditManager } from '@app/core/audit/audit.manager';
 import {
-    AUDIT_KEEP_DAYS,
     AuditAction,
     AuditActor,
     AuditDetails,
@@ -13,6 +14,7 @@ import {
     ColumnChange,
     actor_of,
     audit_cutoff,
+    audit_prune_steps,
     encode_audit_cursor,
     new_audit_id,
     parse_audit_page,
@@ -22,7 +24,7 @@ import {
 import env from '@app/env';
 import logger from '@app/logger';
 
-// How often the processor deletes entries older than AUDIT_KEEP_DAYS
+// How often the processor deletes entries older than each plan keeps them
 const PRUNE_INTERVAL_MS = 60 * 60 * 1000;
 
 export interface AuditChange {
@@ -41,7 +43,9 @@ export class AuditService {
     constructor(
         @InjectRepository(FileDirectory)
         private readonly file_directory_repository: Repository<FileDirectory>,
-        private readonly audit_manager: AuditManager
+        private readonly audit_manager: AuditManager,
+        @InjectRepository(Account)
+        private readonly account_repository: Repository<Account>
     ) {
         if (env.IS_HORIZON_PRC) {
             setInterval(() => this.prune(), PRUNE_INTERVAL_MS);
@@ -142,15 +146,44 @@ export class AuditService {
                 return rest;
             }),
             next_cursor: docs.length > page.limit && last ? encode_audit_cursor(last) : null,
-            keep_days: AUDIT_KEEP_DAYS
+            // The account's plan's (#183)
+            keep_days: account_plan(await this.account_repository.findOneBy({ id: account_id }))
+                .caps.audit_keep_days
         };
+    }
+
+    // The accounts that keep entries longer than Free's 7 days: paid plans, internal accounts
+    // and test plans (HORIZON_TEST_PLANS). The others are on Free.
+    private async longer_retention() {
+        const emails = [
+            ...INTERNAL_EMAILS,
+            ...Object.keys(parse_test_plans(env.HORIZON_TEST_PLANS))
+        ];
+        const accounts = await this.account_repository.find({
+            where: [{ subscription_id: Not(IsNull()) }, { email: In(emails) }],
+            select: { id: true, email: true, email_verified: true, subscription_id: true }
+        });
+        return accounts
+            .map(a => ({ account_id: a.id, keep_days: account_plan(a).caps.audit_keep_days }))
+            .filter(a => a.keep_days > PLANS.FREE.caps.audit_keep_days);
     }
 
     async prune() {
         if (this.pruning) return;
         this.pruning = true;
         try {
-            const removed = await this.audit_manager.prune(audit_cutoff(Date.now()));
+            const now = Date.now();
+            const steps = audit_prune_steps(
+                await this.longer_retention(),
+                PLANS.FREE.caps.audit_keep_days
+            );
+            let removed = 0;
+            for (const step of steps) {
+                removed += await this.audit_manager.prune(
+                    audit_cutoff(now, step.days),
+                    step.except
+                );
+            }
             if (removed > 0) logger.info(`Audit log: ${removed} old entries deleted`);
         } catch (ex) {
             logger.error(`Audit log: old entries not deleted: ${ex && ex.message}`);

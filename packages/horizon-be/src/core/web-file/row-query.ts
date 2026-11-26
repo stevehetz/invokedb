@@ -14,6 +14,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 import { ObjectId } from 'mongodb';
 import { createHash } from 'crypto';
 import { parse_utc_date } from '../date';
+import { PLANS, PLAN_IDS } from '../plan/plans';
 
 export type QueryColumnType = 'string' | 'number' | 'date';
 
@@ -29,9 +30,9 @@ export interface QueryColumn {
 
 export const OPERATORS = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'contains', 'in', 'empty'];
 export const DEFAULT_QUERY_LIMIT = 100;
-// The largest page. The same for every plan until #137 sets limits per plan: change
-// max_query_limit() then.
-export const MAX_QUERY_LIMIT = 1000;
+// The largest page on any plan; each plan's own is its `query_page` (core/plan/plans.ts, #183),
+// which WebFileService passes to parse_row_query
+export const MAX_QUERY_LIMIT = Math.max(...PLAN_IDS.map(id => PLANS[id].caps.query_page));
 export const MAX_FILTERS = 20;
 export const MAX_SORT = 5;
 export const MAX_IN_VALUES = 100;
@@ -41,10 +42,6 @@ const QUERY_KEYS = ['filters', 'match', 'sort', 'fields', 'limit', 'cursor', 'ex
 const COUNT_KEYS = ['filters', 'match'];
 const FILTER_KEYS = ['column', 'op', 'value', 'case'];
 const ID = '_id';
-
-export function max_query_limit() {
-    return MAX_QUERY_LIMIT;
-}
 
 export interface SortKey {
     field: string;

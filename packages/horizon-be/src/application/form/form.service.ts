@@ -25,6 +25,7 @@ import {
     public_form
 } from '@app/core/form/form';
 import logger from '@app/logger';
+import { assert_room } from '@app/core/plan/plans';
 import { form_actor } from '@app/core/audit/audit';
 
 export const FORM_NOT_FOUND = "This form doesn't exist or has been deleted.";
@@ -114,11 +115,8 @@ export class FormService {
         const file = await this.owned_table(acct_id, b.file_id);
         const columns = await this.columns(acct_id, file.id);
         const settings = this.checked(() => parse_form_settings(b, columns)) as FormSettings;
-        if ((await this.form_manager.count(acct_id)) >= FORM_LIMITS.max_per_account) {
-            throw new ForbiddenException(
-                `An account can have at most ${FORM_LIMITS.max_per_account} forms`
-            );
-        }
+        // The plan's forms (#183): 403 `plan_limit`
+        assert_room(account, 'forms', await this.form_manager.count(acct_id));
         const now = this.now();
         const form = await this.form_manager.create({
             ...settings,

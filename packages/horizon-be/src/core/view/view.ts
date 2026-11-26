@@ -34,8 +34,7 @@ export const NUMBER_FILTER_TYPES = [
 export const ROW_NUM = 'row_num';
 
 export const VIEW_LIMITS = {
-    // Per table, until the plans in #137 set their own
-    max_per_table: 50,
+    // Views per table are the plan's (`views_per_table`, core/plan/plans.ts)
     max_name_length: 100,
     max_filters: 20,
     max_filter_value_length: 2000,

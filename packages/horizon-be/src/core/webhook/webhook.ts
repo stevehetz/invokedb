@@ -12,8 +12,7 @@ export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 export const TEST_EVENT = 'ping';
 
 export const WEBHOOK_LIMITS = {
-    // Per account, until the plans in #137 set their own
-    max_per_account: 10,
+    // Webhooks per account are the plan's (`webhooks`, core/plan/plans.ts)
     max_url_length: 2048,
     // Rows in one delivery; a bigger change is sent as several
     max_rows_per_delivery: 100,

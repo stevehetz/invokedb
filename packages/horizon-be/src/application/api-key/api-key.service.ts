@@ -21,6 +21,7 @@ import {
 } from '@app/core/api-key/api-key-rules';
 import { KeyRequestLogManager } from '@app/core/api-key/key-request-log.manager';
 import { MAX_LOGGED_REQUESTS } from '@app/core/api-key/key-request-log';
+import { account_plan, plan_limit_error } from '@app/core/plan/plans';
 
 // An account's API keys (#138): made, listed and revoked from the app (/api-key, session only),
 // and looked up by the bearer strategy for /api/v1.
@@ -85,9 +86,14 @@ export class ApiKeyService {
      */
     async requests(account_id: number, id: unknown) {
         const key = await this.owned(account_id, id);
+        // Request logs are for Starter and Pro (#183): on Free there are none, and `available`
+        // says why
+        const account = await this.account_repository.findOneBy({ id: account_id });
+        const available = account_plan(account).caps.key_limits_and_logs;
         return {
-            requests: await this.request_log.list(account_id, key.id),
-            max: MAX_LOGGED_REQUESTS
+            requests: available ? await this.request_log.list(account_id, key.id) : [],
+            max: MAX_LOGGED_REQUESTS,
+            available
         };
     }
 
@@ -127,8 +133,14 @@ export class ApiKeyService {
     /** `{ key, secret }`: `secret` is the key itself, shown this once and never stored. */
     async create(account_id: number, body: unknown) {
         // Keys need a verified email, like tables (#132)
-        assert_verified(await this.account_repository.findOneBy({ id: account_id }));
+        const account = await this.account_repository.findOneBy({ id: account_id });
+        assert_verified(account);
         const input = parse_new_key(body);
+        // A key's own rate limit is for Starter and Pro (#183): 403 `plan_limit` on Free
+        const { plan, caps } = account_plan(account);
+        if (input.rate_limit && !caps.key_limits_and_logs) {
+            throw plan_limit_error('key_limits_and_logs', 0, plan);
+        }
         const live = await this.api_key_repository.countBy({
             account_id,
             revoked_datetime: IsNull()

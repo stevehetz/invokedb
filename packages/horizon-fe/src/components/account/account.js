@@ -35,6 +35,26 @@ export default {
             this.account = account;
         });
         // Making a key here ticks the onboarding checklist's key step (#138, #143)
+        this.show_section();
+    },
+
+    watch: {
+        // A plan_limit notice opens this page at the usage, also when already here (#183)
+        '$route.query.section'() {
+            this.show_section();
+        }
+    },
+
+    methods: {
+        // ?section=usage (a plan_limit notice, #183)
+        show_section() {
+            if (this.$route.query.section !== 'usage') return;
+            this.$nextTick(() => {
+                const el = this.$el.querySelector('.subscription-form');
+                if (el)
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
     },
 
     beforeUnmount() {

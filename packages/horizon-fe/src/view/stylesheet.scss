@@ -477,11 +477,12 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     margin-bottom: 10px;
     text-align: center;
 }
+// The hero: the brand purple in light, the indigo glow in dark (the form pages' background)
 .home-page .banner {
-    background-color: $blue400;
+    background: var(--h-form-page-bg);
     display: block;
-    padding: 50px 0 50px 0;
-    margin: 40px 0;
+    padding: 72px 20px 80px;
+    margin: 0 0 40px;
     text-align: center;
 }
 .home-page .banner-content {
@@ -489,15 +490,64 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 18px;
     height: 100%;
     width: 100%;
     color: #ffffff;
 }
+.home-page .banner-label {
+    padding: 5px 14px;
+    border: solid 1px rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
 .home-page .banner-text {
-    font-size: 32px;
+    margin: 0;
+    max-width: 820px;
+    font-size: 48px;
+    line-height: 1.15;
     color: #ffffff;
-    font-weight: 300;
-    margin-bottom: 10px;
+    font-weight: 600;
+}
+.home-page .banner-subtext {
+    max-width: 640px;
+    font-size: 19px;
+    line-height: 1.5;
+    opacity: 0.9;
+}
+.home-page .banner-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+.home-page .banner-button {
+    padding: 11px 26px;
+    border: solid 1px rgba(255, 255, 255, 0.6);
+    border-radius: 6px;
+    color: #ffffff;
+    font-weight: bold;
+    text-decoration: none;
+}
+.home-page .banner-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.home-page .banner-button.primary {
+    background-color: #ffffff;
+    border-color: #ffffff;
+    color: #3a3fa8;
+}
+.home-page .banner-button.primary:hover {
+    background-color: #ececfb;
+}
+@media only screen and (max-width: 800px) {
+    .home-page .banner-text {
+        font-size: 34px;
+    }
 }
 .home-page .info {
     justify-content: space-between;

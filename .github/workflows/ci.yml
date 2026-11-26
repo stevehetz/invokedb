@@ -1,7 +1,7 @@
 # Checks every pull request and every push to main: backend build + lint + unit tests, the API
 # smoke test against a real backend (Postgres and Mongo as service containers), frontend build +
 # lint + typecheck (and no Sass deprecation warnings), the examples (npm client + Angular app),
-# shellcheck, and prettier. `npm run check` runs the same checks locally, minus the smoke test.
+# the Python client's tests (offline, and live in the smoke job), shellcheck, and prettier. `npm run check` runs the same checks locally, minus the smoke test.
 # Needs no secrets.
 #
 # pull_request (opened, each push to the PR's branch, reopened): one run per push, a person's PR
@@ -99,6 +99,13 @@ jobs:
           echo '::error::The backend did not answer on :8101 within 60 seconds'
           exit 1
       - run: node scripts/api-smoke.mjs http://127.0.0.1:8101 smoke.json
+      # The Python client's live tests (#257), against the same backend: they sign in as demo,
+      # make their own key and py_client_<random> table, and delete both. Stdlib only.
+      - name: Python client, live tests
+        working-directory: examples/invokedb-python
+        env:
+          INVOKEDB_TEST_BASE: http://127.0.0.1:8101
+        run: python3 --version && python3 -m unittest discover -s tests -v
       - name: Backend log
         if: failure()
         run: cat backend.log || true
@@ -149,6 +156,17 @@ jobs:
           cache-dependency-path: examples/${{ matrix.example }}/package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: npm run build
+
+  # The Python client (examples/invokedb-python, #218): its offline tests (a local stand-in
+  # server; the live ones run in the smoke job, #257). Stdlib only, the runner's python3.
+  python-client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/invokedb-python
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 --version && python3 -m unittest discover -s tests -v
 
   # deploy/*.sh run on the production server; scripts/*.sh on every dev machine. Settings in
   # .shellcheckrc. shellcheck is preinstalled on ubuntu-latest.

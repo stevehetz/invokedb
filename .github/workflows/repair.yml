@@ -1,6 +1,7 @@
 # When CI or CD fails on a branch of this repo (never a fork's), Claude reads the failed jobs'
-# logs and either opens a pull request with a fix (on a new claude/fix-... branch, targeting the
-# branch that failed; it never pushes to main), or, when the cause isn't in the code (e.g. the
+# logs and either pushes a fix (straight onto an agent PR's own branch, #135; otherwise in a pull
+# request on a new claude/fix-... branch targeting the branch that failed; it never pushes to
+# main), or, when the cause isn't in the code (e.g. the
 # deploy couldn't reach the server), opens an issue with its diagnosis. Runs on claude/ branches
 # are skipped, so a failing fix can't start a loop. Auth as in review.yml.
 #
@@ -61,6 +62,48 @@ jobs:
           cat "$GITHUB_OUTPUT"
           c=$(sed -n 's/^conclusion=//p' "$GITHUB_OUTPUT" | tail -1)
           if [ "$c" != failure ]; then echo "::notice::Run $RUN_ID ended '$c', not 'failure': nothing to repair"; fi
+      # Where the fix goes (#135). A fix PR into a PR's branch, merged by automerge.yml with the
+      # workflow token, starts no CI on that PR (and a dispatched run doesn't count, #40), so an
+      # agent PR's branch (the Claude app's own) gets the fix pushed straight onto it, as
+      # revise.yml does; that push starts the PR's CI and review. Anything else (main, the
+      # owner's branches) still gets a claude/fix-* PR.
+      - name: Decide where the fix goes
+        id: target
+        if: steps.run.outputs.conclusion == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.run.outputs.branch }}
+          MARKER: '<!-- repair-push -->'
+          MAX_PUSHES: 2
+        run: |
+          set -euo pipefail
+          pr=''
+          if [ "$BRANCH" != main ]; then
+            pr=$(gh pr list -R "$GITHUB_REPOSITORY" --head "$BRANCH" --state open \
+              --json number,labels --jq '[.[] | select(.labels | map(.name) | index("agent-pr"))][0].number // empty')
+          fi
+          # A direct push starts CI on the branch again, so a fix that fails would start another
+          # repair: at most MAX_PUSHES per PR (counted by the marker in repair's PR comments, like
+          # revise's rounds), and none once the PR is agent-stuck. Past that the fix goes in a
+          # claude/fix-* PR, which this workflow skips, so the chain ends there.
+          if [ -n "$pr" ]; then
+            stuck=$(gh pr view "$pr" -R "$GITHUB_REPOSITORY" --json labels \
+              --jq '.labels | map(.name) | index("agent-stuck") != null')
+            pushes=$(gh api "repos/$GITHUB_REPOSITORY/issues/$pr/comments" --paginate \
+              --jq "[.[] | select(.body | contains(\"$MARKER\"))] | length" | awk '{s+=$1} END {print s+0}')
+            if [ "$stuck" = true ] || [ "$pushes" -ge "$MAX_PUSHES" ]; then
+              echo "Agent PR #$pr: agent-stuck=$stuck, $pushes direct repair push(es) already: a fix PR instead"
+              pr=''
+            fi
+          fi
+          if [ -n "$pr" ]; then
+            echo "direct=true" >> "$GITHUB_OUTPUT"
+            echo "pr=$pr" >> "$GITHUB_OUTPUT"
+            echo "Agent PR #$pr: the fix is pushed onto $BRANCH"
+          else
+            echo "direct=false" >> "$GITHUB_OUTPUT"
+            echo "The fix goes in a claude/fix-* PR into $BRANCH"
+          fi
       - uses: actions/checkout@v7
         if: steps.run.outputs.conclusion == 'failure'
         with:
@@ -106,7 +149,19 @@ jobs:
             otherwise the test. You can't run it against production; check with the frontend
             build, lint and typecheck (and the backend's, if you change it).
 
-            If the cause is in this repo's code or config and you can fix it:
+            Where a fix goes: ${{ steps.target.outputs.direct == 'true' && format('ONTO THE BRANCH. `{0}` is the branch of agent PR #{1}, so push the fix straight onto it (see "Pushing onto the branch" below), not in a new PR.', steps.run.outputs.branch, steps.target.outputs.pr) || 'A NEW PR (steps 1 to 4 below).' }}
+
+            Pushing onto the branch (only when told so above):
+            a. Stay on the checked-out commit: `git switch -c repair-fix` is fine locally.
+            b. Make the smallest fix and check it as in step 2 below; run prettier as in step 3.
+            c. Commit, then `git push origin HEAD:${{ steps.run.outputs.branch }}`. If the push is
+               rejected because the branch moved, `git pull --rebase origin ${{ steps.run.outputs.branch }}`
+               and push again; never force-push.
+            d. `gh pr comment ${{ steps.target.outputs.pr }}` with the cause, the fix, how you
+               checked it, and a link to the failed run, ending with the line
+               `<!-- repair-push -->` exactly (it counts the direct pushes per PR).
+
+            If the cause is in this repo's code or config and you can fix it in a new PR:
             1. `git switch -c claude/fix-${{ steps.run.outputs.id }}`
             2. Make the smallest fix. Reproduce the failing command where you can (CI runs
                `npm ci` + build + lint in packages/horizon-be with --omit=optional, the same in
@@ -124,11 +179,12 @@ jobs:
             "${{ steps.run.outputs.workflow }} failed on ${{ steps.run.outputs.branch }}: <short cause>",
             with your diagnosis, the evidence from the logs, and what a person should do.
 
-            Never push to main or to `${{ steps.run.outputs.branch }}` directly, never touch secrets
+            Never push to main, never push to `${{ steps.run.outputs.branch }}` unless told to above
+            (an agent PR's branch), never force-push, never touch secrets
             or deploy/prod.env, and never weaken a check (skip a lint rule, delete a test,
             loosen CI) to make it pass. Add no AI attribution anywhere: no Co-Authored-By
             trailer in commits and no "Generated with" line in the PR or issue.
           claude_args: |
             --model claude-opus-5-5
             --max-turns 60
-            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(gh pr create:*),Bash(gh issue create:*),Bash(gh run view:*),Bash(gh run download:*)"
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Bash(gh pr create:*),Bash(gh pr comment:*),Bash(gh issue create:*),Bash(gh run view:*),Bash(gh run download:*)"

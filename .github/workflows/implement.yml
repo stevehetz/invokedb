@@ -44,14 +44,21 @@ jobs:
           info=$(gh issue view "$ISSUE" -R "$GITHUB_REPOSITORY" --json state,author,labels)
           fail() { echo "::error::#$ISSUE $1"; exit 1; }
           [ "$(jq -r .state <<<"$info")" = OPEN ] || fail "isn't open"
-          # Opened by the owner, or filed by the agent (agent-found, #69) and labelled by the owner
+          # Opened by the owner, or filed by the agent (agent-found, #69) and labelled by the owner.
+          # An agent-found bug (not security) is labelled by the workflow itself (#196, #197), as
+          # agent-queue.yml accepts it, so that label counts too (#261).
           author=$(jq -r .author.login <<<"$info")
           if [ "$author" != "$OWNER" ]; then
             [ "$author" = app/claude ] && jq -e '.labels | map(.name) | index("agent-found")' <<<"$info" >/dev/null ||
               fail "wasn't opened by $OWNER"
             by=$(gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE/events" --paginate \
               --jq '.[] | select(.event == "labeled" and .label.name == "agent") | .actor.login' | tail -n 1)
-            [ "$by" = "$OWNER" ] || fail "agent label wasn't added by $OWNER"
+            auto_bug=false
+            if jq -e '.labels | map(.name) | (index("bug") and (index("security") | not))' <<<"$info" >/dev/null; then
+              auto_bug=true
+            fi
+            [ "$by" = "$OWNER" ] || { [ "$auto_bug" = true ] && [ "$by" = "github-actions[bot]" ]; } ||
+              fail "agent label wasn't added by $OWNER"
           fi
           jq -e '.labels | map(.name) | index("agent")' <<<"$info" >/dev/null ||
             fail "has no agent label"

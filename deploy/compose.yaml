@@ -49,6 +49,9 @@ services:
     build:
       context: ../packages/horizon-fe
       dockerfile: ../../deploy/web.Dockerfile
+      # A new value on every deploy: the changelog is fetched again (web.Dockerfile, #259)
+      args:
+        CHANGELOG_STAMP: ${CHANGELOG_STAMP:-none}
     image: invokedb-web
     restart: unless-stopped
     entrypoint: ['/bin/sh', '/etc/caddy/entrypoint.sh']

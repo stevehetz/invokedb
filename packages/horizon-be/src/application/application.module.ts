@@ -31,6 +31,9 @@ import { AuditService } from './audit/audit.service';
 import { TwoFactorService } from './two-factor/two-factor.service';
 import { AccountExportService } from './account-export/account-export.service';
 import { UsageService } from './plan/usage.service';
+import { PlanStateService } from './plan/plan-state.service';
+import { IdleAccountService } from './plan/idle-account.service';
+import { AccountDeletionService } from './account/account-deletion.service';
 import { AdminAccessService } from './admin/admin-access.service';
 import { AdminService } from './admin/admin.service';
 import { ErrorTrackingService } from './error-tracking/error-tracking.service';
@@ -68,6 +71,9 @@ import { StatusService } from './status/status.service';
         TwoFactorService,
         AccountExportService,
         UsageService,
+        PlanStateService,
+        IdleAccountService,
+        AccountDeletionService,
         AdminAccessService,
         AdminService,
         ErrorTrackingService,
@@ -100,6 +106,7 @@ import { StatusService } from './status/status.service';
         TwoFactorService,
         AccountExportService,
         UsageService,
+        PlanStateService,
         AdminAccessService,
         AdminService,
         ErrorTrackingService,

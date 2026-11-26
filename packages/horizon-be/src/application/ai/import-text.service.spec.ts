@@ -39,6 +39,7 @@ function setup(opts: { verified?: boolean; available?: boolean; rows_left?: numb
     };
     const tracking_manager = {
         check_account_lock: jest.fn(async () => undefined),
+        check_not_read_only: jest.fn(async () => undefined),
         check_table_lock: jest.fn(async () => undefined)
     };
     const web_file_manager = {

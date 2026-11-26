@@ -118,6 +118,34 @@
         </a>
         <span v-if="resend.error" class="error">{{ resend.error }}</span>
     </div>
+    <div
+        class="plan-state-banner"
+        v-if="account && account.plan_state === 'read_only'"
+        role="alert"
+    >
+        <i class="fa fa-lock"></i>
+        <span>
+            Your account is over its plan's limits, so it's read-only: you can
+            read, export and delete data, but not add or change any. Delete down
+            to the limits, or upgrade.
+        </span>
+        <router-link to="/app/account?section=usage"
+            >See your usage</router-link
+        >
+        <router-link to="/pricing">Plans</router-link>
+    </div>
+    <div
+        class="plan-state-banner"
+        v-if="account && account.plan_state === 'grace'"
+        role="alert"
+    >
+        <i class="fa fa-exclamation-circle"></i>
+        <span>
+            Your last payment didn't go through. Everything keeps working until
+            {{ grace_end }}; after that the account moves to the Free plan.
+        </span>
+        <router-link to="/app/account">Account</router-link>
+    </div>
     <div class="body">
         <slot class="body-container" name="body">404 - Route not found</slot>
     </div>

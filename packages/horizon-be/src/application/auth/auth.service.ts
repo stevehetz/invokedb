@@ -29,6 +29,7 @@ import { verify_email_tmpl } from '@app/email/verify-email.template';
 import { signup_attempt_tmpl } from '@app/email/signup-attempt.template';
 import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
 import { TwoFactorService } from '../two-factor/two-factor.service';
+import { parse_plan_state } from '@app/core/plan/plan-state';
 import { AdminAccessService } from '../admin/admin-access.service';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -124,6 +125,9 @@ export class AuthService {
                 locked: account.locked,
                 locked_reason: account.locked_reason,
                 email_verified: is_verified(account),
+                // The plan state (#184), for the app's banner
+                plan_state: parse_plan_state(account.plan_state),
+                grace_ends_at: account.grace_ends_at || null,
                 // Shows the admin area's link (#277); its routes check again on every call
                 admin: await this.admin_access.is_admin_account(account),
                 // The account menu's plan, from the plan constant (#275)

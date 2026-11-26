@@ -83,6 +83,13 @@ export class AllExceptionFilter implements ExceptionFilter {
             json_response.plan = response.plan;
             json_response.upgrade_url = response.upgrade_url;
         }
+        // A write by a read-only account (#184): the caps it's over and where to upgrade
+        if (response && response.code === 'plan_read_only') {
+            json_response.code = 'plan_read_only';
+            json_response.over = response.over;
+            json_response.plan = response.plan;
+            json_response.upgrade_url = response.upgrade_url;
+        }
 
         // How long to wait, for a rate limit that knows (the /api/v1 request limit, #182)
         const res = ctx.getResponse<Response>();

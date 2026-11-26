@@ -23,7 +23,7 @@ import { AiColumnController } from './http/ai-column/ai-column.controller';
 import { AuditController } from './http/audit/audit.controller';
 import { TwoFactorController } from './http/two-factor/two-factor.controller';
 import { AccountExportController } from './http/account-export/account-export.controller';
-import { PlanController, UsageController } from './http/plan/plan.controller';
+import { PlanController, TestPlanController, UsageController } from './http/plan/plan.controller';
 import { AdminController } from './http/admin/admin.controller';
 import { AdminGuard } from './http/admin/admin.guard';
 import { ErrorReportController } from './http/error-report/error-report.controller';
@@ -58,6 +58,7 @@ import { WebsocketClient } from './ws/websocket-client';
         AccountExportController,
         PlanController,
         UsageController,
+        TestPlanController,
         AdminController,
         ErrorReportController,
         StatusController

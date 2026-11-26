@@ -75,7 +75,10 @@ function setup(
             email_verified: opts.email_verified !== false
         }))
     };
-    const tracking_manager = { check_account_lock: jest.fn(async () => undefined) };
+    const tracking_manager = {
+        check_account_lock: jest.fn(async () => undefined),
+        check_not_read_only: jest.fn(async () => undefined)
+    };
     const web_file_manager = {
         get_columns: jest.fn(async () => [
             { field: 'a', headerName: 'Name' },

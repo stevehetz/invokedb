@@ -149,6 +149,7 @@ export class AiColumnService {
         const account = await this.account_svc.get(account_id);
         if (!account) throw new NotFoundException();
         await this.tracking_manager.check_account_lock(account);
+        await this.tracking_manager.check_not_read_only(account);
         const file = await this.owned_table(account_id, b.table);
         const col_defs = await this.web_file_manager.get_columns(account_id, file.id);
         const others = await this.ai_columns.list(account_id, file.id);
@@ -243,6 +244,7 @@ export class AiColumnService {
         const account = await this.account_svc.get(account_id);
         if (!account) throw new NotFoundException();
         await this.tracking_manager.check_account_lock(account);
+        await this.tracking_manager.check_not_read_only(account);
         const file = await this.owned_table(account_id, file_id);
         await this.tracking_manager.check_table_lock(file.id);
         const col = await this.column(account_id, file.id, field);
@@ -285,8 +287,13 @@ export class AiColumnService {
                 await this.ai_columns.remove_table(account_id, file_id);
                 return;
             }
-            // The work claimed waits for a later turn, when the lock is gone
-            if (account.locked || file.locked) {
+            // The work claimed waits for a later turn, when the lock is gone (and while the
+            // account is read-only, #184: over its plan's caps, so nothing is written)
+            if (
+                account.locked ||
+                file.locked ||
+                (await this.tracking_manager.plan_state_of(account)) === 'read_only'
+            ) {
                 keep = true;
                 return;
             }

@@ -14,6 +14,8 @@ import {
     quota_month,
     seconds_to_next_month
 } from '../plan/plans';
+import { PlanState, parse_plan_state, plan_read_only_error } from '../plan/plan-state';
+import { activity_stale } from '../plan/idle';
 import { quota_level_to_send, quota_levels_up_to, QuotaLevel } from '../plan/quota-alert';
 import { EmailManager } from '@app/email/email.manager';
 import { api_quota_tmpl } from '@app/email/api-quota.template';
@@ -30,6 +32,17 @@ export const RESERVATION_TTL_MS = 10 * 60 * 1000;
 
 // How long an account's storage (dbStats) is reused before it's read again
 export const STORAGE_CACHE_MS = 30 * 1000;
+
+// How often an account's last API call is written (#184): the idle rule counts months
+export const API_CALL_RECORD_MS = 60 * 60 * 1000;
+
+/** What PlanStateService answers when it works out an account's state again (#184). */
+export interface PlanStateCheck {
+    state: PlanState;
+    over: string[];
+    // Whether it differs from the stored one
+    changed?: boolean;
+}
 
 /**
  * What the table count does to the account's lock. The account has one `locked` flag, so this
@@ -83,6 +96,77 @@ export class TrackingManager {
 
     // The clock, replaceable in tests
     now: () => number = () => Date.now();
+
+    // Works out an account's plan state again from what it holds (#184). PlanStateService sets
+    // it; it lives there because it needs the counts of forms, views, webhooks and URL sources.
+    private plan_state_refresher: ((account_id: number) => Promise<PlanStateCheck>) | null = null;
+
+    set_plan_state_refresher(fn: ((account_id: number) => Promise<PlanStateCheck>) | null) {
+        this.plan_state_refresher = fn;
+    }
+
+    /** The account's stored plan state (read again when the request's copy doesn't have it). */
+    async plan_state_of(account): Promise<PlanState> {
+        if (!account) return 'active';
+        if (account.plan_state !== undefined) return parse_plan_state(account.plan_state);
+        if (!account.id || !this.account_repository) return 'active';
+        const saved = await this.account_repository.findOneBy({ id: account.id });
+        return parse_plan_state(saved && saved.plan_state);
+    }
+
+    /**
+     * 403 `plan_read_only` when the account is read-only (#184): over its plan's caps after a
+     * downgrade or a lapse. Every write that adds or changes data calls it; reads, exports and
+     * deletes don't. A read-only account's state is worked out again first, so one that has
+     * deleted down to its caps can write again at once. Apart from the `locked` flag
+     * (check_account_lock): neither looks at the other.
+     */
+    async check_not_read_only(account) {
+        if ((await this.plan_state_of(account)) !== 'read_only') return;
+        let over: string[] = [];
+        if (this.plan_state_refresher && account.id) {
+            const fresh = await this.plan_state_refresher(account.id);
+            if (fresh.state !== 'read_only') {
+                account.plan_state = fresh.state;
+                return;
+            }
+            over = fresh.over;
+        }
+        const plan = await this.plan(account);
+        throw plan_read_only_error(plan.plan, over);
+    }
+
+    /** After a delete: a read-only account may be under its caps now (never fails the delete). */
+    private async recheck_after_delete(account) {
+        try {
+            if (!this.plan_state_refresher || !account || !account.id) return;
+            if ((await this.plan_state_of(account)) !== 'read_only') return;
+            const fresh = await this.plan_state_refresher(account.id);
+            account.plan_state = fresh.state;
+        } catch (ex) {
+            console.error(`Plan state not checked after a delete: ${ex && ex.message}`);
+        }
+    }
+
+    /**
+     * Records an `/api/v1` call for the idle rule (#184): at most once an hour per account, and
+     * a call voids the idle warnings. Never fails the call.
+     */
+    private async record_api_call(account) {
+        try {
+            if (!this.account_repository || !account || !account.id) return;
+            const now = this.now();
+            if (!activity_stale(account.last_api_call_at, now, API_CALL_RECORD_MS)) return;
+            const at = new Date(now);
+            account.last_api_call_at = at;
+            await this.account_repository.update(
+                { id: account.id },
+                { last_api_call_at: at, idle_warned_at: null, idle_final_warned_at: null }
+            );
+        } catch (ex) {
+            console.error(`Last API call not recorded: ${ex && ex.message}`);
+        }
+    }
 
     async get_tracking_row_count_collection(account) {
         return await this._collections.get_collection(account.id, 'tracking:row_count', {
@@ -426,6 +510,7 @@ export class TrackingManager {
                 HttpStatus.TOO_MANY_REQUESTS
             );
         }
+        await this.record_api_call(account);
 
         // The 80% and 100% emails (#274): only when the count reaches a level not yet marked
         // on the month's document, and never awaited by the call
@@ -506,6 +591,7 @@ export class TrackingManager {
      * other tables plus these would pass the rows-per-account cap.
      */
     public async validate_row_count(account, total_rows, file_id?) {
+        await this.check_not_read_only(account);
         const plan = await this.plan(account);
         await this.check_table_rows(account, total_rows, plan);
         if (!Number.isFinite(plan.caps.rows_per_account)) return;
@@ -551,6 +637,7 @@ export class TrackingManager {
         await this.update_table_lock(account, file_id, new_row_count);
         // Deletes free storage; read it again next time
         this.storage_cache.delete(account.id);
+        await this.recheck_after_delete(account);
     }
 
     // Recounts a table's rows after a bulk change (a URL re-sync, #144) and locks or unlocks it
@@ -567,6 +654,7 @@ export class TrackingManager {
     public async add_rows(account, data): Promise<() => Promise<void>> {
         const file_id = parseInt(data.file_id, 10);
         const rows_to_be_added = Number(data.rows_to_be_added) || 0;
+        await this.check_not_read_only(account);
         const plan = await this.plan(account);
         const holds: Hold[] = [{ key: `rows:${file_id}`, amount: rows_to_be_added }];
         const account_capped = Number.isFinite(plan.caps.rows_per_account);
@@ -605,6 +693,8 @@ export class TrackingManager {
     }
 
     public async add_columns(account, data) {
+        // Any column change, not only a new column (#184)
+        await this.check_not_read_only(account);
         const file_id = parseInt(data.file_id, 10);
         const cols_to_be_added = await this.count_columns_to_be_added(
             account,
@@ -617,6 +707,7 @@ export class TrackingManager {
 
     /** Columns made by a batch create: each one that isn't deleted is a new column. */
     public async create_columns(account, data) {
+        await this.check_not_read_only(account);
         const file_id = parseInt(data.file_id, 10);
         const columns = Array.isArray(data.columns) ? data.columns : [];
         const cols_to_be_added = columns.filter(c => c && c.deleted !== true).length;
@@ -629,6 +720,7 @@ export class TrackingManager {
      * cap. Answers the release: await it once the table is saved (or not).
      */
     public async add_table(account): Promise<() => Promise<void>> {
+        await this.check_not_read_only(account);
         const plan = await this.plan(account);
         return await this.reserve(account, [{ key: 'tables', amount: 1 }], async held => {
             await this.validate_table_count(account, held.tables, plan);
@@ -638,5 +730,6 @@ export class TrackingManager {
     public async deleted_table(account) {
         await this.update_account_lock(account, false);
         this.storage_cache.delete(account.id);
+        await this.recheck_after_delete(account);
     }
 }

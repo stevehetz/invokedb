@@ -302,8 +302,28 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   bus and `components/plan-limit-notice` links to the usage. `GET /plans` is public (the pricing
   page is built from it); `GET /usage` (session only, `core/plan/usage.ts`) feeds the Account
   page's meters. Deleting rows or tables never locks anything (only a plan change would; the
-  read-only state is #184). `HORIZON_TEST_PLANS` (set only by `smoke-env.sh`, never in
+  read-only state is below). `HORIZON_TEST_PLANS` (set only by `smoke-env.sh`, never in
   production) puts demo5, demo6 and demo7 on plans with tiny caps for `api-smoke.mjs`.
+- Plan state and idle accounts (#184, `docs/PRICING.md` 3.4): `account.plan_state` is
+  `active`, `grace` (failed payment, full access until `grace_ends_at`, 14 days, then Free) or
+  `read_only` (over the plan's caps), apart from `locked` (neither touches the other). Pure
+  rules in `core/plan/plan-state.ts`; `application/plan/plan-state.service.ts` works it out
+  from `GET /usage`'s numbers, stores it, sweeps every account daily in the processor (not the
+  `HORIZON_TEST_PLANS` ones) and is TrackingManager's refresher. Every write path calls
+  `TrackingManager.check_not_read_only` (403 `plan_read_only` with `over`): it's in `add_table`,
+  `add_rows`, `add_columns`, `create_columns`, `validate_row_count`, `WebFileService`'s
+  create/update paths and uploads, view/form/webhook/URL-import creation and AI column settings
+  and fills (the AI column processor waits while an account is read-only). A new write path
+  must call it too. A read-only account's state is worked out again on each refused write and
+  after deletes, so deleting down to the caps lifts it at once. Idle free accounts:
+  `core/plan/idle.ts` (pure) and `application/plan/idle-account.service.ts` (hourly in the
+  processor) send warnings at 5 months and a week before 6, then delete through
+  `AccountDeletionService` (the account's Mongo DB, its tracking documents, its Postgres rows).
+  Last sign-in is recorded by `SessionManager.create_session`, the last API call by
+  `TrackingManager.update_req_count` (hourly). Paid, internal and soft-deleted accounts are
+  never touched; without Mailgun (outside local mode) nobody is warned, so nobody is deleted.
+  `PUT`/`DELETE /test-plan` (404 unless `HORIZON_TEST_PLANS` lists the caller) lets the smoke
+  test move demo5 between plans.
 - Onboarding checklist (#143): `src/core/onboarding/` (pure logic + a manager storing one
   `tracking:onboarding:acct_<id>` document in the tracking DB, no Postgres change),
   `GET /onboarding`, `PUT /onboarding/steps/:step`, `PUT /onboarding/dismiss` (session only).

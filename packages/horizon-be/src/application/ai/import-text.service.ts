@@ -61,6 +61,8 @@ export class ImportTextService {
         const account = await this.account_svc.get(acct_id);
         if (!account) throw new NotFoundException();
         await this.tracking_manager.check_account_lock(account);
+        // Rows a read-only account (#184) couldn't save aren't made (nor charged)
+        await this.tracking_manager.check_not_read_only(account);
         const file = await this.ask_service.owned_table(acct_id, file_id);
         if (!this.ai_client.available()) throw new ServiceUnavailableException(AI_OFF_MESSAGE);
         if (!ai_allowance(account).verified) throw new ForbiddenException(AI_UNVERIFIED_MESSAGE);

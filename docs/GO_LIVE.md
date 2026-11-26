@@ -23,16 +23,10 @@ the lawyer's contact) out of this file and in the owner's own records.
 
 ## Steps
 
-### 1. Talk to the lawyer (one conversation covers most of this)
+### 1. Talk to the lawyer
 
-- [ ] Reply to the trademark renewal email: yes, renew.
-- [ ] Ask **who owns the trademark**. If it's the dissolved LLC, it needs assigning (to the new
-      LLC, ideally) and the assignment recorded at the USPTO before the renewal can be filed.
 - [ ] Decide who forms the new LLC: the lawyer, or the owner online (step 2).
 - [ ] Ask the lawyer to update the old **operating agreement** for the new LLC.
-- [ ] Send the specimens of use: JPEG screenshots of invokedb.com showing the InvokeDB name and
-      logo in commerce (home page, pricing page with the paid plans, the app). Claude can take
-      them.
 
 ### 2. Form the new LLC
 
@@ -57,12 +51,7 @@ the lawyer's contact) out of this file and in the owner's own records.
       Articles, the operating agreement and the owner's ID (some ask for a certificate of good
       standing, sold on the Ohio SOS business search).
 
-### 6. Trademark
-
-- [ ] Ownership sorted (assigned to the new LLC if needed).
-- [ ] Renewal filed by the lawyer before April 2027.
-
-### 7. Stripe live mode
+### 6. Stripe live mode
 
 - [ ] **Verify your business** in the InvokeDB Stripe account: the LLC's legal name and EIN, the
       owner as representative, the business bank account for payouts, statement descriptor
@@ -75,7 +64,17 @@ the lawyer's contact) out of this file and in the owner's own records.
 - [ ] Decide on sales tax: Stripe Tax, Stripe's Managed Payments (merchant of record, +3.5%), or
       neither for now (skipped at sandbox setup).
 
-### 8. The site
+### 7. The site
 
 - [ ] Update the Terms and Privacy pages' company name and address for the new LLC (an issue
       when the LLC exists).
+
+### 8. Trademark (last; renewal due by April 2027)
+
+- [ ] Reply to the lawyer's renewal email: yes, renew.
+- [ ] Ask **who owns the trademark**. If it's the dissolved LLC, it needs assigning (to the new
+      LLC, ideally) and the assignment recorded at the USPTO before the renewal can be filed.
+- [ ] Send the specimens of use: JPEG screenshots of invokedb.com showing the InvokeDB name and
+      logo in commerce (home page, pricing page with the paid plans, the app). Claude can take
+      them.
+- [ ] Renewal filed by the lawyer.

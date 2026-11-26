@@ -253,6 +253,13 @@ a:visited {
     font-family: inherit;
     font-size: 20px;
 }
+// Textareas (the contact message) match the one-line inputs above
+.el-textarea .el-textarea__inner {
+    background-color: var(--h-input-bg);
+    font-size: 20px;
+    line-height: 1.4;
+    padding: 8px 11px;
+}
 .el-input:focus {
     background-color: var(--h-input-focus-bg);
 }
@@ -288,6 +295,9 @@ a:visited {
     flex-shrink: 0;
     color: var(--h-text-2);
     background-color: var(--h-surface);
+    // Shows the card's edge on the dark theme's plain background
+    border: solid 1px var(--h-line);
+    box-shadow: 0 2px 8px var(--h-shadow);
     width: 100%;
     max-width: 500px;
     min-height: 200px;
@@ -656,7 +666,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background-color: var(--h-form-page-bg);
     color: #ffffff;
 }
 // The card grows with its content (the SSO buttons, an error message).
@@ -705,7 +715,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background-color: var(--h-form-page-bg);
     color: #ffffff;
 }
 .create-account-page .input-box {
@@ -751,7 +761,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background-color: var(--h-form-page-bg);
     color: #ffffff;
 }
 .verify-email-page .control-box {
@@ -777,7 +787,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background-color: var(--h-form-page-bg);
     color: #ffffff;
 }
 .forgot-password-page .input-box {
@@ -813,7 +823,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background-color: var(--h-form-page-bg);
     color: #ffffff;
 }
 .reset-password-page .info-box {
@@ -854,7 +864,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background-color: var(--h-form-page-bg);
     color: #ffffff;
 }
 .contact-page .panel-box {

@@ -93,6 +93,9 @@ $light: (
     input-focus-bg: #ffffff,
     tabs-bar: #e2e2e6,
     tab: #ececef,
+    // Behind the card of the site's sign-in, sign-up, password and contact pages: the brand
+    // purple in light; in dark the page's own background (the purple clashed with a dark card)
+    form-page-bg: #484ec0,
     // The site's pricing columns, Free to Pro
     tier-1: #e7e7f8,
     tier-2: #c9c9ec,
@@ -178,6 +181,7 @@ $dark: (
     input-focus-bg: #161616,
     tabs-bar: #1c1c1c,
     tab: #2b2b2b,
+    form-page-bg: #1c1c1c,
     tier-1: #2a2a3d,
     tier-2: #303052,
     tier-3: #383866,

@@ -487,6 +487,8 @@ export class WebFileManager {
     // `inserted`, if given, gets the new rows as stored (with their _id), for webhooks (#140)
     async batch_create(acct_id, file_id, web_file_type, data, inserted?: any[]) {
         data = assert_array_body(data);
+        // Mongo refuses an empty insertMany ("Batch cannot be empty"); nothing to add is a no-op
+        if (data.length === 0) return 0;
         data.forEach(row => this.validate_row(row));
         file_id = parseInt(file_id, 10);
         if (web_file_type === _c.MongoDbCollections.data_grid_row) {

@@ -866,6 +866,8 @@ export class WebFileService {
 
     private async batch_create(account, file_id, web_file_type, data, actor?: AuditActor) {
         data = assert_array_body(data);
+        // Nothing to add (e.g. Save with no new rows): no limits, webhooks or audit entries
+        if (data.length === 0) return 0;
         // Rows and columns alike, forms and the API included (#184)
         await this.tracking_manager.check_not_read_only(account);
         if (web_file_type === 'data_grid_column') {

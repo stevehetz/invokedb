@@ -15,6 +15,8 @@ Elsewhere:
   alerts, how to check it. `deploy/README.md`: the server and deploys.
 - `docs/INFRASTRUCTURE_PLAN.md`: the hosting direction (one server, keeping Mongo, a free tier
   then paid plans). `docs/PRICING.md`: tiers, limits, costs and their test plan (#137).
+  `docs/GO_LIVE.md`: the owner's checklist for taking real money (the business, bank account,
+  trademark and Stripe live mode).
   `docs/DEPENDENCY_PINS.md`: packages that only move by a rule. Feature ideas are issues on the
   board, not docs (`SAAS_PLAN.md`, `AI_IDEAS.md` and `CODE_REVIEW.md` were retired 2026-11-25).
 - The GitHub wiki has an Infrastructure page with the diagrams from `docs/images/`; the docs in
@@ -66,10 +68,11 @@ is merged and deployed unless it says otherwise. Details: `gh pr list --state me
 - **#184 shipped** (#280: read-only over-cap accounts, deleting idle free accounts).
 - **Open PRs:**
   - **#307** MCP server (above).
-  - **#153** Stripe: parked (`hold`, `agent-stuck`). Pricing is decided (`PRICING.md` 3.2), and
-    #294 dropped the old `subscription`/`stripe_env` tables it planned to reuse, so it needs a
-    fresh start: close it and let the agent redo #129 from the decided pricing when the owner
-    wants billing.
+  - **#310** Stripe billing (#129; replaces #153, closed): Checkout, Customer Portal, a signed
+    webhook that reads the plan from Stripe. Tested end to end in the Stripe sandbox
+    (2026-11-26). `needs-owner` (migration, `deploy/`); safe to merge before going live, since
+    billing stays off without keys. **Taking real money waits on the business:
+    `docs/GO_LIVE.md`** (new LLC, EIN, bank account, trademark renewal, then Stripe live mode).
 - **Queue (`agent`):** #268 (E2E transient 502) and **#279** (delete an account's data on account
   deletion). #279 is still `agent-stuck` from when it waited on #280, which has merged: remove
   `agent-stuck` to let the agent retry it (its PR must open with `hold`: it deletes data).

@@ -30,8 +30,17 @@ export interface AdminCandidate {
 }
 
 /**
- * An admin is an account on the allowlist, not deleted, with a verified email and two-factor
- * sign-in on (#214). All four, checked on every admin route.
+ * The second factor an admin needs (#288): our two-factor sign-in for a password account; an
+ * account with no password can only sign in through Google or GitHub, which hold its second
+ * factor (the owner's decision: trust the provider), so it passes.
+ */
+export function second_factor_ok(has_password: boolean, two_factor_on: boolean): boolean {
+    return !has_password || two_factor_on === true;
+}
+
+/**
+ * An admin is an account on the allowlist, not deleted, with a verified email and a second
+ * factor (`second_factor_ok`). All four, checked on every admin route.
  */
 export function is_admin(
     account: AdminCandidate | null | undefined,

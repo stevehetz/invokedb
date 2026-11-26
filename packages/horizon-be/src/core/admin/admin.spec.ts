@@ -15,6 +15,7 @@ import {
     parse_admin_emails,
     plan_change,
     plan_counts,
+    second_factor_ok,
     signups_per_day
 } from './admin';
 import { PLANS, PLAN_SUBSCRIPTIONS, account_plan } from '../plan/plans';
@@ -73,6 +74,18 @@ describe('is_admin', () => {
         expect(is_admin(null, true, emails)).toBe(false);
         expect(is_admin(owner, true, parse_admin_emails(''))).toBe(false);
         expect(is_admin({ ...owner, email: '' }, true, parse_admin_emails(''))).toBe(false);
+    });
+});
+
+describe('second_factor_ok (#288)', () => {
+    it('needs our two-factor sign-in on a password account', () => {
+        expect(second_factor_ok(true, true)).toBe(true);
+        expect(second_factor_ok(true, false)).toBe(false);
+    });
+
+    it('lets a Google/GitHub-only account (no password) through', () => {
+        expect(second_factor_ok(false, false)).toBe(true);
+        expect(second_factor_ok(false, true)).toBe(true);
     });
 });
 

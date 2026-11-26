@@ -3,12 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Account } from '@app/core/account/account.entity';
 import { TwoFactorService } from '../two-factor/two-factor.service';
-import { is_admin, parse_admin_emails } from '@app/core/admin/admin';
+import { is_admin, parse_admin_emails, second_factor_ok } from '@app/core/admin/admin';
 import env from '@app/env';
 
 // Who may use the admin area (#277): an account on HORIZON_ADMIN_EMAILS with a verified email
-// and two-factor sign-in on. AdminGuard asks on every admin route; `GET /auth/authorize` asks so
-// the app shows the Admin link.
+// and a second factor: our two-factor sign-in, or no password at all (it signs in only through
+// Google/GitHub, which hold its second factor, #288). AdminGuard asks on every admin route;
+// `GET /auth/authorize` asks so the app shows the Admin link.
 @Injectable()
 export class AdminAccessService {
     constructor(
@@ -36,9 +37,14 @@ export class AdminAccessService {
     }
 
     private async check(account: Account | null, emails: Set<string>) {
-        // The cheap checks first: two-factor is a query
+        // The cheap checks first: two-factor is a query, and only a password account needs it
         if (!is_admin(account, true, emails)) return null;
-        const two_factor = await this.two_factor_service.is_enabled(account.id);
-        return is_admin(account, two_factor, emails) ? account : null;
+        const has_password = !!account.password_hash;
+        const two_factor = has_password
+            ? await this.two_factor_service.is_enabled(account.id)
+            : false;
+        return is_admin(account, second_factor_ok(has_password, two_factor), emails)
+            ? account
+            : null;
     }
 }

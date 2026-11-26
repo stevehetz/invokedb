@@ -18,6 +18,7 @@ import { URL_JOB_EVENTS, UrlImportService } from '../url-import/url-import.servi
 import { AccountExportService } from '../account-export/account-export.service';
 import { EXPORT_JOB_EVENT } from '@app/core/account-export/account-export';
 import { AiColumnManager } from '@app/core/ai-column/ai-column.manager';
+import { report_error } from '@app/core/error-tracking/report';
 
 const fs = require('fs');
 const path = require('path');
@@ -54,9 +55,10 @@ export class WebFilePrcService {
 
     start_url_sync_scheduler() {
         setInterval(() => {
-            this.queue_due_url_syncs().catch(ex =>
-                logger.error(`URL sync scheduler failed: ${ex && ex.message}`)
-            );
+            this.queue_due_url_syncs().catch(ex => {
+                logger.error(`URL sync scheduler failed: ${ex && ex.message}`);
+                void report_error('processor', ex, { route: 'URL sync scheduler' });
+            });
         }, URL_SYNC_CHECK_INTERVAL_MS);
     }
 
@@ -187,6 +189,10 @@ export class WebFilePrcService {
                 }
             } catch (ex) {
                 logger.error(`job ${job.id} failed: ${ex && ex.message}`);
+                void report_error('processor', ex, {
+                    route: `job ${job.event}`,
+                    account_id: job.account_id
+                });
             }
 
             logger.debug(`done proccessing job, checking for another in 5s`);

@@ -48,6 +48,9 @@ export default defineConfig({
         extensions: ['.mjs', '.js', '.json', '.vue']
     },
     build: {
+        // Source maps next to the assets, with no comment pointing browsers at them: the admin's
+        // Errors page reads them to show a frontend error's stack in the source (#212)
+        sourcemap: 'hidden',
         chunkSizeWarningLimit: Math.max(
             CHUNK_BUDGET_KB,
             ...Object.values(CHUNK_BUDGETS_KB)

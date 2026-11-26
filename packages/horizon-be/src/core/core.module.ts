@@ -33,6 +33,8 @@ import { AiSpend } from './ai/ai-spend';
 import { AiColumnManager } from './ai-column/ai-column.manager';
 import { AuditManager } from './audit/audit.manager';
 import { AccountExportManager } from './account-export/account-export.manager';
+import { ErrorTrackingManager } from './error-tracking/error-tracking.manager';
+import { StatusManager } from './status/status.manager';
 
 @Module({
     imports: [
@@ -72,6 +74,8 @@ import { AccountExportManager } from './account-export/account-export.manager';
         AiColumnManager,
         AuditManager,
         AccountExportManager,
+        ErrorTrackingManager,
+        StatusManager,
         WebsocketClientStore
     ],
     exports: [
@@ -95,6 +99,8 @@ import { AccountExportManager } from './account-export/account-export.manager';
         AiColumnManager,
         AuditManager,
         AccountExportManager,
+        ErrorTrackingManager,
+        StatusManager,
         WebsocketClientStore,
         TypeOrmModule
     ]

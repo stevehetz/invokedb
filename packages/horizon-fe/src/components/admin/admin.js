@@ -14,6 +14,8 @@ import {
     usd_label
 } from '@/core/context/admin/admin';
 import AccountDetail from './account-detail/index.vue';
+import AdminErrors from './errors/index.vue';
+import AdminStatus from './status/index.vue';
 
 const PAGE_SIZE = 25;
 
@@ -27,11 +29,12 @@ function message_of(ex, fallback) {
 export default defineComponent({
     name: 'Admin',
 
-    components: { AccountDetail },
+    components: { AccountDetail, AdminErrors, AdminStatus },
 
     data() {
         return {
-            tab: 'overview',
+            // An error's link (?error=<id>, as in its Telegram alert) opens the Errors tab
+            tab: this.$route.query.error ? 'errors' : 'overview',
             /** @type {any} */
             overview: null,
             overview_error: '',
@@ -61,6 +64,14 @@ export default defineComponent({
             return Number.isInteger(id) && id > 0 ? id : null;
         },
 
+        /** @returns {string | null} the error shown, from ?error= (#212) */
+        error_id() {
+            const id = this.$route.query.error;
+            return typeof id === 'string' && /^[0-9a-f]{24}$/.test(id)
+                ? id
+                : null;
+        },
+
         bars() {
             return this.overview ? signup_bars(this.overview.signups) : [];
         },
@@ -85,8 +96,15 @@ export default defineComponent({
         }
     },
 
+    watch: {
+        /** @param {string | null} id */
+        error_id(id) {
+            if (id) this.tab = 'errors';
+        }
+    },
+
     mounted() {
-        this.load_overview();
+        if (this.tab === 'overview') this.load_overview();
     },
 
     beforeUnmount() {
@@ -134,7 +152,8 @@ export default defineComponent({
         /** @param {string} tab */
         show_tab(tab) {
             this.tab = tab;
-            if (this.account_id) this.$router.push({ query: {} });
+            if (this.account_id || this.error_id)
+                this.$router.push({ query: {} });
             if (tab === 'accounts' && !this.list) this.load_list();
             if (tab === 'overview') this.load_overview();
         },
@@ -192,6 +211,15 @@ export default defineComponent({
         /** @param {number} id */
         open_account(id) {
             this.$router.push({ query: { account: String(id) } });
+        },
+
+        /** @param {string} id */
+        open_error(id) {
+            this.$router.push({ query: { error: id } });
+        },
+
+        close_error() {
+            this.$router.push({ query: {} });
         },
 
         close_account() {

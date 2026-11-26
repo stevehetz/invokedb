@@ -1,5 +1,8 @@
 import { Body, Controller, Get, Param, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { AdminService } from '@app/application/admin/admin.service';
+import { ErrorTrackingService } from '@app/application/error-tracking/error-tracking.service';
+import { StatusService } from '@app/application/status/status.service';
+import { WebsocketClient } from '@app/web/ws/websocket-client';
 import { AdminGuard } from './admin.guard';
 
 // The admin area (#277), for admins only (AdminGuard: anyone else gets 404). Answers only what
@@ -7,7 +10,41 @@ import { AdminGuard } from './admin.guard';
 @Controller('admin')
 @UseGuards(AdminGuard)
 export class AdminController {
-    constructor(private readonly admin_service: AdminService) {}
+    constructor(
+        private readonly admin_service: AdminService,
+        private readonly error_tracking: ErrorTrackingService,
+        private readonly status_service: StatusService,
+        private readonly ws_client: WebsocketClient
+    ) {}
+
+    /** The Errors page (#212): `?source=api|processor|frontend&page=&limit=`, last seen first. */
+    @Get('errors')
+    async errors(@Query() query) {
+        return await this.error_tracking.list(query);
+    }
+
+    /** One error, with its latest stack. */
+    @Get('errors/:id')
+    async error(@Param('id') id: string) {
+        return await this.error_tracking.get(id);
+    }
+
+    /** The public status page's answer, for the admin's Status tab. */
+    @Get('status')
+    async status() {
+        return await this.status_service.status(this.ws_client.ready());
+    }
+
+    /** `{ message, level?: 'info' | 'degraded' | 'outage' }`: the note on the status page. */
+    @Post('status/incident')
+    async set_incident(@Body() body) {
+        return await this.status_service.set_incident(body);
+    }
+
+    @Post('status/incident/clear')
+    async clear_incident() {
+        return await this.status_service.clear_incident();
+    }
 
     /** Sign-ups, active accounts, plans, totals, AI spend against the budget, the E2E test. */
     @Get('overview')

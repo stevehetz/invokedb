@@ -1,0 +1,203 @@
+// The colour tokens (#290): every colour in both areas' stylesheet.scss is one of these CSS
+// variables, with a light and a dark value. app-area.scss and view/site-area.scss put `light`
+// on their `html.<area>` and `dark` on `html.<area>[data-theme='dark']`; core/theme.js sets
+// `data-theme` (and Element Plus's `dark` class): the app from the user's choice, the site from
+// the device, before first paint (index.html).
+// Text tokens are checked against WCAG AA (4.5:1) on the surfaces they're used on.
+// Add a token here (both maps) rather than a literal colour in stylesheet.scss.
+
+$light: (
+    // The page behind panes, and the chrome around it (header, tree, top bars)
+    bg: #f2f2f4,
+    chrome: #ffffff,
+    chrome-2: #f7f7f8,
+    topbar: #f1f1f4,
+    chrome-line: #dcdce0,
+    chrome-text: #1f1f1f,
+    chrome-muted: #5f5f66,
+    chrome-hover: #e4e4ea,
+    chrome-btn: #ffffff,
+    // Menus that pop over the chrome
+    popper: #ffffff,
+    popper-text: #1f1f1f,
+    popper-hover: #ececf0,
+    // Pages, dialogs and panels
+    surface: #ffffff,
+    surface-2: #f5f5f6,
+    surface-3: #e8e8ec,
+    line: #e2e2e2,
+    line-strong: #b7b7b7,
+    text: #1f1f1f,
+    text-2: #2b2b2b,
+    text-3: #464646,
+    muted: #636363,
+    faint: #767676,
+    shadow: rgba(0, 0, 0, 0.18),
+    // Brand and status
+    link: #484ec0,
+    accent: #6858ab,
+    accent-2: #575bc0,
+    accent-text: #4b3a8c,
+    danger: #b3302a,
+    success: #2a7d4c,
+    warning: #8f5f00,
+    warning-text: #5c4a12,
+    info: #1f6fcc,
+    info-text: #4a6d94,
+    'teal': #2f7a69,
+    icon-cyan: #1d8fb3,
+    icon-green: #2f8a55,
+    tint-accent: #f1f0fb,
+    tint-info: #e3effc,
+    tint-success: #e0f3e2,
+    tint-warning: #fff4d6,
+    tint-danger: #f8e1e1,
+    // Code blocks stay dark in both themes
+    code-bg: #2b2b2b,
+    code-text: #e9e9e9,
+    // Views
+    kanban-col: #e4e4e9,
+    kanban-card: #ffffff,
+    // The grid
+    grid-header: #e9e9ee,
+    grid-header-text: #1f1f1f,
+    grid-header-muted: #555555,
+    grid-header-line: #d0d0d6,
+    grid-type-bg: #dcdce2,
+    grid-filter-input: #ffffff,
+    grid-row-even: #ffffff,
+    grid-row-odd: #f3f3f5,
+    grid-row-selected: #d4eef1,
+    grid-row-new: #e0f3e2,
+    grid-row-new-selected: #c8eacc,
+    grid-index: #e9e9ee,
+    grid-index-text: #555555,
+    grid-focus: #1a8fd8,
+    grid-edit: #2a9d5c,
+    // Buttons and inputs
+    btn-border: #cccccc,
+    btn-bg: #ffffff,
+    btn-text: #4f4f4f,
+    btn-hover: #f4f4f4,
+    btn-green: #1d7a33,
+    btn-red: #c23a26,
+    btn-orange: #a3470f,
+    btn-blue: #1a63ba,
+    btn-purple: #5b4ccc,
+    btn-white: #3a3a3a,
+    dialog-head: #ececf0,
+    dialog-head-text: #1f1f1f,
+    input-bg: #f5f5f5,
+    input-focus-bg: #ffffff,
+    tabs-bar: #e2e2e6,
+    tab: #ececef,
+    // The site's pricing columns, Free to Pro
+    tier-1: #e7e7f8,
+    tier-2: #c9c9ec,
+    tier-3: #b1b1ec,
+    tier-4: #9494da
+);
+
+$dark: (
+    bg: #1c1c1c,
+    chrome: #232323,
+    chrome-2: #2f2f2f,
+    topbar: #353535,
+    chrome-line: #161616,
+    chrome-text: #ffffff,
+    chrome-muted: #b3b3b3,
+    chrome-hover: #4a4b4d,
+    chrome-btn: #262626,
+    popper: #3d3d3d,
+    popper-text: #ffffff,
+    popper-hover: #5a5a5a,
+    surface: #232323,
+    surface-2: #2b2b2b,
+    surface-3: #383838,
+    line: #3c3c3c,
+    line-strong: #5c5c5c,
+    text: #ececec,
+    text-2: #dcdcdc,
+    text-3: #c4c4c4,
+    muted: #a8a8a8,
+    faint: #8c8c8c,
+    shadow: rgba(0, 0, 0, 0.6),
+    link: #9da1f3,
+    accent: #8e7fe0,
+    accent-2: #9da1f3,
+    accent-text: #c4bbf5,
+    danger: #f08078,
+    success: #5cc98a,
+    warning: #e3aa3c,
+    warning-text: #f0d58c,
+    info: #6bb4f0,
+    info-text: #9cc3ec,
+    'teal': #5cc0a8,
+    icon-cyan: #6bcbe8,
+    icon-green: #51a272,
+    tint-accent: #2e2b45,
+    tint-info: #1e3147,
+    tint-success: #1f3a26,
+    tint-warning: #3a3220,
+    tint-danger: #452626,
+    code-bg: #161616,
+    code-text: #e9e9e9,
+    kanban-col: #2b2b2b,
+    kanban-card: #3a3a3a,
+    grid-header: #404040,
+    grid-header-text: #ffffff,
+    grid-header-muted: #c5c5c5,
+    grid-header-line: #565656,
+    grid-type-bg: #2f2f2f,
+    grid-filter-input: #555555,
+    grid-row-even: #262626,
+    grid-row-odd: #2e2e2e,
+    grid-row-selected: #1d4249,
+    grid-row-new: #1f3a26,
+    grid-row-new-selected: #2a5233,
+    grid-index: #404040,
+    grid-index-text: #dcdcdc,
+    grid-focus: #1fe0ff,
+    grid-edit: #82ffb4,
+    btn-border: #555555,
+    btn-bg: #2f2f2f,
+    btn-text: #dcdcdc,
+    btn-hover: #3a3a3a,
+    btn-green: #4ad257,
+    btn-red: #ff7d68,
+    btn-orange: #f58a55,
+    btn-blue: #5aaeff,
+    btn-purple: #a597ff,
+    btn-white: #e8e8e8,
+    dialog-head: #2f2f2f,
+    dialog-head-text: #ffffff,
+    input-bg: #1c1c1c,
+    input-focus-bg: #161616,
+    tabs-bar: #1c1c1c,
+    tab: #2b2b2b,
+    tier-1: #2a2a3d,
+    tier-2: #303052,
+    tier-3: #383866,
+    tier-4: #43437a
+);
+
+@mixin tokens($map) {
+    @each $name, $value in $map {
+        --h-#{$name}: #{$value};
+    }
+}
+
+// Element Plus's dark mode (its `html.dark` variables) with its surfaces and text on the tokens,
+// so its dialogs, inputs and dropdowns match the rest of the page
+@mixin element-dark-surfaces {
+    --el-bg-color: var(--h-surface);
+    --el-bg-color-overlay: var(--h-surface);
+    --el-bg-color-page: var(--h-bg);
+    --el-fill-color-blank: var(--h-surface);
+    --el-text-color-primary: var(--h-text);
+    --el-text-color-regular: var(--h-text-2);
+    --el-text-color-secondary: var(--h-muted);
+    --el-border-color: var(--h-line-strong);
+    --el-border-color-light: var(--h-line);
+    --el-border-color-lighter: var(--h-line);
+}

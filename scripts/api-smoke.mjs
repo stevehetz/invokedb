@@ -36,7 +36,8 @@
 // each in its history), checks data export (#215: the processor's zip has every table as CSV and JSON and the
 // settings without webhook secrets; one at a time; demo2 and API keys can't download it), checks the
 // audit log (#217: app and API key changes per table and per account, paging, demo2 and API keys
-// locked out), checks the plans (#183: public GET /plans; on demo7, put on Free with tiny caps by
+// locked out), checks the light/dark theme choice (#290: saved and answered by authorize, bad
+// values, API keys and no token refused), checks the plans (#183: public GET /plans; on demo7, put on Free with tiny caps by
 // smoke-env.sh's HORIZON_TEST_PLANS, every cap refused on each path with 403 `plan_limit`, the
 // monthly API quota with 429; demo6 on Starter; GET /usage matches and is the caller's own),
 // checks the read-only state (#184: demo5 moved from Pro to a tiny Free by the test-only
@@ -142,6 +143,29 @@ async function make_key(name, tok, body) {
 me.api_key = (
     await make_key('api_key_create', token, { name: 'smoke', access: 'read_write' })
 )?.secret;
+// The app's light/dark theme (#290): saved on the account, answered by authorize; only the
+// three choices, and only with a session (not an API key)
+check('theme_authorize', ['system', 'light', 'dark'].includes(me?.theme), me?.theme);
+await call('theme_set_dark', 'PUT', '/account/theme', { token, body: { theme: 'dark' } });
+const theme_me = await call('theme_authorize_dark', 'GET', `/auth/authorize?token=${token}`);
+check('theme_saved', theme_me?.theme === 'dark', theme_me?.theme);
+await call('theme_bad_value', 'PUT', '/account/theme', {
+    token,
+    body: { theme: 'purple' },
+    expectFail: true
+});
+await call('theme_api_key', 'PUT', '/account/theme', {
+    token: me.api_key,
+    body: { theme: 'light' },
+    expectFail: true
+});
+await call('theme_no_token', 'PUT', '/account/theme', {
+    body: { theme: 'light' },
+    expectFail: true
+});
+const theme_after = await call('theme_authorize_after', 'GET', `/auth/authorize?token=${token}`);
+check('theme_unchanged_by_refused', theme_after?.theme === 'dark', theme_after?.theme);
+await call('theme_restore', 'PUT', '/account/theme', { token, body: { theme: me?.theme } });
 await call('authorize_no_token', 'GET', '/auth/authorize');
 await call('confirm_reset_no_token', 'GET', '/auth/confirm-reset-token', { expectFail: true });
 await call('unauth_web_file', 'POST', '/web-file/data_grid_row/1?skip=0&limit=1', {

@@ -12,7 +12,8 @@
 // to a tasks table, fill a cell from its picker and open the linked table (#147), check the
 // schema diagram draws both tables and the link and opens a table (#208), generate rows
 // and make a table from a description (#148; only against the Anthropic stub, so skipped against
-// production), then delete the table through the UI and log out. Stops at the first failing step and saves a screenshot.
+// production), switch the theme to dark and light and back (#290), then delete the table
+// through the UI and log out. Stops at the first failing step and saves a screenshot.
 //
 // URLs come from the same env vars the apps use, so load an env file first. Best run against
 // the throwaway stack described in .agents/skills/verify-frontend/SKILL.md, not your own data:
@@ -1711,6 +1712,66 @@ try {
         await confirm.getByRole('button', { name: 'Confirm' }).click();
         await page.locator('.el-tabs__item', { hasText: TABLE }).waitFor({ state: 'detached' });
         check((await find_tables(be_s)).length === 0, 'table still exists in the backend');
+    });
+
+    // Light and dark (#290): the account menu's choice sets <html>'s data-theme and Element
+    // Plus's `dark` class at once, turns the app's surfaces dark, and is saved on the account.
+    // The account's own choice is put back at the end (production runs as a test account).
+    await step('theme', async () => {
+        const s = await be_session();
+        const before = (await be('GET', `/auth/authorize?token=${s.token}`)).theme || 'system';
+        const html_state = () =>
+            page.evaluate(() => ({
+                theme: document.documentElement.dataset.theme,
+                dark_class: document.documentElement.classList.contains('dark'),
+                stored: localStorage.getItem('invokedb:theme'),
+                // The header's background: one of the app's surfaces
+                header: getComputedStyle(document.querySelector('.layout > .header'))
+                    .backgroundColor
+            }));
+        const lightness = rgb => {
+            const [r, g, b] = (rgb.match(/\d+/g) || []).map(Number);
+            return (Math.max(r, g, b) + Math.min(r, g, b)) / 2 / 255;
+        };
+        const choose = async choice => {
+            const button = page.locator(`.account-menu-popper .theme-${choice}`);
+            if (!(await button.isVisible())) {
+                await page.locator('.layout .account-menu-button').click();
+            }
+            await button.click();
+            await page.waitForFunction(c => localStorage.getItem('invokedb:theme') === c, choice);
+        };
+        const saved = async want => {
+            for (let i = 0; i < 20; i++) {
+                const me = await be('GET', `/auth/authorize?token=${s.token}`);
+                if (me.theme === want) return true;
+                await page.waitForTimeout(250);
+            }
+            return false;
+        };
+
+        await choose('dark');
+        const dark = await html_state();
+        results.observed.theme_dark = { ...dark, header: lightness(dark.header) < 0.3 };
+        check(
+            dark.theme === 'dark' && dark.dark_class,
+            `dark theme not applied: ${JSON.stringify(dark)}`
+        );
+        check(lightness(dark.header) < 0.3, `the header isn't dark: ${dark.header}`);
+        check(await saved('dark'), 'the dark theme was not saved on the account');
+
+        await choose('light');
+        const light = await html_state();
+        results.observed.theme_light = { ...light, header: lightness(light.header) > 0.7 };
+        check(
+            light.theme === 'light' && !light.dark_class,
+            `light theme not applied: ${JSON.stringify(light)}`
+        );
+        check(lightness(light.header) > 0.7, `the header isn't light: ${light.header}`);
+
+        await choose(before);
+        check(await saved(before), `the account's theme (${before}) was not put back`);
+        await page.keyboard.press('Escape');
     });
 
     // Signing out is in the account menu at the top right

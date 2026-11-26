@@ -31,6 +31,7 @@ import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
 import { TwoFactorService } from '../two-factor/two-factor.service';
 import { parse_plan_state } from '@app/core/plan/plan-state';
 import { AdminAccessService } from '../admin/admin-access.service';
+import { account_theme } from '@app/core/theme/theme';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -131,7 +132,9 @@ export class AuthService {
                 // Shows the admin area's link (#277); its routes check again on every call
                 admin: await this.admin_access.is_admin_account(account),
                 // The account menu's plan, from the plan constant (#275)
-                plan: authorize_plan(account)
+                plan: authorize_plan(account),
+                // The app's light/dark choice (#290)
+                theme: account_theme(account.theme)
             };
 
             return res;

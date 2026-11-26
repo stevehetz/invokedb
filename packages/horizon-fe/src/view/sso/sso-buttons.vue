@@ -65,14 +65,14 @@ export default {
     gap: 0.6em;
     margin-bottom: 0.75em;
     padding: 0.6em 1em;
-    border: solid 1px #dadada;
+    border: solid 1px var(--h-line-strong);
     border-radius: 3px;
-    color: #2b2b2b;
+    color: var(--h-text-2);
     font-weight: bold;
     text-decoration: none;
 }
 .sso-button:hover {
-    background-color: #f5f5f5;
+    background-color: var(--h-surface-2);
 }
 .sso-button i {
     font-size: 1.2em;
@@ -82,12 +82,12 @@ export default {
     align-items: center;
     gap: 0.75em;
     margin: 0.5em 0 1em;
-    color: #8b8b8b;
+    color: var(--h-muted);
 }
 .sso-divider::before,
 .sso-divider::after {
     content: '';
     flex: 1;
-    border-top: solid 1px #dadada;
+    border-top: solid 1px var(--h-line);
 }
 </style>

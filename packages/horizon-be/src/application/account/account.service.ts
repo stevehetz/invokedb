@@ -6,6 +6,7 @@ import { Session } from '@app/core/session/session.entity';
 import { AccountManager } from '@app/core/account/account.manager';
 import { AccountUpdateDto } from './dto/account-update.dto';
 import { AccountPassChangeDto } from './dto/account-pass-change.dto';
+import type { Theme } from '@app/core/theme/theme';
 
 @Injectable()
 export class AccountService {
@@ -25,6 +26,10 @@ export class AccountService {
     async update(account_id, update_dto: AccountUpdateDto) {
         await this.account_repository.update(account_id, update_dto);
         return account_id;
+    }
+
+    async set_theme(account_id: number, theme: Theme) {
+        await this.account_repository.update({ id: account_id }, { theme });
     }
 
     async change_password(account_id: number, passwords_dto: AccountPassChangeDto) {

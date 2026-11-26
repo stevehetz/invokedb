@@ -2,6 +2,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 import { toggle_page_overlay } from '@/components/_page/page-overlay';
+import { set_theme_area } from '@/core/theme';
 
 // Pages are loaded lazily so each area's code (ag-grid, highlight.js, ...) stays out of the
 // entry chunk. All CSS is imported by the two shells below, so this doesn't change CSS order.
@@ -147,8 +148,19 @@ router.afterEach((to, from, failure) => {
         const html = document.documentElement.classList;
         html.toggle('app-area', in_app);
         html.toggle('site-area', !in_app);
+        set_theme_area(in_app ? 'app' : form_theme(to) || 'site');
     }
     if (in_app) toggle_page_overlay(to.path);
 });
+
+/**
+ * A shareable form shown in another site's iframe keeps light unless the embedding page asks
+ * for dark (#290); on its own, the form page follows the device like the rest of the site.
+ * @returns {'light' | 'dark' | null}
+ */
+function form_theme(to) {
+    if (to.name !== 'form' || !to.query.embed) return null;
+    return to.query.theme === 'dark' ? 'dark' : 'light';
+}
 
 export default router;

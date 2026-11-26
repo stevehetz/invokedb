@@ -45,7 +45,7 @@
     </div>
     <div
         class="grid-header edit"
-        :class="{ new: !params.column.colDef._id }"
+        :class="{ new: !params.column.colDef.context?._id }"
         v-if="params.edit_mode"
     >
         <div

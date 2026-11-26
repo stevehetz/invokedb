@@ -1,7 +1,8 @@
 // The signed-in app's Element Plus colours: primary $purple300 and success $green500 (see
-// stylesheet.scss). Both areas load Element's default theme CSS (main.js); compiling the theme
-// with these colours changes nothing but the :root colour variables, so the app area only
-// overrides those. `:root.app-area` beats the default theme's `:root`.
+// stylesheet.scss). Both areas load Element's default theme CSS and its dark variables (main.js,
+// `html.dark`); compiling the theme with these colours changes nothing but the :root colour
+// variables, so the app area only overrides those. `:root.app-area` beats the default theme's
+// `:root` and `html.dark`.
 @use 'element-plus/theme-chalk/src/common/var.scss' as var with (
     $colors: (
         'primary': (
@@ -12,11 +13,23 @@
         )
     )
 );
+// The same colours mixed towards black, for the dark theme (#290)
+@use 'element-plus/theme-chalk/src/dark/var.scss' as dark;
 @use 'element-plus/theme-chalk/src/mixins/var.scss' as *;
+@use 'theme-tokens';
 
 :root.app-area {
     @each $type in (primary, success) {
         @include set-css-color-rgb($type);
         @include set-css-color-type(var.$colors, $type);
     }
+}
+
+// Dark (#290): Element's own dark variables, with its surfaces and text on the app's tokens
+// (theme-tokens.scss) so dialogs, inputs and dropdowns match the rest of the app
+:root.app-area.dark {
+    @each $type in (primary, success) {
+        @include set-css-color-type(dark.$colors, $type);
+    }
+    @include theme-tokens.element-dark-surfaces;
 }

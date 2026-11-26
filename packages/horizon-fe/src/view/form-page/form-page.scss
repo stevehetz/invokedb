@@ -1,11 +1,51 @@
-// The public form page's own styles (scoped): it's outside both areas' shells
+// The public form page's own styles (scoped): it's outside both areas' shells, so it has its
+// own light and dark colours (#290) rather than the areas' tokens, on <html> (a scoped `:global`
+// selector can't take `.form-page` with it). index.html and core/theme.js
+// set data-theme: the device's setting, or light in an iframe (?embed=1) unless ?theme=dark.
+:global(html) {
+    --f-bg: #f4f5fb;
+    --f-card: #ffffff;
+    --f-card-line: #e2e4f0;
+    --f-shadow: rgba(40, 44, 90, 0.08);
+    --f-text: #2c2f45;
+    --f-muted: #5b5f7a;
+    --f-help: #6a6e88;
+    --f-faint: #767a94;
+    --f-line: #cfd2e3;
+    --f-input: #ffffff;
+    --f-accent: #484ec0;
+    --f-focus: rgba(72, 78, 192, 0.15);
+    --f-danger: #c23a3a;
+    --f-error-bg: #fdecec;
+    --f-error: #a62b2b;
+    --f-success: #2f8a50;
+}
+:global(html[data-theme='dark']) {
+    --f-bg: #1c1c1c;
+    --f-card: #262629;
+    --f-card-line: #3a3a40;
+    --f-shadow: rgba(0, 0, 0, 0.5);
+    --f-text: #ececf0;
+    --f-muted: #b0b3c6;
+    --f-help: #a0a3b8;
+    --f-faint: #8e91a6;
+    --f-line: #4a4c58;
+    --f-input: #1c1c1f;
+    --f-accent: #8b90f0;
+    --f-focus: rgba(139, 144, 240, 0.25);
+    --f-danger: #f08078;
+    --f-error-bg: #452626;
+    --f-error: #f5a49d;
+    --f-success: #5cc98a;
+}
+
 .form-page {
     box-sizing: border-box;
     min-height: 100%;
     padding: 40px 16px;
-    background: #f4f5fb;
+    background: var(--f-bg);
     font-family: 'Open Sans', 'Avenir', Helvetica, Arial, sans-serif;
-    color: #2c2f45;
+    color: var(--f-text);
 
     *,
     *::before,
@@ -19,7 +59,7 @@
 
         .form-card {
             box-shadow: none;
-            border: 1px solid #e2e4f0;
+            border: 1px solid var(--f-card-line);
         }
     }
 }
@@ -28,9 +68,9 @@
     max-width: 640px;
     margin: 0 auto;
     padding: 32px;
-    background: #fff;
+    background: var(--f-card);
     border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(40, 44, 90, 0.08);
+    box-shadow: 0 2px 12px var(--f-shadow);
 }
 
 .form-title {
@@ -41,7 +81,7 @@
 
 .form-description {
     margin: 0 0 24px;
-    color: #5b5f7a;
+    color: var(--f-muted);
     white-space: pre-line;
 }
 
@@ -59,42 +99,42 @@
     textarea {
         width: 100%;
         padding: 10px 12px;
-        border: 1px solid #cfd2e3;
+        border: 1px solid var(--f-line);
         border-radius: 6px;
         font: inherit;
         font-size: 15px;
-        background: #fff;
+        background: var(--f-input);
         color: inherit;
 
         &:focus {
             outline: none;
-            border-color: #484ec0;
-            box-shadow: 0 0 0 2px rgba(72, 78, 192, 0.15);
+            border-color: var(--f-accent);
+            box-shadow: 0 0 0 2px var(--f-focus);
         }
     }
 
     &.invalid {
         input,
         textarea {
-            border-color: #d64545;
+            border-color: var(--f-danger);
         }
     }
 }
 
 .form-required {
-    color: #d64545;
+    color: var(--f-danger);
 }
 
 .form-help {
     margin-top: 4px;
     font-size: 13px;
-    color: #7a7e98;
+    color: var(--f-help);
 }
 
 .form-error {
     margin-top: 4px;
     font-size: 13px;
-    color: #d64545;
+    color: var(--f-danger);
 }
 
 // Off-screen rather than display: none, which some bots skip
@@ -113,8 +153,8 @@
     border-radius: 6px;
 
     &.error {
-        background: #fdecec;
-        color: #a62b2b;
+        background: var(--f-error-bg);
+        color: var(--f-error);
     }
 }
 
@@ -140,7 +180,7 @@
 
     .fa {
         font-size: 48px;
-        color: #3a9d5d;
+        color: var(--f-success);
     }
 
     p {
@@ -155,14 +195,14 @@
     text-align: center;
     font-size: 18px;
     font-weight: 400;
-    color: #5b5f7a;
+    color: var(--f-muted);
 }
 
 .form-footer {
     margin-top: 28px;
     text-align: center;
     font-size: 12px;
-    color: #9a9db3;
+    color: var(--f-faint);
 
     a {
         color: inherit;

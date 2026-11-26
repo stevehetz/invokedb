@@ -9,6 +9,8 @@ import 'highlight.js/styles/base16/atelier-plateau.css';
 // Element Plus's default theme, for both areas. It's here, in the entry chunk, so it always
 // comes before the areas' own CSS. The app area overrides its colours (element-theme.scss).
 import 'element-plus/dist/index.css';
+// Its dark mode's variables, on `html.dark` (#290: core/theme.js sets the class)
+import 'element-plus/theme-chalk/dark/css-vars.css';
 
 // Element Plus. Only the components the
 // templates use are registered, each imported from its own module: importing from

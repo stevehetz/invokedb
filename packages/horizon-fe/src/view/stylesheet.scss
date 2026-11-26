@@ -63,7 +63,7 @@ h6 {
 a,
 a:link,
 a:visited {
-    color: #3c3c3c;
+    color: var(--h-text-3);
     text-decoration: none;
 }
 *:focus {
@@ -238,21 +238,21 @@ a:visited {
 // Pad the <input> instead, leaving only the 1px border on the wrapper.
 .el-input .el-input__wrapper {
     padding: 1px;
-    background-color: #f5f5f5;
+    background-color: var(--h-input-bg);
 }
 .el-input .el-input__inner {
-    background-color: #f5f5f5;
+    background-color: var(--h-input-bg);
     height: 45px;
     font-size: 20px;
     padding: 3px 11px 0;
     border-radius: var(--el-input-border-radius, var(--el-border-radius-base));
 }
 .el-input:focus {
-    background-color: #ffffff;
+    background-color: var(--h-input-focus-bg);
 }
 .el-input[readonly] {
-    background-color: #e6e6e6;
-    color: #929498;
+    background-color: var(--h-surface-3);
+    color: var(--h-muted);
 }
 
 // Page
@@ -280,8 +280,8 @@ a:visited {
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
-    color: $gray500;
-    background-color: #ffffff;
+    color: var(--h-text-2);
+    background-color: var(--h-surface);
     width: 100%;
     max-width: 500px;
     min-height: 200px;
@@ -294,12 +294,12 @@ a:visited {
 }
 .panel-box.processing .spinner {
     font-size: 80px;
-    color: $blue400;
+    color: var(--h-link);
     margin-bottom: 25px;
 }
 .panel-box.processing .processing-text {
     font-size: 20px;
-    color: $blue400;
+    color: var(--h-link);
     font-weight: bold;
 }
 .panel-box .panel-title {
@@ -327,7 +327,7 @@ a:visited {
     width: 100%;
     min-height: 40px;
     padding: 0 1em;
-    color: $red400;
+    color: var(--h-danger);
 }
 .panel-box .error-box i {
     margin-right: 0.5em;
@@ -348,12 +348,12 @@ a:visited {
     flex-grow: 0;
     position: fixed;
     width: 100%;
-    background-color: #ffffff;
-    color: $gray500;
+    background-color: var(--h-surface);
+    color: var(--h-text-2);
     height: 60px;
     top: 0;
     left: 0;
-    border-bottom: solid 1px #efefef;
+    border-bottom: solid 1px var(--h-line);
 }
 .main-heading .col {
     align-items: center;
@@ -373,7 +373,7 @@ a:visited {
 }
 .main-heading .title {
     font-weight: 400;
-    color: $gray500;
+    color: var(--h-text-2);
     margin: 0;
 }
 .main-heading div {
@@ -388,20 +388,20 @@ a:visited {
     margin-left: 10px;
 }
 .main-heading a.active {
-    color: #50a0c8;
+    color: var(--h-info);
     cursor: default;
 }
 .main-heading .title-link {
     margin-left: 0;
 }
 .main-heading .sign-up {
-    color: $blue400;
+    color: var(--h-link);
     white-space: nowrap;
 }
 .main-heading .sign-in {
     display: flex;
     align-items: center;
-    color: $blue400;
+    color: var(--h-link);
     font-weight: bold;
 }
 .main-heading .sign-in span {
@@ -448,7 +448,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .home-page {
     display: flex;
     flex-direction: column;
-    background-color: #ffffff;
+    background-color: var(--h-surface);
 }
 .home-page .content-block {
     width: 100%;
@@ -456,7 +456,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     max-width: $HOME_PAGE_MAX_WIDTH;
 }
 .home-page .section-header {
-    color: $blue400;
+    color: var(--h-link);
     font-size: 24px;
     margin-bottom: 10px;
     text-align: center;
@@ -502,14 +502,14 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     margin-bottom: 40px;
 }
 .home-page .info .info-icon i {
-    color: #484ec0;
+    color: var(--h-link);
     font-size: 45px;
     margin-bottom: 15px;
 }
 .home-page .info .info-header {
     font-size: 20px;
     margin-bottom: 20px;
-    color: $blue400;
+    color: var(--h-link);
 }
 .home-page .info .info-content {
     text-align: center;
@@ -570,7 +570,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 }
 .home-page .example-menu {
     margin: 20px 0 0 0;
-    border-left: solid 2px #d6d6d6;
+    border-left: solid 2px var(--h-line);
 }
 .home-page .example-menu__item {
     padding: 15px 0 15px 15px;
@@ -578,8 +578,8 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     cursor: pointer;
 }
 .home-page .example-menu__item.active {
-    color: #4b8b8b;
-    border-left: solid 2px #51abab;
+    color: var(--h-teal);
+    border-left: solid 2px var(--h-teal);
     cursor: default;
 }
 .home-page .examples .flex-row .examples__code {
@@ -591,7 +591,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     top: 12px;
     right: 0;
     font-size: 24px;
-    color: #49464e;
+    color: var(--h-text-3);
 }
 .home-page .examples .flex-row .examples__code .language-setting {
     position: absolute;
@@ -607,7 +607,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .home-page .footer {
     margin-top: 40px;
     min-height: 60px;
-    background-color: #eaeaea;
+    background-color: var(--h-surface-3);
 }
 .home-page .footer .col {
     display: flex;
@@ -670,7 +670,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     justify-content: center;
 }
 .login-page .control-box a {
-    color: $blue400;
+    color: var(--h-link);
 }
 .login-page .control-box .left {
     width: 70%;
@@ -712,7 +712,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     justify-content: center;
 }
 .create-account-page .control-box a {
-    color: $blue400;
+    color: var(--h-link);
 }
 .create-account-page .control-box .left {
     width: 70%;
@@ -733,7 +733,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 // "Check your email" after a signup (#132)
 .create-account-page .create-account-message {
     padding: 0 1em;
-    color: rgb(55, 55, 55);
+    color: var(--h-text-2);
     font-size: 15px;
 }
 .create-account-page .create-account-message p {
@@ -754,16 +754,16 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     justify-content: center;
 }
 .verify-email-page .control-box a {
-    color: $blue400;
+    color: var(--h-link);
 }
 .verify-email-page .verify-email-message {
     text-align: center;
     padding: 1em;
-    color: rgb(55, 55, 55);
+    color: var(--h-text-2);
     font-size: 17px;
 }
 .verify-email-page .verify-email-message.done {
-    color: #44a97a;
+    color: var(--h-success);
 }
 
 // Forgot password page
@@ -784,7 +784,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     justify-content: center;
 }
 .forgot-password-page .control-box a {
-    color: $blue400;
+    color: var(--h-link);
 }
 .forgot-password-page .control-box .left {
     width: 70%;
@@ -798,7 +798,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .forgot-password-page .forgot-password-message {
     text-align: center;
     padding: 1em;
-    color: #44a97a;
+    color: var(--h-success);
     font-size: 17px;
 }
 
@@ -819,7 +819,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .reset-password-page .info-box span {
     padding: 0 1em 1em;
     font-size: 18px;
-    color: rgb(55, 55, 55);
+    color: var(--h-text-2);
 }
 .reset-password-page .input-box {
     padding: 1em;
@@ -831,7 +831,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     justify-content: center;
 }
 .reset-password-page .control-box a {
-    color: $blue400;
+    color: var(--h-link);
 }
 .reset-password-page .control-box .left {
     width: 70%;
@@ -864,7 +864,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     justify-content: center;
 }
 .contact-page .control-box a {
-    color: $blue400;
+    color: var(--h-link);
 }
 .contact-page .control-box .left {
     width: 70%;
@@ -883,7 +883,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 }
 .contact-page .submitting .overlay {
     display: block;
-    background: #ffffff;
+    background: var(--h-surface);
     position: absolute;
     top: 0;
     left: 0;
@@ -914,7 +914,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: block;
 }
 .pricing-page .pricing-title {
-    color: #726bce;
+    color: var(--h-accent-2);
     font-weight: 500;
 }
 .pricing-page .cancel-anytime {
@@ -928,13 +928,13 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     color: gray;
 }
 .pricing-page .pricing-error {
-    color: #e44949;
+    color: var(--h-danger);
 }
 .pricing-page .pricing-body {
     padding: 50px 20px;
     flex: 1;
     width: 100%;
-    background-color: #ffffff;
+    background-color: var(--h-surface);
 }
 .pricing-page .pricing-body__wrapper {
     margin: 0 auto;
@@ -971,20 +971,20 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    background-color: #ffffff;
+    background-color: var(--h-surface);
     padding: 10px 0;
 }
 .pricing-page .pricing-body__row .col:nth-child(2) {
-    background-color: #e7e7f8;
+    background-color: var(--h-tier-1);
 }
 .pricing-page .pricing-body__row .col:nth-child(3) {
-    background-color: #c9c9ec;
+    background-color: var(--h-tier-2);
 }
 .pricing-page .pricing-body__row .col:nth-child(4) {
-    background-color: #a8a8e8;
+    background-color: var(--h-tier-3);
 }
 .pricing-page .pricing-body__row .col:nth-child(5) {
-    background-color: #8383d4;
+    background-color: var(--h-tier-4);
 }
 .pricing-page .pricing-body__row .col:first-child {
     align-items: flex-start;
@@ -1010,7 +1010,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .pricing-page .footer {
     margin-top: 40px;
     height: 60px;
-    background-color: #eaeaea;
+    background-color: var(--h-surface-3);
 }
 .pricing-page .footer .col {
     display: flex;
@@ -1030,16 +1030,16 @@ $HOME_PAGE_MAX_WIDTH: 900px;
         border-radius: 3px;
     }
     .pricing-page .pricing-block:nth-child(1) {
-        background-color: #e7e7f8;
+        background-color: var(--h-tier-1);
     }
     .pricing-page .pricing-block:nth-child(2) {
-        background-color: #c9c9ec;
+        background-color: var(--h-tier-2);
     }
     .pricing-page .pricing-block:nth-child(3) {
-        background-color: #b1b1ec;
+        background-color: var(--h-tier-3);
     }
     .pricing-page .pricing-block:nth-child(4) {
-        background-color: #9494da;
+        background-color: var(--h-tier-4);
     }
     .pricing-page .pricing-block .title {
         font-size: 20px;
@@ -1047,23 +1047,23 @@ $HOME_PAGE_MAX_WIDTH: 900px;
         font-weight: bold;
     }
     .pricing-page .pricing-block .cancel-anytime {
-        color: #2e7275;
+        color: var(--h-teal);
         font-weight: bold;
         font-size: 14px;
         margin-top: 5px;
     }
     .pricing-page .pricing-block .price {
         font-size: 36px;
-        color: $gray400;
+        color: var(--h-text-3);
     }
     .pricing-page .pricing-block .price__subtitle {
         font-size: 16px;
-        color: $gray600;
+        color: var(--h-text);
     }
     .pricing-page .pricing-block .section__heading {
         font-weight: bold;
         margin: 20px 0 10px;
-        color: $gray400;
+        color: var(--h-text-3);
     }
     .pricing-page .pricing-block .pricing-button {
         display: inline-block;
@@ -1086,13 +1086,13 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     margin: 20px 0;
 }
 .tos-page .main-heading {
-    border-bottom: solid 1px #dedede;
+    border-bottom: solid 1px var(--h-line);
 }
 .tos-page .main-content {
-    background-color: #f5f5f5;
+    background-color: var(--h-bg);
 }
 .tos-page .tos-body {
-    background-color: #ffffff;
+    background-color: var(--h-surface);
     box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
     padding: 20px 40px;
     margin: 50px 40px;
@@ -1120,13 +1120,13 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     margin: 10px 0;
 }
 .privacy-page .main-heading {
-    border-bottom: solid 1px #dedede;
+    border-bottom: solid 1px var(--h-line);
 }
 .privacy-page .main-content {
-    background-color: #f5f5f5;
+    background-color: var(--h-bg);
 }
 .privacy-page .privacy-body {
-    background-color: #ffffff;
+    background-color: var(--h-surface);
     box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
     padding: 20px 40px;
     margin: 50px 40px;
@@ -1148,7 +1148,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 }
 .help-page .main-content,
 .changelog-page .main-content {
-    background-color: #f5f5f5;
+    background-color: var(--h-bg);
     min-height: 100vh;
 }
 .help-page .help-container {
@@ -1163,7 +1163,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     flex: 0 0 210px;
     display: flex;
     flex-direction: column;
-    background-color: #ffffff;
+    background-color: var(--h-surface);
     box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.15);
     padding: 10px 0;
 }
@@ -1171,37 +1171,37 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     padding: 8px 18px;
-    color: $gray400;
+    color: var(--h-text-3);
     text-decoration: none;
     border-left: solid 3px transparent;
 }
 .help-page .help-nav a i {
     width: 1.4em;
     margin-right: 8px;
-    color: $gray200;
+    color: var(--h-faint);
     text-align: center;
 }
 .help-page .help-nav a:hover {
-    color: $blue400;
+    color: var(--h-link);
 }
 .help-page .help-nav a.active {
-    color: $blue400;
+    color: var(--h-link);
     font-weight: bold;
-    border-left-color: $blue400;
+    border-left-color: var(--h-link);
 }
 .help-page .help-nav a.active i {
-    color: $blue400;
+    color: var(--h-link);
 }
 .help-page .help-nav .help-nav-changelog {
     margin-top: 8px;
     padding-top: 12px;
-    border-top: solid 1px #eaeaea;
+    border-top: solid 1px var(--h-line);
 }
 .help-page .help-body,
 .changelog-page .changelog-body {
     flex: 1;
     min-width: 0;
-    background-color: #ffffff;
+    background-color: var(--h-surface);
     box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
     padding: 20px 40px 30px;
     line-height: 1.6;
@@ -1234,13 +1234,13 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .help-page .help-body code {
     font-family: Menlo, Consolas, monospace;
     font-size: 0.9em;
-    background-color: #f1f1f6;
+    background-color: var(--h-surface-3);
     padding: 1px 4px;
     border-radius: 3px;
 }
 .help-page .help-body pre {
-    background-color: $gray500;
-    color: #f1f1f1;
+    background-color: var(--h-code-bg);
+    color: var(--h-code-text);
     padding: 14px 16px;
     border-radius: 4px;
     overflow-x: auto;
@@ -1261,24 +1261,24 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     text-align: left;
     vertical-align: top;
     padding: 6px 12px 6px 0;
-    border-bottom: solid 1px #eaeaea;
+    border-bottom: solid 1px var(--h-line);
 }
 .help-page .help-pager {
     display: flex;
     justify-content: space-between;
     margin-top: 40px;
     padding-top: 16px;
-    border-top: solid 1px #eaeaea;
+    border-top: solid 1px var(--h-line);
 }
 .help-page .help-pager a {
-    color: $blue400;
+    color: var(--h-link);
 }
 .changelog-page .changelog-intro {
-    color: $gray300;
+    color: var(--h-muted);
 }
 .changelog-page .changelog-pr {
     margin-left: 8px;
-    color: $gray200;
+    color: var(--h-faint);
     font-size: 0.9em;
 }
 .help-page .footer,
@@ -1315,13 +1315,13 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: block;
 }
 .status-page .main-content {
-    background-color: #f5f5f5;
+    background-color: var(--h-bg);
     min-height: 100vh;
 }
 .status-page .status-body {
     max-width: 900px;
     margin: 40px auto;
-    background-color: #ffffff;
+    background-color: var(--h-surface);
     box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
     padding: 20px 40px 30px;
     line-height: 1.6;
@@ -1352,19 +1352,19 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .status-page .status-incident {
     margin: 20px 0 0;
     padding: 12px 16px;
-    border-left: solid 4px $blue400;
-    background-color: #f1f5fb;
+    border-left: solid 4px var(--h-link);
+    background-color: var(--h-tint-info);
 }
 .status-page .status-incident.incident-degraded {
     border-left-color: #c98a12;
-    background-color: #fdf6e7;
+    background-color: var(--h-tint-warning);
 }
 .status-page .status-incident.incident-outage {
     border-left-color: #c43c3c;
-    background-color: #fbeeee;
+    background-color: var(--h-tint-danger);
 }
 .status-page .status-incident__head span {
-    color: $gray300;
+    color: var(--h-muted);
 }
 .status-page .status-incident__message {
     margin: 6px 0 0;
@@ -1380,7 +1380,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     align-items: center;
     gap: 14px;
     padding: 14px 0;
-    border-bottom: solid 1px #eaeaea;
+    border-bottom: solid 1px var(--h-line);
 }
 .status-page .status-dot {
     flex: 0 0 12px;
@@ -1405,7 +1405,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .status-page .status-check__note,
 .status-page .status-check__at,
 .status-page .status-note {
-    color: $gray300;
+    color: var(--h-muted);
     font-size: 0.9em;
 }
 .status-page .status-check__state {
@@ -1415,13 +1415,13 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     text-align: right;
 }
 .status-page .status-check__at a {
-    color: $gray300;
+    color: var(--h-muted);
 }
 .status-page .status-note {
     margin-top: 20px;
 }
 .status-page .status-note a {
-    color: $blue400;
+    color: var(--h-link);
 }
 .status-page .footer {
     height: 60px;

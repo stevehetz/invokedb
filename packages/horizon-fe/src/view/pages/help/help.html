@@ -513,7 +513,10 @@ function verify(secret, raw_body, header) {
                         Each form has a link (<code>/f/...</code>) to share, and
                         code to embed it in your own site in an
                         <code>iframe</code>. Deleting the form or its table
-                        turns the link off.
+                        turns the link off. The link follows the visitor's light
+                        or dark setting; the embedded form is light, or dark if
+                        you add <code>&amp;theme=dark</code> to the end of its
+                        <code>src</code>.
                     </p>
                     <h2>Spam</h2>
                     <p>
@@ -687,6 +690,17 @@ function verify(secret, raw_body, header) {
                         turn on two-factor sign-in, export your data or delete
                         the account. Deleting it removes every table and row and
                         can't be undone.
+                    </p>
+                    <h2>Light and dark</h2>
+                    <p>
+                        <b>Theme</b> in the account menu switches the app
+                        between <b>Light</b> and <b>Dark</b>. <b>System</b>, the
+                        default, follows your device's setting and changes with
+                        it. The choice is saved on your account, so it follows
+                        you to other devices. These pages and the public site
+                        always follow your device's setting. A form embedded on
+                        another site stays light unless its link ends in
+                        <code>&amp;theme=dark</code>.
                     </p>
                     <h2>When support changes your account</h2>
                     <p>

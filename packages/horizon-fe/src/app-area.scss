@@ -5,6 +5,21 @@
 // The `html` rules in stylesheet.scss no longer match; index.html has the same ones.
 @use 'sass:meta';
 @use 'element-theme';
+@use 'theme-tokens';
+
+// Light and dark (#290): core/theme.js sets data-theme on <html>
+:root.app-area {
+    @include theme-tokens.tokens(theme-tokens.$light);
+    color-scheme: light;
+}
+:root.app-area[data-theme='dark'] {
+    @include theme-tokens.tokens(theme-tokens.$dark);
+    color-scheme: dark;
+}
+html.app-area,
+html.app-area body {
+    background-color: var(--h-bg);
+}
 
 :where(html.app-area) {
     @include meta.load-css('stylesheet');

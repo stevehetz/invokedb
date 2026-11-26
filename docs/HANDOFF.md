@@ -1,6 +1,6 @@
 # InvokeDB: handoff
 
-_Last updated 2026-11-26 (afternoon)_
+_Last updated 2026-11-26 (evening)_
 
 InvokeDB ("horizon") is a web app for building data tables you can query through an API, live at
 `https://invokedb.com`. This file says where things stand and what a new session must know.
@@ -45,20 +45,23 @@ deployed unless it says otherwise. Details: `gh pr list --state merged`.
     `subscription`/`stripe_env` tables it planned to reuse, so it needs a fresh start: close it
     and let the agent redo #129 from the decided pricing when the owner wants billing.
 - **Queue (`agent`):** #268 (E2E transient 502), #184 (has PR #280), #279 (blocked on #280).
-- **Next for a local session: #290, light and dark theme** for the whole app (the owner liked
-  the admin area's dark look). Not started. Notes for whoever picks it up:
-  - The app's theme today is `<body class="default">` (`index.html`) plus 37 `body.default`
-    rules at the end of `stylesheet.scss` (they make the tree and menus dark). Most of the app
-    chrome is dark (header, tree, grid top bar, kanban: `$gray400`–`$gray600`, `#232323`,
-    `#494652`, accent `#696fe4`); Account settings, many dialogs and Element Plus's components
-    are light. `stylesheet.scss` is ~4,900 lines with ~600 literal colours.
-  - Plan agreed in the issue: colour tokens (CSS variables) on `<html>` with
-    `data-theme="light|dark"`, Element Plus's dark mode (`dark` class + its CSS variables) on
-    the same switch, the grid's theme (`h-data-grid/grid-theme.js`), then the surfaces page by
-    page. System/Light/Dark in the account menu, saved on the account and in `localStorage`,
-    applied before first paint. The public site follows the system setting.
-  - The owner allowed Playwright screenshots of the **local** app (demo account) to check both
-    themes while building; hand the running app (`npm run dev`, :8000) to the owner to review.
+- **#290, light and dark theme: built, on branch `290-light-dark-theme` (pushed, no PR yet).**
+  The owner is reviewing it locally before the PR. What's there:
+  - Every colour in both areas' `stylesheet.scss` is a token `var(--h-*)` from
+    `src/theme-tokens.scss` (`$light` / `$dark` maps; AGENTS.md "Light and dark" has the rules).
+    `core/theme.js` sets `<html data-theme>` and Element Plus's `dark` class; `index.html`'s
+    inline script does it before first paint. Account menu → Theme (System/Light/Dark), saved in
+    `account.theme` (migration `1795900000000-AccountTheme`, `PUT /account/theme`, returned by
+    `/auth/authorize`) and `localStorage` `invokedb:theme`. The site and the form page follow the
+    device; an embedded form is light unless `?theme=dark`.
+  - Checked: both builds, lint, typecheck, 967 backend unit tests, prettier; text tokens pass
+    WCAG AA (both themes); Playwright screenshots of the local app in both themes (grid, tree,
+    dialogs, account, API docs, admin, site, login, pricing).
+  - **Not checked yet:** the kanban, calendar, chart and map views and the Ask AI dialog (the demo
+    account has no saved views); neither smoke test was run (the API smoke test gains theme
+    checks, the UI smoke test a `theme` step).
+  - **Next:** the owner's review, then `gh pr create` with `Closes #290`. It has a migration, so
+    auto-merge holds it (`needs-owner`). #290 wasn't found on the Project board; check it's there.
 - **Incident (2026-11-25), fixed:** a stale local `prod.env` was pushed to Dropbox and the
   server, which turned off Google/GitHub sign-in for a few minutes. Always `npm run
 secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env`.

@@ -4,7 +4,35 @@
 import { defineComponent } from 'vue';
 import copy from 'copy-to-clipboard';
 import { bus } from '@/core/bus';
+import { store } from '@/store';
 import { api_key_http } from '@/core/context/api-key/api-key-http';
+
+// The setups the "Use with AI agents" box shows (#305), for the MCP server at <backend>/mcp
+const AGENT_SETUPS = [
+    { value: 'claude_code', label: 'Claude Code' },
+    { value: 'json', label: 'JSON config' }
+];
+
+/**
+ * How to connect an MCP client to this account's tables with `key`.
+ * @param {string} setup @param {string} url @param {string} key
+ */
+function agent_snippet(setup, url, key) {
+    if (setup === 'claude_code') {
+        return `claude mcp add --transport http invokedb ${url} \\\n  --header "Authorization: Bearer ${key}"`;
+    }
+    // Cursor's mcp.json, VS Code, and a project's .mcp.json for Claude Code all read this shape
+    const config = {
+        mcpServers: {
+            invokedb: {
+                type: 'http',
+                url,
+                headers: { Authorization: `Bearer ${key}` }
+            }
+        }
+    };
+    return JSON.stringify(config, null, 2);
+}
 
 const ACCESS_LABELS = {
     read: 'Read only',
@@ -64,11 +92,38 @@ export default defineComponent({
             // The key just made: { key, secret }, shown until the page is left or it's dismissed
             created: null,
             show_copied_popup: false,
-            copied_timer: null
+            copied_timer: null,
+            // The "Use with AI agents" box (#305)
+            agent_setups: AGENT_SETUPS,
+            agent_setup: AGENT_SETUPS[0].value,
+            agent_copied: false,
+            backend_url: (store.get('env') || {}).HORIZON_BE_PUB_HTTP_URL || ''
         };
     },
 
+    created() {
+        store.subscribe('env', env => {
+            this.backend_url = (env && env.HORIZON_BE_PUB_HTTP_URL) || '';
+        });
+    },
+
     computed: {
+        // The MCP server's address: the backend's public URL (api.invokedb.com in production)
+        mcp_url() {
+            return `${this.backend_url.replace(/\/+$/, '')}/mcp`;
+        },
+
+        // The key just made goes straight into the setup; otherwise a placeholder
+        agent_snippet() {
+            const key = this.created ? this.created.secret : 'YOUR_API_KEY';
+            return agent_snippet(this.agent_setup, this.mcp_url, key);
+        },
+
+        agent_note() {
+            return this.created
+                ? 'Your new key is filled in above.'
+                : 'Replace YOUR_API_KEY with a key; a new key is filled in for you.';
+        },
         live_count() {
             return this.keys.filter(k => !k.revoked_datetime).length;
         },
@@ -225,6 +280,12 @@ export default defineComponent({
                 () => (this.show_copied_popup = false),
                 1500
             );
+        },
+
+        copy_agent_snippet() {
+            copy(this.agent_snippet);
+            this.agent_copied = true;
+            window.setTimeout(() => (this.agent_copied = false), 1500);
         },
 
         revoke(key) {

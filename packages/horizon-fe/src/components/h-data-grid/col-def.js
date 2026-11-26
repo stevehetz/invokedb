@@ -29,6 +29,8 @@ export function to_grid(def) {
             delete grid_def[k];
         }
     });
+    // The backend pages columns like rows, so each one comes with a row number too
+    delete grid_def.row_num;
     grid_def.context = context;
     return grid_def;
 }

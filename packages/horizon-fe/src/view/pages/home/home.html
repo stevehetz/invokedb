@@ -29,50 +29,66 @@
         </div>
         <div class="banner">
             <div class="banner-content">
-                <span class="banner-text"
-                    >All-In-One API and Database for JavaScript Developers</span
-                >
+                <span class="banner-label">Agentic web database</span>
+                <h1 class="banner-text">
+                    The database for you and your AI agents
+                </h1>
                 <span class="banner-subtext"
-                    >Rapid UI Prototyping. Full CRUD API generated for each Data
-                    Table.</span
+                    >Tables your agents query and update through an API, and you
+                    see and edit like a spreadsheet. Import a CSV or describe a
+                    table, and it's ready in minutes.</span
                 >
+                <div class="banner-actions">
+                    <router-link
+                        :to="account ? '/app' : '/create-account'"
+                        class="banner-button primary"
+                        >{{ account ? 'Open your database' : 'Start free'
+                        }}</router-link
+                    >
+                    <router-link to="/pricing" class="banner-button"
+                        >See pricing</router-link
+                    >
+                </div>
             </div>
         </div>
         <div class="info content-block">
             <div class="flex-row">
                 <div class="col">
                     <div class="info-icon">
-                        <i class="fa fa-table"></i>
+                        <i class="fa fa-wand-magic-sparkles"></i>
                     </div>
-                    <div class="info-header">Table Administration</div>
+                    <div class="info-header">AI that works in your tables</div>
                     <div class="info-content">
-                        Row and column editing, sorting, filtering, indexing and
-                        more
-                    </div>
-                </div>
-                <div class="col">
-                    <div class="info-icon">
-                        <i class="fa fa-file"></i>
-                    </div>
-                    <div class="info-header">CSV to Data Table</div>
-                    <div class="info-content">
-                        Turn your CSVs into a fully-functional API in minutes
+                        Ask AI queries, adds, edits and cleans up rows, and AI
+                        columns fill themselves from a prompt. You review each
+                        change before it's saved.
                     </div>
                 </div>
                 <div class="col">
                     <div class="info-icon">
                         <i class="fa fa-plug"></i>
                     </div>
-                    <div class="info-header">External API</div>
+                    <div class="info-header">An API your agents can use</div>
                     <div class="info-content">
-                        Integrate your app using CRUD based operations and
-                        complex search filtering
+                        Every table gets a REST API and an OpenAPI spec, with
+                        keys limited to reading or writing, and to the tables
+                        you choose.
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="info-icon">
+                        <i class="fa fa-user-shield"></i>
+                    </div>
+                    <div class="info-header">You stay in charge</div>
+                    <div class="info-content">
+                        A spreadsheet view to check the work, a history of what
+                        each key changed, per-key rate limits and webhooks.
                     </div>
                 </div>
             </div>
         </div>
         <div class="screenshots content-block">
-            <div class="section-header">Data Table UI</div>
+            <div class="section-header">See your data</div>
             <el-carousel
                 trigger="click"
                 indicator-position="outside"
@@ -88,7 +104,7 @@
             </el-carousel>
         </div>
         <div class="examples content-block">
-            <div class="section-header">Built For Developers</div>
+            <div class="section-header">An API in a few lines</div>
             <div class="example__body">
                 <div class="flex-row">
                     <div class="col-15 example-menu">

@@ -1,6 +1,7 @@
 # InvokeDB
 
-A SaaS app for building data tables you can query through an API.
+An agentic web database: the database for you and your AI agents. Tables your agents query and
+update through an API, and you see and edit like a spreadsheet.
 
 **[invokedb.com](https://invokedb.com)**
 

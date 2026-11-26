@@ -5394,7 +5394,12 @@ await call('plan_paid_logout', 'GET', `/auth/logout?token=${p6}`);
         method: 'POST',
         body: JSON.stringify([ro_row?._id])
     });
-    check('ro_api_delete_200', results.ro_api_delete.status === 200, results.ro_api_delete);
+    // POST /api/v1/delete answers 201 (no @HttpCode), with the count deleted
+    check(
+        'ro_api_delete_ok',
+        results.ro_api_delete.status < 300 && results.ro_api_delete.data === 1,
+        results.ro_api_delete
+    );
     results.ro_api_create_still = await rv1('create?table=smoke_ro_a', {
         method: 'POST',
         body: JSON.stringify([{ column1: 'x' }])

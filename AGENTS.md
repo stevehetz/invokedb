@@ -293,7 +293,9 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   (`account.internal`, #277) have no counted caps. `TrackingManager.plan()`
   gives an account's caps and enforces them (reservations against races; account rows summed
   from each table's metadata; storage from `dbStats` `dataSize`, cached 30 s; the API quota is an
-  atomic `$inc` per UTC month in `tracking:api_month`, the rate limit an in-memory token bucket);
+  atomic `$inc` per UTC month in `tracking:api_month`, the rate limit an in-memory token bucket;
+  the 80% and 100% quota emails, #274, are claimed once per month by an `alerts` array on that
+  document, `core/plan/quota-alert.ts`, and sent off the call's path);
   `assert_room` covers webhooks, forms, views and URL sources. A refusal is 403 (413 for an
   upload, 429 for the quota/rate) with `code: 'plan_limit'`, `limit`, `cap`, `upgrade_url`
   (`AllExceptionFilter` passes them on); the frontend's `request.js` emits `plan_limit` on the

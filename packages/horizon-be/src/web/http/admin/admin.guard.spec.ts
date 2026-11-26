@@ -22,6 +22,8 @@ function account(over: Partial<Account> = {}) {
         email: 'owner@example.com',
         email_verified: true,
         deleted: false,
+        // A password account: it needs our two-factor sign-in (#288)
+        password_hash: 'hash',
         ...over
     });
     return a;
@@ -106,6 +108,13 @@ describe('AdminGuard', () => {
             )
         ).toBe(404);
         expect(await status_of(setup({ account: null }).canActivate(context(0).ctx))).toBe(404);
+    });
+
+    it('lets a Google/GitHub-only account (no password) in without our two-factor (#288)', async () => {
+        const sso = account({ password_hash: null });
+        expect(await setup({ account: sso, two_factor: false }).canActivate(context(0).ctx)).toBe(
+            true
+        );
     });
 
     it('rate-limits requests and, more tightly, actions', async () => {

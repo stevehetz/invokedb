@@ -8,7 +8,14 @@ import {
     STORAGE_CACHE_MS,
     TABLE_LOCK_REASON
 } from './tracking.manager';
-import { PLANS, PLAN_IDS, PLAN_SUBSCRIPTIONS, PlanId, MAX_COLUMNS } from '../plan/plans';
+import {
+    PLANS,
+    PLAN_IDS,
+    PLAN_SUBSCRIPTIONS,
+    PlanId,
+    MAX_COLUMNS,
+    quota_month
+} from '../plan/plans';
 
 const FILE_ID = 7;
 
@@ -42,6 +49,11 @@ function matches(doc, query) {
             if ('$lte' in cond && !(value <= cond.$lte)) return false;
             if ('$gt' in cond && !(value > cond.$gt)) return false;
             if ('$in' in cond && !cond.$in.some(v => same(value ?? null, v))) return false;
+            // On an array, $ne matches when no element equals the value
+            if ('$ne' in cond) {
+                const values = Array.isArray(value) ? value : [value];
+                if (values.some(v => same(v, cond.$ne))) return false;
+            }
             return true;
         }
         return same(value, cond);
@@ -114,8 +126,28 @@ class FakeCollection {
         return this.docs.length + this.extra;
     }
 
-    async updateOne() {
+    // Atomic, like Mongo's: $set and $addToSet (with $each) on the first match, or an upsert
+    async updateOne(query, update, opts: any = {}) {
         await tick();
+        let doc = this.docs.find(d => matches(d, query));
+        if (!doc) {
+            if (!opts.upsert) return { matchedCount: 0, modifiedCount: 0 };
+            doc = { _id: query._id ?? new ObjectId(), ...query };
+            this.docs.push(doc);
+        }
+        Object.assign(doc, update.$set || {});
+        let modified = Object.keys(update.$set || {}).length > 0;
+        for (const [k, v] of Object.entries(update.$addToSet || {})) {
+            const each = v && typeof v === 'object' && '$each' in v ? (v as any).$each : [v];
+            doc[k] = Array.isArray(doc[k]) ? doc[k] : [];
+            for (const item of each) {
+                if (!doc[k].includes(item)) {
+                    doc[k].push(item);
+                    modified = true;
+                }
+            }
+        }
+        return { matchedCount: 1, modifiedCount: modified ? 1 : 0 };
     }
 }
 
@@ -141,6 +173,14 @@ function make_store() {
 
 function setup(account: any = on_plan('FREE')) {
     const { collections, collection, db } = make_store();
+    // The emails sent (#274)
+    const emails: { to: string; subject: string; body: string }[] = [];
+    const email_manager = {
+        send_html: (to, subject, body) => {
+            emails.push({ to, subject, body });
+            return 'success';
+        }
+    };
     // The account's tables (Postgres): ids, and how many there are
     const tables = { ids: [FILE_ID] as number[], extra: 0 };
     const file_directory_repository = {
@@ -152,13 +192,18 @@ function setup(account: any = on_plan('FREE')) {
         findOneBy: async () => null,
         update: async () => undefined
     };
-    const manager = new TrackingManager(collections as any, null, file_directory_repository as any);
+    const manager = new TrackingManager(
+        collections as any,
+        null,
+        file_directory_repository as any,
+        email_manager as any
+    );
     const rows = (file_id = FILE_ID) => collection(`data_grid_row:${file_id}`);
     const cols = (file_id = FILE_ID) => collection(`data_grid_column:${file_id}`);
     const add_saved_rows = (n: number, file_id = FILE_ID) => {
         for (let i = 0; i < n; i++) rows(file_id).docs.push({ _id: new ObjectId() });
     };
-    return { manager, collection, rows, cols, add_saved_rows, tables, db, account };
+    return { manager, collection, rows, cols, add_saved_rows, tables, db, account, emails };
 }
 
 type Setup = ReturnType<typeof setup>;
@@ -502,6 +547,98 @@ describe.each(PLAN_IDS)('TrackingManager on %s', plan_id => {
             expect(await s.manager.api_calls_this_month(account)).toBe(caps.api_rate_burst + 1);
         });
 
+        describe('quota emails (#274)', () => {
+            const cap = caps.api_calls_per_month;
+            const at_80 = Math.ceil(cap * 0.8);
+
+            // One call a second, so the rate limit never refuses one
+            async function calls(s: ReturnType<typeof api>, n: number) {
+                for (let i = 0; i < n; i++) {
+                    s.set_clock(T0 - 3600_000 + (i + 1) * 1000);
+                    await outcome(s.manager.update_req_count(account));
+                }
+                await s.manager.quota_alerts_settled();
+            }
+
+            const month = (s: Setup) =>
+                s.collection('tracking:api_month').docs.find(d => d._id === '2026-11');
+
+            it('sends one email at 80% and one at 100% in a month', async () => {
+                const s = api();
+                s.collection('tracking:api_month').docs.push({ _id: '2026-11', count: at_80 - 2 });
+                await calls(s, 1); // 80% - 1
+                expect(s.emails).toHaveLength(0);
+                await calls(s, 3); // past 80%
+                expect(s.emails).toHaveLength(1);
+                expect(s.emails[0].to).toBe(account.email);
+                expect(s.emails[0].subject).toMatch(/80%/);
+                expect(s.emails[0].body).toContain(cap.toLocaleString('en-US'));
+                expect(s.emails[0].body).toContain(PLANS[plan_id].name);
+                expect(s.emails[0].body).toContain('/app/account');
+                expect(s.emails[0].body).toContain('/pricing');
+                expect(month(s).alerts).toEqual([80]);
+
+                month(s).count = cap - 2;
+                await calls(s, 1);
+                expect(s.emails).toHaveLength(1);
+                await calls(s, 3); // the last call, then refused ones
+                expect(s.emails).toHaveLength(2);
+                expect(s.emails[1].subject).toMatch(/all of this month/);
+                expect(month(s).alerts).toEqual([80, 100]);
+            });
+
+            it('sends only the 100% email when a month starts there', async () => {
+                const s = api();
+                s.collection('tracking:api_month').docs.push({ _id: '2026-11', count: cap - 1 });
+                await calls(s, 2);
+                expect(s.emails.map(e => e.subject)).toEqual([
+                    expect.stringMatching(/all of this month/)
+                ]);
+                expect(month(s).alerts).toEqual([80, 100]);
+            });
+
+            it('parallel calls past 80% send one email', async () => {
+                const s = api();
+                s.set_clock(T0 - 3600_000);
+                s.collection('tracking:api_month').docs.push({ _id: '2026-11', count: at_80 - 1 });
+                await Promise.all(
+                    Array.from({ length: 4 }, () => outcome(s.manager.update_req_count(account)))
+                );
+                await s.manager.quota_alerts_settled();
+                expect(s.emails).toHaveLength(1);
+            });
+
+            it('sends again next month', async () => {
+                const s = api();
+                s.collection('tracking:api_month').docs.push({
+                    _id: '2026-11',
+                    count: at_80,
+                    alerts: [80]
+                });
+                s.collection('tracking:api_month').docs.push({ _id: '2026-12', count: at_80 - 1 });
+                await calls(s, 1);
+                expect(s.emails).toHaveLength(0);
+                s.set_clock(Date.UTC(2026, 11, 2));
+                await s.manager.update_req_count(account);
+                await s.manager.quota_alerts_settled();
+                expect(s.emails).toHaveLength(1);
+            });
+
+            it("a failed email doesn't fail the call", async () => {
+                const s = api();
+                s.set_clock(T0 - 3600_000);
+                s.collection('tracking:api_month').docs.push({ _id: '2026-11', count: at_80 - 1 });
+                const c = s.collection('tracking:api_month');
+                jest.spyOn(c, 'updateOne').mockRejectedValue(new Error('down'));
+                const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+                await expect(s.manager.update_req_count(account)).resolves.toBeUndefined();
+                await s.manager.quota_alerts_settled();
+                expect(s.emails).toHaveLength(0);
+                expect(log).toHaveBeenCalled();
+                log.mockRestore();
+            });
+        });
+
         it('limits each account on its own', async () => {
             const s = api();
             for (let i = 0; i < caps.api_rate_burst; i++) {
@@ -523,6 +660,17 @@ describe('TrackingManager on an internal account', () => {
         const release = await s.manager.add_table(internal);
         await release();
         for (let i = 0; i < 500; i++) await s.manager.update_req_count(internal);
+    });
+
+    it('gets no quota emails', async () => {
+        const s = setup(internal);
+        s.collection('tracking:api_month').docs.push({
+            _id: quota_month(Date.now()),
+            count: 10_000_000
+        });
+        await s.manager.update_req_count(internal);
+        await s.manager.quota_alerts_settled();
+        expect(s.emails).toHaveLength(0);
     });
 
     it("keeps Pro's column cap", async () => {

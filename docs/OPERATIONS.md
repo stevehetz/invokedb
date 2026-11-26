@@ -360,9 +360,12 @@ by its own new version. Each file's top comment explains it; AGENTS.md "Hard rul
   result every 5, from GitHub's public API). Accounts made before #277 have no sign-up date.
 - **Become an admin:** add your email to `HORIZON_ADMIN_EMAILS` in `deploy/prod.env`
   (comma-separated), `npm run secrets:push`, then `deploy/deploy.sh up` so the api
-  container gets it. The account also needs a verified email and two-factor sign-in on (Account
-  page; needs `HORIZON_TOTP_KEY`). Reload the app and **Admin** shows in the account menu.
-  Anyone else, an API key, or an admin without two-factor gets 404 from every `/admin` route.
+  container gets it. The account also needs a verified email and a second factor: two-factor
+  sign-in on (Account page; needs `HORIZON_TOTP_KEY`) for a password account, while an account
+  with no password (Google/GitHub sign-in only) passes, since the provider holds its second
+  factor: turn on 2-Step Verification there (#288). Reload the app and **Admin** shows in the
+  account menu. Anyone else, an API key, or a password admin without two-factor gets 404 from
+  every `/admin` route.
 - **Configured:** `HORIZON_ADMIN_EMAILS` (`deploy/compose.yaml` passes it to the api container).
 - **Secrets:** none; it's a list of emails, kept in `prod.env` with the rest.
 - **Alerts:** none. Each action is also logged (`Admin <id> on account <id>: ...`) by the api.

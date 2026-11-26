@@ -160,14 +160,18 @@
         <details class="chart-table">
             <summary>Show the numbers</summary>
             <table>
-                <tr>
-                    <th>Value</th>
-                    <th>{{ value_label }}</th>
-                </tr>
-                <tr v-for="p in points" :key="p.label">
-                    <td>{{ p.label }}</td>
-                    <td class="num">{{ format_number(p.value) }}</td>
-                </tr>
+                <thead>
+                    <tr>
+                        <th>Value</th>
+                        <th>{{ value_label }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="p in points" :key="p.label">
+                        <td>{{ p.label }}</td>
+                        <td class="num">{{ format_number(p.value) }}</td>
+                    </tr>
+                </tbody>
             </table>
         </details>
     </div>

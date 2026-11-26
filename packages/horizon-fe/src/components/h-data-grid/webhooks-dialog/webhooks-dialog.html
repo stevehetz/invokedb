@@ -141,12 +141,14 @@
                         Next attempt: {{ format_time(d.next_attempt_at) }}
                     </div>
                     <table class="webhook-attempts" v-if="d.attempt_log.length">
-                        <tr v-for="(a, i) in d.attempt_log" :key="i">
-                            <td>{{ format_time(a.at) }}</td>
-                            <td>{{ a.status || '-' }}</td>
-                            <td>{{ a.ms }} ms</td>
-                            <td>{{ a.error || a.response || '' }}</td>
-                        </tr>
+                        <tbody>
+                            <tr v-for="(a, i) in d.attempt_log" :key="i">
+                                <td>{{ format_time(a.at) }}</td>
+                                <td>{{ a.status || '-' }}</td>
+                                <td>{{ a.ms }} ms</td>
+                                <td>{{ a.error || a.response || '' }}</td>
+                            </tr>
+                        </tbody>
                     </table>
                     <pre class="webhook-payload">{{ pretty(d.payload) }}</pre>
                 </div>

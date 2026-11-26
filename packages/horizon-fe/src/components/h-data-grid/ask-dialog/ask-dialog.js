@@ -13,6 +13,19 @@ import CleanupPanel from '../cleanup-panel/index.vue';
 import { cell_text, edit_batches, rows_text } from './edit-batches';
 
 export const MAX_QUESTION_LENGTH = 500;
+// Pasted text (#207); the server's limits from /ai/status replace these
+export const MAX_PASTE_LENGTH = 20000;
+export const MAX_PASTE_ROWS = 200;
+
+/**
+ * Whether text pasted into the question field is rows rather than a question: more than one
+ * line, or longer than a question can be. It then goes to the paste box instead.
+ * @param {string} text
+ */
+export function looks_like_rows(text) {
+    const t = String(text || '').trim();
+    return t.length > MAX_QUESTION_LENGTH || /\n/.test(t);
+}
 
 /**
  * @typedef {{ _id: string, before: Record<string, any>,
@@ -63,7 +76,12 @@ export default defineComponent({
             /** @type {EditRow[] | null} */
             undo_rows: last_edits.get(this.props.file.id) || null,
             // Clean up (#206): a new number starts a new scan in the cleanup panel; 0 hides it
-            cleanup_key: 0
+            cleanup_key: 0,
+            // Paste text (#207): the box is open, its text, and the server's limits
+            pasting: false,
+            paste_text: '',
+            max_paste_length: MAX_PASTE_LENGTH,
+            max_paste_rows: MAX_PASTE_ROWS
         };
     },
 
@@ -77,6 +95,16 @@ export default defineComponent({
         can_ask() {
             const q = this.question.trim();
             return !this.asking && q !== '' && q.length <= MAX_QUESTION_LENGTH;
+        },
+
+        /** @returns {boolean} */
+        can_extract() {
+            const t = this.paste_text;
+            return (
+                !this.asking &&
+                t.trim() !== '' &&
+                t.length <= this.max_paste_length
+            );
         },
 
         /** @returns {string[]} */
@@ -125,6 +153,13 @@ export default defineComponent({
             const status = await ai_http.status();
             this.usage = status && status.usage;
             this.rows_usage = status && status.rows;
+            const limits = (status && status.limits) || {};
+            if (limits.max_import_text_length > 0) {
+                this.max_paste_length = limits.max_import_text_length;
+            }
+            if (limits.max_import_rows > 0) {
+                this.max_paste_rows = limits.max_import_rows;
+            }
         } catch (ex) {
             this.error = message_of(ex, 'Could not load your AI usage');
         }
@@ -267,6 +302,58 @@ export default defineComponent({
         /** @param {any} usage */
         cleanup_usage(usage) {
             if (usage) this.usage = usage;
+        },
+
+        // Opens or closes the paste box (#207)
+        toggle_paste() {
+            this.pasting = !this.pasting;
+            if (this.pasting) this.focus_paste();
+        },
+
+        focus_paste() {
+            this.$nextTick(() => {
+                const box = /** @type {HTMLElement | undefined} */ (
+                    this.$refs.paste
+                );
+                if (box) box.focus();
+            });
+        },
+
+        // Rows pasted into the question field go to the paste box instead (#207)
+        /** @param {ClipboardEvent} event */
+        question_paste(event) {
+            const text = event.clipboardData
+                ? event.clipboardData.getData('text')
+                : '';
+            if (!looks_like_rows(text)) return;
+            event.preventDefault();
+            this.pasting = true;
+            this.paste_text = text.slice(0, this.max_paste_length);
+            this.focus_paste();
+        },
+
+        // Pasted text becomes rows to review (#207), shown like rows the AI proposed
+        async extract() {
+            if (!this.can_extract || this.used_up || this.unverified) return;
+            this.asking = true;
+            this.error = null;
+            this.cleanup_key = 0;
+            try {
+                const res = await ai_http.import_text(
+                    this.props.file.id,
+                    this.paste_text
+                );
+                this.result = res;
+                this.edit_applied = false;
+                if (res && res.usage) this.usage = res.usage;
+                if (res && res.rows_usage) this.rows_usage = res.rows_usage;
+            } catch (ex) {
+                this.error = message_of(
+                    ex,
+                    'Could not turn that text into rows'
+                );
+            }
+            this.asking = false;
         },
 
         async ask() {

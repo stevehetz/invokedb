@@ -8,6 +8,8 @@
         names") is shown row by row, before and after, and is made only when you
         apply it. <b>Clean up</b> looks for duplicates, invalid emails and
         inconsistent formats, and suggests fixes you review the same way.
+        <b>Paste text</b> turns an email, a PDF or a messy CSV into rows of this
+        table's columns, to review the same way as new rows.
     </p>
 
     <div class="ask-row">
@@ -18,6 +20,7 @@
             :maxlength="max_length"
             placeholder="e.g. Which 5 orders were the largest last month? or: Add 10 sample orders"
             @keyup.enter="ask"
+            @paste="question_paste"
         />
         <el-button
             class="ask-button"
@@ -36,6 +39,40 @@
             @click="clean_up"
             >Clean up</el-button
         >
+        <el-button
+            class="ask-paste-toggle"
+            size="small"
+            :disabled="asking"
+            title="Turn pasted text (an email, a PDF, a messy CSV) into rows"
+            @click="toggle_paste"
+            >Paste text</el-button
+        >
+    </div>
+    <div class="ask-paste" v-if="pasting">
+        <textarea
+            ref="paste"
+            class="ask-paste-text"
+            v-model="paste_text"
+            :maxlength="max_paste_length"
+            placeholder="Paste the text with the rows here: an email, a table copied from a PDF, a messy CSV..."
+        ></textarea>
+        <div class="ask-actions">
+            <el-button
+                class="ask-paste-extract"
+                type="primary"
+                size="small"
+                :loading="asking"
+                :disabled="!can_extract || used_up || unverified"
+                @click="extract"
+                >Make rows</el-button
+            >
+            <span class="ask-hint"
+                >{{ paste_text.length }} of {{ max_paste_length }} characters.
+                Uses one question; the rows it makes count as AI rows (at most
+                {{ max_paste_rows }}). Values the text doesn't give are left
+                empty.</span
+            >
+        </div>
     </div>
     <div class="ask-usage" v-if="usage && unverified">
         Verify your email address to use AI on your data.

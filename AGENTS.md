@@ -433,6 +433,14 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   clears those links. A duplicate's `before` has dates as ISO strings, compared as dates, and
   `restore-rows` writes them back as `Date`s. Frontend:
   `h-data-grid/cleanup-panel`, inside `ask-dialog`.
+- Pasted text (#207): Ask AI's **Paste text** box (or several lines pasted into the question),
+  `POST /ai/web-file/:id/import-text` `{ text }` (at most 20,000 characters; one question, writes
+  nothing). `src/core/ai/import-text.ts` (pure) builds the prompt; one `AiClient.json` call with
+  `rows_schema` answers the rows, checked by `check_rows`, and a text value whose words aren't in
+  the pasted text is made null (nothing made up). `ImportTextService` reserves as many AI rows as
+  are left, at most 200 (`AiService.reserve_up_to`), before the question, and hands back the ones
+  not made. The answer's `proposed` is shown and added like `propose_rows`. The smoke stubs
+  recognise it by `<pasted_text>` in the prompt.
 - Email verification (#132): `account.email_verified` (migration marks every older account
   verified; Google/GitHub accounts are created verified). `src/core/email-verification/` has the
   rules; links are rows of `email_verification` (24 hours, one per account). `create-account`

@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Account } from '@app/core/account/account.entity';
+import { Session } from '@app/core/session/session.entity';
 import { AccountManager } from '@app/core/account/account.manager';
 import { AccountUpdateDto } from './dto/account-update.dto';
 import { AccountPassChangeDto } from './dto/account-pass-change.dto';
@@ -12,6 +13,8 @@ export class AccountService {
     constructor(
         @InjectRepository(Account)
         private readonly account_repository: Repository<Account>,
+        @InjectRepository(Session)
+        private readonly session_repository: Repository<Session>,
         private account_manager: AccountManager
     ) {}
 
@@ -67,7 +70,10 @@ export class AccountService {
         return await account_id;
     }
 
-    async delete_account(account_id) {
-        return await this.account_repository.update({ id: account_id }, { deleted: true });
+    /** Marks the account deleted and ends all its sessions, on every device (#282). */
+    async delete_account(account_id: number) {
+        const res = await this.account_repository.update({ id: account_id }, { deleted: true });
+        await this.session_repository.delete({ account_id });
+        return res;
     }
 }

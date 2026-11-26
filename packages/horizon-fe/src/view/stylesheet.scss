@@ -247,6 +247,19 @@ a:visited {
     padding: 3px 11px 0;
     border-radius: var(--el-input-border-radius, var(--el-border-radius-base));
 }
+// Until you click or type, Chrome draws a value it autofilled (one the page can't read yet) in
+// its own small system font; ::first-line is the one hook that reaches that preview
+.el-input .el-input__inner:-webkit-autofill::first-line {
+    font-family: inherit;
+    font-size: 20px;
+}
+// Textareas (the contact message) match the one-line inputs above
+.el-textarea .el-textarea__inner {
+    background-color: var(--h-input-bg);
+    font-size: 20px;
+    line-height: 1.4;
+    padding: 8px 11px;
+}
 .el-input:focus {
     background-color: var(--h-input-focus-bg);
 }
@@ -282,6 +295,9 @@ a:visited {
     flex-shrink: 0;
     color: var(--h-text-2);
     background-color: var(--h-surface);
+    // Shows the card's edge on the dark theme's plain background
+    border: solid 1px var(--h-line);
+    box-shadow: 0 2px 8px var(--h-shadow);
     width: 100%;
     max-width: 500px;
     min-height: 200px;
@@ -650,7 +666,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 // The card grows with its content (the SSO buttons, an error message).
@@ -699,7 +715,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 .create-account-page .input-box {
@@ -745,7 +761,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 .verify-email-page .control-box {
@@ -771,7 +787,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 .forgot-password-page .input-box {
@@ -807,7 +823,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 .reset-password-page .info-box {
@@ -848,7 +864,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: $blue400;
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 .contact-page .panel-box {
@@ -918,14 +934,14 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     font-weight: 500;
 }
 .pricing-page .cancel-anytime {
-    color: gray;
+    color: var(--h-muted);
     font-size: 14px;
     margin-top: 5px;
 }
 // While GET /plans loads, or if it fails (#183)
 .pricing-page .pricing-body.pricing-status {
     text-align: center;
-    color: gray;
+    color: var(--h-muted);
 }
 .pricing-page .pricing-error {
     color: var(--h-danger);
@@ -938,74 +954,177 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 }
 .pricing-page .pricing-body__wrapper {
     margin: 0 auto;
-    max-width: 1200px;
+    max-width: 1100px;
     width: 100%;
 }
-.pricing-page .pricing-body__header {
-    margin-bottom: 10px;
+// The heading above the table
+.pricing-page .pricing-intro {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 56px;
+}
+.pricing-page .pricing-intro h1 {
+    margin: 0 0 12px;
+    font-size: 40px;
+    font-weight: 600;
+    color: var(--h-text);
+}
+.pricing-page .pricing-intro p {
+    margin: 0;
     font-size: 18px;
-    font-weight: bold;
+    color: var(--h-muted);
 }
 .pricing-page .pricing-body__row {
     align-items: stretch;
 }
-.pricing-page .pricing-body__row:nth-child(2) .col {
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
-    position: relative;
-    margin-bottom: -20px;
-    padding-top: 20px;
-}
-.pricing-page .pricing-body__row:last-child .col {
-    border-bottom-left-radius: 5px;
-    border-bottom-right-radius: 5px;
-    padding-bottom: 20px;
-    padding-top: 20px;
-}
-.pricing-page .pricing-body__row i {
-    padding: 0;
-    margin: 0;
-    font-size: 20px;
-}
+// Each plan is a column running from its card at the top to its button at the bottom: the
+// same background in every row, and the featured plan outlined in the accent colour
 .pricing-page .pricing-body__row .col {
     display: flex;
     flex-direction: column;
     align-items: center;
-    background-color: var(--h-surface);
-    padding: 10px 0;
+    justify-content: center;
+    text-align: center;
+    padding: 11px 10px;
+    background-color: var(--h-surface-2);
+    border-left: solid 2px transparent;
+    border-right: solid 2px transparent;
 }
-.pricing-page .pricing-body__row .col:nth-child(2) {
-    background-color: var(--h-tier-1);
-}
-.pricing-page .pricing-body__row .col:nth-child(3) {
-    background-color: var(--h-tier-2);
-}
-.pricing-page .pricing-body__row .col:nth-child(4) {
-    background-color: var(--h-tier-3);
-}
-.pricing-page .pricing-body__row .col:nth-child(5) {
-    background-color: var(--h-tier-4);
+.pricing-page .pricing-body__row .col.featured {
+    background-color: var(--h-tint-accent);
+    border-left-color: var(--h-accent);
+    border-right-color: var(--h-accent);
 }
 .pricing-page .pricing-body__row .col:first-child {
     align-items: flex-start;
+    text-align: left;
+    padding-left: 12px;
     background-color: transparent;
+    border: none;
 }
-.pricing-page .pricing-body__row:first-child .col {
-    background-color: transparent;
-    padding-top: 0;
+// The plan cards
+.pricing-page .plan-head {
+    position: relative;
+    gap: 6px;
+    padding: 32px 18px 26px !important;
+    border-top: solid 2px transparent;
+    border-radius: 12px 12px 0 0;
 }
-.pricing-page .pricing-body__row .price {
-    font-size: 30px;
+.pricing-page .plan-head.featured {
+    border-top-color: var(--h-accent);
+}
+.pricing-page .plan-badge {
+    position: absolute;
+    top: -13px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background-color: var(--h-btn-primary);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.pricing-page .plan-name {
+    font-size: 22px;
+    font-weight: bold;
+    color: var(--h-text);
+}
+.pricing-page .plan-tagline {
+    min-height: 2.6em;
+    font-size: 14px;
+    color: var(--h-muted);
+}
+.pricing-page .plan-price {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    margin-top: 4px;
+}
+.pricing-page .plan-price .amount {
+    font-size: 46px;
+    font-weight: bold;
+    line-height: 1;
+    color: var(--h-text);
+}
+.pricing-page .plan-price .per {
+    font-size: 16px;
+    color: var(--h-muted);
+}
+.pricing-page .plan-note {
+    min-height: 2.6em;
+    font-size: 13px;
+    color: var(--h-muted);
+}
+// Get started: filled on the featured plan, outlined on the others
+.pricing-page .plan-cta {
+    margin-top: 6px;
+    padding: 9px 24px;
+    border-radius: 6px;
+    border: solid 1px var(--h-line-strong);
+    color: var(--h-text);
+    font-weight: bold;
+    text-decoration: none;
+}
+.pricing-page .plan-cta:hover {
+    border-color: var(--h-accent);
+    color: var(--h-accent-text);
+}
+.pricing-page .featured .plan-cta {
+    background-color: var(--h-btn-primary);
+    border-color: var(--h-btn-primary);
+    color: #ffffff;
+    box-shadow: 0 1px 3px var(--h-shadow);
+}
+.pricing-page .featured .plan-cta:hover {
+    filter: brightness(1.1);
+    color: #ffffff;
+}
+.pricing-page .pricing-body__foot .col:not(:first-child) {
+    padding: 22px 10px 26px;
+    border-bottom: solid 2px transparent;
+    border-radius: 0 0 12px 12px;
+}
+.pricing-page .pricing-body__foot .col.featured {
+    border-bottom-color: var(--h-accent);
+}
+// The plans' rows: a line under each, so a row can be followed across the columns. The line
+// is translucent, so it shows on every column's background
+.pricing-page .pricing-body__row.data .col {
+    border-bottom: solid 1px var(--h-line-soft);
+    font-variant-numeric: tabular-nums;
+}
+.pricing-page .pricing-body__row.data .col:first-child {
+    color: var(--h-text-3);
+}
+.pricing-page .pricing-body__row i {
+    padding: 0;
+    margin: 0;
+    font-size: 18px;
+    color: var(--h-success);
+}
+.pricing-page .pricing-body__row .none {
+    color: var(--h-faint);
 }
 .pricing-page .pricing-body__row.section .col {
-    padding-top: 30px;
+    padding-top: 28px;
+    padding-bottom: 8px;
 }
-.pricing-page .pricing-body__row .col a {
-    background-color: #3c3c9a;
-    color: white;
-    padding: 3px 12px;
-    border-radius: 3px;
-    box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
+// "Resources", "Every plan": headings, not rows
+.pricing-page .pricing-body__row.section .col:first-child {
+    color: var(--h-accent-2);
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.pricing-page .pricing-more {
+    margin: 36px 0 0;
+    text-align: center;
+    color: var(--h-muted);
+}
+.pricing-page .pricing-more a {
+    color: var(--h-link);
 }
 .pricing-page .footer {
     margin-top: 40px;
@@ -1093,7 +1212,8 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 }
 .tos-page .tos-body {
     background-color: var(--h-surface);
-    box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
+    border: solid 1px var(--h-line);
+    box-shadow: 0 1px 3px var(--h-shadow);
     padding: 20px 40px;
     margin: 50px 40px;
 }
@@ -1127,7 +1247,8 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 }
 .privacy-page .privacy-body {
     background-color: var(--h-surface);
-    box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
+    border: solid 1px var(--h-line);
+    box-shadow: 0 1px 3px var(--h-shadow);
     padding: 20px 40px;
     margin: 50px 40px;
 }
@@ -1164,7 +1285,8 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     flex-direction: column;
     background-color: var(--h-surface);
-    box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.15);
+    border: solid 1px var(--h-line);
+    box-shadow: 0 1px 3px var(--h-shadow);
     padding: 10px 0;
 }
 .help-page .help-nav a {
@@ -1202,7 +1324,8 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     flex: 1;
     min-width: 0;
     background-color: var(--h-surface);
-    box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
+    border: solid 1px var(--h-line);
+    box-shadow: 0 1px 3px var(--h-shadow);
     padding: 20px 40px 30px;
     line-height: 1.6;
 }
@@ -1322,7 +1445,8 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     max-width: 900px;
     margin: 40px auto;
     background-color: var(--h-surface);
-    box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
+    border: solid 1px var(--h-line);
+    box-shadow: 0 1px 3px var(--h-shadow);
     padding: 20px 40px 30px;
     line-height: 1.6;
 }

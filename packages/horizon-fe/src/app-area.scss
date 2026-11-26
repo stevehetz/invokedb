@@ -16,6 +16,16 @@
     @include theme-tokens.tokens(theme-tokens.$dark);
     color-scheme: dark;
 }
+// The header and the tables pane's icon rail stay dark in light mode too: they take the dark
+// tokens, so everything drawn inside them follows. Their dropdowns are teleported to <body>, so
+// those stay light.
+:root.app-area:not([data-theme='dark'])
+    :is(.layout > .header, .h-tree > .left) {
+    @include theme-tokens.tokens(theme-tokens.$dark);
+    @include theme-tokens.tokens(theme-tokens.$light-rail);
+    @include theme-tokens.element-dark-surfaces;
+    color-scheme: dark;
+}
 html.app-area,
 html.app-area body {
     background-color: var(--h-bg);

@@ -27,54 +27,58 @@
 
         <label class="form-editor-label">Questions</label>
         <table class="form-editor-columns">
-            <tr>
-                <th>Ask</th>
-                <th>Column</th>
-                <th>Label (optional)</th>
-                <th>Required</th>
-                <th></th>
-            </tr>
-            <tr
-                v-for="(c, i) in draft.columns"
-                :key="c.field"
-                :class="['form-editor-column', { off: !c.ask }]"
-            >
-                <td>
-                    <input
-                        type="checkbox"
-                        class="form-editor-ask"
-                        v-model="c.ask"
-                    />
-                </td>
-                <td>
-                    {{ c.name }}
-                    <span class="form-editor-type">{{ c.type }}</span>
-                </td>
-                <td>
-                    <input
-                        class="form-editor-field-label"
-                        v-model="c.label"
-                        :placeholder="c.name"
-                        :disabled="!c.ask"
-                    />
-                </td>
-                <td>
-                    <input
-                        type="checkbox"
-                        class="form-editor-required"
-                        v-model="c.required"
-                        :disabled="!c.ask"
-                    />
-                </td>
-                <td class="form-editor-move">
-                    <span class="no-highlight" @click="move(i, -1)"
-                        ><i class="fa fa-arrow-up"></i
-                    ></span>
-                    <span class="no-highlight" @click="move(i, 1)"
-                        ><i class="fa fa-arrow-down"></i
-                    ></span>
-                </td>
-            </tr>
+            <thead>
+                <tr>
+                    <th>Ask</th>
+                    <th>Column</th>
+                    <th>Label (optional)</th>
+                    <th>Required</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr
+                    v-for="(c, i) in draft.columns"
+                    :key="c.field"
+                    :class="['form-editor-column', { off: !c.ask }]"
+                >
+                    <td>
+                        <input
+                            type="checkbox"
+                            class="form-editor-ask"
+                            v-model="c.ask"
+                        />
+                    </td>
+                    <td>
+                        {{ c.name }}
+                        <span class="form-editor-type">{{ c.type }}</span>
+                    </td>
+                    <td>
+                        <input
+                            class="form-editor-field-label"
+                            v-model="c.label"
+                            :placeholder="c.name"
+                            :disabled="!c.ask"
+                        />
+                    </td>
+                    <td>
+                        <input
+                            type="checkbox"
+                            class="form-editor-required"
+                            v-model="c.required"
+                            :disabled="!c.ask"
+                        />
+                    </td>
+                    <td class="form-editor-move">
+                        <span class="no-highlight" @click="move(i, -1)"
+                            ><i class="fa fa-arrow-up"></i
+                        ></span>
+                        <span class="no-highlight" @click="move(i, 1)"
+                            ><i class="fa fa-arrow-down"></i
+                        ></span>
+                    </td>
+                </tr>
+            </tbody>
         </table>
 
         <div class="form-editor-row">

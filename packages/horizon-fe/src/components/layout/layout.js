@@ -168,6 +168,7 @@ export default {
             if (command === 'settings') this.$router.push('/app/account');
             // Only shown to admins (#277)
             else if (command === 'admin') this.$router.push('/app/admin');
+            else if (command === 'help') this.$router.push('/help');
             else if (command === 'contact') this.contact();
             else if (command === 'logout') this.logout();
         },

@@ -600,7 +600,7 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
 - `this.$bus` / `@/core/bus` is a small emitter with the old `$on`/`$off`/`$emit` names. Remove
   your handler with `$off` in `beforeUnmount`. Prefer props, emits or the store for new code.
 - Help and changelog (#219): the site's `/help/:topic` (`view/pages/help`; topics in
-  `help-topics.js`, their text in `help.html`) is linked from the site's nav and the app's header.
+  `help-topics.js`, their text in `help.html`) is linked from the site's nav and the app's account menu.
   **When a feature changes, update its help topic.** `/changelog` reads `changelog.json`, written by
   `npm run changelog` (`scripts/changelog.mjs`: merged PRs labelled `enhancement` or closing an
   `enhancement` issue).

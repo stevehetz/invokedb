@@ -70,6 +70,7 @@ const PAGE_SIZE = 50;
 const PENDING_CHECK_FIRST_MS = 5000;
 const PENDING_CHECK_MAX_MS = 60000;
 const ADD_ROW_MODE_ROW_COUNT = 4;
+const LOADING_MESSAGE_DELAY_MS = 400;
 
 const ROW_INDEX_COLUMN = {
     order: '0',
@@ -150,6 +151,8 @@ export default {
         this.toolbar_observer = null;
         this.toolbar_frame = null;
         this.fitting_toolbar = false;
+        // show_loading's pending "Loading..." message
+        this.loading_timer = null;
         // While the table is locked waiting for a job (or after a failed load), a timer checks
         // the table's status and reloads it once it isn't PENDING (#190)
         this.pending_timer = null;
@@ -201,6 +204,7 @@ export default {
     beforeUnmount() {
         if (this.toolbar_observer) this.toolbar_observer.disconnect();
         if (this.toolbar_frame) cancelAnimationFrame(this.toolbar_frame);
+        this.cancel_loading();
         bus.$off('websocket:message', this.websocket_message);
         this.stop_pending_check();
     },
@@ -433,7 +437,7 @@ export default {
             this.stop_pending_check();
             this.table_lock = false;
             this.processing = false;
-            this.show_top_bar_info('Loading...');
+            this.show_loading();
 
             try {
                 // Get Columns
@@ -491,6 +495,7 @@ export default {
 
         /*** Start: Info Bar ***/
         show_top_bar_msg(msg, duration) {
+            this.cancel_loading();
             const show = () => {
                 this.top_bar_message = msg;
                 this.top_bar_show = true;
@@ -520,7 +525,25 @@ export default {
         },
 
         hide_top_bar_msg() {
+            this.cancel_loading();
             this.top_bar_show = false;
+        },
+
+        // "Loading..." only once a load takes long enough to notice; shown and hidden on
+        // every quick fetch (a refresh, scrolling a page in), it just flashed
+        show_loading() {
+            this.cancel_loading();
+            this.loading_timer = window.setTimeout(() => {
+                this.loading_timer = null;
+                this.show_top_bar_info('Loading...');
+            }, LOADING_MESSAGE_DELAY_MS);
+        },
+
+        cancel_loading() {
+            if (this.loading_timer) {
+                window.clearTimeout(this.loading_timer);
+                this.loading_timer = null;
+            }
         },
 
         /*** End: Info Bar ***/
@@ -555,7 +578,7 @@ export default {
 
         /*** Start: Retrieve paged rows from server ***/
         async get_rows(params) {
-            this.show_top_bar_info('Loading...');
+            this.show_loading();
             const col_defs = this.col_defs();
             let res = await mgr.get_rows(
                 this.file_directory_id,
@@ -828,8 +851,6 @@ export default {
                 this.file_directory_id,
                 pending
             );
-            new_col.edit_mode = true;
-
             col_defs.push(new_col);
 
             this.set_column_defs(col_defs);
@@ -1475,7 +1496,7 @@ export default {
 
         // Add-row mode shows the table's last few rows (covered) above the new ones
         async load_add_row_mode_data() {
-            this.show_top_bar_info('Loading...');
+            this.show_loading();
             this.add_row_mode = true;
 
             const { count } = await mgr.get_rows(

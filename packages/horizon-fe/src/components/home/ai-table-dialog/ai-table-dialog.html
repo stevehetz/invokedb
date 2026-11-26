@@ -63,49 +63,59 @@
         </div>
         <label class="ai-label">Columns</label>
         <table class="ai-columns">
-            <tr v-for="(c, i) in columns" :key="i" class="ai-column">
-                <td><input class="ai-column-name" v-model="c.name" /></td>
-                <td>
-                    <select class="ai-column-type" v-model="c.type">
-                        <option value="string">string</option>
-                        <option value="number">number</option>
-                        <option value="date">date</option>
-                    </select>
-                </td>
-                <td>
-                    <el-button
-                        link
-                        size="small"
-                        :disabled="columns.length <= 1"
-                        @click="remove_column(i)"
-                        title="Remove column"
-                        ><i class="fa fa-times"></i
-                    ></el-button>
-                </td>
-            </tr>
-        </table>
-
-        <label class="ai-label">Sample rows ({{ rows.length }})</label>
-        <div class="ai-preview" v-if="rows.length > 0">
-            <table>
-                <tr>
-                    <th v-for="(c, i) in columns" :key="i">{{ c.name }}</th>
-                    <th></th>
-                </tr>
-                <tr v-for="(r, ri) in rows" :key="ri" class="ai-preview-row">
-                    <td v-for="(c, ci) in columns" :key="ci">
-                        {{ show(r[ci]) }}
+            <tbody>
+                <tr v-for="(c, i) in columns" :key="i" class="ai-column">
+                    <td><input class="ai-column-name" v-model="c.name" /></td>
+                    <td>
+                        <select class="ai-column-type" v-model="c.type">
+                            <option value="string">string</option>
+                            <option value="number">number</option>
+                            <option value="date">date</option>
+                        </select>
                     </td>
                     <td>
                         <el-button
                             link
                             size="small"
-                            @click="remove_row(ri)"
-                            title="Remove row"
+                            :disabled="columns.length <= 1"
+                            @click="remove_column(i)"
+                            title="Remove column"
                             ><i class="fa fa-times"></i
                         ></el-button>
                     </td>
                 </tr>
+            </tbody>
+        </table>
+
+        <label class="ai-label">Sample rows ({{ rows.length }})</label>
+        <div class="ai-preview" v-if="rows.length > 0">
+            <table>
+                <thead>
+                    <tr>
+                        <th v-for="(c, i) in columns" :key="i">{{ c.name }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr
+                        v-for="(r, ri) in rows"
+                        :key="ri"
+                        class="ai-preview-row"
+                    >
+                        <td v-for="(c, ci) in columns" :key="ci">
+                            {{ show(r[ci]) }}
+                        </td>
+                        <td>
+                            <el-button
+                                link
+                                size="small"
+                                @click="remove_row(ri)"
+                                title="Remove row"
+                                ><i class="fa fa-times"></i
+                            ></el-button>
+                        </td>
+                    </tr>
+                </tbody>
             </table>
         </div>
         <p class="ai-usage" v-if="usage">

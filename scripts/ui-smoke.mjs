@@ -301,6 +301,15 @@ async function step(name, fn) {
 
 const grid = () => page.locator('.el-tab-pane:visible .h-data-grid');
 
+// A button of the grid's top bar (api, webhooks, forms, ask): on the bar, or under the More (…)
+// menu when the bar is too narrow for it (#297), as in this window with the tables pane open
+async function click_top_bar(name) {
+    const on_bar = grid().locator(`.${name === 'ask' ? 'ask-data' : name}-button button`);
+    if ((await on_bar.count()) > 0) return on_bar.click();
+    await grid().locator('.more-button button').click();
+    await page.locator(`.more-menu .more-${name}:visible`).click();
+}
+
 // Header labels in display order (excluding the row number column)
 async function headers() {
     const labels = await grid()
@@ -734,7 +743,7 @@ try {
     // Get, which sends a real (read-only) request with a key: the checklist's, or (when this
     // account dismissed the checklist) one made here and pasted in, as a person would (#138)
     await step('table_api_docs', async () => {
-        await grid().locator('.api-button button').click();
+        await click_top_bar('api');
         const dialog = page.locator('.container-dialog .api-dialog');
         const tabs = dialog.locator('.api-dialog-tab');
         await tabs.first().waitFor();
@@ -809,7 +818,7 @@ try {
     // is on example.com, so only that the test event was queued and logged is checked, not
     // that example.com accepted it. Deleting the table would remove it too.
     await step('table_webhooks', async () => {
-        await grid().locator('.webhooks-button button').click();
+        await click_top_bar('webhooks');
         const dialog = page.locator('.container-dialog .webhooks-dialog');
         await dialog.locator('.webhooks-add').waitFor();
         await dialog
@@ -888,13 +897,15 @@ try {
     // Anywhere else (production) the dialog is only opened, so no real model is called.
     await step('ask_your_data', async () => {
         const status = await be('GET', '/ai/status', { token: be_s.token });
-        const button = grid().locator('.ask-data-button button');
         results.observed.ai_available = !!status.available;
         if (!status.available) {
-            check((await button.count()) === 0, 'the Ask button shows without AI set up');
+            const shown =
+                (await grid().locator('.ask-data-button').count()) +
+                (await page.locator('.more-menu .more-ask').count());
+            check(shown === 0, 'the Ask button shows without AI set up');
             return;
         }
-        await button.click();
+        await click_top_bar('ask');
         const dialog = page.locator('.container-dialog .ask-dialog');
         await dialog.locator('.ask-usage').waitFor();
         if (ai_stub) {
@@ -1144,7 +1155,7 @@ try {
     // After the API key step, which counts the table's rows.
     await step('table_forms', async () => {
         await page.locator('.el-tabs__item', { hasText: TABLE }).click();
-        await grid().locator('.forms-button button').click();
+        await click_top_bar('forms');
         const dialog = page.locator('.container-dialog .forms-dialog');
         await dialog.locator('.forms-new-button').waitFor();
         check((await dialog.locator('.form-item').count()) === 0, 'the table already has forms');
@@ -1620,7 +1631,7 @@ try {
         await step('ai_rows_and_table', async () => {
             await page.locator('.h-tree .tree-wrapper').getByText(TABLE, { exact: true }).click();
             await page.locator('.el-tabs__item.is-active', { hasText: TABLE }).waitFor();
-            await grid().locator('.ask-data-button button').click();
+            await click_top_bar('ask');
             const gen = page.locator('.container-dialog .ask-dialog');
             await gen.locator('.ask-question').fill('add two more people');
             await gen.getByRole('button', { name: 'Ask', exact: true }).click();
@@ -1655,7 +1666,7 @@ try {
             );
 
             // Pasted text (#207): the paste box turns lines into rows to review, saving nothing
-            await grid().locator('.ask-data-button button').click();
+            await click_top_bar('ask');
             const paste = page.locator('.container-dialog .ask-dialog');
             await paste.locator('.ask-paste-toggle').click();
             await paste.locator('.ask-paste-text').fill('Pasted One\nPasted Two');

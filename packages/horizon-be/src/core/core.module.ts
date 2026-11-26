@@ -30,6 +30,7 @@ import { ViewManager } from './view/view.manager';
 import { AiClient } from './ai/ai-client';
 import { AiUsageManager } from './ai/ai-usage.manager';
 import { AiSpend } from './ai/ai-spend';
+import { AiColumnManager } from './ai-column/ai-column.manager';
 import { AuditManager } from './audit/audit.manager';
 import { AccountExportManager } from './account-export/account-export.manager';
 
@@ -68,6 +69,7 @@ import { AccountExportManager } from './account-export/account-export.manager';
         AiClient,
         AiUsageManager,
         AiSpend,
+        AiColumnManager,
         AuditManager,
         AccountExportManager,
         WebsocketClientStore
@@ -90,6 +92,7 @@ import { AccountExportManager } from './account-export/account-export.manager';
         AiClient,
         AiUsageManager,
         AiSpend,
+        AiColumnManager,
         AuditManager,
         AccountExportManager,
         WebsocketClientStore,

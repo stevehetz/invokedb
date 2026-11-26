@@ -25,6 +25,10 @@ import {
 } from './link';
 import { reusable_placeholder } from './column-placeholder';
 
+// Where a row keeps its AI columns' state (#205, core/ai-column/ai-column.ts). Only the AI
+// column processor writes it: row writes from the app and the API drop it.
+export const AI_ROW_STATE_KEY = '_ai';
+
 const MAX_FIELD_VALUE_LENGTH = 2000;
 const MAX_COLUMN_VALUE_LENGTH = 100;
 
@@ -489,6 +493,7 @@ export class WebFileManager {
             data.forEach(d => {
                 if (d._id) delete d._id;
                 if (d.row_num) delete d.row_num;
+                delete d[AI_ROW_STATE_KEY];
                 d.file_directory_id = file_id;
                 d.row_index = ++last_row_index;
             });
@@ -668,6 +673,8 @@ export class WebFileManager {
         const _id = new ObjectId(data._id);
         delete data._id;
         delete data.row_num;
+        // The AI columns' state (#205) is the processor's: the grid sends it back with the row
+        delete data[AI_ROW_STATE_KEY];
         this.validate_row(data);
         const col_type_map = await this.get_col_type_map(acct_id, file_id);
         const formatted_row = this.format_row(data, col_type_map);

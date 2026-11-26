@@ -46,6 +46,7 @@ import {
     link_display_column,
     parse_expand
 } from '@app/core/web-file/link';
+import { AiColumnManager } from '@app/core/ai-column/ai-column.manager';
 
 const fs = require('fs');
 
@@ -58,8 +59,21 @@ export class WebFileService {
         private tracking_manager: TrackingManager,
         private job_manager: JobManager,
         private webhook_svc: WebhookService,
-        private audit_svc: AuditService
+        private audit_svc: AuditService,
+        private ai_column_manager: AiColumnManager
     ) {}
+
+    // Rows were made or changed: the table's AI columns (#205) compute their cells again where
+    // the inputs changed. Never fails the request.
+    private async ai_columns_changed(account_id, file_id, ids: any[]) {
+        try {
+            const list = (ids || []).filter(Boolean).map(String);
+            if (list.length === 0) return;
+            await this.ai_column_manager.rows_changed(account_id, Number(file_id), list);
+        } catch (ex) {
+            logger.error(`AI columns of file ${file_id} not told of a change: ${ex.message}`);
+        }
+    }
 
     // The column changes (#217) a save of these columns would make, worked out before it,
     // since the save takes `_id` off each column
@@ -752,6 +766,7 @@ export class WebFileService {
         if (web_file_type === 'data_grid_row' && res) {
             await this.webhook_svc.emit(account.id, file_id, 'row.updated', [res]);
             await this.audit_svc.rows(account, file_id, 'row.updated', [res._id], row_columns);
+            await this.ai_columns_changed(account.id, file_id, [res._id]);
         } else if (web_file_type === 'data_grid_column') {
             await this.audit_svc.columns(account, file_id, col_changes);
         }
@@ -828,6 +843,7 @@ export class WebFileService {
             if (web_file_type === 'data_grid_row') {
                 const ids = updated.map(r => r._id);
                 await this.audit_svc.rows(account, file_id, 'row.updated', ids, row_columns);
+                await this.ai_columns_changed(account.id, file_id, ids);
             }
             return res;
         }
@@ -877,6 +893,7 @@ export class WebFileService {
             await this.webhook_svc.emit(account.id, file_id, 'row.created', inserted);
             const ids = inserted.map(r => r._id);
             await this.audit_svc.rows(account, file_id, 'row.created', ids, [], actor);
+            await this.ai_columns_changed(account.id, file_id, ids);
         } else if (web_file_type === 'data_grid_column') {
             const named = data.filter(c => c && typeof c.headerName === 'string' && c.headerName);
             await this.audit_svc.columns(account, file_id, named.map(column_created));

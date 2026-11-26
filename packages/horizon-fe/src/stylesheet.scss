@@ -5007,6 +5007,54 @@ $admin_muted: #a0a0a0;
 .admin-page .admin-history .table {
     color: $admin_muted;
 }
+// Errors and Status tabs (#212)
+.admin-page .admin-error-message {
+    max-width: 520px;
+    word-break: break-word;
+}
+.admin-page .admin-error-frame {
+    color: $admin_muted;
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+.admin-page .admin-error-title {
+    word-break: break-word;
+}
+.admin-page .admin-stack {
+    background-color: $admin_bg;
+    border: 1px solid $admin_line;
+    color: $admin_text;
+    padding: 10px 12px;
+    font-family: Menlo, Consolas, monospace;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre;
+}
+.admin-page .admin-stack-toggle,
+.admin-page .admin-status-link {
+    font-size: 0.8rem;
+    font-weight: normal;
+    margin-left: 10px;
+}
+.admin-page .admin-state.state-operational {
+    color: $green500;
+}
+.admin-page .admin-state.state-degraded {
+    color: $orange200;
+}
+.admin-page .admin-state.state-down {
+    color: $red300;
+}
+.admin-page .admin-state.state-unknown {
+    color: $admin_muted;
+}
+.admin-page .admin-status-actions {
+    margin-top: 8px;
+}
+.admin-page .admin-status-actions .el-select {
+    width: 160px;
+}
 .admin-confirm .el-select,
 .admin-confirm .el-input {
     width: 100%;

@@ -1,0 +1,109 @@
+<div class="page status-page">
+    <div class="main-content">
+        <div class="main-heading">
+            <div class="flex-row">
+                <div class="col col-25">
+                    <router-link class="title-link" to="/">
+                        <img
+                            class="heading-logo-title"
+                            src="@/assets/logo-title.svg"
+                        />
+                        <img
+                            class="heading-logo-icon"
+                            src="@/assets/logo.svg"
+                        />
+                    </router-link>
+                </div>
+                <div class="col col-75 pull-right">
+                    <router-link to="/help">Help</router-link>
+                    <router-link to="/contact">Contact</router-link>
+                    <router-link to="/pricing">Pricing</router-link>
+                    <router-link to="/create-account" v-if="!account"
+                        >Sign Up</router-link
+                    >
+                    <router-link to="/login" class="sign-in" v-if="!account">
+                        <span>Sign In</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                    <router-link to="/app" class="sign-in" v-if="account">
+                        <span>Database</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                </div>
+            </div>
+        </div>
+        <div class="status-body">
+            <h1>Status</h1>
+            <p class="status-loading" v-if="loading">Checking…</p>
+            <template v-else>
+                <div :class="['status-overall', 'status-' + overall]">
+                    <i
+                        :class="overall === 'operational' ? 'fa fa-circle-check' : overall === 'degraded' ? 'fa fa-triangle-exclamation' : 'fa fa-circle-xmark'"
+                    ></i>
+                    <span>{{ headline }}</span>
+                </div>
+
+                <div
+                    v-if="status && status.incident"
+                    :class="['status-incident', 'incident-' + status.incident.level]"
+                >
+                    <div class="status-incident__head">
+                        <strong
+                            >{{ incident_label(status.incident.level) }}</strong
+                        >
+                        <span v-if="status.incident.updated_at">
+                            · updated {{ time_label(status.incident.updated_at)
+                            }}</span
+                        >
+                    </div>
+                    <p class="status-incident__message">
+                        {{ status.incident.message }}
+                    </p>
+                </div>
+
+                <ul class="status-checks" v-if="status && !unreachable">
+                    <li
+                        v-for="c in status.checks"
+                        :key="c.id"
+                        :class="['status-check', 'state-' + c.state]"
+                    >
+                        <span class="status-dot" aria-hidden="true"></span>
+                        <div class="status-check__name">
+                            <strong>{{ c.name }}</strong>
+                            <span class="status-check__note"
+                                >{{ check_note(c.id) }}</span
+                            >
+                        </div>
+                        <div class="status-check__state">
+                            <span>{{ state_label(c.state) }}</span>
+                            <span class="status-check__at" v-if="c.at">
+                                <a
+                                    v-if="c.url"
+                                    :href="c.url"
+                                    target="_blank"
+                                    rel="noopener"
+                                    >{{ ago(c.at) }}</a
+                                >
+                                <template v-else>{{ ago(c.at) }}</template>
+                            </span>
+                        </div>
+                    </li>
+                </ul>
+                <p class="status-note" v-if="unreachable">
+                    The status checks run on the API, so none can be shown while
+                    it's unreachable. This page tries again every minute.
+                </p>
+                <p class="status-note" v-else-if="status">
+                    Checked {{ ago(status.checked_at) }}; this page refreshes
+                    every minute. Something wrong that isn't shown here?
+                    <router-link to="/contact">Tell us</router-link>.
+                </p>
+            </template>
+        </div>
+        <div class="footer">
+            <div class="flex-row">
+                <div class="col">© InvokeDB, LLC</div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -27,6 +27,8 @@ import { AccountExportController } from './http/account-export/account-export.co
 import { PlanController, UsageController } from './http/plan/plan.controller';
 import { AdminController } from './http/admin/admin.controller';
 import { AdminGuard } from './http/admin/admin.guard';
+import { ErrorReportController } from './http/error-report/error-report.controller';
+import { StatusController } from './http/status/status.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
@@ -58,7 +60,9 @@ import { WebsocketClient } from './ws/websocket-client';
         AccountExportController,
         PlanController,
         UsageController,
-        AdminController
+        AdminController,
+        ErrorReportController,
+        StatusController
     ],
     providers: [
         WebsocketServer,

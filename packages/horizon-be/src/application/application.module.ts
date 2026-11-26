@@ -33,6 +33,8 @@ import { AccountExportService } from './account-export/account-export.service';
 import { UsageService } from './plan/usage.service';
 import { AdminAccessService } from './admin/admin-access.service';
 import { AdminService } from './admin/admin.service';
+import { ErrorTrackingService } from './error-tracking/error-tracking.service';
+import { StatusService } from './status/status.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -67,7 +69,9 @@ import { AdminService } from './admin/admin.service';
         AccountExportService,
         UsageService,
         AdminAccessService,
-        AdminService
+        AdminService,
+        ErrorTrackingService,
+        StatusService
     ],
     exports: [
         AuthService,
@@ -97,7 +101,9 @@ import { AdminService } from './admin/admin.service';
         AccountExportService,
         UsageService,
         AdminAccessService,
-        AdminService
+        AdminService,
+        ErrorTrackingService,
+        StatusService
     ]
 })
 export class ApplicationModule {}

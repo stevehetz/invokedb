@@ -17,6 +17,20 @@
                 >
                     Accounts
                 </button>
+                <button
+                    type="button"
+                    :class="['admin-tab', { active: tab === 'errors' }]"
+                    @click="show_tab('errors')"
+                >
+                    Errors
+                </button>
+                <button
+                    type="button"
+                    :class="['admin-tab', { active: tab === 'status' }]"
+                    @click="show_tab('status')"
+                >
+                    Status
+                </button>
             </div>
         </div>
 
@@ -172,6 +186,18 @@
                 </div>
             </template>
         </div>
+
+        <!-- Errors (#212) -->
+        <admin-errors
+            v-else-if="tab === 'errors'"
+            :error_id="error_id"
+            @open="open_error"
+            @close="close_error"
+            @account="open_account"
+        ></admin-errors>
+
+        <!-- The status page and its incident note (#212) -->
+        <admin-status v-else-if="tab === 'status'"></admin-status>
 
         <!-- Accounts -->
         <div class="admin-accounts" v-else>

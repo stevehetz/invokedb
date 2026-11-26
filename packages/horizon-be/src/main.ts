@@ -8,6 +8,22 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { WebModule } from '@app/web/web.module';
 import { AllExceptionFilter } from './all-exception.filter';
 import env from './env';
+import { process_source, report_error } from './core/error-tracking/report';
+
+// An uncaught exception or unhandled rejection (Node's default `throw` mode turns the second
+// into the first) still ends the process, as before, but is recorded first (#212), waiting at
+// most FATAL_REPORT_MS for it.
+const FATAL_REPORT_MS = 3000;
+let exiting = false;
+process.on('uncaughtException', (err, origin) => {
+    console.error(`${origin}:`, err);
+    if (exiting) return;
+    exiting = true;
+    const timeout = new Promise(resolve => setTimeout(resolve, FATAL_REPORT_MS));
+    Promise.race([report_error(process_source(), err, { route: origin }), timeout]).finally(() =>
+        process.exit(1)
+    );
+});
 
 async function bootstrap() {
     if (!env.HORIZON_WS_SERVER_TOKEN) {

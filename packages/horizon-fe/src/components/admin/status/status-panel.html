@@ -1,0 +1,77 @@
+<div class="admin-status">
+    <p class="admin-error" v-if="error">{{ error }}</p>
+    <p class="admin-loading" v-else-if="!status">Loading…</p>
+    <template v-else>
+        <div class="admin-panel">
+            <h3>
+                {{ overall_label(status.status) }}
+                <router-link class="admin-status-link" to="/status"
+                    >public page</router-link
+                >
+            </h3>
+            <table class="admin-table">
+                <tbody>
+                    <tr v-for="c in status.checks" :key="c.id">
+                        <td>{{ c.name }}</td>
+                        <td :class="'admin-state state-' + c.state">
+                            {{ state_label(c.state) }}
+                        </td>
+                        <td>
+                            <template v-if="c.at"
+                                >{{ ago(c.at) }} ({{ time_label(c.at)
+                                }})</template
+                            >
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="admin-note">
+                Checked {{ time_label(status.checked_at) }}; the answer is
+                cached 30 seconds.
+            </p>
+        </div>
+        <div class="admin-panel">
+            <h3>Incident note</h3>
+            <p class="admin-note">
+                Shown at the top of the public status page until it's removed.
+                "Degraded" and "Outage" also set the page's headline.
+            </p>
+            <el-input
+                v-model="message"
+                type="textarea"
+                :rows="3"
+                maxlength="1000"
+                placeholder="What's happening, and what users can do"
+            ></el-input>
+            <div class="admin-actions admin-status-actions">
+                <el-select v-model="level">
+                    <el-option
+                        v-for="l in levels"
+                        :key="l.id"
+                        :label="l.label"
+                        :value="l.id"
+                    ></el-option>
+                </el-select>
+                <el-button
+                    type="primary"
+                    :disabled="busy || !message.trim()"
+                    @click="save"
+                    >{{ status.incident ? 'Update the note' : 'Show the note'
+                    }}</el-button
+                >
+                <el-button
+                    v-if="status.incident"
+                    :disabled="busy"
+                    @click="clear"
+                    >Remove the note</el-button
+                >
+            </div>
+            <p class="admin-error" v-if="action_error">{{ action_error }}</p>
+            <p class="admin-done" v-if="done">{{ done }}</p>
+            <p class="admin-note" v-if="status.incident">
+                {{ level_label(status.incident.level) }} since {{
+                time_label(status.incident.updated_at) }}
+            </p>
+        </div>
+    </template>
+</div>

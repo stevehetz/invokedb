@@ -5707,6 +5707,110 @@ await call('admin_deleted_login', 'POST', '/auth/login', {
     body: { email: adm_email, password: signup_password },
     expectFail: true
 });
+
+// Error tracking and the status page (#212). The frontend posts its errors to the public
+// POST /errors; the admin's Errors page lists them grouped, scrubbed of emails and tokens.
+const err_tag = crypto.randomUUID().slice(0, 8);
+const err_session = `smoke-${err_tag}`;
+const err_report = {
+    message: `Smoke error ${err_tag} for someone@example.com`,
+    stack: `TypeError: Smoke error\n    at save (https://invokedb.test/assets/home-AbC12345.js:1:${err_tag.length})`,
+    page: '/app/reset-password?token=should-not-be-kept',
+    kind: 'vue',
+    info: 'mounted hook',
+    session: err_session
+};
+await call('errors_report', 'POST', '/errors', { body: err_report });
+check('errors_report_202', results.errors_report?.status === 202, results.errors_report);
+await call('errors_report_again', 'POST', '/errors', { body: err_report, token });
+await call('errors_report_no_message', 'POST', '/errors', {
+    body: { stack: 'x', session: err_session },
+    expectFail: true
+});
+check('errors_report_no_message_400', results.errors_report_no_message?.status === 400);
+await call('errors_list_non_admin', 'GET', '/admin/errors', { token, expectFail: true });
+check('errors_list_non_admin_404', results.errors_list_non_admin?.status === 404);
+const err_list = await call('errors_list', 'GET', '/admin/errors?source=frontend&limit=100', {
+    token: tf_token
+});
+const err_group = (err_list?.errors || []).find(e => e.message.includes(err_tag));
+check(
+    'errors_grouped_and_scrubbed',
+    !!err_group &&
+        err_group.count === 2 &&
+        err_group.source === 'frontend' &&
+        err_group.page === '/app/reset-password' &&
+        err_group.route === 'mounted hook' &&
+        err_group.account_id === me.id &&
+        !err_group.message.includes('someone@example.com') &&
+        !('stack' in err_group),
+    err_group || err_list
+);
+const err_detail = await call('errors_detail', 'GET', `/admin/errors/${err_group?.id}`, {
+    token: tf_token
+});
+check(
+    'errors_detail_stack',
+    typeof err_detail?.stack === 'string' && err_detail.stack.includes('home-AbC12345.js'),
+    err_detail
+);
+await call('errors_detail_unknown', 'GET', `/admin/errors/${'0'.repeat(24)}`, {
+    token: tf_token,
+    expectFail: true
+});
+await call('errors_list_bad_source', 'GET', '/admin/errors?source=db', {
+    token: tf_token,
+    expectFail: true
+});
+// A page session gets 10 reports per 10 minutes (two used above, the 400 too)
+for (let i = 0; i < 8; i++) {
+    await fetch(`${BASE}/errors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...err_report, message: `${err_report.message} ${i}` })
+    });
+}
+await call('errors_report_rate_limited', 'POST', '/errors', { body: err_report, expectFail: true });
+check('errors_report_rate_limited_429', results.errors_report_rate_limited?.status === 429);
+
+const status = await call('status', 'GET', '/status');
+const status_check = id => (status?.checks || []).find(c => c.id === id);
+// The E2E check is production's latest run, read from GitHub: a failed one makes it degraded
+check(
+    'status_checks',
+    (status?.status === 'operational' || status_check('e2e')?.state === 'degraded') &&
+        status_check('api')?.state === 'operational' &&
+        status_check('database')?.state === 'operational' &&
+        status_check('processor')?.state === 'operational' &&
+        !!status_check('e2e') &&
+        status.incident === null,
+    status
+);
+await call('status_incident_non_admin', 'POST', '/admin/status/incident', {
+    token,
+    body: { message: 'x' },
+    expectFail: true
+});
+await call('status_incident_bad', 'POST', '/admin/status/incident', {
+    token: tf_token,
+    body: { message: 'x', level: 'bad' },
+    expectFail: true
+});
+await call('status_incident_set', 'POST', '/admin/status/incident', {
+    token: tf_token,
+    body: { message: 'Smoke test: imports are slow', level: 'degraded' }
+});
+const status_incident = await call('status_with_incident', 'GET', '/status');
+check(
+    'status_incident_shown',
+    status_incident?.status === 'degraded' &&
+        status_incident.incident?.message === 'Smoke test: imports are slow' &&
+        status_incident.incident.level === 'degraded',
+    status_incident
+);
+await call('status_incident_clear', 'POST', '/admin/status/incident/clear', { token: tf_token });
+const status_cleared = await call('status_cleared', 'GET', '/status');
+check('status_incident_cleared', status_cleared?.incident === null, status_cleared);
 // demo2 has its own (off) two-factor and can't turn demo6's off, even with demo6's code
 // (a fresh sign-in: the first demo2 session was logged out earlier)
 const tf_other_login = await call('two_factor_other_login', 'POST', '/auth/login', {

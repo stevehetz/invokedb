@@ -1,6 +1,8 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import { Request, Response } from 'express';
 import logger from '@app/logger';
+import { account_id_of, process_source, report_error } from '@app/core/error-tracking/report';
+import { route_of } from '@app/core/error-tracking/error-tracking';
 
 @Catch()
 export class AllExceptionFilter implements ExceptionFilter {
@@ -46,6 +48,17 @@ export class AllExceptionFilter implements ExceptionFilter {
         }
 
         logger.error(`${status} ${stack}`);
+
+        // An unhandled error goes to error tracking (#212). 503 is a deliberate "not now" (AI
+        // off, the websocket starting); 4xx are the caller's.
+        if (status >= 500 && status !== 503) {
+            const req = ctx.getRequest<Request>();
+            void report_error(process_source(), exception, {
+                route: route_of(req?.method, (req as any)?.route?.path, req?.path),
+                status,
+                account_id: account_id_of((req as any)?.user)
+            });
+        }
 
         const json_response: any = {};
         json_response.status = status;

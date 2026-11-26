@@ -510,6 +510,18 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   impersonation. `GET /auth/authorize` carries `admin` for the menu link. The frontend is
   `components/admin` at `/app/admin` (a page overlay, dark styles in `stylesheet.scss`).
   `smoke-env.sh` makes demo6 the admin; `api-smoke.mjs` turns its 2FA on and checks it all.
+- Error tracking and the status page (#212, self-hosted, `docs/OPERATIONS.md`):
+  `src/core/error-tracking/` has the pure rules (`error-tracking.ts`: scrubbing, top frame,
+  fingerprint, the frontend's report), the store (`error-tracking.manager.ts`, `tracking:error`,
+  one document per fingerprint, TTL 30 days) and `report.ts`'s `report_error(source, ex, ctx)`,
+  which any code can call (the exception filter for 5xx but 503, `main.ts`'s
+  `uncaughtException`, the processor's job loop); `ErrorTrackingService` backs it and sends the
+  Telegram alert for a new fingerprint. The frontend's `core/error-report.js` posts to the public
+  `POST /errors`. `src/core/status/` and `StatusService` answer the public `GET /status` (the
+  processor writes a heartbeat to `tracking:status`); the admin area's Errors and Status tabs
+  read `/admin/errors` and set the incident note (`/admin/status/incident`). The site's page is
+  `view/pages/status`. The frontend build writes hidden source maps
+  (`core/context/admin/source-map.js` reads them for frontend stacks).
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

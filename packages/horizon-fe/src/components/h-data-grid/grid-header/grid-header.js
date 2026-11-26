@@ -1,3 +1,5 @@
+import { col_meta } from '../col-def';
+
 export default {
     props: ['params'],
 
@@ -20,8 +22,9 @@ export default {
     mounted() {
         this.event_handlers();
         const { colDef } = this.params.column;
-        this.col_type = this.get_col_type(colDef.col_type || 'string');
-        this.indexed = !!colDef.indexed;
+        const meta = col_meta(colDef);
+        this.col_type = this.get_col_type(meta.col_type || 'string');
+        this.indexed = !!meta.indexed;
         this.edit_obj.display_name = this.params.displayName;
         this.params.column.addEventListener(
             'sortChanged',

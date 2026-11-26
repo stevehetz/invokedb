@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import { to_grid } from './col-def';
 import { web_file_http } from '@/core/context/web-file/web-file-http';
 import { parse_utc_date } from '@/core/date';
 
@@ -128,7 +129,10 @@ export const data_grid_manager = {
 
         let columns = [row_index_column].concat(data);
 
-        grid_api.setGridOption('columnDefs', _.sortBy(columns, 'order'));
+        grid_api.setGridOption(
+            'columnDefs',
+            _.sortBy(columns, 'order').map(to_grid)
+        );
     },
 
     async save_columns(

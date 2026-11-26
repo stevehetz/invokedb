@@ -1,4 +1,5 @@
 import { parse_utc_date, format_date } from '@/core/date';
+import { col_meta } from '../col-def';
 
 const string_filter_types = {
     equals: '=',
@@ -29,7 +30,7 @@ export default {
 
     mounted() {
         this.filter_type_menu_handlers();
-        this.col_type = this.params.column.colDef.col_type;
+        this.col_type = col_meta(this.params.column.colDef).col_type;
         if (this.col_type === 'number' || this.col_type === 'date') {
             this.filter_types = number_filter_types;
             this.selected_type = 'equals';
@@ -79,7 +80,7 @@ export default {
                     value = this.input_value = null;
                 } else {
                     value = JSON.stringify({
-                        col_type: this.params.column.colDef.col_type,
+                        col_type: col_meta(this.params.column.colDef).col_type,
                         filter_type: this.selected_type,
                         filter_value: value
                     });
@@ -156,7 +157,7 @@ export default {
             }
             try {
                 const f = JSON.parse(parentModel.filter);
-                const col_type = this.params.column.colDef.col_type;
+                const col_type = col_meta(this.params.column.colDef).col_type;
                 const types =
                     col_type === 'number' || col_type === 'date'
                         ? number_filter_types

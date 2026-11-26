@@ -16,6 +16,7 @@ import {
 import { AgGridVue } from 'ag-grid-vue3';
 import { data_grid_manager as mgr } from './data-grid-manager';
 import { grid_theme } from './grid-theme';
+import { to_grid, from_grid, col_meta } from './col-def';
 import { bus } from '@/core/bus';
 import { web_file_http } from '@/core/context/web-file/web-file-http';
 import GridHeader from './grid-header';
@@ -168,8 +169,6 @@ export default {
                 checkboxes: false,
                 headerCheckbox: false
             },
-            // Column defs carry the backend's own fields (_id, order, col_type...)
-            suppressPropertyNamesCheck: true,
             cacheBlockSize: PAGE_SIZE,
             defaultColDef: this.get_default_col_def(),
             rowClassRules: this.get_row_class_rules(),
@@ -215,19 +214,24 @@ export default {
                     .getAllGridColumns()
                     .filter((c, i) => {
                         const col_def = c.getColDef();
+                        const meta = col_meta(col_def);
                         if (
                             col_def.width !== c.getActualWidth() ||
-                            parseInt(col_def.order) !== i
+                            parseInt(meta.order) !== i
                         ) {
                             col_def.width = c.getActualWidth();
-                            col_def.order = i;
+                            col_def.context = { ...meta, order: i };
                             return true;
                         }
                         return false;
                     })
                     .map(column => column.getColDef());
 
-                mgr.save_columns(this.file_directory_id, orig_defs, new_defs);
+                mgr.save_columns(
+                    this.file_directory_id,
+                    orig_defs.map(from_grid),
+                    new_defs.map(from_grid)
+                );
             }, 100);
         }
         /*** End: Debounced grid handlers ***/
@@ -592,7 +596,7 @@ export default {
                     : e.newValue;
 
             try {
-                if (e.colDef.col_type === 'number') {
+                if (col_meta(e.colDef).col_type === 'number') {
                     oldValue = parseInt(oldValue, 10);
                     newValue = parseInt(newValue, 10);
                 }
@@ -626,7 +630,7 @@ export default {
         cell_clicked(e) {},
 
         cell_double_clicked(e) {
-            if (e.colDef && e.colDef.col_type === 'link') this.pick_links(e);
+            if (col_meta(e.colDef).col_type === 'link') this.pick_links(e);
         },
         /*** End: AgGrid - event handlers ***/
 
@@ -656,7 +660,7 @@ export default {
                 chip.title = 'Open the linked table';
                 chip.addEventListener('click', ev => {
                     ev.stopPropagation();
-                    this.open_linked_table(params.colDef);
+                    this.open_linked_table(col_meta(params.colDef));
                 });
                 cell.appendChild(chip);
             });
@@ -971,7 +975,8 @@ export default {
             }
         },
 
-        delete_header(col_def) {
+        delete_header(grid_def) {
+            const col_def = from_grid(grid_def);
             const col_defs = this.col_defs().filter(
                 def => def.field !== col_def.field
             );
@@ -1306,7 +1311,7 @@ export default {
                     filterType: 'text',
                     type: 'contains',
                     filter: JSON.stringify({
-                        col_type: col.getColDef().col_type,
+                        col_type: col_meta(col.getColDef()).col_type,
                         filter_type: f.type,
                         filter_value: f.value
                     })
@@ -1572,11 +1577,11 @@ export default {
         col_defs() {
             return this.grid_api
                 .getAllGridColumns()
-                .map(c => ({ ...c.getColDef() }));
+                .map(c => from_grid(c.getColDef()));
         },
 
         set_column_defs(col_defs) {
-            this.grid_api.setGridOption('columnDefs', col_defs);
+            this.grid_api.setGridOption('columnDefs', col_defs.map(to_grid));
         },
 
         set_datasource(get_rows) {

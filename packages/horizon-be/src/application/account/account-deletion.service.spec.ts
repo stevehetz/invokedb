@@ -53,6 +53,18 @@ describe('AccountDeletionService', () => {
         expect(account_db.dropDatabase).toHaveBeenCalled();
         expect(dropped).toEqual(['tracking:onboarding:acct_5', 'tracking:api_month:acct_5']);
         expect(deleted.map(d => d.name)).toEqual(SHARED_TRACKING_COLLECTIONS);
+        expect(SHARED_TRACKING_COLLECTIONS).toEqual([
+            'tracking:url_source',
+            'tracking:webhook',
+            'tracking:webhook_delivery',
+            'tracking:form',
+            'tracking:view',
+            'tracking:audit',
+            'tracking:ai_usage',
+            'tracking:api_key_request',
+            'tracking:account_export',
+            'tracking:ai_column'
+        ]);
         deleted.forEach(d => expect(d.filter).toEqual({ account_id: 5 }));
         expect(queries.map(q => q[0])).toEqual([
             ...ACCOUNT_TABLES.map(t => `DELETE FROM ${t} WHERE account_id = $1`),

@@ -312,7 +312,8 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `HORIZON_TEST_PLANS` ones) and is TrackingManager's refresher. Every write path calls
   `TrackingManager.check_not_read_only` (403 `plan_read_only` with `over`): it's in `add_table`,
   `add_rows`, `add_columns`, `create_columns`, `validate_row_count`, `WebFileService`'s
-  create/update paths and uploads, and view/form/webhook/URL-import creation. A new write path
+  create/update paths and uploads, view/form/webhook/URL-import creation and AI column settings
+  and fills (the AI column processor waits while an account is read-only). A new write path
   must call it too. A read-only account's state is worked out again on each refused write and
   after deletes, so deleting down to the caps lifts it at once. Idle free accounts:
   `core/plan/idle.ts` (pure) and `application/plan/idle-account.service.ts` (hourly in the

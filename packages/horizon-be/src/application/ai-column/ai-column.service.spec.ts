@@ -1,4 +1,9 @@
-import { BadRequestException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+    BadRequestException,
+    ForbiddenException,
+    NotFoundException,
+    UnauthorizedException
+} from '@nestjs/common';
 import { ObjectId } from 'mongodb';
 import { AiColumnService } from './ai-column.service';
 import { AiModelError } from '@app/core/ai/ai-client';
@@ -90,7 +95,11 @@ function setup(
     const notify = { ws_pr_send_to_fe: jest.fn() };
     const tracking = {
         check_account_lock: jest.fn(async () => undefined),
-        check_table_lock: jest.fn(async () => undefined)
+        check_table_lock: jest.fn(async () => undefined),
+        check_not_read_only: jest.fn(async (account: any) => {
+            if (account.plan_state === 'read_only') throw new ForbiddenException('read-only');
+        }),
+        plan_state_of: jest.fn(async (account: any) => account.plan_state || 'active')
     };
     const columns = [
         { field: 'a', headerName: 'Feedback' },
@@ -170,6 +179,7 @@ function setup(
         manager,
         notify,
         usage,
+        account_svc,
         save,
         claimed
     };
@@ -321,6 +331,23 @@ describe('AiColumnService processor', () => {
         await t.svc.fill(ACCT, FILE, 'b');
         (t.files[FILE] as any).locked = true;
         await t.svc.run(t.claimed());
+        expect(t.ai_client.json).not.toHaveBeenCalled();
+        expect(t.manager.release).toHaveBeenLastCalledWith(expect.anything(), {}, 0, false, true);
+    });
+
+    it('refuses settings and fills on a read-only account, and writes nothing into it', async () => {
+        const t = setup();
+        await t.save();
+        await t.svc.fill(ACCT, FILE, 'b');
+        const claimed = t.claimed();
+        t.account_svc.get.mockImplementation(async id => ({
+            id,
+            email_verified: true,
+            plan_state: 'read_only'
+        }));
+        await expect(t.save()).rejects.toThrow(ForbiddenException);
+        await expect(t.svc.fill(ACCT, FILE, 'b')).rejects.toThrow(ForbiddenException);
+        await t.svc.run(claimed);
         expect(t.ai_client.json).not.toHaveBeenCalled();
         expect(t.manager.release).toHaveBeenLastCalledWith(expect.anything(), {}, 0, false, true);
     });

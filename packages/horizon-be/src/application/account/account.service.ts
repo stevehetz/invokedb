@@ -75,8 +75,18 @@ export class AccountService {
         return await account_id;
     }
 
+    // Runs first when an account is deleted, and can refuse it by throwing: BillingService
+    // cancels the account's Stripe subscription (#129), since a deleted account can't reach the
+    // billing portal
+    private before_delete: ((account_id: number) => Promise<void>) | null = null;
+
+    set_before_delete(fn: (account_id: number) => Promise<void>) {
+        this.before_delete = fn;
+    }
+
     /** Marks the account deleted and ends all its sessions, on every device (#282). */
     async delete_account(account_id: number) {
+        if (this.before_delete) await this.before_delete(account_id);
         const res = await this.account_repository.update({ id: account_id }, { deleted: true });
         await this.session_repository.delete({ account_id });
         return res;

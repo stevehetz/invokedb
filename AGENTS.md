@@ -288,8 +288,8 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   cap of Free, Starter and Pro (tables, rows per account and per table, storage, columns, API
   calls a month and per second, query page, CSV size, URL sources and schedules, webhooks,
   forms, views, audit days, per-key limits, AI allowances); **nothing else hard-codes a plan
-  limit**. Subscription ids map as FREE → Free, BASIC → Starter, PLUS/PREMIUM → Pro until Stripe
-  (#129). `INTERNAL_EMAILS` (demo*, e2e, verified) and accounts an admin made internal
+  limit**. Subscription ids map as FREE → Free, BASIC → Starter, PLUS/PREMIUM → Pro (Stripe sets
+  `PLAN_SUBSCRIPTIONS`, below). `INTERNAL_EMAILS` (demo*, e2e, verified) and accounts an admin made internal
   (`account.internal`, #277) have no counted caps. `TrackingManager.plan()`
   gives an account's caps and enforces them (reservations against races; account rows summed
   from each table's metadata; storage from `dbStats` `dataSize`, cached 30 s; the API quota is an
@@ -324,6 +324,19 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   never touched; without Mailgun (outside local mode) nobody is warned, so nobody is deleted.
   `PUT`/`DELETE /test-plan` (404 unless `HORIZON_TEST_PLANS` lists the caller) lets the smoke
   test move demo5 between plans.
+- Billing (#129, `docs/OPERATIONS.md` "Stripe"): `src/core/billing/billing.ts` (pure: the four
+  prices by lookup key, a customer's subscriptions → plan, grace or pending) and
+  `application/billing/billing.service.ts` (the only place the `stripe` SDK is used).
+  `GET /billing`, `POST /billing/checkout` `{ plan, interval }`, `POST /billing/portal` (session
+  only); `POST /billing/webhook` checks the signature over the raw body (`rawBody: true` in
+  `main.ts`), skips event ids already in the Postgres `stripe_event` table, then **re-reads the
+  customer's subscriptions from Stripe** and sets `subscription_id` from them (never from the
+  event or the browser), then `PlanStateService.refresh`. Failing → `start_grace`; paid → grace
+  cleared; no paying subscription → Free, only if the plan came from Stripe
+  (`stripe_subscription_id`), so an admin's plan is left alone. Grace ending and account
+  deletion cancel the subscription (listeners on `PlanStateService` and `AccountService`).
+  The smoke test runs against a stub of the Stripe API on `127.0.0.1:8196` (`STRIPE_API_BASE`,
+  set only by `smoke-env.sh`) and signs its own events.
 - Onboarding checklist (#143): `src/core/onboarding/` (pure logic + a manager storing one
   `tracking:onboarding:acct_<id>` document in the tracking DB, no Postgres change),
   `GET /onboarding`, `PUT /onboarding/steps/:step`, `PUT /onboarding/dismiss` (session only).
@@ -613,9 +626,8 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   terminal if that happens.
 - Run long-lived servers (`npm run dev`) in the background, never as a blocking foreground
   command.
-- Stripe was removed (no routes, no SDK, no checkout page). The `subscription` and `stripe_env`
-  tables and the account's `stripe_*` columns are still in the schema; a later migration can
-  drop them.
+- Billing is Stripe again (#129; `docs/OPERATIONS.md` "Stripe"). Locally it's off unless `.env`
+  has test-mode `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (from `stripe listen`).
 - `npm run db:demo` starts its own backend to load the example tables (`examples/setup.mjs`),
   so `npm run dev` must be stopped first.
 - Mailgun and Telegram are optional. Without keys, emails and support requests go to the

@@ -4727,6 +4727,301 @@ await call('verify_email_unknown', 'GET', `/auth/verify-email?token=${crypto.ran
 });
 await call('verify_email_not_uuid', 'GET', '/auth/verify-email?token=nope', { expectFail: true });
 await call('verify_email_no_token', 'GET', '/auth/verify-email', { expectFail: true });
+// Billing through Stripe (#129). smoke-env.sh points the backend at a stub of the Stripe API on
+// 127.0.0.1:8196 and sets a made-up webhook secret, so the test signs its own events. The stub
+// answers with the subscriptions the test sets, the way Stripe would after a Checkout, a
+// failed payment or a cancel; the webhook makes the backend read them, and GET /usage shows
+// the plan. Runs on the new (unverified) account, which is on Free and has no caps lifted.
+const STRIPE_WEBHOOK_SECRET = 'whsec_smoke_secret';
+const stripe_stub = {
+    // customer id -> its subscriptions
+    subs: {},
+    customers: [],
+    checkouts: [],
+    cancelled: [],
+    expired: []
+};
+function stripe_list(data) {
+    return { object: 'list', data, has_more: false, url: '/v1/x' };
+}
+const stripe_server = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', c => (raw += c));
+    req.on('end', () => {
+        const url = new URL(req.url, 'http://127.0.0.1');
+        const params = new URLSearchParams(req.method === 'GET' ? url.search : raw);
+        const p = url.pathname;
+        let body = null;
+        let status = 200;
+        if (req.method === 'GET' && p === '/v1/subscriptions') {
+            body = stripe_list(stripe_stub.subs[params.get('customer')] || []);
+        } else if (req.method === 'DELETE' && p.startsWith('/v1/subscriptions/')) {
+            const id = p.split('/').pop();
+            for (const list of Object.values(stripe_stub.subs)) {
+                for (const s of list) if (s.id === id) s.status = 'canceled';
+            }
+            stripe_stub.cancelled.push(id);
+            body = { id, object: 'subscription', status: 'canceled' };
+        } else if (req.method === 'POST' && p === '/v1/customers') {
+            const id = `cus_smoke_${stripe_stub.customers.length + 1}`;
+            const c = {
+                id,
+                object: 'customer',
+                metadata: { account_id: params.get('metadata[account_id]') }
+            };
+            stripe_stub.customers.push(c);
+            body = c;
+        } else if (req.method === 'GET' && p.startsWith('/v1/customers/')) {
+            body = stripe_stub.customers.find(c => c.id === p.split('/').pop()) || null;
+            if (!body) status = 404;
+        } else if (req.method === 'GET' && p === '/v1/prices') {
+            const key = params.get('lookup_keys[0]');
+            body = stripe_list([{ id: `price_${key}`, object: 'price', lookup_key: key }]);
+        } else if (req.method === 'GET' && p === '/v1/checkout/sessions') {
+            body = stripe_list([]);
+        } else if (req.method === 'POST' && p.endsWith('/expire')) {
+            stripe_stub.expired.push(p);
+            body = { object: 'checkout.session', status: 'expired' };
+        } else if (req.method === 'POST' && p === '/v1/checkout/sessions') {
+            const id = `cs_smoke_${stripe_stub.checkouts.length + 1}`;
+            stripe_stub.checkouts.push(Object.fromEntries(params));
+            body = { id, object: 'checkout.session', url: `https://checkout.stripe.test/${id}` };
+        } else if (req.method === 'POST' && p === '/v1/billing_portal/sessions') {
+            body = { id: 'bps_smoke', url: 'https://billing.stripe.test/p' };
+        } else {
+            status = 404;
+        }
+        res.statusCode = status;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(body || { error: { message: `stub: no ${req.method} ${p}` } }));
+    });
+});
+const stripe_up = await new Promise(resolve => {
+    stripe_server.once('error', err => resolve(err));
+    stripe_server.listen(8196, '127.0.0.1', () => resolve(true));
+});
+check('stripe_stub_listening', stripe_up === true, String(stripe_up));
+
+// Posts an event to the webhook, signed as Stripe signs them (or with `signature` as given)
+let stripe_event_n = 0;
+async function stripe_event(name, type, object, { id, signature, expectFail } = {}) {
+    const event_id = id || `evt_smoke_${Date.now()}_${++stripe_event_n}`;
+    const payload = JSON.stringify({
+        id: event_id,
+        object: 'event',
+        type,
+        created: Math.floor(Date.now() / 1000),
+        data: { object }
+    });
+    const t = Math.floor(Date.now() / 1000);
+    const v1 = crypto
+        .createHmac('sha256', STRIPE_WEBHOOK_SECRET)
+        .update(`${t}.${payload}`)
+        .digest('hex');
+    const headers = { 'Content-Type': 'application/json' };
+    if (signature !== null) headers['Stripe-Signature'] = signature || `t=${t},v1=${v1}`;
+    const res = await fetch(`${BASE}/billing/webhook`, { method: 'POST', headers, body: payload });
+    let data = await res.text();
+    try {
+        data = JSON.parse(data);
+    } catch {}
+    results[name] = { status: res.status, data };
+    const ok = res.status < 400;
+    if (ok !== !expectFail) failures++;
+    console.log(`${ok === !expectFail ? 'ok  ' : 'FAIL'} ${res.status} ${name}`);
+    return { data, event_id, payload };
+}
+const smoke_sub = (id, status, key) => ({
+    id,
+    object: 'subscription',
+    status,
+    created: Math.floor(Date.now() / 1000),
+    cancel_at_period_end: false,
+    items: {
+        object: 'list',
+        data: [{ price: { lookup_key: key }, current_period_end: 1893456000 }]
+    }
+});
+const unv_plan = async name => await call(name, 'GET', '/usage', { token: unv_token });
+
+const bill_internal = await call('billing_status_internal', 'GET', '/billing', { token });
+check(
+    'billing_internal_cannot_buy',
+    bill_internal?.enabled === true && bill_internal?.can_buy === false,
+    bill_internal
+);
+const bill_free = await call('billing_status_free', 'GET', '/billing', { token: unv_token });
+check(
+    'billing_free_no_customer',
+    bill_free?.enabled === true &&
+        bill_free?.can_buy === true &&
+        bill_free?.plan === 'FREE' &&
+        bill_free?.has_billing_account === false &&
+        bill_free?.subscription === null &&
+        stripe_stub.customers.length === 0,
+    bill_free
+);
+await call('billing_portal_without_customer', 'POST', '/billing/portal', {
+    token: unv_token,
+    expectFail: true
+});
+await call('billing_checkout_bad_plan', 'POST', '/billing/checkout', {
+    token: unv_token,
+    body: { plan: 'FREE' },
+    expectFail: true
+});
+await call('billing_checkout_no_session', 'POST', '/billing/checkout', {
+    body: { plan: 'PRO' },
+    expectFail: true
+});
+const bill_checkout = await call('billing_checkout', 'POST', '/billing/checkout', {
+    token: unv_token,
+    body: { plan: 'STARTER', interval: 'year' }
+});
+const smoke_customer = stripe_stub.customers[0]?.id;
+const smoke_checkout = stripe_stub.checkouts[0] || {};
+check(
+    'billing_checkout_opened',
+    typeof bill_checkout?.url === 'string' &&
+        bill_checkout.url.startsWith('https://checkout.stripe.test/') &&
+        smoke_customer &&
+        stripe_stub.customers[0].metadata.account_id === String(unv_me?.id) &&
+        smoke_checkout.mode === 'subscription' &&
+        smoke_checkout.customer === smoke_customer &&
+        smoke_checkout.client_reference_id === String(unv_me?.id) &&
+        smoke_checkout['line_items[0][price]'] === 'price_invokedb_starter_year',
+    { bill_checkout, smoke_checkout }
+);
+
+// Unsigned, badly signed and tampered events are refused, and change nothing
+await stripe_event(
+    'billing_webhook_unsigned',
+    'invoice.paid',
+    { customer: smoke_customer },
+    {
+        signature: null,
+        expectFail: true
+    }
+);
+await stripe_event(
+    'billing_webhook_bad_signature',
+    'invoice.paid',
+    { customer: smoke_customer },
+    {
+        signature: `t=${Math.floor(Date.now() / 1000)},v1=${'0'.repeat(64)}`,
+        expectFail: true
+    }
+);
+check(
+    'billing_webhook_bad_signatures_400',
+    results.billing_webhook_unsigned.status === 400 &&
+        results.billing_webhook_bad_signature.status === 400
+);
+
+// Paid: Stripe now has an active Starter subscription
+stripe_stub.subs[smoke_customer] = [smoke_sub('sub_smoke_1', 'active', 'invokedb_starter_year')];
+const bill_created = await stripe_event(
+    'billing_webhook_subscription_created',
+    'customer.subscription.created',
+    { id: 'sub_smoke_1', object: 'subscription', customer: smoke_customer }
+);
+const usage_starter = await unv_plan('billing_usage_starter');
+check(
+    'billing_upgrade_sets_plan',
+    usage_starter?.plan?.id === 'STARTER' && usage_starter?.usage?.tables?.cap === 25,
+    usage_starter?.plan
+);
+const bill_replay = await stripe_event(
+    'billing_webhook_replay',
+    'customer.subscription.created',
+    { id: 'sub_smoke_1', object: 'subscription', customer: smoke_customer },
+    { id: bill_created.event_id }
+);
+check('billing_webhook_replay_duplicate', bill_replay.data?.duplicate === true, bill_replay.data);
+const bill_paid = await call('billing_status_paid', 'GET', '/billing', { token: unv_token });
+check(
+    'billing_status_shows_subscription',
+    bill_paid?.has_billing_account === true &&
+        bill_paid?.subscription?.plan === 'STARTER' &&
+        bill_paid?.subscription?.interval === 'year' &&
+        bill_paid?.subscription?.status === 'active',
+    bill_paid
+);
+await call('billing_second_checkout', 'POST', '/billing/checkout', {
+    token: unv_token,
+    body: { plan: 'PRO' },
+    expectFail: true
+});
+check('billing_second_checkout_409', results.billing_second_checkout.status === 409);
+const bill_portal = await call('billing_portal', 'POST', '/billing/portal', { token: unv_token });
+check('billing_portal_url', bill_portal?.url === 'https://billing.stripe.test/p', bill_portal);
+
+// A failed payment keeps the plan in a grace period; the next payment ends it
+stripe_stub.subs[smoke_customer][0].status = 'past_due';
+await stripe_event('billing_webhook_payment_failed', 'invoice.payment_failed', {
+    object: 'invoice',
+    customer: smoke_customer
+});
+const usage_grace = await unv_plan('billing_usage_grace');
+check(
+    'billing_payment_failed_grace',
+    usage_grace?.plan?.id === 'STARTER' &&
+        usage_grace?.plan_state === 'grace' &&
+        !!usage_grace?.grace_ends_at,
+    usage_grace && { plan: usage_grace.plan, state: usage_grace.plan_state }
+);
+stripe_stub.subs[smoke_customer][0].status = 'active';
+await stripe_event('billing_webhook_paid', 'invoice.paid', {
+    object: 'invoice',
+    customer: smoke_customer
+});
+const usage_paid = await unv_plan('billing_usage_paid_again');
+check(
+    'billing_paid_ends_grace',
+    usage_paid?.plan?.id === 'STARTER' &&
+        usage_paid?.plan_state === 'active' &&
+        !usage_paid?.grace_ends_at,
+    usage_paid && { plan: usage_paid.plan, state: usage_paid.plan_state }
+);
+
+// A plan change in the Portal, then the end of the subscription: back to Free. A late,
+// older "updated" event after the "deleted" one doesn't bring the plan back.
+stripe_stub.subs[smoke_customer][0].items.data[0].price.lookup_key = 'invokedb_pro_month';
+await stripe_event('billing_webhook_plan_changed', 'customer.subscription.updated', {
+    id: 'sub_smoke_1',
+    object: 'subscription',
+    customer: smoke_customer
+});
+const usage_pro = await unv_plan('billing_usage_pro');
+check('billing_portal_change_to_pro', usage_pro?.plan?.id === 'PRO', usage_pro?.plan);
+stripe_stub.subs[smoke_customer][0].status = 'canceled';
+await stripe_event('billing_webhook_deleted', 'customer.subscription.deleted', {
+    id: 'sub_smoke_1',
+    object: 'subscription',
+    customer: smoke_customer
+});
+await stripe_event('billing_webhook_late_update', 'customer.subscription.updated', {
+    id: 'sub_smoke_1',
+    object: 'subscription',
+    customer: smoke_customer
+});
+const usage_lapsed = await unv_plan('billing_usage_lapsed');
+check(
+    'billing_cancel_back_to_free',
+    usage_lapsed?.plan?.id === 'FREE' && usage_lapsed?.usage?.tables?.cap === 3,
+    usage_lapsed?.plan
+);
+
+// Subscribed again: deleting the account cancels the subscription in Stripe (below)
+stripe_stub.subs[smoke_customer].push(smoke_sub('sub_smoke_2', 'active', 'invokedb_pro_month'));
+await stripe_event('billing_webhook_resubscribed', 'customer.subscription.created', {
+    id: 'sub_smoke_2',
+    object: 'subscription',
+    customer: smoke_customer
+});
+const usage_again = await unv_plan('billing_usage_resubscribed');
+check('billing_resubscribed_pro', usage_again?.plan?.id === 'PRO', usage_again?.plan);
+
 if (unv_dir) {
     await call('unverified_folder_delete', 'POST', '/file-directory/batch_delete', {
         token: unv_token,
@@ -4768,6 +5063,13 @@ await call('deleted_account_first_session', 'GET', '/file-directory', {
     expectFail: true
 });
 await call('unverified_logout', 'GET', `/auth/logout?token=${unv_token}`);
+check(
+    'billing_deleted_account_cancelled',
+    stripe_stub.cancelled.includes('sub_smoke_2') && !stripe_stub.cancelled.includes('sub_smoke_1'),
+    stripe_stub.cancelled
+);
+stripe_server.closeAllConnections();
+stripe_server.close();
 
 // Limits (#182). Columns: 52 per table on every route that turns a column on (batch create,
 // single save, batch save), and saving all the columns of a full table still works.

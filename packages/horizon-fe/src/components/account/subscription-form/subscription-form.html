@@ -12,7 +12,42 @@
         <div class="subscription-tier">
             <label> Plan: </label>
             <span class="plan-name">{{ plan_name }}</span>
+            <span class="subscription-note" v-if="subscription_note"
+                >{{ subscription_note }}</span
+            >
         </div>
+        <p class="billing-note" v-if="billing_note">{{ billing_note }}</p>
+        <div class="billing-actions" v-if="buyable_plans.length || can_manage">
+            <el-radio-group
+                v-model="interval"
+                size="small"
+                v-if="buyable_plans.length"
+                class="billing-interval"
+            >
+                <el-radio-button value="month">Monthly</el-radio-button>
+                <el-radio-button value="year">Yearly</el-radio-button>
+            </el-radio-group>
+            <el-button
+                v-for="plan in buyable_plans"
+                :key="plan.id"
+                type="primary"
+                class="billing-buy"
+                :class="'billing-buy-' + plan.id"
+                :loading="opening === plan.id"
+                :disabled="!!opening"
+                @click="checkout(plan.id)"
+                >Get {{ plan.name }}, {{ price(plan) }}</el-button
+            >
+            <el-button
+                v-if="can_manage"
+                class="billing-manage"
+                :loading="opening === 'portal'"
+                :disabled="!!opening"
+                @click="manage()"
+                >Manage billing</el-button
+            >
+        </div>
+        <p class="usage-error" v-if="billing_error">{{ billing_error }}</p>
         <p class="usage-error" v-if="error">{{ error }}</p>
         <div class="usage-meters" v-if="usage">
             <div

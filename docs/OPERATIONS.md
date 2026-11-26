@@ -85,6 +85,47 @@ repo: it's public.
   and the user sees a 502.
 - **Check:** open a table, click Ask, ask "how many rows are there?".
 
+### Stripe (billing, #129)
+
+- **Does:** sells Starter and Pro (`docs/PRICING.md` 3.2), monthly or yearly. The Account page's
+  buttons open **Stripe Checkout**; **Manage billing** opens the **Customer Portal** (change
+  plan, cancel, card, invoices). The plan on the account only ever comes from the signed webhook
+  `POST https://<API_DOMAIN>/billing/webhook`: each event makes the backend read the customer's
+  subscriptions from Stripe and set the plan from them (`application/billing/billing.service.ts`,
+  rules in `core/billing/billing.ts`). A failed payment keeps the plan in the 14-day grace
+  period (#184); when it ends the account goes to Free and its subscription is cancelled.
+  Deleting an account cancels its subscription first. Free accounts have no Stripe customer.
+- **Configured:** `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in the backend's env (passed
+  in `deploy/compose.yaml`). Without both, billing is off: no buttons, `/billing/*` answers 503.
+  The four prices are found by their **lookup keys**, so no price id is configured:
+  `invokedb_starter_month`, `invokedb_starter_year`, `invokedb_pro_month`, `invokedb_pro_year`
+  (`PRICE_LOOKUP_KEYS`). The amounts shown in the app come from `core/plan/plans.ts`; keep
+  Stripe's prices the same.
+- **Account:** dashboard.stripe.com (test mode locally, live mode in production).
+- **Secrets:** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (`prod.env`; locally `.env`).
+- **Set up (once per mode, test then live):**
+  1. **Product catalog → Add product** "InvokeDB Starter" with two recurring prices, $9/month
+     and $90/year; under each price's **Advanced → Lookup key**, `invokedb_starter_month` and
+     `invokedb_starter_year`. The same for "InvokeDB Pro": $29/month (`invokedb_pro_month`),
+     $290/year (`invokedb_pro_year`).
+  2. **Settings → Billing → Customer portal:** turn on cancelling (at the end of the period),
+     updating the payment method, invoice history and **switching plans** between the four
+     prices (downgrades at the end of the period).
+  3. **Settings → Billing → Subscriptions and emails → Manage failed payments:** retry for up to
+     2 weeks, then **cancel the subscription** (matches the 14-day grace period).
+  4. **Developers → Webhooks → Add endpoint:** `https://<API_DOMAIN>/billing/webhook`, events
+     `checkout.session.completed`, `customer.subscription.created`, `.updated`, `.deleted`,
+     `.paused`, `.resumed`, `invoice.paid`, `invoice.payment_failed`. Its signing secret is
+     `STRIPE_WEBHOOK_SECRET`.
+  5. **Developers → API keys:** the secret key is `STRIPE_SECRET_KEY`.
+  6. Locally: `stripe listen --forward-to 127.0.0.1:8001/billing/webhook` instead of step 4,
+     and use the `whsec_` it prints.
+- **Alerts:** none of its own. A webhook that fails answers 500 and Stripe retries it for 3
+  days (Developers → Webhooks shows failures, and Stripe emails the account owner). A Stripe
+  price missing its lookup key is logged (`Stripe has no active price with the lookup key`).
+- **Check:** in test mode, Account → Get Starter → card `4242 4242 4242 4242` → back on the
+  Account page the plan reads Starter within seconds; Manage billing opens the Portal.
+
 ### Telegram bot
 
 - **Does:** one bot posts to one chat (the owner's). The backend uses it as the fallback for

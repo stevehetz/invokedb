@@ -35,6 +35,11 @@ HORIZON_WEBHOOK_TEST_HOSTS=127.0.0.1:8199
 ANTHROPIC_API_KEY=smoke-anthropic-key
 ANTHROPIC_BASE_URL=http://127.0.0.1:8197
 HORIZON_AI_MONTHLY_BUDGET_USD=5
+# api-smoke.mjs's stub of the Stripe API (#129): no real Stripe is called; the test signs its own
+# webhook events with this made-up secret
+STRIPE_SECRET_KEY=sk_test_smoke
+STRIPE_WEBHOOK_SECRET=whsec_smoke_secret
+STRIPE_API_BASE=http://127.0.0.1:8196
 # The admin area (#277): api-smoke.mjs turns demo6's two-factor on and uses it as the admin
 HORIZON_ADMIN_EMAILS=demo6@invokedb.com
 # Plans (#183): the demo accounts are internal (no caps), except these, which api-smoke.mjs uses

@@ -38,6 +38,8 @@ import { AdminAccessService } from './admin/admin-access.service';
 import { AdminService } from './admin/admin.service';
 import { ErrorTrackingService } from './error-tracking/error-tracking.service';
 import { StatusService } from './status/status.service';
+import { BillingService } from './billing/billing.service';
+import { stripe_client_provider } from './billing/stripe-client';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -77,7 +79,9 @@ import { StatusService } from './status/status.service';
         AdminAccessService,
         AdminService,
         ErrorTrackingService,
-        StatusService
+        StatusService,
+        BillingService,
+        stripe_client_provider
     ],
     exports: [
         AuthService,
@@ -110,7 +114,8 @@ import { StatusService } from './status/status.service';
         AdminAccessService,
         AdminService,
         ErrorTrackingService,
-        StatusService
+        StatusService,
+        BillingService
     ]
 })
 export class ApplicationModule {}

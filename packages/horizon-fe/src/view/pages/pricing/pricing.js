@@ -70,6 +70,11 @@ export default {
             return plan.price_month_usd ? 'Get started' : 'Start free';
         },
 
+        /** Signed in: a paid plan's button opens its Checkout from the Account page (#129) */
+        buy_link(plan) {
+            return `/app/account?upgrade=${plan.id}`;
+        },
+
         /** Under the price: the yearly price and what it saves, or that Free needs no card */
         year_note(plan) {
             const month = plan.price_month_usd;

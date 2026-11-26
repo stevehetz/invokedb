@@ -4155,6 +4155,25 @@ $page_nav_active_color: var(--h-warning);
     color: var(--h-danger);
 }
 
+// Billing (#129): buy a plan (Stripe Checkout) or manage it (the Customer Portal)
+.account-page .subscription-form .subscription-tier .subscription-note {
+    color: var(--h-text-3);
+}
+.account-page .subscription-form .billing-note {
+    color: var(--h-success);
+    margin: 0 0 10px;
+}
+.account-page .subscription-form .billing-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.account-page .subscription-form .billing-actions .el-button + .el-button {
+    margin-left: 0;
+}
+
 // A refusal at the plan's cap (#183), over the bottom of the app
 .plan-limit-notice {
     position: fixed;

@@ -1,7 +1,7 @@
 <div class="h-data-grid" :class="{ 'edit-column-mode': edit_column_mode }">
-    <div class="top">
+    <div class="top" ref="top">
         <div class="flex-3-col">
-            <div class="left">
+            <div class="left" ref="top_left">
                 <div class="controls">
                     <!--<div class="control-box">
                         <label class="controls-label">
@@ -102,7 +102,7 @@
                 </div>
             </div>
             <div class="right">
-                <div class="info">
+                <div class="info" ref="top_info">
                     <p>
                         Total rows: {{ total_rows_with_row_filter !== null ?
                         total_rows_with_row_filter.toLocaleString() :
@@ -117,12 +117,15 @@
                             <el-button
                                 link
                                 class="views-menu-button"
+                                :title="tucked('views_label') ? (current_view ? current_view.name : 'Views') : null"
                                 :disabled="table_lock || edit_column_mode || add_row_mode"
                             >
                                 <i
                                     :class="current_view ? view_icons[current_view.type] : 'fa fa-eye'"
                                 ></i>
-                                <span class="views-current"
+                                <span
+                                    class="views-current"
+                                    v-if="!tucked('views_label')"
                                     >{{ current_view ? current_view.name :
                                     'Views' }}</span
                                 >
@@ -157,7 +160,7 @@
                             </template>
                         </el-dropdown>
                     </div>
-                    <div class="api-button">
+                    <div class="api-button" v-if="!tucked('api')">
                         <el-button
                             link
                             @click="api_btn_clicked"
@@ -167,7 +170,7 @@
                             <span>API</span>
                         </el-button>
                     </div>
-                    <div class="webhooks-button">
+                    <div class="webhooks-button" v-if="!tucked('webhooks')">
                         <el-button
                             link
                             @click="webhooks_btn_clicked"
@@ -177,7 +180,7 @@
                             <span>Webhooks</span>
                         </el-button>
                     </div>
-                    <div class="forms-button">
+                    <div class="forms-button" v-if="!tucked('forms')">
                         <el-button
                             link
                             @click="forms_btn_clicked"
@@ -187,7 +190,10 @@
                             <span>Forms</span>
                         </el-button>
                     </div>
-                    <div class="ask-data-button" v-if="ai_available">
+                    <div
+                        class="ask-data-button"
+                        v-if="ai_available && !tucked('ask')"
+                    >
                         <el-button link @click="ask_btn_clicked">
                             <i class="fa fa-wand-magic-sparkles"></i>
                             <span>Ask AI</span>
@@ -196,7 +202,7 @@
                     <div class="more-button">
                         <el-dropdown
                             trigger="click"
-                            :disabled="table_lock"
+                            :disabled="table_lock && !tucked('ask')"
                             @command="more_command"
                         >
                             <el-button
@@ -204,15 +210,52 @@
                                 class="more-menu-button"
                                 title="More"
                                 aria-label="More"
-                                :disabled="table_lock"
+                                :disabled="table_lock && !tucked('ask')"
                             >
                                 <i class="fa fa-ellipsis-h"></i>
                             </el-button>
                             <template #dropdown>
                                 <el-dropdown-menu class="more-menu">
+                                    <!-- Top-bar buttons that don't fit (fit_toolbar) -->
+                                    <el-dropdown-item
+                                        v-if="tucked('api')"
+                                        command="api"
+                                        class="more-api"
+                                        :disabled="table_lock"
+                                    >
+                                        <i class="fa fa-clone"></i> API
+                                    </el-dropdown-item>
+                                    <el-dropdown-item
+                                        v-if="tucked('webhooks')"
+                                        command="webhooks"
+                                        class="more-webhooks"
+                                        :disabled="table_lock"
+                                    >
+                                        <i class="fa fa-bolt"></i> Webhooks
+                                    </el-dropdown-item>
+                                    <el-dropdown-item
+                                        v-if="tucked('forms')"
+                                        command="forms"
+                                        class="more-forms"
+                                        :disabled="table_lock"
+                                    >
+                                        <i class="fa fa-list-alt"></i> Forms
+                                    </el-dropdown-item>
+                                    <el-dropdown-item
+                                        v-if="ai_available && tucked('ask')"
+                                        command="ask"
+                                        class="more-ask"
+                                    >
+                                        <i
+                                            class="fa fa-wand-magic-sparkles"
+                                        ></i>
+                                        Ask AI
+                                    </el-dropdown-item>
                                     <el-dropdown-item
                                         command="history"
                                         class="more-history"
+                                        :divided="toolbar_tucked > 0"
+                                        :disabled="table_lock"
                                     >
                                         <i class="fa fa-history"></i> History
                                     </el-dropdown-item>
@@ -220,6 +263,7 @@
                                         v-if="ai_available"
                                         command="ai_columns"
                                         class="more-ai-columns"
+                                        :disabled="table_lock"
                                     >
                                         <i
                                             class="fa fa-wand-magic-sparkles"

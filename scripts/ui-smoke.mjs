@@ -75,6 +75,16 @@ let ai_stub = null;
 // prompt asks for ("Generate exactly N new rows."), text values "<column> <n>"
 function ai_stub_json(body) {
     const props = body.output_config.format.schema.properties || {};
+    // A cleanup scan (#206): the last two rows it was sent are near-duplicates
+    if (props.spellings) {
+        const prompt = String(body.messages?.[0]?.content || '');
+        const sent = JSON.parse(prompt.slice(prompt.indexOf('{'))).rows?.rows || [];
+        const ns = sent.slice(-2).map(r => r[0]);
+        return {
+            spellings: [],
+            near_duplicates: ns.length === 2 ? [{ rows: ns, reason: 'Stub' }] : []
+        };
+    }
     if (props.columns) {
         return {
             table_name: 'stub_table',
@@ -939,6 +949,37 @@ try {
             check(
                 JSON.stringify(undone.rows) === JSON.stringify(before.rows),
                 `after Undo the names are ${undone.rows.map(r => r.name).join(', ')}`
+            );
+
+            // Clean up (#206): the stub calls the last two rows near-duplicates. The scan
+            // changes nothing; ticking the row and Apply deletes it, Undo puts it back.
+            const sorted = t => t.rows.map(r => JSON.stringify(r)).sort();
+            await dialog.getByRole('button', { name: 'Clean up', exact: true }).click();
+            const dup_row = dialog.locator('.cleanup-delete-row');
+            await dup_row.first().waitFor({ timeout: 30000 });
+            check(
+                (await dup_row.count()) === 1,
+                `the cleanup lists ${await dup_row.count()} rows to delete`
+            );
+            const scanned = await be_table(be_s, file_id);
+            check(
+                JSON.stringify(scanned.rows) === JSON.stringify(before.rows),
+                'the cleanup scan changed the table'
+            );
+            await dup_row.first().locator('.cleanup-delete').click();
+            await dialog.locator('.cleanup-apply').click();
+            await dialog.locator('.cleanup-undo').waitFor();
+            const cleaned = await be_table(be_s, file_id);
+            check(
+                cleaned.rows.length === before.rows.length - 1,
+                `after the cleanup the table has ${cleaned.rows.length} rows`
+            );
+            await dialog.locator('.cleanup-undo').click();
+            await dialog.locator('.cleanup-undo').waitFor({ state: 'detached' });
+            const restored = await be_table(be_s, file_id);
+            check(
+                JSON.stringify(sorted(restored)) === JSON.stringify(sorted(before)),
+                `after undoing the cleanup the rows are ${JSON.stringify(restored.rows)}`
             );
         }
         await page.locator('.container-dialog .el-dialog__headerbtn').click();

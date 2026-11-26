@@ -587,6 +587,19 @@ function verify(secret, raw_body, header) {
                             see every row before and after first, and can undo
                             the last edit.
                         </li>
+                        <li>
+                            <b>Clean up</b> (the button next to Ask): looks
+                            through the first 500 rows for stray spaces, invalid
+                            emails and phone numbers, numbers and dates written
+                            in different formats, the same value written
+                            differently, and duplicate rows. Each problem comes
+                            with a fix you tick and check before you click
+                            <b>Apply</b>; duplicates are deleted only if you
+                            tick them. Undo puts the cells back, and deleted
+                            rows back as new rows. Tables with link columns
+                            aren't checked for duplicate rows. A scan uses one
+                            question.
+                        </li>
                     </ul>
                     <p>
                         <b>Table from a Description (AI)</b>, under <b>+</b> on

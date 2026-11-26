@@ -102,7 +102,7 @@ export class AskService {
      * `{ month, used, limit, tier, verified, budget_used }`: budget_used is the share (0 to 1)
      * of the account's monthly AI budget already spent.
      */
-    private async usage(account) {
+    async usage(account) {
         const month = usage_month(this.now());
         const used = await this.ai_usage.get(account.id, month);
         const allowance = ai_allowance(account);
@@ -127,8 +127,31 @@ export class AskService {
         return { available, usage: await this.usage(account) };
     }
 
+    /**
+     * Takes one question from the account's month (also used by the cleanup scan, #206) and
+     * answers the month; 503 when AI is paused, 429 when the allowance is used up.
+     */
+    async reserve_question(account): Promise<string> {
+        const month = usage_month(this.now());
+        if (await this.ai_spend.paused(month)) {
+            throw new ServiceUnavailableException(AI_PAUSED_MESSAGE);
+        }
+        const allowance = ai_allowance(account);
+        const limit = allowance.questions;
+        if (!(await this.ai_usage.reserve(account.id, month, limit, allowance.budget_micros))) {
+            const used = await this.ai_usage.get(account.id, month);
+            throw new HttpException(
+                used.questions >= limit
+                    ? `You've asked all ${limit} questions your plan has this month`
+                    : "You've used your plan's AI allowance for this month",
+                HttpStatus.TOO_MANY_REQUESTS
+            );
+        }
+        return month;
+    }
+
     // A table of the account's that hasn't been deleted
-    private async owned_table(acct_id: number, file_id: unknown) {
+    async owned_table(acct_id: number, file_id: unknown) {
         if (file_id === null || file_id === undefined || file_id === '') {
             throw new BadRequestException('Pick a table');
         }
@@ -194,20 +217,7 @@ export class AskService {
         // Read before the question is reserved, so a failed read doesn't use one up
         const samples = await this.samples(acct_id, file.id, columns);
 
-        const month = usage_month(this.now());
-        if (await this.ai_spend.paused(month)) {
-            throw new ServiceUnavailableException(AI_PAUSED_MESSAGE);
-        }
-        const limit = allowance.questions;
-        if (!(await this.ai_usage.reserve(acct_id, month, limit, allowance.budget_micros))) {
-            const used = await this.ai_usage.get(acct_id, month);
-            throw new HttpException(
-                used.questions >= limit
-                    ? `You've asked all ${limit} questions your plan has this month`
-                    : "You've used your plan's AI allowance for this month",
-                HttpStatus.TOO_MANY_REQUESTS
-            );
-        }
+        const month = await this.reserve_question(account);
 
         const system = ask_system_prompt(
             file.name,

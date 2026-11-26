@@ -6,7 +6,8 @@
         ask for are made up to fit the columns and shown here first; nothing is
         saved until you add them and click Save. A change ("title-case the
         names") is shown row by row, before and after, and is made only when you
-        apply it.
+        apply it. <b>Clean up</b> looks for duplicates, invalid emails and
+        inconsistent formats, and suggests fixes you review the same way.
     </p>
 
     <div class="ask-row">
@@ -26,6 +27,14 @@
             :disabled="!can_ask || used_up || unverified"
             @click="ask"
             >Ask</el-button
+        >
+        <el-button
+            class="ask-cleanup"
+            size="small"
+            :disabled="asking || used_up || unverified"
+            title="Look for duplicates, invalid emails and inconsistent formats"
+            @click="clean_up"
+            >Clean up</el-button
         >
     </div>
     <div class="ask-usage" v-if="usage && unverified">
@@ -57,6 +66,14 @@
             >Undo</el-button
         >
     </div>
+
+    <cleanup-panel
+        v-if="cleanup_key && !asking"
+        :key="cleanup_key"
+        :file="props.file"
+        :on_edited="props.on_edited"
+        @usage="cleanup_usage"
+    ></cleanup-panel>
 
     <div class="ask-result" v-if="result && !asking">
         <div class="ask-answer">{{ result.answer }}</div>

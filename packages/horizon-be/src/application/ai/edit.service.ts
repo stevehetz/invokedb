@@ -41,7 +41,7 @@ export class EditService {
     ) {}
 
     // Rows in API form keyed by field: dates as the grid shows them, missing cells null
-    private rows_by_field(docs: any[], columns: QueryColumn[]) {
+    rows_by_field(docs: any[], columns: QueryColumn[]) {
         return docs.map(doc => {
             const row: any = { _id: doc._id };
             columns.forEach(c => {

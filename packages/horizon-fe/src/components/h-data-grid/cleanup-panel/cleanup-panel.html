@@ -1,0 +1,142 @@
+<div class="cleanup-panel">
+    <div class="ask-status" v-if="scanning">
+        Looking for duplicates, invalid emails and inconsistent formats...
+    </div>
+    <div class="ask-status error" v-if="error">{{ error }}</div>
+    <div class="ask-edit-done" v-if="message || undo">
+        <span v-if="message">{{ message }}</span>
+        <span v-else>Your last cleanup of this table can be undone.</span>
+        <el-button
+            v-if="undo"
+            class="cleanup-undo"
+            link
+            size="small"
+            :loading="undoing"
+            :disabled="applying"
+            @click="undo_cleanup"
+            >Undo</el-button
+        >
+    </div>
+
+    <div v-if="result && !scanning">
+        <div class="ask-answer cleanup-answer">{{ result.answer }}</div>
+
+        <div
+            class="cleanup-problem"
+            v-for="p in problems"
+            :key="p.id"
+            :data-kind="p.kind"
+        >
+            <div class="cleanup-problem-head">
+                <el-checkbox
+                    v-if="p.edit"
+                    class="cleanup-fix"
+                    v-model="fixes[p.id]"
+                    :disabled="applied"
+                ></el-checkbox>
+                <span class="cleanup-title">{{ p.title }}</span>
+                <span class="ask-count"
+                    >{{ rows_text(p.count) }}<span v-if="p.fixable < p.count">
+                        ({{ p.fixable }} with a fix)</span
+                    ></span
+                >
+                <span class="cleanup-ai" v-if="p.source === 'ai'">AI</span>
+                <el-button
+                    v-if="p.edit"
+                    class="cleanup-show"
+                    link
+                    size="small"
+                    @click="toggle_open(p)"
+                    >{{ open[p.id] ? 'Hide rows' : 'Show rows' }}</el-button
+                >
+            </div>
+            <p class="ask-hint">{{ p.detail }}</p>
+            <ul
+                class="cleanup-examples"
+                v-if="p.examples.length > 0 && !p.delete"
+            >
+                <li v-for="(e, i) in p.examples" :key="i">{{ e }}</li>
+            </ul>
+
+            <div class="ask-rows" v-if="p.edit && open[p.id]">
+                <table>
+                    <thead>
+                        <tr>
+                            <th v-for="c in p.edit.columns" :key="c.field">
+                                {{ c.name }}
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            class="cleanup-edit-row"
+                            v-for="r in p.edit.rows"
+                            :key="r._id"
+                        >
+                            <td v-for="c in p.edit.columns" :key="c.field">
+                                <template v-if="changes(r, c.field)">
+                                    <span class="ask-edit-before"
+                                        >{{ shown(r.before[c.field]) }}</span
+                                    ><span class="ask-edit-arrow">→</span
+                                    ><span class="ask-edit-after"
+                                        >{{ shown(r.after[c.field]) }}</span
+                                    >
+                                </template>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="ask-rows" v-if="p.delete">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Delete</th>
+                            <th v-for="c in p.delete.columns" :key="c.field">
+                                {{ c.name }}
+                            </th>
+                            <th v-if="p.source === 'ai'">Why</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            class="cleanup-delete-row"
+                            v-for="r in p.delete.rows"
+                            :key="r._id"
+                        >
+                            <td>
+                                <el-checkbox
+                                    class="cleanup-delete"
+                                    v-model="deletes[r._id]"
+                                    :disabled="applied"
+                                ></el-checkbox>
+                            </td>
+                            <td v-for="c in p.delete.columns" :key="c.field">
+                                {{ cell_text(r.before[c.field]) }}
+                            </td>
+                            <td v-if="p.source === 'ai'">{{ r.reason }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="ask-actions" v-if="problems.length > 0">
+            <el-button
+                class="cleanup-apply"
+                type="primary"
+                size="small"
+                :loading="applying"
+                :disabled="!can_apply"
+                @click="apply"
+                >{{ applied ? 'Applied' : 'Apply' }}</el-button
+            >
+            <span class="ask-hint"
+                >{{ rows_text(picked.edits.length) }} to fix, {{
+                rows_text(picked.deletes.length) }} to delete. Nothing changes
+                until you apply it, and you can undo it here afterwards.</span
+            >
+        </div>
+    </div>
+</div>

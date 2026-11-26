@@ -983,6 +983,41 @@ export class WebFileManager {
     }
 
     /**
+     * Which of `ids` (rows of `target_id`) a link cell of `table_id` points at, lowercased: the
+     * rows that deleting would take out of a link (#206 leaves them alone).
+     */
+    async linked_row_ids(acct_id, table_id, target_id, ids: string[]) {
+        const row_ids = ids.filter(is_row_id).map(id => id.toLowerCase());
+        const linked = new Set<string>();
+        if (row_ids.length === 0) return linked;
+        const col_coll = await this._collections.get_dg_col(acct_id, table_id);
+        const cols = await col_coll
+            .find({
+                col_type: LINK_TYPE,
+                link_table_id: Number(target_id),
+                deleted: { $ne: true }
+            })
+            .toArray();
+        if (cols.length === 0) return linked;
+        const wanted = new Set(row_ids);
+        const row_coll = await this._collections.get_dg_row(acct_id, table_id);
+        for (const col of cols) {
+            const field = col.field;
+            const docs = await row_coll
+                .find({ [field]: { $in: row_ids } }, { projection: { [field]: 1 } })
+                .toArray();
+            docs.forEach(doc => {
+                const cell = doc[field];
+                (Array.isArray(cell) ? cell : [cell]).forEach(id => {
+                    const key = String(id).toLowerCase();
+                    if (wanted.has(key)) linked.add(key);
+                });
+            });
+        }
+        return linked;
+    }
+
+    /**
      * Every row of `target_id` is gone (#175): empties every link cell of `table_id` that points
      * at it. When the table itself was deleted (`to_string`), those columns also become plain
      * string columns, as they have nothing left to link to; after a replace re-sync they stay

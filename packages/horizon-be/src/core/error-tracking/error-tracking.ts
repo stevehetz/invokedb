@@ -95,7 +95,8 @@ export function clean_stack(value: unknown): string | null {
     if (typeof value !== 'string' || !value.trim()) return null;
     const lines = value
         .split('\n')
-        .map(l => l.replace(/\s+$/, ''))
+        // trimEnd, not /\s+$/: that regex is quadratic on a long run of spaces (#19)
+        .map(l => l.trimEnd())
         .filter(Boolean)
         .slice(0, MAX_STACK_LINES);
     return clip(scrub(lines.join('\n')), MAX_STACK);

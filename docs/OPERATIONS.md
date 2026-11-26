@@ -346,3 +346,25 @@ by its own new version. Each file's top comment explains it; AGENTS.md "Hard rul
   `deploy/deploy.sh compose exec -T api node dist/cli/onboarding-funnel.js --days 30` (or
   `--since 2026-12-01 --until 2027-01-01`, UTC days, `until` excluded; `--json` for JSON).
   Locally, `npm run onboarding:funnel -- --days 30`.
+
+### Admin area (#277)
+
+- **Does:** `/app/admin` in the app (the account menu's **Admin**): an overview (sign-ups per day,
+  active accounts, accounts per plan, tables, rows, storage, API calls and AI spend this month
+  against `HORIZON_AI_MONTHLY_BUDGET_USD`, the latest production E2E run), the accounts list
+  (search, sort, paging, over/near-cap filter) and each account's page (its numbers, tables by
+  name and size, API key prefixes, recent history, AI use) with actions: change the plan (Free,
+  Starter, Pro or internal), lock/unlock, resend the verification email, reset two-factor, delete.
+  Each action is confirmed and recorded in that account's history with the admin as the actor.
+  No rows, no impersonation. The numbers are a snapshot read again every 3 minutes (the E2E
+  result every 5, from GitHub's public API). Accounts made before #277 have no sign-up date.
+- **Become an admin:** add your email to `HORIZON_ADMIN_EMAILS` in `deploy/prod.env`
+  (comma-separated), `npm run secrets:push`, then `deploy/deploy.sh up` so the api
+  container gets it. The account also needs a verified email and two-factor sign-in on (Account
+  page; needs `HORIZON_TOTP_KEY`). Reload the app and **Admin** shows in the account menu.
+  Anyone else, an API key, or an admin without two-factor gets 404 from every `/admin` route.
+- **Configured:** `HORIZON_ADMIN_EMAILS` (`deploy/compose.yaml` passes it to the api container).
+- **Secrets:** none; it's a list of emails, kept in `prod.env` with the rest.
+- **Alerts:** none. Each action is also logged (`Admin <id> on account <id>: ...`) by the api.
+- **Check:** the account menu shows **Admin** and the overview loads. Locally: set
+  `HORIZON_ADMIN_EMAILS` in `.env`, turn on two-factor for that account, restart the backend.

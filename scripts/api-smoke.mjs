@@ -30,7 +30,10 @@
 // answer for a taken email, an unverified account with no API key and no tables, resend, bad
 // links), checks two-factor sign-in on demo6 (#214: setup and QR code, the login's code step,
 // replayed and reused codes refused, recovery codes, demo2 and API keys locked out, turned off
-// again), checks data export (#215: the processor's zip has every table as CSV and JSON and the
+// again), checks the admin area (#277: demo6 is smoke-env.sh's HORIZON_ADMIN_EMAILS and an admin
+// only with two-factor on; demo, API keys and no token get 404; the overview, the accounts list
+// and an account's page; plan, lock, verification email, 2FA reset and delete on a new account,
+// each in its history), checks data export (#215: the processor's zip has every table as CSV and JSON and the
 // settings without webhook secrets; one at a time; demo2 and API keys can't download it), checks the
 // audit log (#217: app and API key changes per table and per account, paging, demo2 and API keys
 // locked out), checks the plans (#183: public GET /plans; on demo7, put on Free with tiny caps by
@@ -5057,6 +5060,13 @@ check(
     tf_status0?.available === true && tf_status0.enabled === false && tf_status0.password_account,
     tf_status0
 );
+// The admin area (#277): demo6 is on smoke-env.sh's HORIZON_ADMIN_EMAILS, but without two-factor
+// on it's no admin yet: 404, like everyone else
+await call('admin_before_two_factor', 'GET', '/admin/overview', {
+    token: tf_token,
+    expectFail: true
+});
+check('admin_before_two_factor_404', results.admin_before_two_factor?.status === 404);
 await call('two_factor_status_api_key', 'GET', '/two-factor', { token: key, expectFail: true });
 await call('two_factor_status_no_auth', 'GET', '/two-factor', { expectFail: true });
 const tf_setup = await call('two_factor_setup', 'POST', '/two-factor/setup', { token: tf_token });
@@ -5087,6 +5097,226 @@ check(
 );
 await call('two_factor_setup_when_on', 'POST', '/two-factor/setup', {
     token: tf_token,
+    expectFail: true
+});
+
+// The admin area (#277), now that demo6 (on HORIZON_ADMIN_EMAILS) has two-factor on. Anyone
+// else gets 404: another account, an API key, no token. The actions run on a new account made
+// here, deleted at the end through the admin area.
+for (const [name, tok] of [
+    ['admin_non_admin', token],
+    ['admin_api_key', key],
+    ['admin_no_auth', undefined]
+]) {
+    await call(name, 'GET', '/admin/overview', { token: tok, expectFail: true });
+    check(`${name}_404`, results[name]?.status === 404, results[name]);
+    await call(`${name}_accounts`, 'GET', '/admin/accounts', { token: tok, expectFail: true });
+    check(`${name}_accounts_404`, results[`${name}_accounts`]?.status === 404);
+}
+await call('admin_non_admin_action', 'POST', '/admin/accounts/1/lock', {
+    token,
+    body: {},
+    expectFail: true
+});
+check('admin_non_admin_action_404', results.admin_non_admin_action?.status === 404);
+const adm_me = await call('admin_authorize', 'GET', `/auth/authorize?token=${tf_token}`);
+check('admin_authorize_flag', adm_me?.admin === true && me?.admin === false, {
+    admin: adm_me?.admin,
+    demo: me?.admin
+});
+// Made before the first admin read: the list is a snapshot, a few minutes old at most
+const adm_email = `smoke-admin-${crypto.randomUUID().slice(0, 8)}@example.com`;
+await call('admin_target_signup', 'POST', '/auth/create-account', {
+    body: { email: adm_email, password: signup_password }
+});
+const adm_target_session = await call('admin_target_login', 'POST', '/auth/login', {
+    body: { email: adm_email, password: signup_password }
+});
+const adm_target_token = adm_target_session?.token;
+const adm_overview = await call('admin_overview', 'GET', '/admin/overview', { token: tf_token });
+check(
+    'admin_overview_figures',
+    adm_overview?.signups?.length === 30 &&
+        adm_overview.signups.reduce((s, d) => s + d.count, 0) >= 1 &&
+        adm_overview.accounts >= 7 &&
+        typeof adm_overview.active?.days_7 === 'number' &&
+        typeof adm_overview.plans?.INTERNAL === 'number' &&
+        adm_overview.ai?.budget_usd === 5 &&
+        typeof adm_overview.ai?.spent_usd === 'number' &&
+        typeof adm_overview.e2e?.conclusion === 'string',
+    adm_overview
+);
+const adm_search0 = await call(
+    'admin_accounts_demo2',
+    'GET',
+    '/admin/accounts?search=demo2%40invokedb.com&sort=email&dir=asc',
+    { token: tf_token }
+);
+const adm_demo2 = adm_search0?.accounts?.[0];
+check(
+    'admin_accounts_search',
+    adm_search0?.total === 1 &&
+        adm_demo2?.email === 'demo2@invokedb.com' &&
+        adm_demo2.plan === 'INTERNAL' &&
+        typeof adm_demo2.rows === 'number' &&
+        typeof adm_demo2.storage_bytes === 'number' &&
+        Array.isArray(adm_demo2.caps),
+    adm_search0
+);
+await call('admin_accounts_bad_sort', 'GET', '/admin/accounts?sort=password_hash', {
+    token: tf_token,
+    expectFail: true
+});
+check('admin_accounts_bad_sort_400', results.admin_accounts_bad_sort?.status === 400);
+// demo7 is on Free with tiny caps (HORIZON_TEST_PLANS): earlier tests filled them
+const adm_over = await call(
+    'admin_accounts_over',
+    'GET',
+    '/admin/accounts?caps=flagged&limit=100',
+    {
+        token: tf_token
+    }
+);
+check(
+    'admin_accounts_over_caps',
+    Array.isArray(adm_over?.accounts) &&
+        adm_over.accounts.every(a => a.caps.length > 0) &&
+        adm_over.accounts.some(a => a.email === 'demo7@invokedb.com'),
+    adm_over && adm_over.accounts?.map(a => [a.email, a.caps])
+);
+const adm_detail = await call('admin_account_demo', 'GET', `/admin/accounts/${me.id}`, {
+    token: tf_token
+});
+check(
+    'admin_account_detail',
+    adm_detail?.account?.email === 'demo@invokedb.com' &&
+        adm_detail.tables?.some(
+            t => String(t.id) === String(file_id) && t.rows > 0 && t.size_bytes >= 0
+        ) &&
+        adm_detail.api_keys?.length > 0 &&
+        adm_detail.api_keys.every(k => typeof k.prefix === 'string' && !('key_hash' in k)) &&
+        Array.isArray(adm_detail.history) &&
+        typeof adm_detail.ai?.cost_usd === 'number' &&
+        typeof adm_detail.usage?.tables?.used === 'number',
+    adm_detail && { account: adm_detail.account, tables: adm_detail.tables }
+);
+check(
+    'admin_account_detail_no_rows_or_keys',
+    !!adm_detail &&
+        !JSON.stringify(adm_detail).includes('alice') &&
+        !(key && JSON.stringify(adm_detail).includes(key))
+);
+await call('admin_account_unknown', 'GET', '/admin/accounts/99999999', {
+    token: tf_token,
+    expectFail: true
+});
+await call('admin_own_account_action', 'POST', `/admin/accounts/${adm_me?.id}/lock`, {
+    token: tf_token,
+    body: {},
+    expectFail: true
+});
+const adm_found = await call(
+    'admin_accounts_target',
+    'GET',
+    `/admin/accounts?search=${encodeURIComponent(adm_email)}`,
+    { token: tf_token }
+);
+const adm_id = adm_found?.accounts?.[0]?.id;
+check(
+    'admin_target_listed',
+    !!adm_id &&
+        adm_found.accounts[0].verified === false &&
+        adm_found.accounts[0].plan === 'FREE' &&
+        typeof adm_found.accounts[0].created_at === 'number',
+    adm_found
+);
+const adm_path = `/admin/accounts/${adm_id}`;
+await call('admin_plan_bad', 'POST', `${adm_path}/plan`, {
+    token: tf_token,
+    body: { plan: 'GOLD' },
+    expectFail: true
+});
+await call('admin_plan_starter', 'POST', `${adm_path}/plan`, {
+    token: tf_token,
+    body: { plan: 'STARTER' }
+});
+const adm_after_plan = await call('admin_target_after_plan', 'GET', adm_path, { token: tf_token });
+check('admin_plan_changed', adm_after_plan?.account?.plan === 'STARTER', adm_after_plan?.account);
+await call('admin_plan_internal', 'POST', `${adm_path}/plan`, {
+    token: tf_token,
+    body: { plan: 'INTERNAL' }
+});
+const adm_usage_internal = await call('admin_target_usage', 'GET', '/usage', {
+    token: adm_target_token
+});
+check(
+    'admin_plan_internal_no_caps',
+    adm_usage_internal?.internal === true && adm_usage_internal.usage?.tables?.cap === null,
+    adm_usage_internal
+);
+await call('admin_lock', 'POST', `${adm_path}/lock`, {
+    token: tf_token,
+    body: { reason: 'Smoke test lock' }
+});
+const adm_locked = await call(
+    'admin_target_authorize_locked',
+    'GET',
+    `/auth/authorize?token=${adm_target_token}`
+);
+check(
+    'admin_lock_shown_to_account',
+    adm_locked?.locked === true && adm_locked.locked_reason === 'Smoke test lock',
+    adm_locked
+);
+await call('admin_unlock', 'POST', `${adm_path}/unlock`, { token: tf_token });
+await call('admin_unlock_again', 'POST', `${adm_path}/unlock`, {
+    token: tf_token,
+    expectFail: true
+});
+check('admin_unlock_again_409', results.admin_unlock_again?.status === 409);
+await call('admin_resend_verification', 'POST', `${adm_path}/resend-verification`, {
+    token: tf_token
+});
+await call('admin_reset_two_factor_off', 'POST', `${adm_path}/reset-two-factor`, {
+    token: tf_token,
+    expectFail: true
+});
+check('admin_reset_two_factor_off_409', results.admin_reset_two_factor_off?.status === 409);
+// The account's own history shows each action, with the admin as the actor
+const adm_history = await call('admin_target_history', 'GET', '/audit', {
+    token: adm_target_token
+});
+const adm_actions = (adm_history?.entries || [])
+    .filter(e => e.actor?.type === 'admin' && e.source === 'admin')
+    .map(e => e.action);
+check(
+    'admin_actions_in_history',
+    ['admin.plan_changed', 'admin.locked', 'admin.unlocked', 'admin.verification_sent'].every(a =>
+        adm_actions.includes(a)
+    ) &&
+        adm_history.entries.every(
+            e => e.actor?.type !== 'admin' || e.actor.label.includes('demo6@invokedb.com')
+        ),
+    adm_history
+);
+await call('admin_delete_unconfirmed', 'POST', `${adm_path}/delete`, {
+    token: tf_token,
+    body: { confirm: 'someone@else.com' },
+    expectFail: true
+});
+check('admin_delete_unconfirmed_400', results.admin_delete_unconfirmed?.status === 400);
+await call('admin_delete', 'POST', `${adm_path}/delete`, {
+    token: tf_token,
+    body: { confirm: adm_email.toUpperCase() }
+});
+await call('admin_deleted_detail', 'GET', adm_path, { token: tf_token, expectFail: true });
+check('admin_deleted_detail_404', results.admin_deleted_detail?.status === 404);
+await call('admin_deleted_session_ended', 'GET', '/file-directory', {
+    token: adm_target_token,
+    expectFail: true
+});
+await call('admin_deleted_login', 'POST', '/auth/login', {
+    body: { email: adm_email, password: signup_password },
     expectFail: true
 });
 // demo2 has its own (off) two-factor and can't turn demo6's off, even with demo6's code

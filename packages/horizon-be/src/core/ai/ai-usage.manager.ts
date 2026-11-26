@@ -173,6 +173,20 @@ export class AiUsageManager {
         );
     }
 
+    /**
+     * The admin area (#277) only: each account's cost in the month, in micro-dollars. The one
+     * read across accounts.
+     */
+    async month_costs(month: string): Promise<Map<number, number>> {
+        const usage = await this.collection();
+        const docs = await usage
+            .find({ month }, { projection: { account_id: 1, cost_micros: 1 } })
+            .toArray();
+        const out = new Map<number, number>();
+        docs.forEach(d => out.set(Number(d.account_id), Number(d.cost_micros) || 0));
+        return out;
+    }
+
     /** What every account's AI use cost this month, in micro-dollars. */
     async server_cost(month: string): Promise<number> {
         const usage = await this.server_collection();

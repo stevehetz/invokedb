@@ -289,7 +289,8 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   calls a month and per second, query page, CSV size, URL sources and schedules, webhooks,
   forms, views, audit days, per-key limits, AI allowances); **nothing else hard-codes a plan
   limit**. Subscription ids map as FREE → Free, BASIC → Starter, PLUS/PREMIUM → Pro until Stripe
-  (#129). `INTERNAL_EMAILS` (demo*, e2e, verified) have no counted caps. `TrackingManager.plan()`
+  (#129). `INTERNAL_EMAILS` (demo*, e2e, verified) and accounts an admin made internal
+  (`account.internal`, #277) have no counted caps. `TrackingManager.plan()`
   gives an account's caps and enforces them (reservations against races; account rows summed
   from each table's metadata; storage from `dbStats` `dataSize`, cached 30 s; the API quota is an
   atomic `$inc` per UTC month in `tracking:api_month`, the rate limit an in-memory token bucket);
@@ -472,6 +473,20 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   `GET /account-export/:id/download` needs the owner's session (the app fetches it as a blob).
   Deleting data isn't part of it. A local `api-smoke.mjs` run asks for an export, so more than
   five runs a day on the same DBs hit the 429.
+- Admin area (#277): `src/core/admin/admin.ts` has the pure rules (who is an admin: on
+  `HORIZON_ADMIN_EMAILS`, a verified email and two-factor on; the plans an admin sets, internal
+  being `account.internal`; cap flags at/over and from 80%; the accounts list's search, sort and
+  paging; the overview's figures). `AdminAccessService` checks an account; `AdminGuard`
+  (`web/http/admin`) runs it on every `/admin` route, session only, 404 for anyone else
+  (no token and API keys too), rate-limited per admin. `AdminService` reads every live
+  account's numbers from what's already counted (row counts from collection metadata, `dbStats`,
+  `tracking:api_month`, `tracking:ai_usage` via `AiUsageManager.month_costs`) into a snapshot
+  kept 3 minutes, which any action drops. Actions (plan, lock, unlock, resend verification,
+  reset 2FA, delete with the email typed again) refuse the admin's own account and go into the
+  account's audit log with an `admin` actor (`admin.*` actions). Never rows, never
+  impersonation. `GET /auth/authorize` carries `admin` for the menu link. The frontend is
+  `components/admin` at `/app/admin` (a page overlay, dark styles in `stylesheet.scss`).
+  `smoke-env.sh` makes demo6 the admin; `api-smoke.mjs` turns its 2FA on and checks it all.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

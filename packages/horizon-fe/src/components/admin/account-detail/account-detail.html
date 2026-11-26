@@ -1,0 +1,240 @@
+<div class="admin-account">
+    <div class="admin-account__back">
+        <a href="" @click.prevent="$emit('close')"
+            ><i class="fa fa-arrow-left"></i> All accounts</a
+        >
+    </div>
+    <p class="admin-error" v-if="error">{{ error }}</p>
+    <p class="admin-loading" v-else-if="!detail">Loading…</p>
+    <template v-else>
+        <div class="admin-panel">
+            <h3>
+                {{ detail.account.email }}
+                <span class="admin-badge locked" v-if="detail.account.locked"
+                    ><i class="fa fa-lock"></i> locked: {{
+                    detail.account.locked_reason }}</span
+                >
+            </h3>
+            <dl class="admin-facts">
+                <dt>Id</dt>
+                <dd>{{ detail.account.id }}</dd>
+                <dt>Name</dt>
+                <dd>{{ detail.account.name || '—' }}</dd>
+                <dt>Plan</dt>
+                <dd>{{ detail.account.plan_name }}</dd>
+                <dt>Created</dt>
+                <dd>{{ time_label(detail.account.created_at) }}</dd>
+                <dt>Last active</dt>
+                <dd>{{ time_label(detail.account.last_active_at) }}</dd>
+                <dt>Email</dt>
+                <dd>
+                    {{ detail.account.verified ? 'Verified' : 'Not verified' }}
+                </dd>
+                <dt>Sign-in</dt>
+                <dd>{{ sign_in_label }}</dd>
+            </dl>
+            <div class="admin-caps" v-if="detail.caps.length">
+                <span
+                    v-for="f in detail.caps"
+                    :key="f.limit"
+                    :class="['admin-badge', f.level]"
+                    ><i
+                        :class="f.level === 'over' ? 'fa fa-circle-exclamation' : 'fa fa-triangle-exclamation'"
+                    ></i>
+                    {{ f.level === 'over' ? 'At or over' : 'Near' }}: {{
+                    cap_label(f) }}</span
+                >
+            </div>
+            <div class="admin-actions">
+                <el-button size="small" @click="ask('plan')"
+                    >Change plan</el-button
+                >
+                <el-button
+                    size="small"
+                    v-if="!detail.account.locked"
+                    @click="ask('lock')"
+                    >Lock</el-button
+                >
+                <el-button size="small" v-else @click="ask('unlock')"
+                    >Unlock</el-button
+                >
+                <el-button
+                    size="small"
+                    v-if="!detail.account.verified"
+                    @click="ask('resend-verification')"
+                    >Resend verification email</el-button
+                >
+                <el-button
+                    size="small"
+                    v-if="detail.account.two_factor"
+                    @click="ask('reset-two-factor')"
+                    >Reset two-factor</el-button
+                >
+                <el-button size="small" type="danger" @click="ask('delete')"
+                    >Delete account</el-button
+                >
+            </div>
+            <p class="admin-done" v-if="done">{{ done }}</p>
+        </div>
+
+        <div class="admin-panel">
+            <h3>Usage ({{ detail.month }})</h3>
+            <div class="usage-meters">
+                <div class="usage-meter" v-for="m in meters" :key="m.key">
+                    <div class="usage-meter__label">
+                        <span>{{ m.label }}</span>
+                        <span class="usage-meter__text">{{ m.text }}</span>
+                    </div>
+                    <el-progress
+                        :percentage="m.percent"
+                        :status="m.status"
+                        :show-text="false"
+                        :stroke-width="6"
+                    ></el-progress>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-panel">
+            <h3>Tables ({{ detail.tables.length }})</h3>
+            <table class="admin-table" v-if="detail.tables.length">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th class="num">Rows</th>
+                        <th class="num">Columns</th>
+                        <th class="num">Size</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="t in detail.tables" :key="t.id">
+                        <td>{{ t.name }}</td>
+                        <td class="num">{{ count_label(t.rows) }}</td>
+                        <td class="num">{{ count_label(t.columns) }}</td>
+                        <td class="num">{{ bytes_label(t.size_bytes) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="admin-note" v-else>No tables.</p>
+        </div>
+
+        <div class="admin-panel">
+            <h3>API keys ({{ detail.api_keys.length }})</h3>
+            <table class="admin-table" v-if="detail.api_keys.length">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Key</th>
+                        <th>Access</th>
+                        <th>Tables</th>
+                        <th>Created</th>
+                        <th>Last used</th>
+                        <th>Revoked</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr
+                        v-for="k in detail.api_keys"
+                        :key="k.id"
+                        :class="{ revoked: k.revoked_at }"
+                    >
+                        <td>{{ k.name }}</td>
+                        <td class="mono">{{ k.prefix }}…</td>
+                        <td>
+                            {{ k.access === 'read' ? 'Read' : 'Read and write'
+                            }}
+                        </td>
+                        <td>{{ k.tables === null ? 'All' : k.tables }}</td>
+                        <td>{{ date_label(k.created_at) }}</td>
+                        <td>{{ time_label(k.last_used_at) }}</td>
+                        <td>{{ date_label(k.revoked_at) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="admin-note" v-else>No API keys.</p>
+        </div>
+
+        <div class="admin-panel">
+            <h3>AI this month</h3>
+            <dl class="admin-facts">
+                <dt>Questions</dt>
+                <dd>
+                    {{ count_label(detail.ai.questions) }} of {{
+                    count_label(detail.ai.allowance.questions) }}
+                </dd>
+                <dt>Generated rows</dt>
+                <dd>
+                    {{ count_label(detail.ai.rows) }} of {{
+                    count_label(detail.ai.allowance.rows) }}
+                </dd>
+                <dt>Tokens</dt>
+                <dd>
+                    {{ count_label(detail.ai.input_tokens) }} in, {{
+                    count_label(detail.ai.output_tokens) }} out
+                </dd>
+                <dt>Cost</dt>
+                <dd>
+                    {{ usd_label(detail.ai.cost_usd) }} of {{
+                    usd_label(detail.ai.allowance.budget_usd) }}
+                </dd>
+            </dl>
+        </div>
+
+        <div class="admin-panel">
+            <h3>Recent history</h3>
+            <ul class="admin-history" v-if="detail.history.length">
+                <li v-for="e in detail.history" :key="e.id">
+                    <span class="when">{{ time_label(e.created_at) }}</span>
+                    <span class="what">{{ e.summary }}</span>
+                    <span class="table" v-if="e.table_name"
+                        >{{ e.table_name }}</span
+                    >
+                    <span class="who">{{ e.actor && e.actor.label }}</span>
+                </li>
+            </ul>
+            <p class="admin-note" v-else>Nothing yet.</p>
+        </div>
+    </template>
+
+    <el-dialog
+        v-model="confirm_open"
+        :title="confirm ? confirm.title : ''"
+        width="460px"
+        append-to-body
+        class="admin-confirm"
+    >
+        <template v-if="confirm">
+            <p>{{ confirm.message }}</p>
+            <el-select v-if="confirm.input === 'plan'" v-model="plan">
+                <el-option
+                    v-for="p in plans"
+                    :key="p.id"
+                    :label="p.label"
+                    :value="p.id"
+                ></el-option>
+            </el-select>
+            <el-input
+                v-if="confirm.input === 'reason'"
+                v-model="input"
+                maxlength="150"
+                placeholder="Reason (shown to the account), optional"
+            ></el-input>
+            <el-input
+                v-if="confirm.input === 'email'"
+                v-model="input"
+                :placeholder="detail ? detail.account.email : ''"
+            ></el-input>
+            <p class="admin-error" v-if="action_error">{{ action_error }}</p>
+        </template>
+        <template #footer>
+            <el-button @click="confirm_open = false">Cancel</el-button>
+            <el-button
+                :type="confirm && confirm.danger ? 'danger' : 'primary'"
+                :disabled="!can_confirm"
+                :loading="busy"
+                @click="run"
+                >{{ confirm ? confirm.button : '' }}</el-button
+            >
+        </template>
+    </el-dialog>
+</div>

@@ -4615,3 +4615,284 @@ body.default .h-data-grid .ag-row .ag-cell[aria-colindex='1'] {
 body.default .h-data-grid .ag-floating-filter-input .ag-input-field-input {
     background-color: color.adjust(#404040, $lightness: 20%);
 }
+
+// The admin area (#277), /app/admin: dark, like the Tables page's tree. It's in the page
+// overlay (white), so the page paints its own background.
+$admin_bg: #232323;
+$admin_panel: #2d2d2d;
+$admin_line: #3c3c3c;
+$admin_text: #e2e2e2;
+$admin_muted: #a0a0a0;
+.admin-page {
+    background-color: $admin_bg;
+    color: $admin_text;
+}
+.admin-page .page-body {
+    align-items: stretch;
+    padding: 1em 1.5em 3em;
+}
+.admin-page a {
+    color: $blue100;
+}
+.admin-page h2,
+.admin-page h3 {
+    color: $admin_text;
+    margin: 0 0 0.6em;
+}
+.admin-page h3 {
+    font-size: 1rem;
+}
+.admin-page .admin-head {
+    display: flex;
+    align-items: center;
+    gap: 2em;
+    margin-bottom: 1em;
+}
+.admin-page .admin-head h2 {
+    margin: 0;
+}
+.admin-page .admin-tabs {
+    display: flex;
+    gap: 0.5em;
+}
+.admin-page .admin-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: $admin_muted;
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 0.3em 0.4em;
+}
+.admin-page .admin-tab.active,
+.admin-page .admin-tab:hover {
+    color: $admin_text;
+    border-bottom-color: $orange400;
+}
+.admin-page .admin-error,
+.admin-confirm .admin-error {
+    color: $red300;
+}
+.admin-page .admin-loading,
+.admin-page .admin-note {
+    color: $admin_muted;
+    font-size: 0.85rem;
+}
+.admin-page .admin-done {
+    color: $green500;
+    font-size: 0.85rem;
+}
+.admin-page .admin-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.admin-page .admin-tile,
+.admin-page .admin-panel {
+    background-color: $admin_panel;
+    border: 1px solid $admin_line;
+    border-radius: 6px;
+    padding: 12px 14px;
+}
+.admin-page .admin-panel {
+    margin-bottom: 16px;
+    overflow-x: auto;
+}
+.admin-page .admin-tile__label {
+    color: $admin_muted;
+    font-size: 0.8rem;
+}
+.admin-page .admin-tile__value {
+    font-size: 1.6rem;
+    margin: 0.15em 0;
+}
+.admin-page .admin-tile__note {
+    color: $admin_muted;
+    font-size: 0.8rem;
+    margin-bottom: 0.4em;
+}
+.admin-page .e2e-success {
+    color: $green500;
+}
+.admin-page .e2e-failure,
+.admin-page .e2e-cancelled,
+.admin-page .e2e-timed_out {
+    color: $red300;
+}
+// Sign-ups per day: one series, thin bars with 2px gaps, rounded tops on the baseline
+.admin-page .signup-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 120px;
+    border-bottom: 1px solid $admin_line;
+}
+.admin-page .signup-bar {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+}
+.admin-page .signup-bar__fill {
+    width: 100%;
+    min-height: 1px;
+    background-color: $blue200;
+    border-radius: 4px 4px 0 0;
+}
+.admin-page .signup-bar:hover .signup-bar__fill {
+    background-color: $blue100;
+}
+.admin-page .signup-axis {
+    display: flex;
+    justify-content: space-between;
+    color: $admin_muted;
+    font-size: 0.75rem;
+    margin: 0.3em 0 0.6em;
+}
+.admin-page .admin-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.admin-page .admin-filters .el-input {
+    max-width: 320px;
+}
+.admin-page .admin-filters .el-select {
+    width: 200px;
+}
+.admin-page .admin-table-wrap {
+    overflow-x: auto;
+}
+.admin-page .admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+.admin-page .admin-table th,
+.admin-page .admin-table td {
+    border-bottom: 1px solid $admin_line;
+    padding: 6px 8px;
+    text-align: left;
+    white-space: nowrap;
+}
+.admin-page .admin-table th {
+    color: $admin_muted;
+    font-weight: normal;
+}
+.admin-page .admin-table .num {
+    text-align: right;
+}
+.admin-page .admin-table .mono {
+    font-family: monospace;
+}
+.admin-page .admin-table .empty {
+    color: $admin_muted;
+    text-align: center;
+}
+.admin-page .admin-table tr.revoked {
+    color: $admin_muted;
+}
+.admin-page .admin-row {
+    cursor: pointer;
+}
+.admin-page .admin-row:hover {
+    background-color: $admin_panel;
+}
+.admin-page .admin-sort {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+}
+.admin-page .admin-badge {
+    display: inline-block;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    margin: 0 4px 2px 0;
+    padding: 0 6px;
+    border: 1px solid $admin_line;
+}
+.admin-page .admin-badge.over,
+.admin-page .admin-badge.locked {
+    border-color: $red400;
+    color: $red200;
+}
+.admin-page .admin-badge.near {
+    border-color: $orange400;
+    color: $orange200;
+}
+.admin-page .admin-pager {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    color: $admin_muted;
+    font-size: 0.85rem;
+}
+.admin-page .admin-account__back {
+    margin-bottom: 10px;
+}
+.admin-page .admin-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 16px;
+    font-size: 0.85rem;
+    margin: 0 0 10px;
+}
+.admin-page .admin-facts dt {
+    color: $admin_muted;
+}
+.admin-page .admin-facts dd {
+    margin: 0;
+}
+.admin-page .admin-caps {
+    margin-bottom: 10px;
+}
+.admin-page .admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.admin-page .admin-actions .el-button + .el-button {
+    margin-left: 0;
+}
+.admin-page .usage-meters {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 10px 24px;
+}
+.admin-page .usage-meter__label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-bottom: 3px;
+}
+.admin-page .usage-meter__text {
+    color: $admin_muted;
+}
+.admin-page .admin-history {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 0.85rem;
+}
+.admin-page .admin-history li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    border-bottom: 1px solid $admin_line;
+    padding: 5px 0;
+}
+.admin-page .admin-history .when,
+.admin-page .admin-history .who,
+.admin-page .admin-history .table {
+    color: $admin_muted;
+}
+.admin-confirm .el-select,
+.admin-confirm .el-input {
+    width: 100%;
+    margin-top: 8px;
+}

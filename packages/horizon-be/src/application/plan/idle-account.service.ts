@@ -17,6 +17,8 @@ const IDLE_FIELDS = {
     id: true,
     email: true,
     email_verified: true,
+    // An account an admin made internal (#277) is never idle-deleted
+    internal: true,
     subscription_id: true,
     deleted: true,
     last_sign_in_at: true,

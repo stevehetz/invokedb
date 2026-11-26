@@ -5,17 +5,27 @@ import { add_months } from '@app/core/plan/idle';
 const DAY = 24 * 60 * 60 * 1000;
 const T0 = Date.UTC(2026, 0, 15, 10);
 
-// The accounts table, in memory: find/findOne/update as the service uses them
+// The accounts table, in memory: find/findOne/update as the service uses them. Like TypeORM,
+// only the selected fields come back.
 function make_repo(rows: any[]) {
-    const pick = (a: any) => ({ ...a });
+    const pick = (a: any, select?: Record<string, boolean>) =>
+        select
+            ? Object.fromEntries(
+                  Object.keys(select)
+                      .filter(k => select[k])
+                      .map(k => [k, a[k]])
+              )
+            : { ...a };
     return {
         rows,
-        find: jest.fn(async ({ where }) =>
-            rows.filter(r => where.deleted === undefined || r.deleted === where.deleted).map(pick)
+        find: jest.fn(async ({ where, select }) =>
+            rows
+                .filter(r => where.deleted === undefined || r.deleted === where.deleted)
+                .map(r => pick(r, select))
         ),
-        findOne: jest.fn(async ({ where }) => {
+        findOne: jest.fn(async ({ where, select }) => {
             const r = rows.find(x => x.id === where.id);
-            return r ? pick(r) : null;
+            return r ? pick(r, select) : null;
         }),
         update: jest.fn(async ({ id }, changes) => {
             const r = rows.find(x => x.id === id);
@@ -28,6 +38,7 @@ const account = (id: number, extra: any = {}) => ({
     id,
     email: `user${id}@example.com`,
     email_verified: true,
+    internal: false,
     subscription_id: PLAN_SUBSCRIPTIONS.FREE,
     deleted: false,
     last_sign_in_at: new Date(T0),
@@ -179,6 +190,27 @@ describe('IdleAccountService (the idle job, with a fake clock)', () => {
         expect((await s.service.run()).warned_first).toEqual([]);
         expect(s.repo.rows[0].idle_warned_at).toBeNull();
         expect((await s.service.run()).warned_first).toEqual([1]);
+    });
+
+    it('never warns or deletes an account an admin made internal', async () => {
+        const s = setup([
+            account(1, { internal: true }), // on Free, not on INTERNAL_EMAILS
+            account(2, {
+                internal: true,
+                idle_warned_at: new Date(add_months(T0, 5)),
+                idle_final_warned_at: new Date(add_months(T0, 6) - 7 * DAY)
+            })
+        ]);
+        for (const months of [5, 6, 7, 24]) {
+            s.at(add_months(T0, months));
+            expect(await s.service.run()).toEqual({
+                warned_first: [],
+                warned_final: [],
+                deleted: []
+            });
+        }
+        expect(s.email_manager.send_text).not.toHaveBeenCalled();
+        expect(s.deletion.delete_account).not.toHaveBeenCalled();
     });
 
     it('leaves deleted accounts alone', async () => {

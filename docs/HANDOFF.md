@@ -1,6 +1,6 @@
 # InvokeDB: handoff
 
-_Last updated 2026-11-26 (night)_
+_Last updated 2026-11-26 (late night)_
 
 InvokeDB ("horizon") is an **agentic web database**, "the database for you and your AI agents":
 tables people edit like a spreadsheet and code and AI agents use through an API (and soon an MCP
@@ -25,12 +25,11 @@ Elsewhere:
 
 ## Where things stand (2026-11-26, night)
 
-Production is green (E2E passed after #303 deployed, ~15:40 UTC on 2026-11-26). Everything below
-is merged and deployed unless it says otherwise. Details: `gh pr list --state merged`.
+Production is green (CD and E2E passed for `main` at `9e6509c`, ~16:55 UTC on 2026-11-26). No
+PRs are open. Everything below is merged and deployed. Details: `gh pr list --state merged`.
 
 - **Shipped 2026-11-26 (owner session):**
-  - **Light and dark theme** (#290, reached `main` inside **#301**, which didn't say
-    `Closes #290`: **#290 is still open and should be closed**). In light mode the app header
+  - **Light and dark theme** (#290, reached `main` inside **#301**; #290 closed by hand). In light mode the app header
     and the tables pane's icon rail stay a slate (`$light-rail` in `theme-tokens.scss`).
   - **#301, theme polish** found testing it: column defs carry the backend's fields in
     `colDef.context` (`h-data-grid/col-def.js`, #295/#296; ag-grid 36 flags unknown colDef
@@ -44,15 +43,14 @@ is merged and deployed unless it says otherwise. Details: `gh pr list --state me
   - **#306, the rebrand** (#304): home page, title and meta tags, help, guide and README now say
     "The database for you and your AI agents" with the label "Agentic web database". The GitHub
     repo's description and topics (`ai-agents`, `agentic-ai`) were updated to match; add
-    `mcp-server` once #307 ships.
-- **#307, the MCP server (#305): open, CI running, should auto-merge.** `POST /mcp` with an API
+    `mcp-server` now that #307 has shipped.
+- **#307, the MCP server (#305): merged and live** (`https://api.invokedb.com/mcp` answers 401
+  without a key). `POST /mcp` with an API
   key; tools `list_tables`, `describe_table`, `query_rows`, `count_rows`, and for read-write keys
   `create_rows`, `update_rows`, `delete_rows`. **No MCP SDK** (chosen in the session and explained
   in the PR: the SDK pulls in Hono, Express, jose and more); `src/core/mcp/mcp.ts` is a small, pure, stateless
   JSON-RPC implementation, checked with the official SDK client 1.32.2. The Account page's API
   Keys panel has a "Use with AI agents" box; help topic `agents`; AGENTS.md has the conventions.
-  After it deploys: check `https://api.invokedb.com/mcp` answers `initialize` with a key, and
-  that production's E2E stayed green.
 
 - **Shipped 2026-11-25/26** (agent + owner sessions): scoped API keys (#179); **AI** (Haiku 5.5,
   capped per `docs/PRICING.md` 3.5): one **Ask AI** button on the grid that answers questions
@@ -66,8 +64,6 @@ is merged and deployed unless it says otherwise. Details: `gh pr list --state me
   removed (#294); an account menu at the top right (#271, #273).
 - **Removed:** dashboards (#209 → removed in #265; data dropped in production).
 - **#184 shipped** (#280: read-only over-cap accounts, deleting idle free accounts).
-- **Open PRs:**
-  - **#307** MCP server (above).
 - **Billing shipped, off in production** (#129, **#310** merged 2026-11-26; replaced #153,
   closed): see "Stripe and going live" below.
 - **Queue (`agent`):** #268 (E2E transient 502) and **#279** (delete an account's data on account

@@ -1,10 +1,13 @@
 import {
     ALERT_EVERY_MS,
     ErrorReportError,
+    MAX_FINGERPRINTS,
     MAX_MESSAGE,
     MAX_STACK_LINES,
     alert_due,
     alert_text,
+    cap_group,
+    cap_group_sources,
     clean_message,
     clean_stack,
     client_event,
@@ -222,5 +225,17 @@ describe('parse_error_query', () => {
         expect(() => parse_error_query({ source: 'db' })).toThrow(ErrorReportError);
         expect(() => parse_error_query({ page: '0' })).toThrow(ErrorReportError);
         expect(() => parse_error_query({ limit: '101' })).toThrow(ErrorReportError);
+    });
+});
+
+describe('fingerprint caps', () => {
+    it('keeps the public frontend reports on their own cap, apart from the backend', () => {
+        expect(cap_group('frontend')).toBe('frontend');
+        expect(cap_group('api')).toBe('backend');
+        expect(cap_group('processor')).toBe('backend');
+        expect(cap_group_sources('frontend')).toEqual(['frontend']);
+        expect(cap_group_sources('backend')).toEqual(['api', 'processor']);
+        expect(MAX_FINGERPRINTS.backend).toBeGreaterThan(0);
+        expect(MAX_FINGERPRINTS.frontend).toBeGreaterThan(0);
     });
 });

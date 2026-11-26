@@ -15,8 +15,19 @@ export const KEEP_DAYS = 30;
 export const ALERT_EVERY_MS = 60 * 60 * 1000;
 // And at most this many alerts an hour in all, per process, so a flood can't spam the chat
 export const ALERTS_PER_HOUR = 10;
-// New fingerprints stop being stored past this many (existing ones still count)
-export const MAX_FINGERPRINTS = 5000;
+// New fingerprints stop being stored past this many (existing ones still count). The public
+// POST /errors can be posted by anyone, so frontend reports have their own cap: they can only
+// crowd out other frontend reports, never the backend's (api and processor share theirs).
+export const MAX_FINGERPRINTS = { backend: 3000, frontend: 2000 };
+export type CapGroup = keyof typeof MAX_FINGERPRINTS;
+
+/** Which fingerprint cap a source counts against. */
+export const cap_group = (source: ErrorSource): CapGroup =>
+    source === 'frontend' ? 'frontend' : 'backend';
+
+/** The sources sharing a cap group (for counting its fingerprints). */
+export const cap_group_sources = (group: CapGroup): ErrorSource[] =>
+    ERROR_SOURCES.filter(s => cap_group(s) === group);
 
 export const MAX_MESSAGE = 500;
 export const MAX_STACK = 8000;

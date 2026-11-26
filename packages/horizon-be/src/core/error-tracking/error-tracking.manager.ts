@@ -2,10 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { MongoDbCollections } from '../mongodb/collections';
 import {
     ALERT_EVERY_MS,
+    CapGroup,
     ErrorEvent,
     ErrorListQuery,
     KEEP_DAYS,
     MAX_FINGERPRINTS,
+    cap_group,
+    cap_group_sources,
     fingerprint
 } from './error-tracking';
 
@@ -56,7 +59,7 @@ const group_of = (doc: any): ErrorGroup => ({
 @Injectable()
 export class ErrorTrackingManager {
     private indexed = false;
-    private counted: { at: number; count: number } | null = null;
+    private counted: Partial<Record<CapGroup, { at: number; count: number }>> = {};
 
     constructor(private _collections: MongoDbCollections) {}
 
@@ -73,11 +76,15 @@ export class ErrorTrackingManager {
         return c;
     }
 
-    private async room_for_new(c: any, now: number) {
-        if (!this.counted || now - this.counted.at > COUNT_EVERY_MS) {
-            this.counted = { at: now, count: await c.estimatedDocumentCount() };
+    // Each cap group's fingerprints are counted separately, so one group filling its cap (the
+    // public frontend reports) never stops the other's new errors from being stored
+    private async room_for_new(c: any, group: CapGroup, now: number) {
+        let counted = this.counted[group];
+        if (!counted || now - counted.at > COUNT_EVERY_MS) {
+            const count = await c.countDocuments({ source: { $in: cap_group_sources(group) } });
+            counted = this.counted[group] = { at: now, count };
         }
-        return this.counted.count < MAX_FINGERPRINTS;
+        return counted.count < MAX_FINGERPRINTS[group];
     }
 
     /**
@@ -107,7 +114,8 @@ export class ErrorTrackingManager {
             },
             $inc: { count: 1 }
         };
-        const upsert = await this.room_for_new(c, now);
+        const group = cap_group(event.source);
+        const upsert = await this.room_for_new(c, group, now);
         let before;
         try {
             before = await c.findOneAndUpdate({ _id: id } as any, update, {
@@ -121,7 +129,7 @@ export class ErrorTrackingManager {
             return { id, is_new: false, stored: true };
         }
         if (before) return { id, is_new: false, stored: true };
-        if (this.counted) this.counted.count++;
+        if (upsert && this.counted[group]) this.counted[group].count++;
         return { id, is_new: true, stored: upsert };
     }
 

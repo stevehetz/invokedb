@@ -386,7 +386,9 @@ by its own new version. Each file's top comment explains it; AGENTS.md "Hard rul
   latest occurrence: message, stack, route pattern (`GET /web-file/:id`) or page path, status,
   account id, browser. Never request bodies, headers or query strings; messages and stacks are
   scrubbed of emails, tokens, keys and URL credentials. Kept 30 days after it was last seen (a
-  TTL index); past 5,000 errors, new ones stop being stored. Code:
+  TTL index); past 3,000 backend (API and processor) errors or 2,000 frontend ones, new ones of
+  that kind stop being stored (separate caps, so the public frontend reports can't crowd out the
+  backend's). Code:
   `packages/horizon-be/src/core/error-tracking/`, `packages/horizon-fe/src/core/error-report.js`.
 - **Where to look:** the admin area's **Errors** tab (`/app/admin`, admins only): the list, last
   seen first, filtered by source; an error's page has its latest stack. A frontend stack is shown

@@ -666,7 +666,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--h-form-page-bg);
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 // The card grows with its content (the SSO buttons, an error message).
@@ -715,7 +715,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--h-form-page-bg);
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 .create-account-page .input-box {
@@ -761,7 +761,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--h-form-page-bg);
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 .verify-email-page .control-box {
@@ -787,7 +787,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--h-form-page-bg);
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 .forgot-password-page .input-box {
@@ -823,7 +823,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--h-form-page-bg);
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 .reset-password-page .info-box {
@@ -864,7 +864,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--h-form-page-bg);
+    background: var(--h-form-page-bg);
     color: #ffffff;
 }
 .contact-page .panel-box {

@@ -94,7 +94,8 @@ $light: (
     tabs-bar: #e2e2e6,
     tab: #ececef,
     // Behind the card of the site's sign-in, sign-up, password and contact pages: the brand
-    // purple in light; in dark the page's own background (the purple clashed with a dark card)
+    // purple in light; in dark a gradient into the page's own background (a `background`, not a
+    // colour; the flat purple clashed with a dark card)
     form-page-bg: #484ec0,
     // The site's pricing columns, Free to Pro
     tier-1: #e7e7f8,
@@ -181,7 +182,12 @@ $dark: (
     input-focus-bg: #161616,
     tabs-bar: #1c1c1c,
     tab: #2b2b2b,
-    form-page-bg: #1c1c1c,
+    // A soft indigo glow from the top, fading into the page's dark
+    form-page-bg: radial-gradient(
+            ellipse 90% 70% at 50% 0%,
+            #2d2f66 0%,
+            #1c1c1c 70%
+        ),
     tier-1: #2a2a3d,
     tier-2: #303052,
     tier-3: #383866,

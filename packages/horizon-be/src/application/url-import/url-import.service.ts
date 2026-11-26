@@ -78,6 +78,8 @@ export class UrlImportService {
     async create(acct_id: number, body: any) {
         const b = body && typeof body === 'object' ? body : {};
         const account = await this.account(acct_id);
+        // Before any other check, so a read-only account (#184) is told why
+        await this.tracking_manager.check_not_read_only(account);
         const name = b.new_name;
         if (typeof name !== 'string' || !validate_file_dir_name(name)) {
             throw new HttpException(validate_file_dir_msg(), HttpStatus.BAD_REQUEST);
@@ -154,7 +156,9 @@ export class UrlImportService {
     async sync(acct_id: number, file_id) {
         const { file, source } = await this.owned_source(acct_id, file_id);
         if (!source) throw new NotFoundException('This table was not imported from a URL');
-        await this.account(acct_id);
+        const account = await this.account(acct_id);
+        // A read-only account (#184) syncs nothing (the processor's check covers scheduled ones)
+        await this.tracking_manager.check_not_read_only(account);
         await this.queue_sync(acct_id, file);
         this.web_file_prc_notify_svc.job_start(_c.HORIZON_BE_WS_CLIENT_ID, acct_id, file.id);
         return this.view(await this.url_import_manager.get(acct_id, file.id));

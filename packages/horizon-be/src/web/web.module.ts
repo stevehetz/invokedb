@@ -23,7 +23,7 @@ import { AiController } from './http/ai/ai.controller';
 import { AuditController } from './http/audit/audit.controller';
 import { TwoFactorController } from './http/two-factor/two-factor.controller';
 import { AccountExportController } from './http/account-export/account-export.controller';
-import { PlanController, UsageController } from './http/plan/plan.controller';
+import { PlanController, TestPlanController, UsageController } from './http/plan/plan.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
@@ -53,7 +53,8 @@ import { WebsocketClient } from './ws/websocket-client';
         TwoFactorController,
         AccountExportController,
         PlanController,
-        UsageController
+        UsageController,
+        TestPlanController
     ],
     providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor, ApiKeyUsageGuard]
 })

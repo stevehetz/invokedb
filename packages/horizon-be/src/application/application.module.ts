@@ -29,6 +29,9 @@ import { AuditService } from './audit/audit.service';
 import { TwoFactorService } from './two-factor/two-factor.service';
 import { AccountExportService } from './account-export/account-export.service';
 import { UsageService } from './plan/usage.service';
+import { PlanStateService } from './plan/plan-state.service';
+import { IdleAccountService } from './plan/idle-account.service';
+import { AccountDeletionService } from './account/account-deletion.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -59,7 +62,10 @@ import { UsageService } from './plan/usage.service';
         AuditService,
         TwoFactorService,
         AccountExportService,
-        UsageService
+        UsageService,
+        PlanStateService,
+        IdleAccountService,
+        AccountDeletionService
     ],
     exports: [
         AuthService,
@@ -85,7 +91,8 @@ import { UsageService } from './plan/usage.service';
         AuditService,
         TwoFactorService,
         AccountExportService,
-        UsageService
+        UsageService,
+        PlanStateService
     ]
 })
 export class ApplicationModule {}

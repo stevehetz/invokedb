@@ -224,6 +224,8 @@ export class AiService {
         const request = this.checked(() => parse_rows_request(body));
         const account = await this.verified_account(acct_id);
         await this.tracking_manager.check_account_lock(account);
+        // Rows a read-only account (#184) couldn't save aren't made (nor charged)
+        await this.tracking_manager.check_not_read_only(account);
         const file = await this.file_directory_svc.assert_owned(acct_id, file_id);
         if (file.type !== 'file' || file.deleted) throw new NotFoundException('Table not found');
         return await this.preview_rows(account, file, request);
@@ -275,6 +277,7 @@ export class AiService {
         const request = this.checked(() => parse_table_request(body));
         const account = await this.verified_account(acct_id);
         await this.tracking_manager.check_account_lock(account);
+        await this.tracking_manager.check_not_read_only(account);
 
         const cost = Math.max(1, request.row_count);
         const month = await this.reserve(account, cost);

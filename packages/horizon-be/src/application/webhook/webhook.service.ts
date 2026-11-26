@@ -107,6 +107,8 @@ export class WebhookService {
     async create(acct_id: number, body: any) {
         const b = body && typeof body === 'object' ? body : {};
         const account = await this.unlocked_account(acct_id);
+        // No new webhooks on a read-only account (#184)
+        await this.tracking_manager.check_not_read_only(account);
         const url = this.checked(() => parse_webhook_url(b.url, this.test_hosts));
         const events = this.checked(() => parse_events(b.events));
         const file = await this.owned_table(acct_id, b.file_id);

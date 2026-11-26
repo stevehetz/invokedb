@@ -68,7 +68,10 @@ export default function upload(url, file_ctx) {
         if (xhr.status < 200 || xhr.status >= 300) {
             // Over the plan's upload size or storage (#183): the app's notice links to the usage
             const body = getBody(xhr);
-            if (body && body.code === 'plan_limit')
+            if (
+                body &&
+                (body.code === 'plan_limit' || body.code === 'plan_read_only')
+            )
                 bus.$emit('plan_limit', body);
             return file_ctx.onError(getError(url, file_ctx, xhr));
         }

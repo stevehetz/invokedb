@@ -36,8 +36,9 @@ ANTHROPIC_API_KEY=smoke-anthropic-key
 ANTHROPIC_BASE_URL=http://127.0.0.1:8197
 HORIZON_AI_MONTHLY_BUDGET_USD=5
 # Plans (#183): the demo accounts are internal (no caps), except these, which api-smoke.mjs uses
-# to reach each cap: demo5 on Free (the API rate limit), demo6 on Starter with a 1-byte storage
-# cap, demo7 on Free with tiny caps. Test only: never set it in production.
+# to reach each cap: demo5 on Free (the API rate limit; then moved between plans by the test-only
+# PUT /test-plan for the read-only state, #184), demo6 on Starter with a 1-byte storage cap, demo7
+# on Free with tiny caps. Test only: never set it in production.
 HORIZON_TEST_PLANS='{"demo5@invokedb.com":{"plan":"FREE"},"demo6@invokedb.com":{"plan":"STARTER","caps":{"storage_bytes":1}},"demo7@invokedb.com":{"plan":"FREE","caps":{"tables":2,"rows_per_table":4,"rows_per_account":7,"columns_per_table":4,"api_calls_per_month":5,"query_page":2,"csv_upload_bytes":300,"views_per_table":1}}}'
 VARS
 echo "Wrote $OUT"

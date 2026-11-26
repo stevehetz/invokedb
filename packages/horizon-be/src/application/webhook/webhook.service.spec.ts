@@ -30,7 +30,10 @@ function setup(plan_id: PlanId = 'PRO') {
     const account_svc = {
         get: jest.fn(async id => ({ id, subscription_id: PLAN_SUBSCRIPTIONS[plan_id] }))
     };
-    const tracking_manager = { check_account_lock: jest.fn(async () => undefined) };
+    const tracking_manager = {
+        check_account_lock: jest.fn(async () => undefined),
+        check_not_read_only: jest.fn(async () => undefined)
+    };
     const web_file_manager = {
         get_all: jest.fn(async () => ({
             data: [

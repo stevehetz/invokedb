@@ -49,6 +49,18 @@ export default {
             if (/_(PLUS|PREMIUM)$/.test(id)) return 'Pro plan';
             if (/_BASIC$/.test(id)) return 'Starter plan';
             return 'Free plan';
+        },
+
+        /** When a payment's grace period ends (#184), for its banner. @returns {string} */
+        grace_end() {
+            const at = this.account && this.account.grace_ends_at;
+            const d = at ? new Date(at) : null;
+            if (!d || isNaN(d.getTime())) return 'the end of the grace period';
+            return d.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
         }
     },
 

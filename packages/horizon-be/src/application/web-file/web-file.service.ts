@@ -77,6 +77,8 @@ export class WebFileService {
     async get_new_column(account, file_id, pending?: Set<string>) {
         // A locked account makes no placeholders either (#182)
         await this.tracking_manager.check_account_lock(account);
+        // Nor a read-only one (#184)
+        await this.tracking_manager.check_not_read_only(account);
         return await this.web_file_manager.get_new_column(account.id, file_id, pending);
     }
 
@@ -496,6 +498,8 @@ export class WebFileService {
     async external_create_rows(account, file_id, body, format) {
         await this.tracking_manager.check_account_lock(account);
         await this.tracking_manager.update_req_count(account);
+        // Before the body's checks, so a read-only account (#184) is told why
+        await this.tracking_manager.check_not_read_only(account);
         await this.tracking_manager.check_table_lock(file_id);
         const columns = await this.web_file_manager.get_all(
             account.id,
@@ -534,6 +538,7 @@ export class WebFileService {
     async external_update_rows(account, file_id, body, format) {
         await this.tracking_manager.check_account_lock(account);
         await this.tracking_manager.update_req_count(account);
+        await this.tracking_manager.check_not_read_only(account);
         await this.tracking_manager.check_table_lock(file_id);
         const columns = await this.web_file_manager.get_all(
             account.id,
@@ -734,6 +739,7 @@ export class WebFileService {
 
     async update(account, file_id, web_file_type, data) {
         await this.tracking_manager.check_account_lock(account);
+        await this.tracking_manager.check_not_read_only(account);
         await this.tracking_manager.check_table_lock(file_id);
         let col_changes: ColumnChange[] = [];
         let row_columns: string[] = [];
@@ -768,6 +774,8 @@ export class WebFileService {
     private async batch_update(account, file_id, web_file_type, data, use_job = false) {
         data = assert_array_body(data);
         await this.tracking_manager.check_account_lock(account);
+        // Row and column updates alike (#184)
+        await this.tracking_manager.check_not_read_only(account);
         if (web_file_type === 'data_grid_column') {
             // Check every column before tracking or queueing anything, so a bad one is a 400.
             data.forEach(col => assert_column_update(col));
@@ -842,6 +850,8 @@ export class WebFileService {
 
     private async batch_create(account, file_id, web_file_type, data, actor?: AuditActor) {
         data = assert_array_body(data);
+        // Rows and columns alike, forms and the API included (#184)
+        await this.tracking_manager.check_not_read_only(account);
         if (web_file_type === 'data_grid_column') {
             await this.assert_link_columns(account.id, data);
             // 403 if the new columns would take the table past the column limit (#182)
@@ -932,6 +942,8 @@ export class WebFileService {
      * would take the account past its storage cap (#183).
      */
     async check_upload(account, size: number) {
+        // A read-only account (#184) uploads nothing
+        await this.tracking_manager.check_not_read_only(account);
         const plan = await this.tracking_manager.plan(account);
         const cap = plan.caps.csv_upload_bytes;
         if (Number.isFinite(cap) && size > cap) {

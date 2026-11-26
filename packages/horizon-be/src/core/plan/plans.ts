@@ -249,12 +249,37 @@ export function parse_test_plans(value: string | undefined): Record<string, Test
 
 let test_plans_cache: { raw: string | undefined; plans: Record<string, TestPlan> } | null = null;
 
+// Test only (#184): plans the smoke test switches an account listed in HORIZON_TEST_PLANS to
+// while it runs (`PUT /test-plan`), to make it go over its caps the way a downgrade would. In
+// memory, so one process (the smoke stack's) sees them.
+const runtime_test_plans: Record<string, TestPlan> = {};
+
+/** Test only: puts a HORIZON_TEST_PLANS account on another plan (null: back to its listed one). */
+export function set_runtime_test_plan(email: string, plan: TestPlan | null) {
+    const key = String(email || '').toLowerCase();
+    if (!key) return;
+    if (plan) runtime_test_plans[key] = plan;
+    else delete runtime_test_plans[key];
+}
+
+/** The accounts HORIZON_TEST_PLANS lists (by email, lower case). */
+export function test_plan_emails(): string[] {
+    return Object.keys(parse_test_plans(process.env.HORIZON_TEST_PLANS));
+}
+
 function test_plans(): Record<string, TestPlan> {
     const raw = process.env.HORIZON_TEST_PLANS;
     if (!test_plans_cache || test_plans_cache.raw !== raw) {
         test_plans_cache = { raw, plans: parse_test_plans(raw) };
     }
-    return test_plans_cache.plans;
+    if (Object.keys(runtime_test_plans).length === 0) return test_plans_cache.plans;
+    const listed = test_plans_cache.plans;
+    const out = { ...listed };
+    for (const [email, plan] of Object.entries(runtime_test_plans)) {
+        // Only ever an account the env lists
+        if (listed[email]) out[email] = plan;
+    }
+    return out;
 }
 
 export interface AccountPlan {

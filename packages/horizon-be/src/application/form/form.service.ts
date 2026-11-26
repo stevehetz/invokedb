@@ -112,6 +112,8 @@ export class FormService {
         const account = await this.account_svc.get(acct_id);
         if (!account) throw new NotFoundException();
         await this.tracking_manager.check_account_lock(account);
+        // No new forms on a read-only account (#184)
+        await this.tracking_manager.check_not_read_only(account);
         const file = await this.owned_table(acct_id, b.file_id);
         const columns = await this.columns(acct_id, file.id);
         const settings = this.checked(() => parse_form_settings(b, columns)) as FormSettings;

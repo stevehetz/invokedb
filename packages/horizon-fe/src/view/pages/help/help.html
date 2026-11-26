@@ -687,6 +687,29 @@ function verify(secret, raw_body, header) {
                         limit, 429 with a <code>Retry-After</code> header. The
                         app itself keeps working either way.
                     </p>
+                    <h2>Over your plan's limits</h2>
+                    <p>
+                        If your account holds more than your plan allows (after
+                        moving to a smaller plan, or when a payment lapses), it
+                        becomes <b>read-only</b>: you can still read your data,
+                        export it and delete it, in the app and through the API,
+                        but adding or changing anything (rows, columns, tables,
+                        uploads, URL syncs, form submissions, new webhooks,
+                        forms and views) is refused with a 403 whose body says
+                        <code>"code": "plan_read_only"</code> and which limits
+                        you're <code>over</code>. Nothing is deleted. As soon as
+                        you've deleted down to the limits (or upgraded), you can
+                        write again. When a payment fails, everything keeps
+                        working for 14 days first, with a banner in the app.
+                    </p>
+                    <h2>Unused free accounts</h2>
+                    <p>
+                        A free account with no sign-in and no API call for 6
+                        months is deleted, with all its tables and data. We
+                        email you at 5 months and again a week before; signing
+                        in or making an API call keeps the account. Paid
+                        accounts are never deleted for not being used.
+                    </p>
                     <h2>The same on every plan</h2>
                     <table class="help-table">
                         <tbody>

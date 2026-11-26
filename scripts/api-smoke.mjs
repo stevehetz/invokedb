@@ -36,7 +36,9 @@
 // locked out), checks the plans (#183: public GET /plans; on demo7, put on Free with tiny caps by
 // smoke-env.sh's HORIZON_TEST_PLANS, every cap refused on each path with 403 `plan_limit`, the
 // monthly API quota with 429; demo6 on Starter; GET /usage matches and is the caller's own),
-// then deletes the tables and the new account. Writes every response to out.json
+// checks the read-only state (#184: demo5 moved from Pro to a tiny Free by the test-only
+// PUT /test-plan reads, exports and deletes, every write path refused with 403
+// `plan_read_only`, writable again once deleted down to the caps), then deletes the tables and the new account. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -5022,6 +5024,299 @@ await call('plan_paid_csv', 'POST', '/web-file/file_upload', {
 plan_limit_is('plan_paid_csv', 'storage_bytes');
 await plan_cleanup('plan_paid_end', p6);
 await call('plan_paid_logout', 'GET', `/auth/logout?token=${p6}`);
+
+// The read-only state (#184). demo5 (listed in smoke-env.sh's HORIZON_TEST_PLANS) is put on Pro
+// with the test-only PUT /test-plan, makes two tables and a form, then "downgrades" to a Free
+// with 1 table and fewer rows than it has: it's read-only. Reads, the export and deletes work;
+// every write path is refused with 403 `plan_read_only`. Deleting down to the caps makes it
+// writable again at once (and a write past a cap is then an ordinary `plan_limit`). In a block
+// of its own, so its names can't clash with the rest of the script.
+{
+    const read_only_is = name =>
+        check(
+            `${name}_read_only`,
+            results[name]?.status === 403 &&
+                results[name]?.data?.code === 'plan_read_only' &&
+                Array.isArray(results[name]?.data?.over) &&
+                /\/pricing$/.test(results[name]?.data?.upgrade_url || ''),
+            results[name]
+        );
+    const r5_session = await call('ro_login', 'POST', '/auth/login', {
+        body: { email: 'demo5@invokedb.com', password: 'password' }
+    });
+    const r5 = r5_session?.token;
+    const r5_me = await call('ro_authorize', 'GET', `/auth/authorize?token=${r5}`);
+    await call('ro_test_plan_reset_start', 'DELETE', '/test-plan', { token: r5 });
+    await plan_cleanup('ro', r5);
+    // Only an account HORIZON_TEST_PLANS lists may use the test route, and never with a key
+    const r2 = (
+        await call('ro_other_login', 'POST', '/auth/login', {
+            body: { email: 'demo2@invokedb.com', password: 'password' }
+        })
+    )?.token;
+    await call('ro_test_plan_other', 'PUT', '/test-plan', {
+        token: r2,
+        body: { plan: 'FREE' },
+        expectFail: true
+    });
+    status_is('ro_test_plan_other', 404);
+    await call('ro_other_logout', 'GET', `/auth/logout?token=${r2}`);
+    const ro_pro = await call('ro_test_plan_pro', 'PUT', '/test-plan', {
+        token: r5,
+        body: { plan: 'PRO' }
+    });
+    check('ro_pro_active', ro_pro?.plan_state === 'active', ro_pro);
+    const ra = await call(
+        'ro_table_a',
+        'POST',
+        '/file-directory',
+        new_table(r5, r5_me?.id, 'smoke_ro_a')
+    );
+    const rb = await call(
+        'ro_table_b',
+        'POST',
+        '/file-directory',
+        new_table(r5, r5_me?.id, 'smoke_ro_b')
+    );
+    await call('ro_rows_a', 'POST', `/web-file/batch_create/data_grid_row/${ra}`, {
+        token: r5,
+        body: [{ a: 'x' }, { a: 'y' }]
+    });
+    const r_form = await call('ro_form', 'POST', '/form', {
+        token: r5,
+        body: { file_id: ra, title: 'smoke ro form', fields: [{ field: 'a' }] }
+    });
+    const r_key = await call('ro_key', 'POST', '/api-key', {
+        token: r5,
+        body: { name: 'smoke ro', access: 'read_write' }
+    });
+    const rv1 = (path, init = {}) =>
+        fetch(`${BASE}/api/v1/${path}`, {
+            ...init,
+            headers: {
+                Authorization: `Bearer ${r_key?.secret}`,
+                'Content-Type': 'application/json'
+            }
+        }).then(async r => ({ status: r.status, data: await r.json().catch(() => null) }));
+    const ru_pro = await call('ro_usage_pro', 'GET', '/usage', { token: r5 });
+    const rows_a = (ru_pro?.tables || []).find(t => t.id === ra)?.rows ?? 0;
+    check('ro_table_a_has_rows', rows_a >= 2, ru_pro);
+
+    // The downgrade: 1 table (it has 2) and one row fewer than table A has
+    const ro_free = await call('ro_test_plan_free', 'PUT', '/test-plan', {
+        token: r5,
+        body: {
+            plan: 'FREE',
+            caps: {
+                tables: 1,
+                rows_per_account: rows_a - 1,
+                api_rate_per_second: 100,
+                api_rate_burst: 100
+            }
+        }
+    });
+    check(
+        'ro_downgrade_read_only',
+        ro_free?.plan_state === 'read_only' &&
+            ro_free?.over?.includes('tables') &&
+            ro_free?.over?.includes('rows_per_account'),
+        ro_free
+    );
+    const ru_ro = await call('ro_usage_read_only', 'GET', '/usage', { token: r5 });
+    check(
+        'ro_usage_shows_state',
+        ru_ro?.plan_state === 'read_only' && ru_ro?.over?.includes('tables'),
+        ru_ro
+    );
+    const r5_me_ro = await call('ro_authorize_read_only', 'GET', `/auth/authorize?token=${r5}`);
+    check(
+        'ro_authorize_shows_state',
+        r5_me_ro?.plan_state === 'read_only' && r5_me_ro?.locked !== true,
+        r5_me_ro
+    );
+
+    // Reads and the export work
+    const ro_rows = await call(
+        'ro_read_app',
+        'POST',
+        `/web-file/data_grid_row/${ra}?skip=0&limit=10`,
+        {
+            token: r5,
+            body: {}
+        }
+    );
+    const ro_row = ro_rows?.data?.[0];
+    check('ro_read_app_rows', !!ro_row?._id, ro_rows);
+    results.ro_read_api = await rv1('get?table=smoke_ro_a&skip=0&limit=5');
+    check('ro_read_api_200', results.ro_read_api.status === 200, results.ro_read_api);
+    results.ro_query_api = await rv1('query?table=smoke_ro_a', {
+        method: 'POST',
+        body: JSON.stringify({ limit: 5 })
+    });
+    check('ro_query_api_200', results.ro_query_api.status === 200, results.ro_query_api);
+    results.ro_export = await fetch(`${BASE}/account-export`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${r5}` }
+    }).then(async r => ({ status: r.status, data: await r.json().catch(() => null) }));
+    // 409/429: an export already running, or the day's exports used (a rerun): not the read-only state
+    check(
+        'ro_export_allowed',
+        results.ro_export.status < 300 || [409, 429].includes(results.ro_export.status),
+        results.ro_export
+    );
+
+    // Every write path is refused
+    await call('ro_app_create_row', 'POST', `/web-file/batch_create/data_grid_row/${ra}`, {
+        token: r5,
+        body: [{ a: 'z' }],
+        expectFail: true
+    });
+    read_only_is('ro_app_create_row');
+    await call('ro_app_update_row', 'PUT', `/web-file/${ro_row?._id}/data_grid_row/${ra}`, {
+        token: r5,
+        body: { ...ro_row, a: 'changed' },
+        expectFail: true
+    });
+    read_only_is('ro_app_update_row');
+    await call('ro_app_batch_update_rows', 'PUT', `/web-file/batch_update/data_grid_row/${ra}`, {
+        token: r5,
+        body: [{ ...ro_row, a: 'changed' }],
+        expectFail: true
+    });
+    read_only_is('ro_app_batch_update_rows');
+    await call('ro_app_new_column', 'GET', `/web-file/${ra}/get_new_column`, {
+        token: r5,
+        expectFail: true
+    });
+    read_only_is('ro_app_new_column');
+    await call('ro_app_create_column', 'POST', `/web-file/batch_create/data_grid_column/${ra}`, {
+        token: r5,
+        body: [{ file_directory_id: ra, col_index: 9, order: 9, field: 'i', headerName: 'col9' }],
+        expectFail: true
+    });
+    read_only_is('ro_app_create_column');
+    const ro_cols = await call(
+        'ro_read_columns',
+        'POST',
+        `/web-file/data_grid_column/${ra}?skip=0&limit=50`,
+        { token: r5, body: {} }
+    );
+    const ro_col = (ro_cols?.data || []).find(c => !c.deleted);
+    await call('ro_app_rename_column', 'PUT', `/web-file/batch_update/data_grid_column/${ra}`, {
+        token: r5,
+        body: [{ ...ro_col, headerName: 'renamed' }],
+        expectFail: true
+    });
+    read_only_is('ro_app_rename_column');
+    await call('ro_new_table', 'POST', '/file-directory', {
+        ...new_table(r5, r5_me?.id, 'smoke_ro_c'),
+        expectFail: true
+    });
+    read_only_is('ro_new_table');
+    await call('ro_template', 'POST', '/table-template/waitlist', {
+        token: r5,
+        body: { name: 'smoke_ro_tpl' },
+        expectFail: true
+    });
+    read_only_is('ro_template');
+    await call('ro_csv_upload', 'POST', '/web-file/file_upload', {
+        token: r5,
+        form: csv_form('smoke_ro_csv', 'x,y\n1,2\n'),
+        expectFail: true
+    });
+    read_only_is('ro_csv_upload');
+    await call('ro_url_import', 'POST', '/url-import', {
+        token: r5,
+        body: { new_name: 'smoke_ro_url', url: `${RAW}/examples/data/todo.csv` },
+        expectFail: true
+    });
+    read_only_is('ro_url_import');
+    results.ro_api_create = await rv1('create?table=smoke_ro_a', {
+        method: 'POST',
+        body: JSON.stringify([{ column1: 'x' }])
+    });
+    read_only_is('ro_api_create');
+    results.ro_api_update = await rv1('update?table=smoke_ro_a', {
+        method: 'PUT',
+        body: JSON.stringify([{ _id: ro_row?._id, column1: 'changed' }])
+    });
+    read_only_is('ro_api_update');
+    await call('ro_new_form', 'POST', '/form', {
+        token: r5,
+        body: { file_id: ra, title: 'smoke ro form 2', fields: [{ field: 'a' }] },
+        expectFail: true
+    });
+    read_only_is('ro_new_form');
+    await call('ro_new_view', 'POST', '/view', {
+        token: r5,
+        body: { file_id: ra, name: 'smoke ro view', type: 'grid' },
+        expectFail: true
+    });
+    read_only_is('ro_new_view');
+    await call('ro_new_webhook', 'POST', '/webhook', {
+        token: r5,
+        body: { url: `http://${HOOK_HOST}/ro`, events: ['row.updated'], file_id: ra },
+        expectFail: true
+    });
+    read_only_is('ro_new_webhook');
+    await call('ro_form_submit', 'POST', `/public/form/${r_form?.id}/submit`, {
+        body: { values: { a: 'x' }, website: '' },
+        expectFail: true
+    });
+    status_is('ro_form_submit', 403);
+
+    // Deletes work. One row less: still over (2 tables), still read-only
+    results.ro_api_delete = await rv1('delete?table=smoke_ro_a', {
+        method: 'POST',
+        body: JSON.stringify([ro_row?._id])
+    });
+    check('ro_api_delete_200', results.ro_api_delete.status === 200, results.ro_api_delete);
+    results.ro_api_create_still = await rv1('create?table=smoke_ro_a', {
+        method: 'POST',
+        body: JSON.stringify([{ column1: 'x' }])
+    });
+    read_only_is('ro_api_create_still');
+    // Table B goes: 1 table, and table A at the row cap. Under the caps: writable again
+    await call('ro_delete_table_b', 'POST', '/file-directory/batch_delete', {
+        token: r5,
+        body: { ids: [rb] }
+    });
+    const ru_back = await call('ro_usage_after_delete', 'GET', '/usage', { token: r5 });
+    check(
+        'ro_under_caps_active',
+        ru_back?.plan_state === 'active' && (ru_back?.over || []).length === 0,
+        ru_back
+    );
+    const ro_rows_after = await call(
+        'ro_read_after_delete',
+        'POST',
+        `/web-file/data_grid_row/${ra}?skip=0&limit=10`,
+        { token: r5, body: {} }
+    );
+    const ro_row2 = ro_rows_after?.data?.[0];
+    await call('ro_app_update_after', 'PUT', `/web-file/${ro_row2?._id}/data_grid_row/${ra}`, {
+        token: r5,
+        body: { ...ro_row2, a: 'writable again' }
+    });
+    results.ro_api_update_after = await rv1('update?table=smoke_ro_a', {
+        method: 'PUT',
+        body: JSON.stringify([{ _id: ro_row2?._id, column1: 'writable again' }])
+    });
+    check(
+        'ro_api_update_after_200',
+        results.ro_api_update_after.status === 200,
+        results.ro_api_update_after
+    );
+    // At the row cap, a new row is an ordinary plan_limit, not the read-only state
+    results.ro_api_create_at_cap = await rv1('create?table=smoke_ro_a', {
+        method: 'POST',
+        body: JSON.stringify([{ column1: 'x' }])
+    });
+    plan_limit_is('ro_api_create_at_cap', 'rows_per_account');
+    await call('ro_test_plan_reset', 'DELETE', '/test-plan', { token: r5 });
+    await plan_cleanup('ro_end', r5);
+    await call('ro_logout', 'GET', `/auth/logout?token=${r5}`);
+}
 
 // Two-factor sign-in (#214) on demo6: set up with a QR code and a code, then the password login
 // asks for a code; used codes (TOTP steps and recovery codes) are refused; demo2 and API keys

@@ -6,6 +6,7 @@ import { WebhookManager } from '@app/core/webhook/webhook.manager';
 import { FormManager } from '@app/core/form/form.manager';
 import { ViewManager } from '@app/core/view/view.manager';
 import { build_usage } from '@app/core/plan/usage';
+import { over_caps, parse_plan_state } from '@app/core/plan/plan-state';
 
 // `GET /usage` (#183): the account's plan, each of its caps and how much of it is used. Only
 // ever the signed-in account's own.
@@ -26,7 +27,7 @@ export class UsageService {
         const plan = await this.tracking_manager.plan(account);
         const tables = await this.tracking_manager.table_usage(account);
         const views = await Promise.all(tables.map(t => this.view_manager.count(acct_id, t.id)));
-        return build_usage({
+        const usage = build_usage({
             plan,
             now: this.tracking_manager.now(),
             tables: tables.map((t, i) => ({ ...t, views: views[i] })),
@@ -36,5 +37,12 @@ export class UsageService {
             webhooks: await this.webhook_manager.count(acct_id),
             forms: await this.form_manager.count(acct_id)
         });
+        // The plan state (#184), as stored, and the caps the account is over now
+        return {
+            ...usage,
+            plan_state: parse_plan_state(account.plan_state),
+            grace_ends_at: account.grace_ends_at || null,
+            over: over_caps(usage.usage)
+        };
     }
 }

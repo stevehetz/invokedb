@@ -37,7 +37,9 @@ export async function request(method, url, token, data) {
     }
 
     // A refusal at the plan's cap (#183): the app shows a notice that links to the usage
-    if (body && body.code === 'plan_limit') bus.$emit('plan_limit', body);
+    // A write by a read-only account (#184, `plan_read_only`) shows the same notice
+    if (body && (body.code === 'plan_limit' || body.code === 'plan_read_only'))
+        bus.$emit('plan_limit', body);
     if (!res.ok) throw is_json ? body : undefined;
     // Some endpoints answer 200 with an error object
     if (body && body.status >= 400) throw body;

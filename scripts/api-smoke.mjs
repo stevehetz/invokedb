@@ -3281,6 +3281,8 @@ let ai_next_tool = 'run_query';
 let ai_next_usage = { input_tokens: 50, output_tokens: 5 };
 // The stub's answer to a cleanup scan (#206): spellings and near-duplicate rows
 let ai_next_cleanup = { spellings: [], near_duplicates: [] };
+// The stub's answer to pasted text (#207): the rows the test sets
+let ai_next_import = { rows: [] };
 // The stub's answer to a structured-output request (#148): a table design, or the rows the
 // prompt asks for ("Generate exactly N new rows."), text values "<column> <n>"
 function ai_stub_json(body) {
@@ -3298,6 +3300,8 @@ function ai_stub_json(body) {
         };
     }
     const prompt = String(body.messages?.[0]?.content || '');
+    // Pasted text (#207): what the test sets
+    if (prompt.includes('<pasted_text>')) return ai_next_import;
     const n = Number((/exactly (\d+) new rows/.exec(prompt) || [])[1] || 0);
     const item = props.rows.items.properties;
     const rows = [];
@@ -4198,6 +4202,123 @@ await call('gen_table_delete', 'POST', '/file-directory/batch_delete', {
     token,
     body: { ids: [gen_table] }
 });
+
+// Pasted text in Ask AI (#207): one structured-output call (the stub answers the rows the test
+// sets), rows of the column types to review, a made-up name dropped, nothing saved, one question
+// and the rows made counted; bad text, demo2 and an API key are refused with no model call.
+const imp_field = name => gen_cols.find(c => c.name === name)?.field;
+const imp_text = 'Hi! Two new sign-ups:\nDora Smith (age 52)\nEvan Jones, 19\nThanks';
+ai_next_import = {
+    rows: [
+        { [imp_field('name')]: 'Dora Smith', [imp_field('age')]: 52 },
+        { [imp_field('name')]: 'Evan Jones', [imp_field('age')]: '19' },
+        { [imp_field('name')]: 'Made Up Person', [imp_field('age')]: null }
+    ]
+};
+const imp_status = await call('import_status_before', 'GET', '/ai/status', { token });
+check(
+    'import_status_limits',
+    imp_status?.limits?.max_import_text_length === 20000 &&
+        imp_status?.limits?.max_import_rows === 200,
+    imp_status?.limits
+);
+const imp_rows_before = await gen_count('import_rows_before', file_id);
+const imp_seen = ai_requests.length;
+const imp = await call('import_text', 'POST', `/ai/web-file/${file_id}/import-text`, {
+    token,
+    body: { text: imp_text }
+});
+const imp_calls = ai_requests.slice(imp_seen);
+check(
+    'import_text_rows',
+    imp?.proposed?.rows?.length === 2 &&
+        imp.proposed.rows[0][imp_field('name')] === 'Dora Smith' &&
+        imp.proposed.rows[1][imp_field('age')] === 19 &&
+        imp.proposed.rows.every(r => Object.keys(r).length === imp.proposed.columns.length) &&
+        imp.capped === false &&
+        typeof imp.answer === 'string',
+    imp
+);
+check(
+    'import_text_one_model_call',
+    imp_calls.length === 1 &&
+        imp_calls[0].body.model === 'claude-haiku-5-5' &&
+        imp_calls[0].body.output_config?.effort === 'low' &&
+        !!imp_calls[0].body.output_config?.format?.schema?.properties?.rows &&
+        String(imp_calls[0].body.messages?.[0]?.content).includes('Evan Jones, 19'),
+    imp_calls.map(r => r.body.output_config)
+);
+check(
+    'import_text_counted',
+    imp?.usage?.used === imp_status?.usage?.used + 1 &&
+        imp?.rows_usage?.used === imp_status?.rows?.used + 2,
+    { before: imp_status, usage: imp?.usage, rows_usage: imp?.rows_usage }
+);
+check(
+    'import_text_saves_nothing',
+    (await gen_count('import_rows_after', file_id)) === imp_rows_before
+);
+const imp_bad_seen = ai_requests.length;
+for (const [name, body] of [
+    ['import_text_empty', { text: '  ' }],
+    ['import_text_too_long', { text: 'x'.repeat(20001) }],
+    ['import_text_not_text', { text: 5 }]
+]) {
+    await call(name, 'POST', `/ai/web-file/${file_id}/import-text`, {
+        token,
+        body,
+        expectFail: true
+    });
+    check(`${name}_400`, results[name].status === 400, results[name]);
+}
+await call('import_text_no_table', 'POST', '/ai/web-file/99999999/import-text', {
+    token,
+    body: { text: imp_text },
+    expectFail: true
+});
+check(
+    'import_text_no_table_refused',
+    [403, 404].includes(results.import_text_no_table.status),
+    results.import_text_no_table
+);
+await call('import_text_api_key', 'POST', `/ai/web-file/${file_id}/import-text`, {
+    token: key,
+    body: { text: imp_text },
+    expectFail: true
+});
+check(
+    'import_text_api_key_refused',
+    [401, 403].includes(results.import_text_api_key.status),
+    results.import_text_api_key
+);
+const imp_other = await call('import_other_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const imp_other_before = await call('import_other_status', 'GET', '/ai/status', {
+    token: imp_other.token
+});
+await call('import_text_other', 'POST', `/ai/web-file/${file_id}/import-text`, {
+    token: imp_other.token,
+    body: { text: imp_text },
+    expectFail: true
+});
+check(
+    'import_text_other_refused',
+    [401, 403, 404].includes(results.import_text_other.status),
+    results.import_text_other
+);
+const imp_other_after = await call('import_other_status_after', 'GET', '/ai/status', {
+    token: imp_other.token
+});
+check(
+    'import_text_other_uncounted',
+    imp_other_after?.usage?.used === imp_other_before?.usage?.used &&
+        imp_other_after?.rows?.used === imp_other_before?.rows?.used,
+    { imp_other_before, imp_other_after }
+);
+await call('import_other_logout', 'GET', `/auth/logout?token=${imp_other.token}`);
+check('import_text_refused_never_called_model', ai_requests.length === imp_bad_seen);
+ai_next_import = { rows: [] };
 ai_stub.close();
 
 const nameCol = cols.data && cols.data.find(c => c.headerName === 'joined');

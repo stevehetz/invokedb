@@ -2135,6 +2135,24 @@ $nav_active_color: #ffffff;
     border: solid 1px #b7b7b7;
     border-radius: 3px;
 }
+// Paste text (#207)
+.ask-dialog .ask-paste {
+    margin-top: 8px;
+}
+.ask-dialog .ask-paste-text {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 140px;
+    padding: 4px 6px;
+    font-family: monospace;
+    font-size: 12px;
+    border: solid 1px #b7b7b7;
+    border-radius: 3px;
+    resize: vertical;
+}
+.ask-dialog .ask-paste .ask-actions {
+    margin-top: 4px;
+}
 .ask-dialog .ask-usage {
     margin-top: 4px;
     font-size: 12px;

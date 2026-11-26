@@ -25,6 +25,7 @@ import { AskService } from './ai/ask.service';
 import { AiService } from './ai/ai.service';
 import { EditService } from './ai/edit.service';
 import { CleanupService } from './ai/cleanup.service';
+import { ImportTextService } from './ai/import-text.service';
 import { AuditService } from './audit/audit.service';
 import { TwoFactorService } from './two-factor/two-factor.service';
 import { AccountExportService } from './account-export/account-export.service';
@@ -59,6 +60,7 @@ import { AccountDeletionService } from './account/account-deletion.service';
         AiService,
         EditService,
         CleanupService,
+        ImportTextService,
         AuditService,
         TwoFactorService,
         AccountExportService,
@@ -88,6 +90,7 @@ import { AccountDeletionService } from './account/account-deletion.service';
         AiService,
         EditService,
         CleanupService,
+        ImportTextService,
         AuditService,
         TwoFactorService,
         AccountExportService,

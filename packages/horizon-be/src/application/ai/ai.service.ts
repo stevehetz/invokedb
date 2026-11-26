@@ -36,6 +36,7 @@ import {
     table_prompt,
     table_schema
 } from '@app/core/ai/ai';
+import { IMPORT_LIMITS } from '@app/core/ai/import-text';
 import { validate_template } from '@app/core/table-template/table-template';
 import { assert_verified } from '@app/core/email-verification/email-verification';
 import logger from '@app/logger';
@@ -132,6 +133,23 @@ export class AiService {
         );
     }
 
+    /**
+     * Takes as many of this month's rows as are left, at most `max` (pasted text, #207, where
+     * the number of rows isn't known before the model answers). Answers the month and the rows
+     * taken; 429 when none are left (503 when AI is paused). Hand back what isn't used with
+     * `release_rows`.
+     */
+    async reserve_up_to(account, max: number): Promise<{ month: string; rows: number }> {
+        const used = await this.ai_usage.get(account.id, usage_month(this.now()));
+        const left = ai_allowance(account).rows - used.rows;
+        const rows = Math.max(1, Math.min(max, left));
+        return { month: await this.reserve(account, rows), rows };
+    }
+
+    async release_rows(account, month: string, rows: number) {
+        await this.ai_usage.release_rows(account.id, month, rows);
+    }
+
     // One model call; its usage goes into `spent` whether or not its answer can be used
     private async call(request: Parameters<AiClient['json']>[0], spent: Spent[]) {
         try {
@@ -210,7 +228,10 @@ export class AiService {
             limits: {
                 max_rows_per_request: AI_LIMITS.max_rows_per_request,
                 max_table_rows: AI_LIMITS.max_table_rows,
-                max_prompt_length: AI_LIMITS.max_prompt_length
+                max_prompt_length: AI_LIMITS.max_prompt_length,
+                // Pasted text (#207)
+                max_import_text_length: IMPORT_LIMITS.max_text_length,
+                max_import_rows: IMPORT_LIMITS.max_rows
             }
         };
     }

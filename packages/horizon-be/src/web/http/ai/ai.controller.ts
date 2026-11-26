@@ -4,6 +4,7 @@ import { AskService } from '@app/application/ai/ask.service';
 import { AiService } from '@app/application/ai/ai.service';
 import { EditService } from '@app/application/ai/edit.service';
 import { CleanupService } from '@app/application/ai/cleanup.service';
+import { ImportTextService } from '@app/application/ai/import-text.service';
 import { session_account_id } from '@app/web/http/_auth/request-account';
 import { public_api_base_url } from '@app/web/http/public-api-url';
 
@@ -17,7 +18,8 @@ export class AiController {
         private ask_service: AskService,
         private ai_service: AiService,
         private edit_service: EditService,
-        private cleanup_service: CleanupService
+        private cleanup_service: CleanupService,
+        private import_text_service: ImportTextService
     ) {}
 
     /**
@@ -81,6 +83,18 @@ export class AiController {
     async restore_rows(@Param('file_directory_id') file_id: string, @Body() body, @Request() req) {
         const account_id = session_account_id(req.user);
         return await this.cleanup_service.restore_rows(account_id, file_id, body);
+    }
+
+    /**
+     * Turns pasted text into rows of the table to review (#207). Body: `{ text }` (at most
+     * 20,000 characters). Uses one question, and the rows it makes count as AI rows. Answers
+     * `{ answer, proposed: { rows, columns } | null, capped, usage, rows_usage }`; nothing is
+     * saved.
+     */
+    @Post('web-file/:file_directory_id/import-text')
+    async import_text(@Param('file_directory_id') file_id: string, @Body() body, @Request() req) {
+        const account_id = session_account_id(req.user);
+        return await this.import_text_service.preview(account_id, file_id, body);
     }
 
     /** Body: `{ prompt, count }`. Answers `{ rows, columns, usage }`; nothing is saved. */

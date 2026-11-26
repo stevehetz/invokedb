@@ -12,8 +12,9 @@ const routes: { [path: string]: (req, res) => void } = {};
 
 beforeAll(async () => {
     server = http.createServer((req, res) => {
-        const route = routes[req.url.split('?')[0]];
-        if (route) route(req, res);
+        const path = req.url.split('?')[0];
+        const route = Object.hasOwn(routes, path) ? routes[path] : undefined;
+        if (typeof route === 'function') route(req, res);
         else {
             res.statusCode = 404;
             res.end('not found');

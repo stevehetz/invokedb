@@ -246,6 +246,20 @@ describe('AiService', () => {
         expect(req.prompt).not.toContain('Owner');
     });
 
+    it('reserves as many rows as are left, up to a cap (#207), and hands them back', async () => {
+        const { svc, used } = setup();
+        const account = { id: ACCT, subscription_id: 'SUB_FREE', email_verified: true };
+        expect(await svc.reserve_up_to(account, 200)).toEqual({
+            month: '2026-11',
+            rows: FREE_ROWS
+        });
+        expect(used()).toBe(FREE_ROWS);
+        expect(await status_of(svc.reserve_up_to(account, 200))).toBe(429);
+        await svc.release_rows(account, '2026-11', FREE_ROWS - 3);
+        expect(await svc.reserve_up_to(account, 2)).toEqual({ month: '2026-11', rows: 2 });
+        expect(used()).toBe(5);
+    });
+
     it('splits a big request into several model calls', async () => {
         const { svc, model, used } = setup();
         const res = await svc.generate_rows(OTHER, 12, { prompt: 'x', count: 60 });

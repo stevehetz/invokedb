@@ -1,4 +1,5 @@
 import { is_expired } from '@app/core/helpers/is-expired';
+import { session_usable } from '@app/core/session/session-rules';
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -102,7 +103,8 @@ export class AuthService {
             const account = await this.account_repository.findOneBy({
                 id: session.account_id
             });
-            if (!account) {
+            // A deleted account's sessions answer null (#282)
+            if (!session_usable(session, account)) {
                 return null;
             }
 

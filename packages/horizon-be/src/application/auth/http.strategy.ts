@@ -5,7 +5,8 @@ import { Strategy } from 'passport-http-bearer';
 import { PassportStrategy } from '@nestjs/passport';
 import { Session } from '@app/core/session/session.entity';
 import { ApiKeyService } from '../api-key/api-key.service';
-import { is_expired } from '@app/core/helpers/is-expired';
+import { Account } from '@app/core/account/account.entity';
+import { session_usable } from '@app/core/session/session-rules';
 import { is_verified } from '@app/core/email-verification/email-verification';
 
 @Injectable()
@@ -13,6 +14,8 @@ export class HttpStrategy extends PassportStrategy(Strategy) {
     constructor(
         @InjectRepository(Session)
         private readonly session_repository: Repository<Session>,
+        @InjectRepository(Account)
+        private readonly account_repository: Repository<Account>,
         private readonly api_key_service: ApiKeyService
     ) {
         super();
@@ -24,7 +27,14 @@ export class HttpStrategy extends PassportStrategy(Strategy) {
         if (key_or_token) {
             if (key_or_token.indexOf('internal_') > -1) {
                 const session = await this.session_repository.findOneBy({ token: key_or_token });
-                if (session && !is_expired(session.expired_datetime)) {
+                // A deleted account's sessions are refused (#282)
+                const account =
+                    session &&
+                    (await this.account_repository.findOne({
+                        select: { id: true, deleted: true },
+                        where: { id: session.account_id }
+                    }));
+                if (session_usable(session, account)) {
                     return session;
                 }
             } else {

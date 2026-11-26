@@ -257,3 +257,44 @@ describe('AuthService.login (two-factor, #214)', () => {
         expect(t.session_manager.create_session).not.toHaveBeenCalled();
     });
 });
+
+// A deleted account's sessions answer null (#282)
+describe('AuthService.authorize', () => {
+    function with_account(account: any) {
+        const session = {
+            token: 'internal_t',
+            account_id: 41,
+            expired_datetime: new Date(Date.now() + 60_000)
+        };
+        const session_repository = { findOneBy: jest.fn(async () => session) };
+        const account_repository = { findOneBy: jest.fn(async () => account) };
+        const none = {} as any;
+        return new AuthService(
+            session_repository as any,
+            account_repository as any,
+            none,
+            none,
+            none,
+            none,
+            none,
+            none,
+            none,
+            none,
+            none
+        );
+    }
+
+    it("answers a live account's session", async () => {
+        const me = await with_account({ id: 41, email: 'a@x.com', deleted: false }).authorize(
+            'internal_t'
+        );
+        expect(me).toEqual(expect.objectContaining({ id: 41, token: 'internal_t' }));
+    });
+
+    it('answers null for a session of a deleted account', async () => {
+        const me = await with_account({ id: 41, email: 'a@x.com', deleted: true }).authorize(
+            'internal_t'
+        );
+        expect(me).toBeNull();
+    });
+});

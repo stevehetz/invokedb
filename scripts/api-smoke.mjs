@@ -4456,11 +4456,40 @@ if (unv_dir) {
         body: { ids: [unv_dir] }
     });
 }
+// Deleting an account ends all its sessions (#282): a second session, as from another device,
+// is refused at once on internal routes and `authorize` answers null for it
+const second_session = await call('deleted_account_second_login', 'POST', '/auth/login', {
+    body: { email: signup_email, password: signup_password }
+});
+const second_token = second_session?.token;
 if (unv_me?.id) {
     await call('unverified_delete_account', 'PUT', `/account/delete_account/${unv_me.id}`, {
         token: unv_token
     });
 }
+await call('deleted_account_second_session', 'GET', '/file-directory', {
+    token: second_token,
+    expectFail: true
+});
+check(
+    'deleted_account_second_session_401',
+    !!second_token && results.deleted_account_second_session.status === 401,
+    results.deleted_account_second_session
+);
+const second_me = await call(
+    'deleted_account_second_authorize',
+    'GET',
+    `/auth/authorize?token=${second_token}`
+);
+check(
+    'deleted_account_authorize_null',
+    !!second_token && (second_me === null || second_me === ''),
+    second_me
+);
+await call('deleted_account_first_session', 'GET', '/file-directory', {
+    token: unv_token,
+    expectFail: true
+});
 await call('unverified_logout', 'GET', `/auth/logout?token=${unv_token}`);
 
 // Limits (#182). Columns: 52 per table on every route that turns a column on (batch create,

@@ -1,9 +1,11 @@
 # InvokeDB: handoff
 
-_Last updated 2026-11-26 (evening)_
+_Last updated 2026-11-26 (night)_
 
-InvokeDB ("horizon") is a web app for building data tables you can query through an API, live at
-`https://invokedb.com`. This file says where things stand and what a new session must know.
+InvokeDB ("horizon") is an **agentic web database**, "the database for you and your AI agents":
+tables people edit like a spreadsheet and code and AI agents use through an API (and soon an MCP
+server), live at `https://invokedb.com`. This file says where things stand and what a new session
+must know.
 Elsewhere:
 
 - `AGENTS.md`: rules, conventions, gotchas (read first). `README.md`: commands.
@@ -19,10 +21,36 @@ Elsewhere:
   the repo stay the source of truth (agents and workflows read them).
 - Git history and closed issues/PRs: everything done so far.
 
-## Where things stand (2026-11-26, afternoon)
+## Where things stand (2026-11-26, night)
 
-Production is green (E2E passed 13:25 UTC on 2026-11-26). Everything below is merged and
-deployed unless it says otherwise. Details: `gh pr list --state merged`.
+Production is green (E2E passed after #303 deployed, ~15:40 UTC on 2026-11-26). Everything below
+is merged and deployed unless it says otherwise. Details: `gh pr list --state merged`.
+
+- **Shipped 2026-11-26 (owner session):**
+  - **Light and dark theme** (#290, reached `main` inside **#301**, which didn't say
+    `Closes #290`: **#290 is still open and should be closed**). In light mode the app header
+    and the tables pane's icon rail stay a slate (`$light-rail` in `theme-tokens.scss`).
+  - **#301, theme polish** found testing it: column defs carry the backend's fields in
+    `colDef.context` (`h-data-grid/col-def.js`, #295/#296; ag-grid 36 flags unknown colDef
+    properties, so strip strays like `row_num` in `to_grid`); the grid's top-bar buttons fold
+    into the More (…) menu when the bar is narrow (#297/#298); "Loading..." only after 400 ms;
+    Help moved into the account menu; a redesigned **pricing page** (plan cards, Starter
+    featured, yearly prices); dark form pages and the home hero use a soft indigo glow
+    (`form-page-bg` token); `batch_create` with an empty batch is a no-op; table rows in
+    `thead`/`tbody` (#299).
+  - **#303**: the UI test's theme step checks the page background (the header stays slate).
+  - **#306, the rebrand** (#304): home page, title and meta tags, help, guide and README now say
+    "The database for you and your AI agents" with the label "Agentic web database". The GitHub
+    repo's description and topics (`ai-agents`, `agentic-ai`) were updated to match; add
+    `mcp-server` once #307 ships.
+- **#307, the MCP server (#305): open, CI running, should auto-merge.** `POST /mcp` with an API
+  key; tools `list_tables`, `describe_table`, `query_rows`, `count_rows`, and for read-write keys
+  `create_rows`, `update_rows`, `delete_rows`. **No MCP SDK** (chosen in the session and explained
+  in the PR: the SDK pulls in Hono, Express, jose and more); `src/core/mcp/mcp.ts` is a small, pure, stateless
+  JSON-RPC implementation, checked with the official SDK client 1.32.2. The Account page's API
+  Keys panel has a "Use with AI agents" box; help topic `agents`; AGENTS.md has the conventions.
+  After it deploys: check `https://api.invokedb.com/mcp` answers `initialize` with a key, and
+  that production's E2E stayed green.
 
 - **Shipped 2026-11-25/26** (agent + owner sessions): scoped API keys (#179); **AI** (Haiku 5.5,
   capped per `docs/PRICING.md` 3.5): one **Ask AI** button on the grid that answers questions
@@ -35,33 +63,18 @@ deployed unless it says otherwise. Details: `gh pr list --state merged`.
   (#283, #289), self-hosted **error tracking and `/status`** (#293); Stripe-era leftovers
   removed (#294); an account menu at the top right (#271, #273).
 - **Removed:** dashboards (#209 → removed in #265; data dropped in production).
+- **#184 shipped** (#280: read-only over-cap accounts, deleting idle free accounts).
 - **Open PRs:**
-  - **#280** (#184, read-only over-cap accounts + deleting idle free accounts): CI green,
-    `review-ok`, **held for the owner** (it deletes accounts). Merging it unblocks **#279**
-    (delete an account's data on account deletion), which is `agent-stuck` only because it
-    builds on #280's `AccountDeletionService`: after #280 merges, remove `agent-stuck` from
-    #279 (its PR must open with `hold` too).
-  - **#153** Stripe: parked. Pricing is now decided (`PRICING.md` 3.2), and #294 dropped the old
-    `subscription`/`stripe_env` tables it planned to reuse, so it needs a fresh start: close it
-    and let the agent redo #129 from the decided pricing when the owner wants billing.
-- **Queue (`agent`):** #268 (E2E transient 502), #184 (has PR #280), #279 (blocked on #280).
-- **#290, light and dark theme: built, on branch `290-light-dark-theme` (pushed, no PR yet).**
-  The owner is reviewing it locally before the PR. What's there:
-  - Every colour in both areas' `stylesheet.scss` is a token `var(--h-*)` from
-    `src/theme-tokens.scss` (`$light` / `$dark` maps; AGENTS.md "Light and dark" has the rules).
-    `core/theme.js` sets `<html data-theme>` and Element Plus's `dark` class; `index.html`'s
-    inline script does it before first paint. Account menu → Theme (System/Light/Dark), saved in
-    `account.theme` (migration `1795900000000-AccountTheme`, `PUT /account/theme`, returned by
-    `/auth/authorize`) and `localStorage` `invokedb:theme`. The site and the form page follow the
-    device; an embedded form is light unless `?theme=dark`.
-  - Checked: both builds, lint, typecheck, 967 backend unit tests, prettier; text tokens pass
-    WCAG AA (both themes); Playwright screenshots of the local app in both themes (grid, tree,
-    dialogs, account, API docs, admin, site, login, pricing).
-  - **Not checked yet:** the kanban, calendar, chart and map views and the Ask AI dialog (the demo
-    account has no saved views); neither smoke test was run (the API smoke test gains theme
-    checks, the UI smoke test a `theme` step).
-  - **Next:** the owner's review, then `gh pr create` with `Closes #290`. It has a migration, so
-    auto-merge holds it (`needs-owner`). #290 wasn't found on the Project board; check it's there.
+  - **#307** MCP server (above).
+  - **#153** Stripe: parked (`hold`, `agent-stuck`). Pricing is decided (`PRICING.md` 3.2), and
+    #294 dropped the old `subscription`/`stripe_env` tables it planned to reuse, so it needs a
+    fresh start: close it and let the agent redo #129 from the decided pricing when the owner
+    wants billing.
+- **Queue (`agent`):** #268 (E2E transient 502) and **#279** (delete an account's data on account
+  deletion). #279 is still `agent-stuck` from when it waited on #280, which has merged: remove
+  `agent-stuck` to let the agent retry it (its PR must open with `hold`: it deletes data).
+- **Ideas the rebrand points to** (not issues yet): more agent features on top of the MCP
+  server, e.g. MCP tools for views or table creation, an agent-friendly quickstart page.
 - **Incident (2026-11-25), fixed:** a stale local `prod.env` was pushed to Dropbox and the
   server, which turned off Google/GitHub sign-in for a few minutes. Always `npm run
 secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env`.
@@ -75,7 +88,7 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
   deploy on merge, then E2E. Claude workflows also repair failed CI/CD/E2E, revise after review,
   resolve conflicts, work `agent`-labelled issues in board order, fix or dismiss CodeQL alerts
   every 3 hours and update npm packages monthly. Merged branches are deleted automatically.
-- **Tests:** backend unit tests (Jest, ~870), the API smoke test and the Python client's tests
+- **Tests:** backend unit tests (Jest, ~1,000), the API smoke test and the Python client's tests
   on every PR; the UI test
   (`scripts/ui-smoke.mjs`) runs **against production** only (`e2e.yml`: nightly 06:00 UTC and
   after each deploy, as `e2e@invokedb.com`; a failure sends Telegram, keeps a masked screenshot
@@ -137,6 +150,12 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
   two-factor sign-in for a password account; a Google/GitHub-only account (no password) passes,
   trusting the provider (#288).
 - **Error tracking is self-hosted** (2026-11-26, #212/#293): no outside service.
+- **Positioning** (2026-11-26, #304): "The database for you and your AI agents", labelled an
+  "agentic web database". Claims on the site must be features that ship; agents connect through
+  the API and the MCP server (#305).
+- **Look** (2026-11-26): in light mode the app header and icon rail stay slate; the pricing page
+  features **Starter** as "Most popular" (`FEATURED_PLAN` and the taglines in `pricing.js`); dark
+  form pages and the home hero use the indigo glow.
 
 - **No UI test on PRs for now** (2026-11-24): it would add ~1 minute before a PR can merge;
   the owner prefers faster merges. Revisit if UI breakage keeps reaching production (as
@@ -165,6 +184,13 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
   `gh workflow run e2e.yml --ref <branch>`.
 - Check backend changes with build + `npm test` (`verify-backend`), frontend changes with build,
   lint and `typecheck`.
+- **After pulling `main`, run `npm run db:setup`** before `npm run dev`: a new migration otherwise
+  shows up as errors like `column Account.plan_state does not exist` (sign-in fails). It only
+  runs pending migrations.
+- **Edit files with the Edit/Write tools**, not inline `python3`/heredoc scripts: auto mode
+  can't read those, stops for approval and then times out.
+- The owner reads GitHub notifications in the GitHub mobile app (email is off), so `needs-owner`
+  and `agent-stuck` reach them as @mentions there.
 
 ## Things to know
 

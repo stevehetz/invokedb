@@ -547,6 +547,17 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   templates are plain `src="@/assets/x.png"`. `lodash` is imported explicitly (no globals).
   There is no jQuery: use the DOM API. Lint is ESLint 10 with a flat config
   (`eslint.config.mjs`, `vue/flat/essential`).
+- **Light and dark (#290).** Every colour in both areas' `stylesheet.scss` is a token,
+  `var(--h-<name>)`, from `src/theme-tokens.scss` (one `$light` and one `$dark` value each;
+  text tokens pass WCAG AA on the surfaces they're used on). Use a token, or add one to both
+  maps, never a literal; literals are only for things that look the same in both themes (white
+  on a coloured badge, code blocks). `core/theme.js` sets `<html data-theme="light|dark">` and
+  Element Plus's `dark` class (its `dark/css-vars.css`, loaded in `main.js`): the app from the
+  account's choice (account menu → Theme; `account.theme`, `PUT /account/theme`, and
+  `localStorage` `invokedb:theme`), the site and the form page from the device, an embedded form
+  light unless `?theme=dark`. `index.html`'s inline script does the same before first paint;
+  keep the two in step. The grid's params (`grid-theme.js`) and the form page's own `--f-*`
+  variables follow the same switch.
 - **Element Plus.** `main.js` loads the default theme (`element-plus/dist/index.css`) for both
   areas, in the entry chunk so it comes before the areas' CSS (a theme in a shared lazy chunk
   once loaded after the app's styles in production and overrode its nav). The app's colours are

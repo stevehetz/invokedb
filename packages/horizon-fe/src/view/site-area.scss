@@ -2,6 +2,23 @@
 // so it can be on the page with the app's (app-area.scss, which explains how). The site uses
 // Element Plus's default theme, which main.js loads for both areas.
 @use 'sass:meta';
+@use '../theme-tokens';
+
+// Light and dark (#290): the site follows the device's setting (core/theme.js)
+:root.site-area {
+    @include theme-tokens.tokens(theme-tokens.$light);
+    color-scheme: light;
+}
+:root.site-area[data-theme='dark'] {
+    @include theme-tokens.tokens(theme-tokens.$dark);
+    @include theme-tokens.element-dark-surfaces;
+    color-scheme: dark;
+}
+html.site-area,
+html.site-area body {
+    background-color: var(--h-surface);
+    color: var(--h-text);
+}
 
 :where(html.site-area) {
     @include meta.load-css('stylesheet');

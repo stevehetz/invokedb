@@ -12,9 +12,43 @@
         <meta http-equiv="Expires" content="0" />
         <title>InvokeDB</title>
         <link rel="icon" href="/favicon.ico?q=2" />
+        <script>
+            // The theme before first paint (#290), as core/theme.js sets it: the app (/app)
+            // uses the account's choice kept in localStorage; the site and an embedded form
+            // (light unless ?theme=dark) don't.
+            (function () {
+                var choice = 'system';
+                var path = location.pathname;
+                var query = new URLSearchParams(location.search);
+                try {
+                    if (path === '/app' || path.indexOf('/app/') === 0) {
+                        choice =
+                            localStorage.getItem('invokedb:theme') || 'system';
+                    }
+                } catch (e) {}
+                if (path.indexOf('/f/') === 0 && query.get('embed')) {
+                    choice = query.get('theme') === 'dark' ? 'dark' : 'light';
+                }
+                var dark =
+                    choice === 'dark' ||
+                    (choice !== 'light' &&
+                        window.matchMedia &&
+                        matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.setAttribute(
+                    'data-theme',
+                    dark ? 'dark' : 'light'
+                );
+                if (dark) document.documentElement.classList.add('dark');
+            })();
+        </script>
         <style>
             html {
                 height: 100%;
+                color-scheme: light;
+            }
+            html[data-theme='dark'] {
+                color-scheme: dark;
+                background-color: #1c1c1c;
             }
             body {
                 margin: 0;
@@ -43,6 +77,10 @@
                 font-size: 30px;
                 color: #484ec0;
                 font-weight: bold;
+            }
+            html[data-theme='dark'] .app-loader .spinner,
+            html[data-theme='dark'] .app-loader .loading-text {
+                color: #9da1f3;
             }
         </style>
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

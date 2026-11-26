@@ -57,4 +57,8 @@ export class Account {
     // Put on no counted caps by an admin (#277), like the INTERNAL_EMAILS (core/plan/plans.ts)
     @Column({ type: 'boolean', default: false })
     internal: boolean;
+
+    // The app's colour theme (#290): 'system', 'light' or 'dark' (core/theme/theme.ts)
+    @Column({ type: 'varchar', length: 10, default: 'system' })
+    theme: string;
 }

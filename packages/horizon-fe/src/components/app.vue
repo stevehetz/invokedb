@@ -9,6 +9,7 @@ import PlanLimitNotice from '@/components/plan-limit-notice';
 import { store } from '@/store';
 import { account_manager } from '@/core/context/account/account-manager';
 import { socket_service } from '@/core/ws/socket-service';
+import { sync_account_theme } from '@/core/theme';
 
 export default {
     name: 'App',
@@ -44,6 +45,8 @@ export default {
                 let token = account_manager.get_token();
                 if (token) {
                     this.account = await account_manager.get_account(token);
+                    // The account's light/dark choice (#290), saved from any device
+                    sync_account_theme(this.account.theme);
                     socket_service.start_websocket(this.account.token);
                 }
             } catch (ex) {

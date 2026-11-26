@@ -5,13 +5,15 @@ import {
     Param,
     Request,
     UseGuards,
-    UnauthorizedException
+    UnauthorizedException,
+    BadRequestException
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AccountService } from '@app/application/account/account.service';
 import { AccountUpdateDto } from '@app/application/account/dto/account-update.dto';
 import { AccountPassChangeDto } from '@app/application/account/dto/account-pass-change.dto';
 import { session_account_id } from '@app/web/http/_auth/request-account';
+import { THEMES, parse_theme } from '@app/core/theme/theme';
 
 // The routes keep `:account_id` in the path because the frontend sends it, but they only ever
 // act on the signed-in caller's own account; any other id is rejected.
@@ -30,6 +32,17 @@ export class AccountController {
         // Only the profile fields; billing fields are set by the subscription flow.
         const { first_name, last_name } = update_dto;
         return await this.account_service.update(id, { first_name, last_name } as AccountUpdateDto);
+    }
+
+    // The app's light/dark choice (#290), from the account menu
+    @Put('theme')
+    async set_theme(@Body() body, @Request() req) {
+        const theme = parse_theme(body?.theme);
+        if (!theme) {
+            throw new BadRequestException(`theme must be one of ${THEMES.join(', ')}`);
+        }
+        await this.account_service.set_theme(session_account_id(req.user), theme);
+        return { theme };
     }
 
     @Put('change_password/:account_id')

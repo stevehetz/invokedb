@@ -27,12 +27,15 @@ export const grid_theme = createTheme().withParams({
     selectedRowBackgroundColor: 'transparent',
     headerCellHoverBackgroundColor: 'transparent',
     headerCellMovingBackgroundColor: 'transparent',
-    headerBackgroundColor: '#404040',
-    headerTextColor: '#ffffff',
+    // The app's colour tokens (theme-tokens.scss), so the grid follows light and dark (#290)
+    backgroundColor: 'var(--h-grid-row-even)',
+    foregroundColor: 'var(--h-text)',
+    headerBackgroundColor: 'var(--h-grid-header)',
+    headerTextColor: 'var(--h-grid-header-text)',
 
     // The focused cell's border (stylesheet.scss's .ag-cell-focus colour) and the editor,
     // which stylesheet.scss outlines itself
-    rangeSelectionBorderColor: '#1fe0ff',
+    rangeSelectionBorderColor: 'var(--h-grid-focus)',
     cellEditingBorder: false,
     cellEditingShadow: false,
     focusShadow: false

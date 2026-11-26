@@ -85,6 +85,27 @@
                         >
                             <i class="fa fa-user-shield"></i> Admin
                         </el-dropdown-item>
+                        <!-- Light and dark (#290) -->
+                        <li class="account-menu-theme" role="group">
+                            <span class="account-menu-theme-label">Theme</span>
+                            <span class="account-menu-theme-choices">
+                                <button
+                                    v-for="t in themes"
+                                    :key="t.value"
+                                    type="button"
+                                    :class="[
+                                        'account-menu-theme-choice',
+                                        'theme-' + t.value,
+                                        { active: theme === t.value }
+                                    ]"
+                                    :aria-pressed="theme === t.value"
+                                    :title="t.title"
+                                    @click.stop="set_theme(t.value)"
+                                >
+                                    <i :class="t.icon"></i> {{ t.label }}
+                                </button>
+                            </span>
+                        </li>
                         <el-dropdown-item
                             class="account-menu-contact"
                             command="contact"

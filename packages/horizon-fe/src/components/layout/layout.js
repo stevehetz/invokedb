@@ -1,6 +1,7 @@
 import { store } from '@/store';
 import { account_manager } from '@/core/context/account/account-manager';
 import { auth_http } from '@/core/context/account/auth-http';
+import { choose_theme, get_theme_choice } from '@/core/theme';
 
 export default {
     name: 'Layout',
@@ -13,12 +14,37 @@ export default {
             submenu_timeout: null,
             nav_listeners: [],
             // The "confirm your email" banner's Resend link (#132)
-            resend: { sending: false, sent: false, error: '' }
+            resend: { sending: false, sent: false, error: '' },
+            // The account menu's theme choice (#290)
+            theme: get_theme_choice(),
+            themes: [
+                {
+                    value: 'system',
+                    label: 'System',
+                    icon: 'fa fa-desktop',
+                    title: "Follow this device's light or dark setting"
+                },
+                {
+                    value: 'light',
+                    label: 'Light',
+                    icon: 'fa fa-sun',
+                    title: 'Light'
+                },
+                {
+                    value: 'dark',
+                    label: 'Dark',
+                    icon: 'fa fa-moon',
+                    title: 'Dark'
+                }
+            ]
         };
     },
 
     mounted() {
-        store.subscribe('account', a => (this.account = a));
+        store.subscribe('account', a => {
+            this.account = a;
+            this.theme = get_theme_choice();
+        });
         this.set_active();
         this.setup_nav_behavior();
     },
@@ -87,6 +113,17 @@ export default {
                 listen(popper, 'mouseenter', keep_open);
                 listen(popper, 'mouseleave', hide_later);
             });
+        },
+
+        /** The account menu's theme buttons (#290). @param {'system'|'light'|'dark'} choice */
+        async set_theme(choice) {
+            this.theme = choice;
+            try {
+                await choose_theme(choice);
+            } catch (ex) {
+                // Applied and kept in this browser; the account gets it next time
+                console.log(ex);
+            }
         },
 
         async resend_verification() {

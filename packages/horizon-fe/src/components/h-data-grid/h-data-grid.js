@@ -36,6 +36,16 @@ import MapView from './map-view';
 import { VIEW_TYPE_ICONS } from './views-dialog/views-dialog';
 import { view_http } from '@/core/context/view/view-http';
 import { table_display_name } from './table-name';
+import AiColumnDialog from './ai-column-dialog';
+import { ai_column_http } from '@/core/context/ai-column/ai-column-http';
+
+// Why an AI column's cell is empty (#205), from the row's `_ai` state
+const AI_CELL_NOTES = {
+    limit: "Not filled: this month's AI rows are used up",
+    paused: 'Not filled: AI is paused until next month',
+    off: 'Not filled: AI is off',
+    error: "Not filled: the AI didn't answer"
+};
 
 // Since ag-grid 33 every feature is a module that has to be registered. Only the ones the grid
 // uses are, so the rest of ag-grid is left out of the bundle (AllCommunityModule was 1.3 MB).
@@ -129,6 +139,8 @@ export default {
         this.new_rows = [];
         // What link cells (#147) show: { field: { row id: label } }, from the row pages
         this.link_labels = {};
+        // The table's AI columns (#205), by field
+        this.ai_fields = new Set();
         // Fields the current view hides (#146); column_visible() leaves them hidden
         this.hidden_fields = new Set();
         // While the table is locked waiting for a job (or after a failed load), a timer checks
@@ -275,6 +287,9 @@ export default {
                         this.set_table_load_error(message.file, data.error);
                         this.load_url_source();
                         break;
+                    case 'AI_COLUMN_FILLED':
+                        this.ai_column_filled();
+                        break;
                 }
             }
         },
@@ -403,12 +418,18 @@ export default {
             try {
                 // Get Columns
                 this.link_labels = {};
+                this.ai_fields = await this.load_ai_columns();
                 await mgr.get_columns(
                     this.file_directory_id,
                     this.grid_api,
                     { ...ROW_INDEX_COLUMN },
                     this.render_link_cell
                 );
+                if (this.ai_fields.size > 0) {
+                    this.set_column_defs(
+                        this.col_defs().map(c => this.ai_col_def(c))
+                    );
+                }
                 this.cache_columns();
 
                 this.edit_column_changes = {};
@@ -1097,7 +1118,87 @@ export default {
         // The top bar's More menu: room for table tools without widening the bar
         more_command(command) {
             if (command === 'history') this.history_btn_clicked();
+            if (command === 'ai_columns') this.ai_columns_btn_clicked();
         },
+
+        /*** Start: AI columns (#205) ***/
+        ai_columns_btn_clicked() {
+            this.$bus.$emit('container-dialog:open', {
+                title: `${table_display_name(this.file.name)}: AI columns`,
+                props: {
+                    file: this.file,
+                    on_change: columns => this.ai_columns_changed(columns)
+                },
+                component: AiColumnDialog
+            });
+        },
+
+        // Which columns are AI columns: their empty cells show why they weren't filled
+        async load_ai_columns() {
+            try {
+                const res = await ai_column_http.list(this.file_directory_id);
+                return new Set(((res && res.columns) || []).map(c => c.field));
+            } catch (ex) {
+                return new Set();
+            }
+        },
+
+        ai_columns_changed(columns) {
+            const fields = new Set(columns.map(c => c.field));
+            const same =
+                fields.size === this.ai_fields.size &&
+                [...fields].every(f => this.ai_fields.has(f));
+            this.ai_fields = fields;
+            if (!same && this.grid_api && !this.edit_column_mode) {
+                this.set_column_defs(
+                    this.col_defs().map(c => this.ai_col_def(c))
+                );
+            }
+        },
+
+        // An AI column's cells use render_ai_cell; others go back to the default
+        ai_col_def(col_def) {
+            if (col_def.col_type === 'link' || col_def.field === 'row_num') {
+                return col_def;
+            }
+            const def = { ...col_def };
+            if (this.ai_fields.has(def.field)) {
+                def.cellRenderer = this.render_ai_cell;
+                def.cellClass = 'ai-cell';
+            } else if (def.cellRenderer === this.render_ai_cell) {
+                delete def.cellRenderer;
+                delete def.cellClass;
+            }
+            return def;
+        },
+
+        // An AI cell: its value, or a note when the AI stopped before filling it
+        render_ai_cell(params) {
+            const cell = document.createElement('span');
+            const value = params.value;
+            const field = params.colDef.field;
+            const state =
+                params.data && params.data._ai && params.data._ai[field];
+            const empty = value === null || value === undefined || value === '';
+            if (empty && state && state.s) {
+                cell.className = 'ai-cell-note';
+                cell.textContent =
+                    AI_CELL_NOTES[state.s] || 'Not filled by the AI';
+                cell.title = 'Fill the column again from More → AI columns';
+            } else {
+                cell.textContent = empty ? '' : String(value);
+            }
+            return cell;
+        },
+
+        // The AI filled some cells: show them, unless the user is in the middle of something
+        ai_column_filled() {
+            if (!this.grid_api || this.table_lock) return;
+            if (this.add_row_mode || this.edit_column_mode) return;
+            if (this.grid_api.getEditingCells().length > 0) return;
+            this.refresh_clicked();
+        },
+        /*** End: AI columns ***/
 
         // Who changed what in this table (#217)
         history_btn_clicked() {

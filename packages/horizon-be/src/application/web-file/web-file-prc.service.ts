@@ -17,6 +17,8 @@ import { body_to_csv, next_sync_at } from '@app/core/url-import/url-import';
 import { URL_JOB_EVENTS, UrlImportService } from '../url-import/url-import.service';
 import { AccountExportService } from '../account-export/account-export.service';
 import { EXPORT_JOB_EVENT } from '@app/core/account-export/account-export';
+import { AiColumnManager } from '@app/core/ai-column/ai-column.manager';
+import { report_error } from '@app/core/error-tracking/report';
 
 const fs = require('fs');
 const path = require('path');
@@ -38,7 +40,8 @@ export class WebFilePrcService {
         private url_import_manager: UrlImportManager,
         private url_sync_processor: UrlSyncProcessor,
         private url_import_svc: UrlImportService,
-        private account_export_svc: AccountExportService
+        private account_export_svc: AccountExportService,
+        private ai_column_manager: AiColumnManager
     ) {
         if (env.IS_HORIZON_PRC) {
             this._ws_client_store.on_direct_message(_c.HORIZON_PRC_WS_CLIENT_ID, async payload =>
@@ -52,9 +55,10 @@ export class WebFilePrcService {
 
     start_url_sync_scheduler() {
         setInterval(() => {
-            this.queue_due_url_syncs().catch(ex =>
-                logger.error(`URL sync scheduler failed: ${ex && ex.message}`)
-            );
+            this.queue_due_url_syncs().catch(ex => {
+                logger.error(`URL sync scheduler failed: ${ex && ex.message}`);
+                void report_error('processor', ex, { route: 'URL sync scheduler' });
+            });
         }, URL_SYNC_CHECK_INTERVAL_MS);
     }
 
@@ -185,6 +189,10 @@ export class WebFilePrcService {
                 }
             } catch (ex) {
                 logger.error(`job ${job.id} failed: ${ex && ex.message}`);
+                void report_error('processor', ex, {
+                    route: `job ${job.event}`,
+                    account_id: job.account_id
+                });
             }
 
             logger.debug(`done proccessing job, checking for another in 5s`);
@@ -411,6 +419,12 @@ export class WebFilePrcService {
             );
             await this.web_file_process_complete(account_id, id, file_id);
             await this.url_source_done(source);
+            // The rows changed: the table's AI columns (#205) look at all of them
+            try {
+                await this.ai_column_manager.rows_changed(account_id, file_id, []);
+            } catch (err) {
+                logger.error(`AI columns of file ${file_id} not told of a sync: ${err.message}`);
+            }
         } catch (ex) {
             if (ex && ex.message === 'File delete request') return;
             await this.file_directory_svc.update(file_id, { status: null, status_reason: null });

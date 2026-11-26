@@ -27,6 +27,7 @@ const Tos = () => import('@/view/pages/tos');
 const Privacy = () => import('@/view/pages/privacy');
 const Help = () => import('@/view/pages/help');
 const Changelog = () => import('@/view/pages/changelog');
+const Status = () => import('@/view/pages/status');
 
 // The public site and the app were separate apps with separate global stylesheets that clash
 // (.page, .home-page, .flex-*, Element theme colours). Each area's shell imports its own CSS
@@ -125,6 +126,8 @@ const router = createRouter({
                 // Help pages, one per topic (#219); the app's header links here too
                 { path: 'help/:topic?', name: 'help', component: Help },
                 { path: 'changelog', name: 'changelog', component: Changelog },
+                // The public status page, from the backend's own checks (#212)
+                { path: 'status', name: 'status', component: Status },
                 { path: ':pathMatch(.*)*', redirect: { name: 'site-home' } }
             ]
         }

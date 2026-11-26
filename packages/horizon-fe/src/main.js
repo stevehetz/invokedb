@@ -39,10 +39,13 @@ import Root from '@/root.vue';
 import router from '@/router';
 import { iframe_manager } from '@/components/_iframe/iframe-manager';
 import { bus } from '@/core/bus';
+import { install_error_reporting } from '@/core/error-report';
 
 iframe_manager.init();
 
 const app = createApp(Root);
+// Unhandled errors go to the backend's error tracking (#212)
+install_error_reporting(app);
 app.config.globalProperties.$bus = bus;
 [
     ElButton,

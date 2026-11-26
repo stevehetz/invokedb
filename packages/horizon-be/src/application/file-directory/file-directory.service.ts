@@ -18,6 +18,7 @@ import { UrlImportManager } from '@app/core/url-import/url-import.manager';
 import { WebhookManager } from '@app/core/webhook/webhook.manager';
 import { FormManager } from '@app/core/form/form.manager';
 import { ViewManager } from '@app/core/view/view.manager';
+import { AiColumnManager } from '@app/core/ai-column/ai-column.manager';
 import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
 import {
     assert_verified,
@@ -43,7 +44,8 @@ export class FileDirectoryService {
         private form_manager: FormManager,
         private view_manager: ViewManager,
         private onboarding_manager: OnboardingManager,
-        private audit_svc: AuditService
+        private audit_svc: AuditService,
+        private ai_column_manager: AiColumnManager
     ) {}
 
     async get_by_id(file_directory_id: number) {
@@ -289,6 +291,13 @@ export class FileDirectoryService {
                     await this.view_manager.remove_for_table(account.id, file_directory.id);
                 } catch (ex) {
                     logger.error(`Views of file ${file_directory.id} not removed: ${ex.message}`);
+                }
+                try {
+                    await this.ai_column_manager.remove_table(account.id, file_directory.id);
+                } catch (ex) {
+                    logger.error(
+                        `AI columns of file ${file_directory.id} not removed: ${ex.message}`
+                    );
                 }
             }
         }

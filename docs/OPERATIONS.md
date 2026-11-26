@@ -41,6 +41,7 @@ repo: it's public.
 | Contact form when Mailgun refuses the email            | Telegram                                                                                     |
 | Any mail to `@invokedb.com`                            | the support Gmail (through the Email Worker)                                                 |
 | End-to-end test against production failed (`e2e.yml`)  | Telegram                                                                                     |
+| A new error in the API, processor or frontend (#212)   | Telegram (once per error per hour; per process 10 an hour backend, 5 frontend)               |
 | CI or CD failed                                        | `repair.yml` pushes a fix (an agent PR's branch), opens a fix PR, or opens an issue (GitHub) |
 | PR held (`needs-owner`) or agent stuck (`agent-stuck`) | the owner, by a GitHub mention or label                                                      |
 
@@ -87,8 +88,8 @@ repo: it's public.
 ### Telegram bot
 
 - **Does:** one bot posts to one chat (the owner's). The backend uses it as the fallback for
-  contact-form requests when Mailgun refuses them; Healthchecks.io posts backup alerts through
-  it; the Email Worker can post alert notices through it (unused today, see below).
+  contact-form requests when Mailgun refuses them, for the AI budget alerts and for new errors
+  (#212, "Error tracking" below); Healthchecks.io posts backup alerts through it; the Email Worker can post alert notices through it (unused today, see below).
 - **Configured:** created with `@BotFather` (steps in `deploy/README.md` "Day to day"). The same
   token is stored in three places: `prod.env`, the Worker's settings and the Healthchecks
   webhook URL.
@@ -371,3 +372,51 @@ by its own new version. Each file's top comment explains it; AGENTS.md "Hard rul
 - **Alerts:** none. Each action is also logged (`Admin <id> on account <id>: ...`) by the api.
 - **Check:** the account menu shows **Admin** and the overview loads. Locally: set
   `HORIZON_ADMIN_EMAILS` in `.env`, turn on two-factor for that account, restart the backend.
+
+### Error tracking (#212)
+
+- **Does:** keeps the unhandled errors of the API (any 5xx but 503, from `AllExceptionFilter`),
+  the processor (a job or the URL sync scheduler that threw) and both (an uncaught exception or
+  unhandled rejection, which is recorded and then still ends the process, so Docker restarts it),
+  plus the frontend's (window `error`, `unhandledrejection`, Vue's `errorHandler`; posted to the
+  public `POST /errors`, at most 10 per page load and each error once; the backend allows 10 per
+  page session and 30 per IP per 10 minutes). Self-hosted: no outside service. Each error is
+  stored in the tracking DB's `tracking:error`, grouped by a fingerprint (source, the message
+  without its numbers and ids, the top stack frame), with a count, first and last seen and the
+  latest occurrence: message, stack, route pattern (`GET /web-file/:id`) or page path, status,
+  account id, browser. Never request bodies, headers or query strings; messages and stacks are
+  scrubbed of emails, tokens, keys and URL credentials. Kept 30 days after it was last seen (a
+  TTL index); past 3,000 backend (API and processor) errors or 2,000 frontend ones, new ones of
+  that kind stop being stored (separate caps, so the public frontend reports can't crowd out the
+  backend's). Code:
+  `packages/horizon-be/src/core/error-tracking/`, `packages/horizon-fe/src/core/error-report.js`.
+- **Where to look:** the admin area's **Errors** tab (`/app/admin`, admins only): the list, last
+  seen first, filtered by source; an error's page has its latest stack. A frontend stack is shown
+  in the source files: the build writes hidden source maps next to the assets
+  (`vite.config.js`), and the page reads them from the site.
+- **Configured:** nothing beyond the Telegram bot.
+- **Secrets:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (`prod.env`), as for the other alerts.
+  No new ones.
+- **Alerts:** Telegram, when an error's fingerprint is new: at most one message per fingerprint
+  per hour, and per process at most 10 an hour for api/processor errors and 5 for frontend ones
+  (separate budgets, so anonymous frontend reports can't use up the backend's), with a link to
+  the error's page. Without the Telegram settings, errors are still stored, just not sent.
+- **Check:** the Errors tab loads. The API smoke test posts a frontend error and reads it back
+  as the admin.
+
+### Status page (#212)
+
+- **Does:** `https://invokedb.com/status` (linked from the site's footer) shows our own checks,
+  answered by the API at `GET /status` (public, cached 30 seconds): the API itself (its
+  websocket client is registered, as `/health`), a round trip to Postgres and to Mongo (degraded
+  over 1 s, down on failure or after 5 s), the job processor's heartbeat (the `prc` container
+  writes one to `tracking:status` every 30 s; degraded after 2 minutes, down after 10) and the
+  latest production E2E run (from GitHub's public API, as on the admin overview; unknown when
+  older than 3 days). The headline is an outage when the API or a database is down, degraded
+  when anything else is. If the API can't be reached at all, the page says so itself. No
+  outside host.
+- **Incident note:** the admin area's **Status** tab sets a note (Notice, Degraded or Outage)
+  shown at the top of the page until it's removed; Degraded and Outage also set the headline.
+- **Configured:** nothing. **Secrets:** none.
+- **Alerts:** none of its own: UptimeRobot, the E2E test and error tracking alert.
+- **Check:** the page shows every check as Operational; `curl https://api.invokedb.com/status`.

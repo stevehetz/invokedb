@@ -419,7 +419,8 @@ export class AdminService {
         return account;
     }
 
-    private async e2e(): Promise<E2eResult> {
+    /** The latest production E2E run, read at most every E2E_CACHE_MS (also the status page's). */
+    async e2e(): Promise<E2eResult> {
         const now = this.now();
         if (this.e2e_cache && now - this.e2e_cache.at < E2E_CACHE_MS) return this.e2e_cache.result;
         let result: E2eResult;

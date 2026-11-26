@@ -26,6 +26,7 @@ import { AiService } from './ai/ai.service';
 import { EditService } from './ai/edit.service';
 import { CleanupService } from './ai/cleanup.service';
 import { ImportTextService } from './ai/import-text.service';
+import { AiColumnService } from './ai-column/ai-column.service';
 import { AuditService } from './audit/audit.service';
 import { TwoFactorService } from './two-factor/two-factor.service';
 import { AccountExportService } from './account-export/account-export.service';
@@ -35,6 +36,8 @@ import { IdleAccountService } from './plan/idle-account.service';
 import { AccountDeletionService } from './account/account-deletion.service';
 import { AdminAccessService } from './admin/admin-access.service';
 import { AdminService } from './admin/admin.service';
+import { ErrorTrackingService } from './error-tracking/error-tracking.service';
+import { StatusService } from './status/status.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -63,6 +66,7 @@ import { AdminService } from './admin/admin.service';
         EditService,
         CleanupService,
         ImportTextService,
+        AiColumnService,
         AuditService,
         TwoFactorService,
         AccountExportService,
@@ -71,7 +75,9 @@ import { AdminService } from './admin/admin.service';
         IdleAccountService,
         AccountDeletionService,
         AdminAccessService,
-        AdminService
+        AdminService,
+        ErrorTrackingService,
+        StatusService
     ],
     exports: [
         AuthService,
@@ -95,13 +101,16 @@ import { AdminService } from './admin/admin.service';
         EditService,
         CleanupService,
         ImportTextService,
+        AiColumnService,
         AuditService,
         TwoFactorService,
         AccountExportService,
         UsageService,
         PlanStateService,
         AdminAccessService,
-        AdminService
+        AdminService,
+        ErrorTrackingService,
+        StatusService
     ]
 })
 export class ApplicationModule {}

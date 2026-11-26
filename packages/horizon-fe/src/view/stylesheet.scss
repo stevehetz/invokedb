@@ -1309,3 +1309,131 @@ $HOME_PAGE_MAX_WIDTH: 900px;
         margin: 20px 10px;
     }
 }
+
+// Status page (#212)
+.status-page {
+    display: block;
+}
+.status-page .main-content {
+    background-color: #f5f5f5;
+    min-height: 100vh;
+}
+.status-page .status-body {
+    max-width: 900px;
+    margin: 40px auto;
+    background-color: #ffffff;
+    box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
+    padding: 20px 40px 30px;
+    line-height: 1.6;
+}
+.status-page .status-body h1 {
+    margin: 10px 0 20px;
+}
+.status-page .status-overall {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-radius: 4px;
+    font-size: 1.25em;
+    font-weight: bold;
+    color: #ffffff;
+    background-color: $gray300;
+}
+.status-page .status-overall.status-operational {
+    background-color: #2e9d5b;
+}
+.status-page .status-overall.status-degraded {
+    background-color: #c98a12;
+}
+.status-page .status-overall.status-outage {
+    background-color: #c43c3c;
+}
+.status-page .status-incident {
+    margin: 20px 0 0;
+    padding: 12px 16px;
+    border-left: solid 4px $blue400;
+    background-color: #f1f5fb;
+}
+.status-page .status-incident.incident-degraded {
+    border-left-color: #c98a12;
+    background-color: #fdf6e7;
+}
+.status-page .status-incident.incident-outage {
+    border-left-color: #c43c3c;
+    background-color: #fbeeee;
+}
+.status-page .status-incident__head span {
+    color: $gray300;
+}
+.status-page .status-incident__message {
+    margin: 6px 0 0;
+    white-space: pre-wrap;
+}
+.status-page .status-checks {
+    list-style: none;
+    margin: 24px 0 0;
+    padding: 0;
+}
+.status-page .status-check {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: solid 1px #eaeaea;
+}
+.status-page .status-dot {
+    flex: 0 0 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: $gray200;
+}
+.status-page .state-operational .status-dot {
+    background-color: #2e9d5b;
+}
+.status-page .state-degraded .status-dot {
+    background-color: #c98a12;
+}
+.status-page .state-down .status-dot {
+    background-color: #c43c3c;
+}
+.status-page .status-check__name {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.status-page .status-check__note,
+.status-page .status-check__at,
+.status-page .status-note {
+    color: $gray300;
+    font-size: 0.9em;
+}
+.status-page .status-check__state {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+}
+.status-page .status-check__at a {
+    color: $gray300;
+}
+.status-page .status-note {
+    margin-top: 20px;
+}
+.status-page .status-note a {
+    color: $blue400;
+}
+.status-page .footer {
+    height: 60px;
+}
+.status-page .footer .col {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+@media only screen and (max-width: 800px) {
+    .status-page .status-body {
+        margin: 20px 10px;
+        padding: 15px 20px;
+    }
+}

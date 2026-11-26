@@ -1,0 +1,152 @@
+<div class="admin-errors">
+    <!-- One error -->
+    <div v-if="error_id">
+        <el-button
+            class="admin-account__back"
+            size="small"
+            @click="$emit('close')"
+            >Back to errors</el-button
+        >
+        <p class="admin-error" v-if="detail_error">{{ detail_error }}</p>
+        <p class="admin-loading" v-else-if="!detail">Loading…</p>
+        <div class="admin-panel" v-else>
+            <h3 class="admin-error-title">{{ detail.message }}</h3>
+            <dl class="admin-facts">
+                <dt>Source</dt>
+                <dd>{{ source_label(detail.source) }}</dd>
+                <dt>Count</dt>
+                <dd>{{ count_label(detail.count) }}</dd>
+                <dt>First seen</dt>
+                <dd>{{ time_label(detail.first_seen) }}</dd>
+                <dt>Last seen</dt>
+                <dd>{{ time_label(detail.last_seen) }}</dd>
+                <template v-if="detail.route">
+                    <dt>
+                        {{ detail.source === 'frontend' ? 'Caught in' : 'Route'
+                        }}
+                    </dt>
+                    <dd class="mono">{{ detail.route }}</dd>
+                </template>
+                <template v-if="detail.status">
+                    <dt>Status</dt>
+                    <dd>{{ detail.status }}</dd>
+                </template>
+                <template v-if="detail.page">
+                    <dt>Page</dt>
+                    <dd class="mono">{{ detail.page }}</dd>
+                </template>
+                <template v-if="detail.kind">
+                    <dt>Caught by</dt>
+                    <dd>{{ detail.kind }}</dd>
+                </template>
+                <template v-if="detail.user_agent">
+                    <dt>Browser</dt>
+                    <dd>{{ detail.user_agent }}</dd>
+                </template>
+                <template v-if="detail.account_id">
+                    <dt>Last account</dt>
+                    <dd>
+                        <a
+                            href=""
+                            @click.prevent="$emit('account', detail.account_id)"
+                            >#{{ detail.account_id }}</a
+                        >
+                    </dd>
+                </template>
+            </dl>
+            <h3>
+                Latest stack
+                <a
+                    href=""
+                    class="admin-stack-toggle"
+                    v-if="mapped_stack"
+                    @click.prevent="show_raw = !show_raw"
+                    >{{ show_raw ? 'show source' : 'show minified' }}</a
+                >
+            </h3>
+            <pre class="admin-stack" v-if="stack">{{ stack }}</pre>
+            <p class="admin-note" v-else>No stack was recorded.</p>
+            <p class="admin-note">
+                Messages and stacks are scrubbed of emails, tokens and query
+                strings before they're stored. Errors are kept 30 days after
+                they were last seen.
+            </p>
+        </div>
+    </div>
+
+    <!-- The list -->
+    <template v-else>
+        <div class="admin-filters">
+            <el-select v-model="query.source" @change="filter_changed">
+                <el-option
+                    v-for="s in sources"
+                    :key="s.id"
+                    :label="s.label"
+                    :value="s.id"
+                ></el-option>
+            </el-select>
+            <el-button size="small" :disabled="loading" @click="load_list"
+                >Refresh</el-button
+            >
+        </div>
+        <p class="admin-error" v-if="list_error">{{ list_error }}</p>
+        <div class="admin-table-wrap" v-if="list">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Error</th>
+                        <th>Source</th>
+                        <th>Where</th>
+                        <th class="num">Count</th>
+                        <th>First seen</th>
+                        <th>Last seen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr
+                        v-for="e in list.errors"
+                        :key="e.id"
+                        class="admin-row"
+                        @click="$emit('open', e.id)"
+                    >
+                        <td class="admin-error-message">
+                            {{ e.message }}
+                            <div
+                                class="admin-error-frame mono"
+                                v-if="e.top_frame"
+                            >
+                                {{ e.top_frame }}
+                            </div>
+                        </td>
+                        <td>{{ source_label(e.source) }}</td>
+                        <td class="mono">{{ where(e) }}</td>
+                        <td class="num">{{ count_label(e.count) }}</td>
+                        <td>{{ time_label(e.first_seen) }}</td>
+                        <td>{{ time_label(e.last_seen) }}</td>
+                    </tr>
+                    <tr v-if="list.errors.length === 0">
+                        <td colspan="6" class="empty">No errors recorded.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="admin-pager" v-if="list">
+            <el-button
+                size="small"
+                :disabled="query.page <= 1 || loading"
+                @click="go_page(-1)"
+                >Previous</el-button
+            >
+            <span
+                >Page {{ list.page }} of {{ pages }} · {{
+                count_label(list.total) }} errors</span
+            >
+            <el-button
+                size="small"
+                :disabled="query.page >= pages || loading"
+                @click="go_page(1)"
+                >Next</el-button
+            >
+        </div>
+    </template>
+</div>

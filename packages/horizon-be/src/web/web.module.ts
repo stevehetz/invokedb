@@ -20,12 +20,15 @@ import { FormController, PublicFormController } from './http/form/form.controlle
 import { ApiKeyController } from './http/api-key/api-key.controller';
 import { ViewController } from './http/view/view.controller';
 import { AiController } from './http/ai/ai.controller';
+import { AiColumnController } from './http/ai-column/ai-column.controller';
 import { AuditController } from './http/audit/audit.controller';
 import { TwoFactorController } from './http/two-factor/two-factor.controller';
 import { AccountExportController } from './http/account-export/account-export.controller';
 import { PlanController, TestPlanController, UsageController } from './http/plan/plan.controller';
 import { AdminController } from './http/admin/admin.controller';
 import { AdminGuard } from './http/admin/admin.guard';
+import { ErrorReportController } from './http/error-report/error-report.controller';
+import { StatusController } from './http/status/status.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
@@ -51,13 +54,16 @@ import { WebsocketClient } from './ws/websocket-client';
         ApiKeyController,
         ViewController,
         AiController,
+        AiColumnController,
         AuditController,
         TwoFactorController,
         AccountExportController,
         PlanController,
         UsageController,
         TestPlanController,
-        AdminController
+        AdminController,
+        ErrorReportController,
+        StatusController
     ],
     providers: [
         WebsocketServer,

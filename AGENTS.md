@@ -463,6 +463,19 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   are left, at most 200 (`AiService.reserve_up_to`), before the question, and hands back the ones
   not made. The answer's `proposed` is shown and added like `propose_rows`. The smoke stubs
   recognise it by `<pasted_text>` in the prompt.
+- AI columns (#205): a column the model fills per row from a prompt over other columns.
+  `src/core/ai-column/ai-column.ts` (pure: settings, hashes, prompt, schema, answer check) and
+  `ai-column.manager.ts` (`tracking:ai_column`, shared, filter on `account_id` except the
+  processor's `claim`). Each row keeps its cells' state under `_ai.<field>` (`h` = hash of the
+  settings and the inputs, `s` = why it wasn't filled); `WebFileManager` drops `_ai` from row
+  writes and the API never shows it. Routes `/ai-column` (session only; `PUT`, `GET ?table=`,
+  `:table/:field/estimate`, `/fill`, `DELETE`). Nothing is computed until the owner confirms a
+  fill (`auto`, `filled_hash`); changed settings or a column type change need a new fill. Then
+  `WebFileService` row writes (and URL syncs) mark the rows dirty, and `AiColumnService.tick`
+  (processor role, every 5 s, its own loop, not the Postgres job table) computes stale cells:
+  one AI row each through `reserve_rows` + `AiSpend`, 25 per call; out of rows/budget → the rest
+  get `s` and a note in the grid (More → AI columns, `h-data-grid/ai-column-dialog`). The smoke
+  stub answers schemas with `values`.
 - Email verification (#132): `account.email_verified` (migration marks every older account
   verified; Google/GitHub accounts are created verified). `src/core/email-verification/` has the
   rules; links are rows of `email_verification` (24 hours, one per account). `create-account`
@@ -516,6 +529,18 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   impersonation. `GET /auth/authorize` carries `admin` for the menu link. The frontend is
   `components/admin` at `/app/admin` (a page overlay, dark styles in `stylesheet.scss`).
   `smoke-env.sh` makes demo6 the admin; `api-smoke.mjs` turns its 2FA on and checks it all.
+- Error tracking and the status page (#212, self-hosted, `docs/OPERATIONS.md`):
+  `src/core/error-tracking/` has the pure rules (`error-tracking.ts`: scrubbing, top frame,
+  fingerprint, the frontend's report), the store (`error-tracking.manager.ts`, `tracking:error`,
+  one document per fingerprint, TTL 30 days) and `report.ts`'s `report_error(source, ex, ctx)`,
+  which any code can call (the exception filter for 5xx but 503, `main.ts`'s
+  `uncaughtException`, the processor's job loop); `ErrorTrackingService` backs it and sends the
+  Telegram alert for a new fingerprint. The frontend's `core/error-report.js` posts to the public
+  `POST /errors`. `src/core/status/` and `StatusService` answer the public `GET /status` (the
+  processor writes a heartbeat to `tracking:status`); the admin area's Errors and Status tabs
+  read `/admin/errors` and set the incident note (`/admin/status/incident`). The site's page is
+  `view/pages/status`. The frontend build writes hidden source maps
+  (`core/context/admin/source-map.js` reads them for frontend stacks).
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

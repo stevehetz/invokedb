@@ -247,6 +247,12 @@ a:visited {
     padding: 3px 11px 0;
     border-radius: var(--el-input-border-radius, var(--el-border-radius-base));
 }
+// Until you click or type, Chrome draws a value it autofilled (one the page can't read yet) in
+// its own small system font; ::first-line is the one hook that reaches that preview
+.el-input .el-input__inner:-webkit-autofill::first-line {
+    font-family: inherit;
+    font-size: 20px;
+}
 .el-input:focus {
     background-color: var(--h-input-focus-bg);
 }

@@ -11,6 +11,7 @@ export const HELP_TOPICS = [
     { id: 'links', title: 'Link columns', icon: 'fa fa-link' },
     { id: 'api', title: 'The API', icon: 'fa fa-code' },
     { id: 'api-keys', title: 'API keys', icon: 'fa fa-key' },
+    { id: 'agents', title: 'AI agents (MCP)', icon: 'fa fa-robot' },
     { id: 'webhooks', title: 'Webhooks', icon: 'fa fa-bolt' },
     { id: 'forms', title: 'Forms', icon: 'fa fa-list-alt' },
     { id: 'views', title: 'Views', icon: 'fa fa-eye' },

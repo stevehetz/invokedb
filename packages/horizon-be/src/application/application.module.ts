@@ -38,6 +38,7 @@ import { AdminAccessService } from './admin/admin-access.service';
 import { AdminService } from './admin/admin.service';
 import { ErrorTrackingService } from './error-tracking/error-tracking.service';
 import { StatusService } from './status/status.service';
+import { McpService } from './mcp/mcp.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -77,7 +78,8 @@ import { StatusService } from './status/status.service';
         AdminAccessService,
         AdminService,
         ErrorTrackingService,
-        StatusService
+        StatusService,
+        McpService
     ],
     exports: [
         AuthService,
@@ -110,7 +112,8 @@ import { StatusService } from './status/status.service';
         AdminAccessService,
         AdminService,
         ErrorTrackingService,
-        StatusService
+        StatusService,
+        McpService
     ]
 })
 export class ApplicationModule {}

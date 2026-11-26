@@ -393,6 +393,17 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `finish` (time, method, path without query, status, duration) into `tracking:api_key_request`,
   one document per key capped at 100 by `$push`/`$slice` (`key-request-log.manager.ts`; filter on
   `account_id`). `GET /api-key/:id/requests` (session only); the Account page shows it under a key.
+- MCP server (#305): `POST /mcp` lets AI agents use an account's tables with an API key (the same
+  bearer guard, `ApiKeyUsageGuard` and onboarding tick as `/api/v1`). Streamable HTTP, stateless,
+  JSON answers only (`GET`/`DELETE` are 405); no MCP SDK: `src/core/mcp/mcp.ts` (pure) is the
+  JSON-RPC handling, version negotiation and the tools (`list_tables`, `describe_table`,
+  `query_rows`, `count_rows`, and for `read_write` keys `create_rows`, `update_rows`,
+  `delete_rows`) with their argument checks. `application/mcp/mcp.service.ts` runs them: rows
+  through `WebFileService`'s `external_*` paths (quota, locks, read-only state, caps, webhooks,
+  audit), table lookup by name then id within the key's `table_ids` (an unusable table reads as
+  missing), and a 4xx refusal becomes a tool error the agent reads; one tool call is one API
+  call. The Account page's key panel shows the setup; help topic `agents`. A new tool goes in
+  `TOOLS`, `McpService.call`, `mcp.spec.ts` and `api-smoke.mjs`.
 - Saved views (#146): `src/core/view/` has the pure rules (`view.ts`: settings checked against
   the columns, filters kept in the grid's own format `{ field, type, value }` and turned into a
   Mongo filter, the kanban and chart aggregations) and the store (`view.manager.ts`,

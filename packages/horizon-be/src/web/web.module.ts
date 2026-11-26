@@ -28,6 +28,7 @@ import { AdminController } from './http/admin/admin.controller';
 import { AdminGuard } from './http/admin/admin.guard';
 import { ErrorReportController } from './http/error-report/error-report.controller';
 import { StatusController } from './http/status/status.controller';
+import { McpController } from './http/mcp/mcp.controller';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
@@ -61,7 +62,8 @@ import { WebsocketClient } from './ws/websocket-client';
         TestPlanController,
         AdminController,
         ErrorReportController,
-        StatusController
+        StatusController,
+        McpController
     ],
     providers: [
         WebsocketServer,

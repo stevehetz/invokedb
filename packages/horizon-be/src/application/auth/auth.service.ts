@@ -12,7 +12,7 @@ import { SessionManager } from '@app/core/session/session.manager';
 import { EmailManager } from '@app/email/email.manager';
 import { welcome_tmpl } from '@app/email/welcome.template';
 import { reset_pass_tmpl } from '@app/email/reset-pass.template';
-import { SubscriptionService } from '../subscription/subscription.service';
+import { account_plan } from '@app/core/plan/plans';
 import logger from '@app/logger';
 import env from '@app/env';
 import { validate_email } from '@app/core/helpers/validators';
@@ -32,6 +32,12 @@ import { TwoFactorService } from '../two-factor/two-factor.service';
 import { AdminAccessService } from '../admin/admin-access.service';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The plan `authorize` answers (#275): its id and name, and whether it has no counted caps. */
+export function authorize_plan(account: Account): { id: string; name: string; internal: boolean } {
+    const { plan, internal } = account_plan(account);
+    return { id: plan.id, name: plan.name, internal };
+}
 
 const invalid_link = () =>
     new HttpException(
@@ -56,7 +62,6 @@ export class AuthService {
     private account_manager: AccountManager,
     private session_manager: SessionManager,
     private email_manager: EmailManager,
-    private subscription_service: SubscriptionService,
     private onboarding_manager: OnboardingManager,
     private two_factor_service: TwoFactorService,
     private admin_access: AdminAccessService
@@ -120,12 +125,10 @@ export class AuthService {
                 locked_reason: account.locked_reason,
                 email_verified: is_verified(account),
                 // Shows the admin area's link (#277); its routes check again on every call
-                admin: await this.admin_access.is_admin_account(account)
+                admin: await this.admin_access.is_admin_account(account),
+                // The account menu's plan, from the plan constant (#275)
+                plan: authorize_plan(account)
             };
-
-            if (account.subscription_id) {
-                res.subscription = await this.subscription_service.get(account.subscription_id);
-            }
 
             return res;
         } catch (ex) {

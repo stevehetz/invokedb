@@ -38,17 +38,14 @@ export default {
         },
 
         /**
-         * The plan under the email in the account menu (docs/PRICING.md 3.2). Until Stripe
-         * (#129) the subscription ids map as on the backend (core/ai/ai-plan.ts).
+         * The plan under the email in the account menu (docs/PRICING.md 3.2), as
+         * GET /auth/authorize answers it from the backend's plan constant (#275).
          * @returns {string}
          */
         plan_name() {
-            const id = String(
-                (this.account && this.account.subscription_id) || ''
-            ).toUpperCase();
-            if (/_(PLUS|PREMIUM)$/.test(id)) return 'Pro plan';
-            if (/_BASIC$/.test(id)) return 'Starter plan';
-            return 'Free plan';
+            const plan = this.account && this.account.plan;
+            if (!plan || !plan.name) return '';
+            return `${plan.name} plan`;
         }
     },
 

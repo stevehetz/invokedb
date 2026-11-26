@@ -755,7 +755,29 @@ function verify(secret, raw_body, header) {
                         and your details, and lets you change your password,
                         turn on two-factor sign-in, export your data or delete
                         the account. Deleting it removes every table and row and
-                        can't be undone.
+                        can't be undone. If you're on a paid plan, deleting the
+                        account cancels it first.
+                    </p>
+                    <h2>Plans and billing</h2>
+                    <p>
+                        Under <b>Plan and Usage</b> on the Account page, pick
+                        <b>Monthly</b> or <b>Yearly</b> and click
+                        <b>Get Starter</b> or <b>Get Pro</b> (or
+                        <b>Choose</b> on the
+                        <router-link to="/pricing">pricing page</router-link>).
+                        You pay on Stripe's secure checkout page; InvokeDB never
+                        sees your card. Your new limits apply as soon as Stripe
+                        confirms the payment, usually within seconds.
+                        <b>Manage billing</b> opens Stripe's billing page, where
+                        you can switch between Starter and Pro, update your
+                        card, see invoices or cancel. A cancelled plan runs
+                        until the end of the period you've paid for, then the
+                        account moves to Free. If a payment fails, everything
+                        keeps working for 14 days while the card is retried; a
+                        banner says so. After that the account moves to Free
+                        (see
+                        <router-link to="/help/limits">limits</router-link> for
+                        what happens if it holds more than Free allows).
                     </p>
                     <h2>Light and dark</h2>
                     <p>

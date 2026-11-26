@@ -29,7 +29,11 @@ async function bootstrap() {
     if (!env.HORIZON_WS_SERVER_TOKEN) {
         throw new Error('HORIZON_WS_SERVER_TOKEN must be set (outside local mode)');
     }
-    const app = await NestFactory.create<NestExpressApplication>(WebModule, { cors: true });
+    // rawBody: Stripe's webhook signature (#129) is checked over the body exactly as sent
+    const app = await NestFactory.create<NestExpressApplication>(WebModule, {
+        cors: true,
+        rawBody: true
+    });
     // Express 5 defaults to the "simple" query parser; keep qs-style nesting (sort[a]=desc)
     app.set('query parser', 'extended');
     // In production Caddy is the one proxy in front (the API port isn't published), so trust one

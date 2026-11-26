@@ -71,6 +71,12 @@
                         v-if="!account"
                         >Get Started</router-link
                     >
+                    <router-link
+                        :to="buy_link(plan)"
+                        class="pricing-button"
+                        v-if="account && plan.price_month_usd"
+                        >Choose {{ plan.name }}</router-link
+                    >
                 </div>
             </div>
         </div>
@@ -106,6 +112,12 @@
                             class="plan-cta"
                             v-if="!account"
                             >{{ cta_label(plan) }}</router-link
+                        >
+                        <router-link
+                            :to="buy_link(plan)"
+                            class="plan-cta"
+                            v-if="account && plan.price_month_usd"
+                            >Choose {{ plan.name }}</router-link
                         >
                     </div>
                 </div>
@@ -175,6 +187,12 @@
                             class="plan-cta"
                             v-if="!account"
                             >{{ cta_label(plan) }}</router-link
+                        >
+                        <router-link
+                            :to="buy_link(plan)"
+                            class="plan-cta"
+                            v-if="account && plan.price_month_usd"
+                            >Choose {{ plan.name }}</router-link
                         >
                     </div>
                 </div>

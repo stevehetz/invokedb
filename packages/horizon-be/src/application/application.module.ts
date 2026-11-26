@@ -38,6 +38,8 @@ import { AdminAccessService } from './admin/admin-access.service';
 import { AdminService } from './admin/admin.service';
 import { ErrorTrackingService } from './error-tracking/error-tracking.service';
 import { StatusService } from './status/status.service';
+import { BillingService } from './billing/billing.service';
+import { stripe_client_provider } from './billing/stripe-client';
 import { McpService } from './mcp/mcp.service';
 
 @Module({
@@ -79,6 +81,8 @@ import { McpService } from './mcp/mcp.service';
         AdminService,
         ErrorTrackingService,
         StatusService,
+        BillingService,
+        stripe_client_provider,
         McpService
     ],
     exports: [
@@ -113,6 +117,7 @@ import { McpService } from './mcp/mcp.service';
         AdminService,
         ErrorTrackingService,
         StatusService,
+        BillingService,
         McpService
     ]
 })

@@ -72,6 +72,15 @@ const env = {
     // What the AI features may cost the whole server per UTC month, in US dollars
     // (docs/PRICING.md 3.5). Unset: the AI features are off.
     HORIZON_AI_MONTHLY_BUDGET_USD: process.env.HORIZON_AI_MONTHLY_BUDGET_USD,
+    // Billing through Stripe (#129, docs/OPERATIONS.md "Stripe"): the secret API key (`sk_test_...`
+    // locally, `sk_live_...` in production) and the webhook endpoint's signing secret (`whsec_...`).
+    // Billing is on when both are set; without them the upgrade buttons are hidden and the
+    // billing routes answer 503. The prices are found by their lookup keys (core/billing).
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    // Test only (scripts/smoke-env.sh sets it to api-smoke.mjs's stub of the Stripe API,
+    // "http://127.0.0.1:8196"). Never set it in production.
+    STRIPE_API_BASE: process.env.STRIPE_API_BASE,
     // The admin area (#277): a comma-separated allowlist of the admins' emails. Each one also
     // needs a verified email and two-factor sign-in on. Unset or empty: nobody is an admin.
     HORIZON_ADMIN_EMAILS: process.env.HORIZON_ADMIN_EMAILS

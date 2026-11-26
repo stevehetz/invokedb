@@ -40,6 +40,9 @@ const FIRST_SWEEP_MS = 10 * 60 * 1000;
 export class PlanStateService implements OnModuleInit, OnModuleDestroy {
     private sweeping = false;
     private timers: NodeJS.Timeout[] = [];
+    // Told when a grace period ends and the account goes to Free (BillingService cancels its
+    // Stripe subscription, #129)
+    private grace_ended_listener: ((account_id: number) => Promise<void>) | null = null;
 
     constructor(
         @InjectRepository(Account)
@@ -61,6 +64,10 @@ export class PlanStateService implements OnModuleInit, OnModuleDestroy {
 
     onModuleDestroy() {
         this.timers.forEach(t => clearTimeout(t));
+    }
+
+    set_grace_ended_listener(fn: (account_id: number) => Promise<void>) {
+        this.grace_ended_listener = fn;
     }
 
     /**
@@ -85,6 +92,16 @@ export class PlanStateService implements OnModuleInit, OnModuleDestroy {
             );
             logger.info(`Account ${account.id}: grace period over, now on Free`);
             current = 'active';
+            if (this.grace_ended_listener) {
+                try {
+                    await this.grace_ended_listener(account.id);
+                } catch (ex) {
+                    logger.error(
+                        `Account ${account.id}: subscription not cancelled after its grace ` +
+                            `period: ${ex && ex.message}`
+                    );
+                }
+            }
         }
         const usage = await this.usage_service.usage(account.id);
         const over = over_caps(usage.usage);

@@ -86,11 +86,31 @@ a:visited {
     margin: 0 10px;
 }
 
-// Carousel
+// Carousel: the inactive indicators were Element Plus's 0.24 opacity, which vanished on dark
 .el-carousel__indicators--outside button {
-    background-color: $blue400;
+    background-color: var(--h-link);
+    opacity: 0.45;
     height: 4px;
     margin: 10px 5px 0;
+}
+.el-carousel__indicators--outside .el-carousel__indicator.is-active button {
+    opacity: 1;
+}
+// The prev/next arrows: the filled call-to-action purple with a white chevron (the same in both
+// themes), ringed in the page's surface so they stand out on light and dark screenshots alike
+.el-carousel__arrow,
+.el-carousel__arrow:hover {
+    background-color: var(--h-btn-primary);
+    color: #ffffff;
+    box-shadow:
+        0 0 0 2px var(--h-surface),
+        0 2px 8px var(--h-shadow);
+}
+.el-carousel__arrow:hover {
+    filter: brightness(1.15);
+}
+.el-carousel__arrow .el-icon {
+    font-size: 16px;
 }
 
 // Grid
@@ -464,7 +484,16 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .home-page {
     display: flex;
     flex-direction: column;
+    height: auto;
+    min-height: 100%;
     background-color: var(--h-surface);
+}
+// Every section takes its content's height. `.page` is a 100%-high flex column and
+// `.main-content` a min-height: 0 flex column, so the sections used to shrink to fit the
+// window and their text spilled over the next one (#308)
+.home-page .main-content,
+.home-page .main-content > * {
+    flex-shrink: 0;
 }
 .home-page .content-block {
     width: 100%;
@@ -584,20 +613,30 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     display: block;
     margin-bottom: 60px;
 }
+// The screenshots are about 1226 x 688 and end in the grid's light scrollbars (about 18px on
+// the right and bottom), a light strip against the dark page. The container keeps the image's
+// shape less those strips, and the image is drawn that much wider from the top left so they
+// fall outside it and are cut off; nothing else of the image is cropped
 .home-page .screenshots .el-carousel__container {
-    height: 50vw;
-    max-height: 400px;
+    height: auto;
+    aspect-ratio: 1208 / 670;
+    overflow: hidden;
+    border-radius: 6px;
+    background-color: transparent;
 }
 .home-page .screenshots .el-carousel__item {
     height: 100%;
+    overflow: hidden;
+    background-color: transparent;
 }
 .home-page .screenshots .col {
     display: block;
 }
 .home-page .screenshots img {
-    width: 100%;
+    display: block;
+    width: calc(100% * 1226 / 1208);
     height: auto;
-    margin-top: 10px;
+    margin: 0;
 }
 .home-page .examples {
     min-height: 320px;

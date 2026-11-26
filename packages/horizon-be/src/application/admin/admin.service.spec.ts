@@ -45,7 +45,10 @@ function setup(target: Account | null = account()) {
         })
     };
     const session_repository = { delete: jest.fn(async () => ({ affected: 1 })) };
-    const two_factor_repository = { delete: jest.fn(async () => ({ affected: 1 })) };
+    const two_factor_repository = {
+        countBy: jest.fn(async () => 1),
+        delete: jest.fn(async () => ({ affected: 1 }))
+    };
     const tracking_manager = {
         update_account_lock: jest.fn(async () => {}),
         update_account_table_locks: jest.fn(async () => {})
@@ -155,9 +158,31 @@ describe('AdminService actions', () => {
     it('resets two-factor, or says it is off', async () => {
         const s = setup();
         expect(await s.service.reset_two_factor(admin, 2)).toEqual({ two_factor: false });
+        expect(s.two_factor_repository.countBy).toHaveBeenCalledWith({
+            account_id: 2,
+            enabled: true
+        });
         expect(s.two_factor_repository.delete).toHaveBeenCalledWith({ account_id: 2 });
-        s.two_factor_repository.delete.mockResolvedValueOnce({ affected: 0 });
+        expect(s.audit_service.record).toHaveBeenCalledTimes(1);
+        // Off, or only a setup started and never enabled: 409 and nothing in the History
+        s.two_factor_repository.countBy.mockResolvedValueOnce(0);
         expect(await status_of(s.service.reset_two_factor(admin, 2))).toBe(409);
+        expect(s.audit_service.record).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not keep a snapshot that was being built when an action happened', async () => {
+        const s = setup();
+        let finish: (snap: any) => void = () => {};
+        const build = jest
+            .spyOn(s.service as any, 'build_snapshot')
+            .mockImplementationOnce(() => new Promise(resolve => (finish = resolve)))
+            .mockImplementation(async () => ({ at: Date.now(), fresh: true }));
+        const stale = s.service.snapshot();
+        await s.service.lock(admin, 2, { reason: 'Spam' });
+        finish({ at: Date.now(), fresh: false });
+        expect(await stale).toMatchObject({ fresh: false });
+        expect(await s.service.snapshot()).toMatchObject({ fresh: true });
+        expect(build).toHaveBeenCalledTimes(2);
     });
 
     it('deletes only with the email typed again, then ends the sessions', async () => {

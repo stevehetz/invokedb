@@ -80,6 +80,8 @@ const bad_input = (ex: unknown) =>
 export class AdminService {
     private snapshot_cache: Snapshot | null = null;
     private snapshot_pending: Promise<Snapshot> | null = null;
+    // Bumped by every action, so a build started before one isn't kept or shared
+    private snapshot_generation = 0;
     private e2e_cache: { at: number; result: E2eResult } | null = null;
 
     constructor(
@@ -339,8 +341,14 @@ export class AdminService {
 
     async reset_two_factor(admin: Account, id: unknown) {
         const account = await this.target(admin, id);
-        const res = await this.two_factor_repository.delete({ account_id: account.id });
-        if (!res.affected) throw new ConflictException('Two-factor sign-in is off');
+        // A setup started but never enabled leaves a row with enabled = false: that's still off
+        const enabled = await this.two_factor_repository.countBy({
+            account_id: account.id,
+            enabled: true
+        });
+        if (!enabled) throw new ConflictException('Two-factor sign-in is off');
+        // Removes any pending setup row too
+        await this.two_factor_repository.delete({ account_id: account.id });
         await this.record(
             admin,
             account,
@@ -360,6 +368,8 @@ export class AdminService {
         await this.record(admin, account, 'admin.account_deleted', 'Deleted the account', {});
         await this.account_service.delete_account(account.id);
         await this.session_repository.delete({ account_id: account.id });
+        // Again now the account is gone: a build may have started after the audit entry
+        this.drop_snapshot();
         return { deleted: true };
     }
 
@@ -377,7 +387,14 @@ export class AdminService {
             actor: admin_actor(admin.email)
         });
         // The list shows the change at once
+        this.drop_snapshot();
+    }
+
+    /** Forgets the snapshot and any build already running, which read the data before the action. */
+    private drop_snapshot() {
+        this.snapshot_generation++;
         this.snapshot_cache = null;
+        this.snapshot_pending = null;
     }
 
     private async live_account(id: unknown): Promise<Account> {
@@ -476,9 +493,17 @@ export class AdminService {
             return this.snapshot_cache;
         }
         if (!this.snapshot_pending) {
-            this.snapshot_pending = this.build_snapshot()
-                .then(snap => (this.snapshot_cache = snap))
-                .finally(() => (this.snapshot_pending = null));
+            const generation = this.snapshot_generation;
+            const pending: Promise<Snapshot> = this.build_snapshot()
+                .then(snap => {
+                    // Not kept if an action happened while it was being built
+                    if (generation === this.snapshot_generation) this.snapshot_cache = snap;
+                    return snap;
+                })
+                .finally(() => {
+                    if (this.snapshot_pending === pending) this.snapshot_pending = null;
+                });
+            this.snapshot_pending = pending;
         }
         return await this.snapshot_pending;
     }

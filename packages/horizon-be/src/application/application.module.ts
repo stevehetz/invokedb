@@ -33,6 +33,8 @@ import { UsageService } from './plan/usage.service';
 import { PlanStateService } from './plan/plan-state.service';
 import { IdleAccountService } from './plan/idle-account.service';
 import { AccountDeletionService } from './account/account-deletion.service';
+import { AdminAccessService } from './admin/admin-access.service';
+import { AdminService } from './admin/admin.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -67,7 +69,9 @@ import { AccountDeletionService } from './account/account-deletion.service';
         UsageService,
         PlanStateService,
         IdleAccountService,
-        AccountDeletionService
+        AccountDeletionService,
+        AdminAccessService,
+        AdminService
     ],
     exports: [
         AuthService,
@@ -95,7 +99,9 @@ import { AccountDeletionService } from './account/account-deletion.service';
         TwoFactorService,
         AccountExportService,
         UsageService,
-        PlanStateService
+        PlanStateService,
+        AdminAccessService,
+        AdminService
     ]
 })
 export class ApplicationModule {}

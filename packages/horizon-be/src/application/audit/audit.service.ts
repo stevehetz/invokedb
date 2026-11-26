@@ -160,8 +160,14 @@ export class AuditService {
             ...Object.keys(parse_test_plans(env.HORIZON_TEST_PLANS))
         ];
         const accounts = await this.account_repository.find({
-            where: [{ subscription_id: Not(IsNull()) }, { email: In(emails) }],
-            select: { id: true, email: true, email_verified: true, subscription_id: true }
+            where: [{ subscription_id: Not(IsNull()) }, { email: In(emails) }, { internal: true }],
+            select: {
+                id: true,
+                email: true,
+                email_verified: true,
+                subscription_id: true,
+                internal: true
+            }
         });
         return accounts
             .map(a => ({ account_id: a.id, keep_days: account_plan(a).caps.audit_keep_days }))

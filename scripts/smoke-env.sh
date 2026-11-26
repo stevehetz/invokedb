@@ -35,6 +35,8 @@ HORIZON_WEBHOOK_TEST_HOSTS=127.0.0.1:8199
 ANTHROPIC_API_KEY=smoke-anthropic-key
 ANTHROPIC_BASE_URL=http://127.0.0.1:8197
 HORIZON_AI_MONTHLY_BUDGET_USD=5
+# The admin area (#277): api-smoke.mjs turns demo6's two-factor on and uses it as the admin
+HORIZON_ADMIN_EMAILS=demo6@invokedb.com
 # Plans (#183): the demo accounts are internal (no caps), except these, which api-smoke.mjs uses
 # to reach each cap: demo5 on Free (the API rate limit; then moved between plans by the test-only
 # PUT /test-plan for the read-only state, #184), demo6 on Starter with a 1-byte storage cap, demo7

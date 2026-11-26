@@ -132,6 +132,8 @@ export default {
         /** An item of the account menu. @param {string} command */
         account_command(command) {
             if (command === 'settings') this.$router.push('/app/account');
+            // Only shown to admins (#277)
+            else if (command === 'admin') this.$router.push('/app/admin');
             else if (command === 'contact') this.contact();
             else if (command === 'logout') this.logout();
         },

@@ -76,4 +76,12 @@ export class Account {
 
     @Column({ type: 'timestamptz', nullable: true })
     idle_final_warned_at: Date | null;
+
+    // When the account was made (#277); null for accounts from before that was recorded
+    @Column({ type: 'timestamp', nullable: true, default: () => 'current_timestamp' })
+    created_datetime: Date | null;
+
+    // Put on no counted caps by an admin (#277), like the INTERNAL_EMAILS (core/plan/plans.ts)
+    @Column({ type: 'boolean', default: false })
+    internal: boolean;
 }

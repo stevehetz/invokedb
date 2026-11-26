@@ -79,6 +79,13 @@
                             <i class="fa fa-cog"></i> Account settings
                         </el-dropdown-item>
                         <el-dropdown-item
+                            class="account-menu-admin"
+                            command="admin"
+                            v-if="account.admin"
+                        >
+                            <i class="fa fa-user-shield"></i> Admin
+                        </el-dropdown-item>
+                        <el-dropdown-item
                             class="account-menu-contact"
                             command="contact"
                         >

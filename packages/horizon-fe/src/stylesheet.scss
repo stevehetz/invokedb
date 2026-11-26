@@ -5068,14 +5068,20 @@ $admin_muted: var(--h-muted);
     color: $admin_muted;
 }
 // Errors and Status tabs (#212)
-.admin-page .admin-error-message {
+.admin-page .admin-table td.admin-error-message {
     max-width: 520px;
+    white-space: normal;
     word-break: break-word;
 }
+// One line, cut off with "…" (the whole frame is its tooltip; the detail shows the stack): the
+// cells' nowrap let it run on under the next columns
 .admin-page .admin-error-frame {
     color: $admin_muted;
     font-size: 0.75rem;
     margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .admin-page .admin-error-title {
     word-break: break-word;

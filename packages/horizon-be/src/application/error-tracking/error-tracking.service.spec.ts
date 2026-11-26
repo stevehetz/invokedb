@@ -43,17 +43,33 @@ describe('ErrorTrackingService', () => {
         expect(sent[0]).toContain('new frontend error');
     });
 
-    it('sends at most ALERTS_PER_HOUR alerts an hour', async () => {
+    it('sends at most ALERTS_PER_HOUR frontend alerts an hour', async () => {
         const { service, sent } = setup();
         let now = 1_000_000;
         service.now = () => now;
-        for (let i = 0; i < ALERTS_PER_HOUR + 5; i++) {
+        for (let i = 0; i < ALERTS_PER_HOUR.frontend + 5; i++) {
             await service.record_client({ message: `boom ${'x'.repeat(i)}` }, null, null);
         }
-        expect(sent).toHaveLength(ALERTS_PER_HOUR);
+        expect(sent).toHaveLength(ALERTS_PER_HOUR.frontend);
         now += 60 * 60 * 1000;
         await service.record_client({ message: 'later' }, null, null);
-        expect(sent).toHaveLength(ALERTS_PER_HOUR + 1);
+        expect(sent).toHaveLength(ALERTS_PER_HOUR.frontend + 1);
+    });
+
+    it("keeps the backend's alert budget when frontend reports use up theirs", async () => {
+        const { service, sent } = setup();
+        service.now = () => 1_000_000;
+        for (let i = 0; i < ALERTS_PER_HOUR.frontend + 5; i++) {
+            await service.record_client({ message: `spam ${'x'.repeat(i)}` }, null, null);
+        }
+        expect(sent).toHaveLength(ALERTS_PER_HOUR.frontend);
+        await report_error('api', new Error('real 5xx'), { route: 'GET /web-file/:id' });
+        expect(sent).toHaveLength(ALERTS_PER_HOUR.frontend + 1);
+        for (let i = 0; i < ALERTS_PER_HOUR.backend + 5; i++) {
+            await report_error('processor', new Error(`job ${'y'.repeat(i)}`), {});
+        }
+        expect(sent).toHaveLength(ALERTS_PER_HOUR.frontend + ALERTS_PER_HOUR.backend);
+        service.onModuleDestroy();
     });
 
     it('backs report_error, and never throws when storing fails', async () => {

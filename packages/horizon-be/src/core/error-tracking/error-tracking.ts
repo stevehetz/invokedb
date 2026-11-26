@@ -13,8 +13,6 @@ export const ERROR_SOURCES: ErrorSource[] = ['api', 'processor', 'frontend'];
 export const KEEP_DAYS = 30;
 // At most one Telegram message per fingerprint per this long
 export const ALERT_EVERY_MS = 60 * 60 * 1000;
-// And at most this many alerts an hour in all, per process, so a flood can't spam the chat
-export const ALERTS_PER_HOUR = 10;
 // New fingerprints stop being stored past this many (existing ones still count). The public
 // POST /errors can be posted by anyone, so frontend reports have their own cap: they can only
 // crowd out other frontend reports, never the backend's (api and processor share theirs).
@@ -28,6 +26,11 @@ export const cap_group = (source: ErrorSource): CapGroup =>
 /** The sources sharing a cap group (for counting its fingerprints). */
 export const cap_group_sources = (group: CapGroup): ErrorSource[] =>
     ERROR_SOURCES.filter(s => cap_group(s) === group);
+
+// And at most this many alerts an hour per cap group, per process, so a flood can't spam the
+// chat. Each group has its own budget: anonymous frontend reports can only use up frontend
+// alerts, never the ones for a new api or processor error.
+export const ALERTS_PER_HOUR: Record<CapGroup, number> = { backend: 10, frontend: 5 };
 
 export const MAX_MESSAGE = 500;
 export const MAX_STACK = 8000;

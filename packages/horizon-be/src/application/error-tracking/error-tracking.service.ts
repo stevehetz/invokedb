@@ -9,7 +9,9 @@ import {
     ALERTS_PER_HOUR,
     ErrorEvent,
     ErrorReportError,
+    CapGroup,
     alert_text,
+    cap_group,
     client_event,
     parse_error_query,
     server_event
@@ -26,8 +28,12 @@ const HOUR = 60 * 60 * 1000;
 // one appears. Recording never throws: a failure is only logged.
 @Injectable()
 export class ErrorTrackingService implements OnModuleDestroy {
-    // This process's alerts in the current hour, so a flood of new errors can't spam the chat
-    private alerts = { hour_start: 0, sent: 0 };
+    // This process's alerts in the current hour per cap group, so a flood of new errors can't
+    // spam the chat, and frontend reports can't use up the backend's budget
+    private alerts: Record<CapGroup, { hour_start: number; sent: number }> = {
+        backend: { hour_start: 0, sent: 0 },
+        frontend: { hour_start: 0, sent: 0 }
+    };
 
     constructor(private readonly manager: ErrorTrackingManager) {
         set_error_reporter((source, ex, context) => this.record(server_event(source, ex, context)));
@@ -84,10 +90,14 @@ export class ErrorTrackingService implements OnModuleDestroy {
     }
 
     private async alert(id: string, event: ErrorEvent, now: number) {
-        if (now - this.alerts.hour_start >= HOUR) this.alerts = { hour_start: now, sent: 0 };
-        if (this.alerts.sent >= ALERTS_PER_HOUR) return;
+        const group = cap_group(event.source);
+        if (now - this.alerts[group].hour_start >= HOUR) {
+            this.alerts[group] = { hour_start: now, sent: 0 };
+        }
+        const budget = this.alerts[group];
+        if (budget.sent >= ALERTS_PER_HOUR[group]) return;
         if (!(await this.manager.claim_alert(id, now))) return;
-        this.alerts.sent++;
+        budget.sent++;
         const url = env.HORIZON_FE_PUB_HTTP_URL
             ? `${env.HORIZON_FE_PUB_HTTP_URL}/app/admin?error=${id}`
             : null;

@@ -41,7 +41,7 @@ repo: it's public.
 | Contact form when Mailgun refuses the email            | Telegram                                                                                     |
 | Any mail to `@invokedb.com`                            | the support Gmail (through the Email Worker)                                                 |
 | End-to-end test against production failed (`e2e.yml`)  | Telegram                                                                                     |
-| A new error in the API, processor or frontend (#212)   | Telegram (at most once per error per hour, 10 an hour per process)                           |
+| A new error in the API, processor or frontend (#212)   | Telegram (once per error per hour; per process 10 an hour backend, 5 frontend)               |
 | CI or CD failed                                        | `repair.yml` pushes a fix (an agent PR's branch), opens a fix PR, or opens an issue (GitHub) |
 | PR held (`needs-owner`) or agent stuck (`agent-stuck`) | the owner, by a GitHub mention or label                                                      |
 
@@ -398,8 +398,9 @@ by its own new version. Each file's top comment explains it; AGENTS.md "Hard rul
 - **Secrets:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (`prod.env`), as for the other alerts.
   No new ones.
 - **Alerts:** Telegram, when an error's fingerprint is new: at most one message per fingerprint
-  per hour and 10 an hour per process, with a link to the error's page. Without the Telegram
-  settings, errors are still stored, just not sent.
+  per hour, and per process at most 10 an hour for api/processor errors and 5 for frontend ones
+  (separate budgets, so anonymous frontend reports can't use up the backend's), with a link to
+  the error's page. Without the Telegram settings, errors are still stored, just not sent.
 - **Check:** the Errors tab loads. The API smoke test posts a frontend error and reads it back
   as the admin.
 

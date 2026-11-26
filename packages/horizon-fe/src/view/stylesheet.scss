@@ -934,14 +934,14 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     font-weight: 500;
 }
 .pricing-page .cancel-anytime {
-    color: gray;
+    color: var(--h-muted);
     font-size: 14px;
     margin-top: 5px;
 }
 // While GET /plans loads, or if it fails (#183)
 .pricing-page .pricing-body.pricing-status {
     text-align: center;
-    color: gray;
+    color: var(--h-muted);
 }
 .pricing-page .pricing-error {
     color: var(--h-danger);
@@ -981,7 +981,8 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .pricing-page .pricing-body__row i {
     padding: 0;
     margin: 0;
-    font-size: 20px;
+    font-size: 18px;
+    color: var(--h-success);
 }
 .pricing-page .pricing-body__row .col {
     display: flex;
@@ -1005,6 +1006,18 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .pricing-page .pricing-body__row .col:first-child {
     align-items: flex-start;
     background-color: transparent;
+    padding-left: 12px;
+}
+// The plans' rows: a line under each, so a row can be followed across the columns
+.pricing-page .pricing-body__row.data .col {
+    border-bottom: solid 1px var(--h-line);
+    font-variant-numeric: tabular-nums;
+}
+.pricing-page .pricing-body__row.data .col:first-child {
+    color: var(--h-text-3);
+}
+.pricing-page .pricing-body__row .none {
+    color: var(--h-faint);
 }
 .pricing-page .pricing-body__row:first-child .col {
     background-color: transparent;
@@ -1015,13 +1028,26 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 }
 .pricing-page .pricing-body__row.section .col {
     padding-top: 30px;
+    padding-bottom: 6px;
+}
+// "Resources", "Every plan": headings, not rows
+.pricing-page .pricing-body__row.section .col:first-child {
+    color: var(--h-accent-2);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 .pricing-page .pricing-body__row .col a {
-    background-color: #3c3c9a;
-    color: white;
-    padding: 3px 12px;
-    border-radius: 3px;
-    box-shadow: 0 1px 1px 1px rgba(0, 0, 0, 0.3);
+    background-color: var(--h-btn-primary);
+    color: #ffffff;
+    font-weight: bold;
+    padding: 8px 22px;
+    border-radius: 5px;
+    text-decoration: none;
+    box-shadow: 0 1px 3px var(--h-shadow);
+}
+.pricing-page .pricing-body__row .col a:hover {
+    filter: brightness(1.1);
 }
 .pricing-page .footer {
     margin-top: 40px;

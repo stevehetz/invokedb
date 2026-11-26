@@ -111,7 +111,7 @@
                     ></div>
                 </div>
                 <div
-                    class="flex-row pricing-body__row"
+                    class="flex-row pricing-body__row data"
                     v-for="row in rows"
                     :key="row.label"
                 >
@@ -123,7 +123,9 @@
                         v-for="(value, p) in row.values"
                         :key="p"
                     >
-                        <span>{{ value }}</span>
+                        <span :class="{ none: value === '—' }"
+                            >{{ value }}</span
+                        >
                     </div>
                 </div>
                 <div class="flex-row pricing-body__row section">
@@ -137,7 +139,7 @@
                     ></div>
                 </div>
                 <div
-                    class="flex-row pricing-body__row"
+                    class="flex-row pricing-body__row data"
                     v-for="feature in features"
                     :key="feature"
                 >

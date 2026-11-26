@@ -90,6 +90,19 @@ export const ai_http = {
     },
 
     /**
+     * Turns pasted text into rows of the table to review (#207), using one question; nothing
+     * is saved. Answers `{ answer, proposed: { rows, columns } | null, capped, usage,
+     * rows_usage }`.
+     * @param {number} table the table's id
+     * @param {string} text
+     */
+    async import_text(table, text) {
+        return http.post(http.get_url(`/ai/web-file/${table}/import-text`), {
+            text
+        });
+    },
+
+    /**
      * A new table's design and rows, not saved: `{ table_name, columns, rows, usage }`.
      * @param {{ description: string, row_count: number }} body
      */

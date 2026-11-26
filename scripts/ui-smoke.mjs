@@ -96,8 +96,20 @@ function ai_stub_json(body) {
         };
     }
     const prompt = String(body.messages?.[0]?.content || '');
-    const n = Number((/exactly (\d+) new rows/.exec(prompt) || [])[1] || 0);
     const item = props.rows.items.properties;
+    // Pasted text (#207): one row per line, the line as the first text column
+    const pasted = /<pasted_text>\n([\s\S]*)\n<\/pasted_text>/.exec(prompt);
+    if (pasted) {
+        const field = Object.keys(item).find(f => item[f].anyOf[0].type === 'string');
+        return {
+            rows: pasted[1]
+                .split('\n')
+                .map(line => line.trim())
+                .filter(Boolean)
+                .map(line => ({ [field]: line }))
+        };
+    }
+    const n = Number((/exactly (\d+) new rows/.exec(prompt) || [])[1] || 0);
     const rows = [];
     for (let i = 0; i < n; i++) {
         const row = {};
@@ -1639,6 +1651,24 @@ try {
                     )
                 ),
                 `generated rows don't fit the column types: ${JSON.stringify(made)}`
+            );
+
+            // Pasted text (#207): the paste box turns lines into rows to review, saving nothing
+            await grid().locator('.ask-data-button button').click();
+            const paste = page.locator('.container-dialog .ask-dialog');
+            await paste.locator('.ask-paste-toggle').click();
+            await paste.locator('.ask-paste-text').fill('Pasted One\nPasted Two');
+            await paste.locator('.ask-paste-extract').click();
+            await paste.locator('.ask-proposed-row').nth(1).waitFor({ timeout: 30000 });
+            check(
+                (await paste.locator('.ask-proposed-row').count()) === 2,
+                "Paste text doesn't show the 2 rows"
+            );
+            await page.locator('.container-dialog .el-dialog__headerbtn').click();
+            await paste.waitFor({ state: 'detached', timeout: 10000 });
+            check(
+                !(await be_table(be_s, file_id)).rows.some(r => /^Pasted /.test(r.name)),
+                'pasted rows saved without Save'
             );
 
             await page.locator('.h-tree-controls .title-icon').click();

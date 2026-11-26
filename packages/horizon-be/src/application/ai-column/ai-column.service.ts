@@ -277,6 +277,7 @@ export class AiColumnService {
         let more = false;
         let changes: Partial<Pick<AiColumn, 'state' | 'stopped_reason' | 'auto'>> = {};
         let written = false;
+        let keep = false;
         try {
             const file = await this.file_directory_svc.get_by_id(file_id);
             const account = await this.account_svc.get(account_id);
@@ -284,8 +285,11 @@ export class AiColumnService {
                 await this.ai_columns.remove_table(account_id, file_id);
                 return;
             }
-            // Waits for the next change or fill
-            if (account.locked || file.locked) return;
+            // The work claimed waits for a later turn, when the lock is gone
+            if (account.locked || file.locked) {
+                keep = true;
+                return;
+            }
             const setup = await this.setup(account_id, file_id, col);
             if (!setup) {
                 changes = { auto: false, state: 'idle', stopped_reason: null };
@@ -350,7 +354,7 @@ export class AiColumnService {
             changes = { state: 'stopped', stopped_reason: 'error' };
             more = false;
         } finally {
-            await this.ai_columns.release(col, changes, computed, more);
+            await this.ai_columns.release(col, changes, computed, more, keep);
             if (written) {
                 this.notify_svc.ws_pr_send_to_fe({
                     client_id: _c.HORIZON_PRC_WS_CLIENT_ID,

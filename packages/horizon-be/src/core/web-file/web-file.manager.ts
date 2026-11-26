@@ -24,6 +24,7 @@ import {
     normalize_link_value
 } from './link';
 import { reusable_placeholder } from './column-placeholder';
+import { ai_cell_update } from './ai-cell-guard';
 
 // Where a row keeps its AI columns' state (#205, core/ai-column/ai-column.ts). Only the AI
 // column processor writes it: row writes from the app and the API drop it.
@@ -679,13 +680,36 @@ export class WebFileManager {
         const col_type_map = await this.get_col_type_map(acct_id, file_id);
         const formatted_row = this.format_row(data, col_type_map);
         const row_coll = await this._collections.get_dg_row(acct_id, file_id);
-        const res = await row_coll.findOneAndUpdate(
-            {
-                _id
-            },
-            { $set: formatted_row },
-            { returnDocument: 'after', includeResultMetadata: true }
-        );
+        // An AI cell the update changes is computed again (#205, ai-cell-guard.ts)
+        const projection = { [AI_ROW_STATE_KEY]: 1 };
+        Object.keys(formatted_row).forEach(k => (projection[k] = 1));
+        let res;
+        for (let attempt = 0; ; attempt++) {
+            const stored = await row_coll.findOne({ _id }, { projection });
+            const { unset, guard } = ai_cell_update(stored, formatted_row, AI_ROW_STATE_KEY);
+            const update: any = { $set: formatted_row };
+            if (unset.length > 0) {
+                update.$unset = Object.fromEntries(unset.map(path => [path, '']));
+            }
+            res = await row_coll.findOneAndUpdate({ ...guard, _id }, update, {
+                returnDocument: 'after',
+                includeResultMetadata: true
+            });
+            if ((res && res.value) || !stored || Object.keys(guard).length === 0) break;
+            if (attempt >= 2) {
+                // The processor kept writing the row: the update lands, and its AI cells are
+                // computed again
+                const all = Object.keys(stored[AI_ROW_STATE_KEY] || {})
+                    .filter(f => Object.prototype.hasOwnProperty.call(formatted_row, f))
+                    .map(f => [`${AI_ROW_STATE_KEY}.${f}`, '']);
+                res = await row_coll.findOneAndUpdate(
+                    { _id },
+                    { $set: formatted_row, $unset: Object.fromEntries(all) },
+                    { returnDocument: 'after', includeResultMetadata: true }
+                );
+                break;
+            }
+        }
 
         return res && res.value ? this.format_row_response(res.value, col_type_map) : null;
     }

@@ -160,7 +160,19 @@ function setup(
     const save = () =>
         svc.save(ACCT, { table: FILE, field: 'b', prompt: 'Classify', inputs: ['a'] });
     const claimed = () => ({ ...stored, full: true, dirty_ids: [] });
-    return { svc, rows, ai_client, ai_usage, ai_spend, manager, notify, usage, save, claimed };
+    return {
+        svc,
+        rows,
+        files,
+        ai_client,
+        ai_usage,
+        ai_spend,
+        manager,
+        notify,
+        usage,
+        save,
+        claimed
+    };
 }
 
 describe('AiColumnService routes', () => {
@@ -209,6 +221,7 @@ describe('AiColumnService processor', () => {
             expect.anything(),
             { state: 'done', stopped_reason: null },
             29,
+            false,
             false
         );
         expect(t.notify.ws_pr_send_to_fe).toHaveBeenCalledWith(
@@ -246,6 +259,7 @@ describe('AiColumnService processor', () => {
             expect.anything(),
             { state: 'stopped', stopped_reason: 'limit' },
             10,
+            false,
             false
         );
     });
@@ -293,11 +307,22 @@ describe('AiColumnService processor', () => {
             expect.anything(),
             { auto: false, state: 'idle', stopped_reason: null },
             0,
+            false,
             false
         );
         expect(settings_hash({ field: 'b', prompt: 'Classify', inputs: ['a'] }, 'string')).toBe(
             t.manager.fill.mock.calls[0][3]
         );
+    });
+
+    it('keeps the work it claimed while the table is locked', async () => {
+        const t = setup();
+        await t.save();
+        await t.svc.fill(ACCT, FILE, 'b');
+        (t.files[FILE] as any).locked = true;
+        await t.svc.run(t.claimed());
+        expect(t.ai_client.json).not.toHaveBeenCalled();
+        expect(t.manager.release).toHaveBeenLastCalledWith(expect.anything(), {}, 0, false, true);
     });
 
     it("drops a deleted table's AI columns", async () => {

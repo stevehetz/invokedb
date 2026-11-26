@@ -209,22 +209,37 @@ export class AiColumnManager {
 
     /**
      * A run is over. `more`: there's work left (the run's cap was reached), so the column is
-     * taken again on a later turn and the whole table looked at.
+     * taken again on a later turn and the whole table looked at. `keep`: the run did nothing
+     * (the account or table was locked), so the work it claimed is put back for a later turn.
      */
     async release(
         col: AiColumn,
         changes: Partial<Pick<AiColumn, 'state' | 'stopped_reason' | 'auto'>>,
         computed: number,
-        more: boolean
+        more: boolean,
+        keep = false
     ) {
         const cols = await this.collection();
+        const filter = { account_id: col.account_id, file_id: col.file_id, field: col.field };
+        await cols.updateOne(filter, {
+            $set: { ...changes, ...(more ? { pending: true, full: true } : {}) },
+            $unset: { lease_until: '' },
+            $inc: { computed: computed || 0 }
+        });
+        if (!keep || more) return;
+        const ids = Array.isArray(col.dirty_ids) ? col.dirty_ids : [];
+        if (col.full) {
+            await cols.updateOne(filter, { $set: { pending: true, full: true, dirty_ids: [] } });
+            return;
+        }
+        if (ids.length === 0) return;
+        await cols.updateOne(filter, {
+            $set: { pending: true },
+            $addToSet: { dirty_ids: { $each: ids } }
+        });
         await cols.updateOne(
-            { account_id: col.account_id, file_id: col.file_id, field: col.field },
-            {
-                $set: { ...changes, ...(more ? { pending: true, full: true } : {}) },
-                $unset: { lease_until: '' },
-                $inc: { computed: computed || 0 }
-            }
+            { ...filter, [`dirty_ids.${AI_COLUMN_LIMITS.max_dirty_ids}`]: { $exists: true } },
+            { $set: { full: true, dirty_ids: [] } }
         );
     }
 }

@@ -437,9 +437,10 @@ Filed as issues (labelled `agent-found`; the owner triages):
 - #184: the read-only state for over-the-cap accounts, and idle free accounts warned and
   deleted. Waits for the owner's decision.
 
-Not filed (at most three per run): drop `subscription_id` from `AccountUpdateDto`, the
-`subscription` table and `GET /subscription/plan-tiers` once #183 replaces them (can go with
-#183 or #129).
+#275 dropped `subscription_id` from `AccountUpdateDto` and `GET /subscription/plan-tiers`;
+`GET /auth/authorize` answers `plan: { id, name, internal }` from the plan constant, which the
+account menu shows. Still to go: the `subscription` table and `tracking:limits` (can go with
+#129).
 
 For #129 (Stripe): plans map to Stripe prices by id; the webhook sets the plan and the
 read-only state; no Stripe customer until the first upgrade; the downgrade, lapse and cancel

@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthService, authorize_plan } from './auth.service';
 import { AccountManager } from '@app/core/account/account.manager';
+import { PLAN_SUBSCRIPTIONS } from '@app/core/plan/plans';
 
 // uuid is ESM-only, which Jest can't load (AccountManager imports it)
 jest.mock('uuid', () => ({ v4: () => jest.requireActual('crypto').randomUUID() }));
@@ -61,7 +62,6 @@ function setup(
         account_manager,
         session_manager as any,
         email_manager as any,
-        {} as any,
         onboarding_manager as any,
         two_factor_service as any,
         { is_admin_account: jest.fn(async () => false) } as any
@@ -281,7 +281,6 @@ describe('AuthService.authorize', () => {
             none,
             none,
             none,
-            none,
             { is_admin_account: jest.fn(async () => false) } as any
         );
     }
@@ -291,6 +290,29 @@ describe('AuthService.authorize', () => {
             'internal_t'
         );
         expect(me).toEqual(expect.objectContaining({ id: 41, token: 'internal_t' }));
+    });
+
+    // The account menu's plan comes from the plan constant, not the subscription table (#275)
+    it('answers the plan from the plan constant', async () => {
+        const me = await with_account({
+            id: 41,
+            email: 'a@x.com',
+            deleted: false,
+            subscription_id: PLAN_SUBSCRIPTIONS.STARTER
+        }).authorize('internal_t');
+        expect(me.plan).toEqual({ id: 'STARTER', name: 'Starter', internal: false });
+        expect(me.subscription).toBeUndefined();
+    });
+
+    it('answers Free for an account without a subscription, and internal when uncapped', () => {
+        expect(authorize_plan({ email: 'a@x.com', subscription_id: null } as any)).toEqual({
+            id: 'FREE',
+            name: 'Free',
+            internal: false
+        });
+        expect(
+            authorize_plan({ email: 'a@x.com', subscription_id: null, internal: true } as any)
+        ).toEqual({ id: 'FREE', name: 'Free', internal: true });
     });
 
     it('answers null for a session of a deleted account', async () => {

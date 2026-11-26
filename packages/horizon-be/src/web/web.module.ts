@@ -7,7 +7,6 @@ import { AccountController } from '@app/web/http/account/account.controller';
 import { FileDirectoryController } from '@app/web/http/file-directory/file-directory.controller';
 import { WebFileController } from '@app/web/http/web-file/web-file.controller';
 import { ExternalV1Controller } from './http/external/external-v1.controller';
-import { SubscriptionController } from './http/subscription/subscription.controller';
 import { SupportController } from './http/support/support.controller';
 import { HealthController } from './http/health/health.controller';
 import { TableTemplateController } from './http/table-template/table-template.controller';
@@ -42,7 +41,6 @@ import { WebsocketClient } from './ws/websocket-client';
         WebFileController,
         ExternalV1Controller,
         AccountController,
-        SubscriptionController,
         SupportController,
         HealthController,
         TableTemplateController,

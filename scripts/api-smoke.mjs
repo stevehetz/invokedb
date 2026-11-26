@@ -121,6 +121,16 @@ await call('login_no_email', 'POST', '/auth/login', {
 });
 const me = await call('authorize', 'GET', `/auth/authorize?token=${token}`);
 check('authorize_has_no_api_key', me && !('api_key' in me), me);
+// The account menu's plan comes from the plan constant (#275)
+check(
+    'authorize_plan',
+    me &&
+        ['FREE', 'STARTER', 'PRO'].includes(me.plan?.id) &&
+        typeof me.plan?.name === 'string' &&
+        typeof me.plan?.internal === 'boolean' &&
+        !('subscription' in me),
+    me
+);
 // API keys (#138) are only shown when they're made, so the test makes a read-write key for every
 // table per account (me.api_key, other_me.api_key) and revokes them at the end
 const smoke_keys = [];
@@ -137,7 +147,7 @@ await call('confirm_reset_no_token', 'GET', '/auth/confirm-reset-token', { expec
 await call('unauth_web_file', 'POST', '/web-file/data_grid_row/1?skip=0&limit=1', {
     expectFail: true
 });
-await call('plan_tiers', 'GET', '/subscription/plan-tiers', { token });
+await call('plan_tiers_gone', 'GET', '/subscription/plan-tiers', { token, expectFail: true });
 
 // Upload a CSV and wait for the processor to finish
 const csv = 'name,age,joined\nalice,30,2020-01-02\nbob,41,2021-05-06\ncarol,25,2019-12-31\n';

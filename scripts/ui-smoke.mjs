@@ -1736,9 +1736,9 @@ try {
                 theme: document.documentElement.dataset.theme,
                 dark_class: document.documentElement.classList.contains('dark'),
                 stored: localStorage.getItem('invokedb:theme'),
-                // The header's background: one of the app's surfaces
-                header: getComputedStyle(document.querySelector('.layout > .header'))
-                    .backgroundColor
+                // The page's background (--h-bg), which follows the theme. Not the header: it
+                // stays slate in light mode too (#301)
+                page_bg: getComputedStyle(document.body).backgroundColor
             }));
         const lightness = rgb => {
             const [r, g, b] = (rgb.match(/\d+/g) || []).map(Number);
@@ -1763,22 +1763,22 @@ try {
 
         await choose('dark');
         const dark = await html_state();
-        results.observed.theme_dark = { ...dark, header: lightness(dark.header) < 0.3 };
+        results.observed.theme_dark = { ...dark, page_dark: lightness(dark.page_bg) < 0.3 };
         check(
             dark.theme === 'dark' && dark.dark_class,
             `dark theme not applied: ${JSON.stringify(dark)}`
         );
-        check(lightness(dark.header) < 0.3, `the header isn't dark: ${dark.header}`);
+        check(lightness(dark.page_bg) < 0.3, `the page isn't dark: ${dark.page_bg}`);
         check(await saved('dark'), 'the dark theme was not saved on the account');
 
         await choose('light');
         const light = await html_state();
-        results.observed.theme_light = { ...light, header: lightness(light.header) > 0.7 };
+        results.observed.theme_light = { ...light, page_light: lightness(light.page_bg) > 0.7 };
         check(
             light.theme === 'light' && !light.dark_class,
             `light theme not applied: ${JSON.stringify(light)}`
         );
-        check(lightness(light.header) > 0.7, `the header isn't light: ${light.header}`);
+        check(lightness(light.page_bg) > 0.7, `the page isn't light: ${light.page_bg}`);
 
         await choose(before);
         check(await saved(before), `the account's theme (${before}) was not put back`);

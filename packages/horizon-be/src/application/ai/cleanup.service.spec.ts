@@ -68,7 +68,12 @@ function setup(opts: { verified?: boolean; available?: boolean } = {}) {
         }),
         format_date_field: jest.fn(v => v)
     };
+    // Ids of rows a link column points at
+    const linked = new Set<string>();
     const web_file_svc = {
+        rows_linked_to: jest.fn(async (_acct, _file, ids: string[]) => {
+            return new Set(ids.map(id => id.toLowerCase()).filter(id => linked.has(id)));
+        }),
         batch_delete: jest.fn(async (_account, _file, _type, ids: string[]) => {
             ids.forEach(id => rows.delete(id));
             return ids.length;
@@ -119,6 +124,7 @@ function setup(opts: { verified?: boolean; available?: boolean } = {}) {
         svc,
         rows,
         add,
+        linked,
         ai_client,
         ai_spend,
         ask_service,
@@ -257,6 +263,64 @@ describe('CleanupService.delete_rows and restore_rows', () => {
             skipped: [other]
         });
         expect(await t.svc.restore_rows(ACCT, '11', { rows: [before] })).toEqual({ restored: 1 });
+    });
+
+    it('offers, deletes and restores duplicates on a table with a date column', async () => {
+        const t = setup();
+        t.web_file_manager.get_columns.mockResolvedValue([
+            { field: 'a', headerName: 'Name' },
+            { field: 'd', headerName: 'Joined', col_type: 'date' }
+        ]);
+        // As the grid shows dates, so the scan's rows aren't the stored ones
+        t.web_file_manager.format_date_field.mockImplementation(v => `shown ${v.toISOString()}`);
+        const joined = '2026-02-03T10:20:30.456Z';
+        t.add({ a: 'Ada', d: new Date(joined) });
+        t.add({ a: 'Ada', d: new Date(joined) });
+        // Same text, another date: not a duplicate
+        t.add({ a: 'Ada', d: new Date('2026-02-03T10:20:30.457Z') });
+        const scan = await t.svc.scan(ACCT, '11');
+        const dupes = scan.problems.find(p => p.kind === 'duplicate').delete.rows;
+        expect(dupes).toHaveLength(1);
+        const { _id, before } = dupes[0];
+        expect(before).toEqual({ a: 'Ada', d: joined });
+
+        // Changed since: skipped; as scanned (through JSON): deleted
+        const body = JSON.parse(JSON.stringify({ rows: [{ _id, before }] }));
+        t.rows.get(_id).d = new Date('2027-01-01T00:00:00Z');
+        expect(await t.svc.delete_rows(ACCT, '11', body)).toEqual({ deleted: [], skipped: [_id] });
+        t.rows.get(_id).d = new Date(joined);
+        expect(await t.svc.delete_rows(ACCT, '11', body)).toEqual({ deleted: [_id], skipped: [] });
+
+        // Undo writes the date back as a date
+        expect(await t.svc.restore_rows(ACCT, '11', { rows: [before] })).toEqual({ restored: 1 });
+        const data = t.web_file_svc.batch_create_internal.mock.calls[0][3];
+        expect(data[0].a).toBe('Ada');
+        expect(data[0].d).toBeInstanceOf(Date);
+        expect(data[0].d.toISOString()).toBe(joined);
+    });
+
+    it("doesn't offer or delete rows a link points at", async () => {
+        const t = setup();
+        t.add({ a: 'Ada', b: 'CA', c: 1 });
+        const linked = t.add({ a: 'Ada', b: 'CA', c: 1 });
+        const free = t.add({ a: 'Ada', b: 'CA', c: 1 });
+        t.linked.add(linked);
+        const scan = await t.svc.scan(ACCT, '11');
+        const dupes = scan.problems.find(p => p.kind === 'duplicate').delete.rows;
+        expect(dupes.map(r => r._id)).toEqual([free]);
+
+        // Linked since the scan: skipped
+        const before = { a: 'Ada', b: 'CA', c: 1 };
+        t.linked.add(free);
+        const res = await t.svc.delete_rows(ACCT, '11', {
+            rows: [
+                { _id: linked, before },
+                { _id: free.toUpperCase(), before }
+            ]
+        });
+        expect(res).toEqual({ deleted: [], skipped: [linked, free.toUpperCase()] });
+        expect(t.web_file_svc.batch_delete).not.toHaveBeenCalled();
+        expect(t.web_file_svc.rows_linked_to).toHaveBeenCalledWith(ACCT, 11, expect.any(Array));
     });
 
     it('refuses to delete rows of a table with link columns', async () => {

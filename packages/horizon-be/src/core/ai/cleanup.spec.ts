@@ -358,4 +358,63 @@ describe('cleanup: deleting and restoring rows', () => {
         const { problems } = scan_rules(rows as any, cols);
         expect(problems.find(p => p.kind === 'duplicate')).toBeUndefined();
     });
+
+    it('takes dates as values: duplicates on a table with a date column', () => {
+        const day = col('c', 'Joined', 'date');
+        const date_cols = [col('a', 'Name'), day];
+        const joined = '2026-02-03T10:20:30.456Z';
+        const stored = [
+            { _id: id(), a: 'Ada', c: new Date(joined) },
+            { _id: id(), a: 'Ada', c: new Date(joined) },
+            { _id: id(), a: 'Ada', c: new Date('2026-02-03T10:20:30.457Z') },
+            { _id: id(), a: 'Bob', c: null }
+        ];
+        // As the grid shows them (to the hundredth of a second): rows 1 and 2 look the same
+        const shown = stored.map(r => ({ ...r, c: r.c ? '2026-02-03 10:20:30:45 AM' : null }));
+        const p = find(scan_rules(shown, date_cols, true, { stored }).problems, 'duplicate');
+        expect(p.delete.rows).toEqual([
+            { _id: stored[1]._id, before: { a: 'Ada', c: joined }, duplicate_of: stored[0]._id }
+        ]);
+        // Compared as dates, with the cell as stored
+        const before = p.delete.rows[0].before;
+        expect(row_still_holds(stored[1], before, date_cols)).toBe(true);
+        expect(row_still_holds(stored[2], before, date_cols)).toBe(false);
+        expect(row_still_holds({ a: 'Ada', c: joined }, before, date_cols)).toBe(true);
+        expect(row_still_holds({ a: 'Ada', c: 'soon' }, before, date_cols)).toBe(false);
+        expect(row_still_holds({ a: 'Ada', c: null }, before, date_cols)).toBe(false);
+        // A date column's text that isn't a date is compared as it is
+        expect(row_still_holds({ c: 'soon' }, { c: 'soon' }, date_cols)).toBe(true);
+        // Undo writes a date column's date as a Date; other cells as they were
+        const [restored] = parse_restore_body(
+            { rows: [{ ...before, a: '2026-01-01' }] },
+            date_cols
+        );
+        expect(restored.a).toBe('2026-01-01');
+        expect(restored.c).toBeInstanceOf(Date);
+        expect((restored.c as Date).toISOString()).toBe(joined);
+        expect(parse_restore_body({ rows: [{ c: 'soon' }] }, date_cols)).toEqual([{ c: 'soon' }]);
+    });
+
+    it('offers no row a link points at, exact or near duplicate', () => {
+        const rows = [
+            { _id: id(), a: 'Ada', b: 36 },
+            { _id: id(), a: 'Ada', b: 36 },
+            { _id: id(), a: 'Ada', b: 36 }
+        ];
+        const linked = new Set([rows[1]._id.toUpperCase()]);
+        const scan = scan_rules(rows, cols, true, { linked });
+        expect(find(scan.problems, 'duplicate').delete.rows.map(r => r._id)).toEqual([rows[2]._id]);
+
+        const names = ['Ada', 'Ada L', 'Ada M', 'Bob'].map(a => ({ _id: id(), a, b: 36 }));
+        const near_scan = scan_rules(names, cols, true, { linked: new Set([names[1]._id]) });
+        const req = ai_request(names, cols, near_scan);
+        const answer = { spellings: [], near_duplicates: [{ rows: [0, 1, 2] }] };
+        const near = find(ai_problems(answer, req, names, cols, near_scan), 'near_duplicate');
+        expect(near.delete.rows.map(r => r._id)).toEqual([names[2]._id]);
+        // Every one linked: nothing offered
+        const all = new Set(rows.map(r => r._id));
+        expect(find(scan_rules(rows, cols, true, { linked: all }).problems, 'duplicate')).toBe(
+            undefined
+        );
+    });
 });

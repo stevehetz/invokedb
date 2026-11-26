@@ -403,7 +403,10 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   apply through `apply-edit`; duplicates through `delete-rows` (only rows still holding
   `before`), and Undo re-creates them with `restore-rows` (new ids). A table with columns the scan
   can't see (link columns, a second column of the same name; `sees_whole_rows`) gets no
-  duplicate checks, and `delete-rows` refuses it. Frontend:
+  duplicate checks, and `delete-rows` refuses it. Rows a link column of any of the account's
+  tables points at are never offered or deleted (`WebFileService.rows_linked_to`), since deleting
+  clears those links. A duplicate's `before` has dates as ISO strings, compared as dates, and
+  `restore-rows` writes them back as `Date`s. Frontend:
   `h-data-grid/cleanup-panel`, inside `ask-dialog`.
 - Email verification (#132): `account.email_verified` (migration marks every older account
   verified; Google/GitHub accounts are created verified). `src/core/email-verification/` has the

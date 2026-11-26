@@ -91,7 +91,17 @@ export class CleanupService {
         // Read before the question is reserved, so a failed read doesn't use one up
         const query = parse_row_query({ limit: CLEANUP_MAX_ROWS }, columns, CLEANUP_MAX_ROWS);
         const res = await this.web_file_manager.query_rows(acct_id, file.id, query);
-        const rows = this.edit_service.rows_by_field(res.docs.slice(0, CLEANUP_MAX_ROWS), columns);
+        const docs = res.docs.slice(0, CLEANUP_MAX_ROWS);
+        const rows = this.edit_service.rows_by_field(docs, columns);
+        // Rows a link points at aren't offered for deletion (deleting clears those links, and
+        // Undo makes a new row), so look them up when duplicates are checked at all
+        const linked = whole_rows
+            ? await this.web_file_svc.rows_linked_to(
+                  acct_id,
+                  file.id,
+                  docs.map(d => String(d._id))
+              )
+            : new Set<string>();
         const total = await this.web_file_manager.count_rows(
             acct_id,
             file.id,
@@ -99,7 +109,7 @@ export class CleanupService {
         );
 
         const month = await this.ask_service.reserve_question(account);
-        const scan = scan_rules(rows, columns, whole_rows);
+        const scan = scan_rules(rows, columns, whole_rows, { stored: docs, linked });
         const problems: CleanupProblem[] = [...scan.problems];
         const request = ai_request(rows, columns, scan);
         let ai: 'checked' | 'none' | 'failed' = 'none';
@@ -138,7 +148,7 @@ export class CleanupService {
 
     /**
      * Deletes duplicate rows the user ticked. Body: `{ rows: [{ _id, before }] }`; a row is
-     * deleted only if it still holds `before`. Answers `{ deleted: [ids], skipped: [ids] }`.
+     * deleted only if it still holds `before` and no link points at it. Answers `{ deleted: [ids], skipped: [ids] }`.
      */
     async delete_rows(acct_id: number, file_id: unknown, body: unknown) {
         const account = await this.account(acct_id);
@@ -160,12 +170,20 @@ export class CleanupService {
             file.id,
             rows.map(r => r._id)
         );
+        // Rows a link points at now are left alone, as the scan leaves them out
+        const linked = await this.web_file_svc.rows_linked_to(
+            acct_id,
+            file.id,
+            rows.map(r => r._id)
+        );
         const deleted: string[] = [];
         const skipped: string[] = [];
         rows.forEach(r => {
+            // Compared with the cells as stored (dates as dates, not as the grid shows them)
             const doc = docs.get(r._id);
-            const current = doc ? this.edit_service.rows_by_field([doc], columns)[0] : null;
-            if (current && row_still_holds(current, r.before)) deleted.push(r._id);
+            const ok =
+                doc && !linked.has(r._id.toLowerCase()) && row_still_holds(doc, r.before, columns);
+            if (ok) deleted.push(r._id);
             else skipped.push(r._id);
         });
         if (deleted.length > 0) {

@@ -235,6 +235,26 @@ export class WebFileService {
         }
     }
 
+    /**
+     * Which of `ids` (rows of `file_id`) a link column of any of the account's tables points at
+     * (the table's own included), lowercased.
+     */
+    async rows_linked_to(account_id, file_id, ids: string[]) {
+        const linked = new Set<string>();
+        if (!Array.isArray(ids) || ids.length === 0) return linked;
+        const files = await this.file_directory_svc.get_by_account_id(account_id);
+        for (const table of (files || []).filter(f => f.type === 'file')) {
+            const found = await this.web_file_manager.linked_row_ids(
+                account_id,
+                table.id,
+                file_id,
+                ids
+            );
+            found.forEach(id => linked.add(id));
+        }
+        return linked;
+    }
+
     transform_filters(filters) {
         if (!filters) return;
 

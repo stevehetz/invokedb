@@ -3929,18 +3929,27 @@ const cu_scan = await call('cleanup_scan', 'POST', `${cu_path}/cleanup`, { token
 ai_next_cleanup = { spellings: [], near_duplicates: [] };
 const cu_problem = kind => (cu_scan?.problems || []).find(p => p.kind === kind);
 const cu_calls = ai_requests.slice(cu_seen);
+// One whitespace problem per column (Email's comes first), so look through all of them
+const cu_name_spaces = (cu_scan?.problems || []).some(
+    p =>
+        p.kind === 'whitespace' &&
+        p.column?.field === cu_field.Name &&
+        p.edit?.rows?.some(r => r.after?.[cu_field.Name] === 'Ana Diaz')
+);
 check(
     'cleanup_scan_problems',
     cu_scan?.scanned === 8 &&
         cu_scan.ai === 'checked' &&
-        cu_problem('whitespace')?.edit?.rows?.some(r =>
-            Object.values(r.after).includes('Ana Diaz')
-        ) &&
+        cu_name_spaces &&
         cu_problem('email')?.count === 2 &&
         cu_problem('email')?.fixable === 1 &&
         cu_problem('email')?.edit?.rows?.[0]?.after?.[cu_field.Email] === 'ana@example.com' &&
         cu_problem('case')?.edit?.rows?.length === 1 &&
         cu_problem('duplicate')?.delete?.rows?.length === 1 &&
+        // The date column's cell, sent as an ISO string
+        /^2026-10-11T00:00:00(\.000)?Z$/.test(
+            cu_problem('duplicate')?.delete?.rows?.[0]?.before?.[cu_field.Joined]
+        ) &&
         cu_problem('spelling')?.source === 'ai' &&
         cu_problem('spelling')?.edit?.rows?.[0]?.after?.[cu_field.Status] === 'Waiting' &&
         cu_problem('near_duplicate')?.delete?.rows?.length === 1,

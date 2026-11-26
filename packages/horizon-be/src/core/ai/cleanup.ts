@@ -13,6 +13,7 @@
 // as the earlier fixes leave them: each fix's `after` is the cell with every fix up to it, and
 // its `before` is always the cell as stored. Picking several fixes of one cell, the app keeps
 // the last one's `after`.
+import { parse_utc_date } from '../date';
 import { QueryColumn } from '../web-file/row-query';
 import { AskError } from './ask';
 import { EditedRow, EditRow, same_value } from './edit';
@@ -533,9 +534,30 @@ function check_case(working: Working, col: QueryColumn) {
 // --- Exact duplicates ---
 
 function row_key(row: Row, columns: QueryColumn[]) {
-    const cells = columns.map(c => (is_empty(row[c.field]) ? null : row[c.field]));
+    const cells = columns.map(c => stored_value(row[c.field], c));
     if (cells.every(c => c === null)) return null;
     return JSON.stringify(cells);
+}
+
+function is_date(value: unknown): value is Date {
+    return value instanceof Date && !isNaN(value.getTime());
+}
+
+/**
+ * A cell as stored, as it's sent: empty as null, and a date column's date as an ISO string
+ * (a cell that isn't a valid date stays as it is).
+ */
+function stored_value(value: unknown, col: QueryColumn) {
+    if (is_empty(value)) return null;
+    if (col.type === 'date' && is_date(value)) return value.toISOString();
+    return value;
+}
+
+/** A date column's cell (a Date or a date's text) as a time, or null when it isn't a date. */
+function date_time(value: unknown) {
+    if (!is_date(value) && typeof value !== 'string') return null;
+    const date = parse_utc_date(value);
+    return isNaN(date.getTime()) ? null : date.getTime();
 }
 
 /** A cell as any column can hold it: text, a number, true/false or null. */
@@ -548,10 +570,10 @@ export function is_scalar(value: unknown) {
     );
 }
 
-/** The row's cells as stored, keyed by field (missing cells null). */
+/** The row's cells as stored, keyed by field (missing cells null, dates as ISO strings). */
 export function stored_cells(row: Row, columns: QueryColumn[]) {
     const cells: Record<string, unknown> = {};
-    columns.forEach(c => (cells[c.field] = is_empty(row[c.field]) ? null : row[c.field]));
+    columns.forEach(c => (cells[c.field] = stored_value(row[c.field], c)));
     return cells;
 }
 
@@ -581,11 +603,18 @@ function duplicate_problem(
     kind: 'duplicate' | 'near_duplicate',
     rows: Row[],
     columns: QueryColumn[],
-    dupes: { i: number; of: number; reason?: string }[]
+    dupes: { i: number; of: number; reason?: string }[],
+    scan: Pick<RuleScan, 'stored' | 'linked'>
 ): CleanupProblem | null {
+    const stored = scan.stored;
     // A row with an object or array in a cell couldn't be sent back to delete-rows (or
-    // restored by Undo) as it is, so it isn't offered
-    dupes = dupes.filter(d => Object.values(stored_cells(rows[d.i], columns)).every(is_scalar));
+    // restored by Undo) as it is, so it isn't offered; nor is a row a link points at, as
+    // deleting it would take it out of the link for good (Undo makes a new row)
+    dupes = dupes.filter(
+        d =>
+            !scan.linked.has(String(stored[d.i]._id).toLowerCase()) &&
+            Object.values(stored_cells(stored[d.i], columns)).every(is_scalar)
+    );
     if (dupes.length === 0) return null;
     const ai = kind === 'near_duplicate';
     return {
@@ -608,7 +637,7 @@ function duplicate_problem(
             rows: dupes.map(d => {
                 const out: DeleteRow = {
                     _id: String(rows[d.i]._id),
-                    before: stored_cells(rows[d.i], columns),
+                    before: stored_cells(stored[d.i], columns),
                     duplicate_of: String(rows[d.of]._id)
                 };
                 if (d.reason) out.reason = d.reason;
@@ -640,14 +669,34 @@ export interface RuleScan {
     structured: Set<string>;
     // Whether rows were checked for duplicates (exact here, near ones by the model)
     duplicates_checked: boolean;
+    // The rows as stored (dates as Date), in the order of the scan's rows
+    stored: Row[];
+    // Ids (lowercased) of rows a link points at, never offered for deletion
+    linked: Set<string>;
+}
+
+export interface ScanOptions {
+    // The rows as stored, keyed by field (dates as Date), in the same order; the scan's rows
+    // when left out
+    stored?: Row[];
+    // Ids of rows a link column (of any of the account's tables) points at
+    linked?: Set<string>;
 }
 
 /**
  * The checks in code, on rows in API form keyed by field (dates as the grid shows them), in the
  * order their fixes build on each other: spaces, emails, phones, numbers, dates, capitals; then
- * exact duplicates (on the rows as stored), unless `whole_rows` is false (sees_whole_rows).
+ * exact duplicates (on `options.stored`, the rows as stored), unless `whole_rows` is false
+ * (sees_whole_rows). Rows in `options.linked` are never offered for deletion.
  */
-export function scan_rules(rows: Row[], columns: QueryColumn[], whole_rows = true): RuleScan {
+export function scan_rules(
+    rows: Row[],
+    columns: QueryColumn[],
+    whole_rows = true,
+    options: ScanOptions = {}
+): RuleScan {
+    const stored = options.stored || rows;
+    const linked = new Set([...(options.linked || [])].map(id => String(id).toLowerCase()));
     const working = new Working(rows);
     const problems: CleanupProblem[] = [];
     const structured = new Set<string>();
@@ -677,14 +726,16 @@ export function scan_rules(rows: Row[], columns: QueryColumn[], whole_rows = tru
         }
     });
     text_cols.forEach(c => add(check_case(working, c)));
-    const dupes = whole_rows ? find_duplicates(rows, columns) : [];
-    add(duplicate_problem('duplicate', rows, columns, dupes));
+    const dupes = whole_rows ? find_duplicates(stored, columns) : [];
+    add(duplicate_problem('duplicate', rows, columns, dupes, { stored, linked }));
     return {
         problems,
         working,
         duplicates: new Set(dupes.map(d => d.i)),
         structured,
-        duplicates_checked: whole_rows
+        duplicates_checked: whole_rows,
+        stored,
+        linked
     };
 }
 
@@ -919,7 +970,7 @@ export function ai_problems(
         const reason = typeof g.reason === 'string' ? g.reason.slice(0, 200) : undefined;
         ns.slice(1).forEach(n => dupes.push({ i: n, of: ns[0], reason }));
     });
-    const near = duplicate_problem('near_duplicate', rows, columns, dupes);
+    const near = duplicate_problem('near_duplicate', rows, columns, dupes, scan);
     if (near) problems.push(near);
     return problems;
 }
@@ -980,13 +1031,24 @@ function parse_cells(raw: unknown, by_field: Map<string, QueryColumn>, where: st
 /**
  * Whether a row (cells keyed by field, as stored) still holds `before` exactly: the same value
  * of the same type, empty text and a missing cell counting as null. Not compared by column
- * type like an edit's `before`, since these cells needn't be of it.
+ * type like an edit's `before`, since these cells needn't be of it, except that in a date
+ * column (of `columns`) two dates, a Date or a date's text, are the same at the same time.
  */
-export function row_still_holds(row: Record<string, unknown>, before: Record<string, unknown>) {
+export function row_still_holds(
+    row: Record<string, unknown>,
+    before: Record<string, unknown>,
+    columns: QueryColumn[] = []
+) {
+    const dates = new Set(columns.filter(c => c.type === 'date').map(c => c.field));
     return Object.keys(before).every(f => {
         const a = row[f];
         const b = before[f];
         if (is_empty(a) || is_empty(b)) return is_empty(a) && is_empty(b);
+        if (dates.has(f)) {
+            const ta = date_time(a);
+            const tb = date_time(b);
+            if (ta !== null || tb !== null) return ta === tb;
+        }
         return a === b;
     });
 }
@@ -1021,10 +1083,20 @@ export function parse_delete_body(body: unknown, columns: QueryColumn[]) {
     });
 }
 
-/** Checks a request to put deleted rows back (Undo): `{ rows: [cells keyed by field] }`. */
+/**
+ * Checks a request to put deleted rows back (Undo): `{ rows: [cells keyed by field] }`. A date
+ * column's cell that reads as a date (the scan sends ISO strings) comes back as a Date, so it's
+ * written as a date again; anything else is kept as it was stored.
+ */
 export function parse_restore_body(body: unknown, columns: QueryColumn[]) {
     const by_field = new Map(columns.map(c => [c.field, c]));
-    return rows_of(body, '{ <field>: value }').map((row, i) =>
-        parse_cells(row, by_field, `rows[${i}]`)
-    );
+    return rows_of(body, '{ <field>: value }').map((row, i) => {
+        const cells = parse_cells(row, by_field, `rows[${i}]`);
+        Object.keys(cells).forEach(f => {
+            if (by_field.get(f).type !== 'date' || typeof cells[f] !== 'string') return;
+            const time = date_time(cells[f]);
+            if (time !== null) cells[f] = new Date(time);
+        });
+        return cells;
+    });
 }

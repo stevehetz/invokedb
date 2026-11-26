@@ -1567,6 +1567,11 @@ $nav_active_color: var(--h-chrome-text);
     width: 7px;
     cursor: col-resize;
 }
+.h-data-grid .ag-header-row:first-child {
+    // ag-grid stacks each header cell's content at z-index 1, which traps the column-type menu
+    // inside its row; the filter row comes after it, so it drew over the menu's top items
+    z-index: 2;
+}
 .h-data-grid .ag-header-row:last-child {
     height: 30px !important;
     top: 35px !important;
@@ -1741,8 +1746,11 @@ $nav_active_color: var(--h-chrome-text);
     top: 30px;
     left: 5px;
     border-radius: 3px;
-    background-color: #57a9a1;
+    background-color: var(--h-popper);
+    color: var(--h-popper-text);
+    box-shadow: 0 2px 8px var(--h-shadow);
     width: 120px;
+    overflow: hidden;
 }
 .h-data-grid .grid-header.edit .grid-header-type__menu.show {
     display: flex;
@@ -1751,7 +1759,7 @@ $nav_active_color: var(--h-chrome-text);
     padding: 4px 10px;
 }
 .h-data-grid .grid-header.edit .grid-header-type__menu .menu__item:hover {
-    background-color: #3e8e87;
+    background-color: var(--h-popper-hover);
 }
 .h-data-grid .grid-header.edit .menu__item .grid-header-type__menu__label {
     display: inline-block;

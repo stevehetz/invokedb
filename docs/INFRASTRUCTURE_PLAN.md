@@ -94,13 +94,10 @@ and tracking become ordinary tables.
 
 ## Free tier, paid plans and Stripe (#129, #137)
 
-- **Before Stripe comes back:** verify signatures on `/webhook/stripe` (it doesn't today), and
-  create new keys (the old ones are deliberately not rolled).
-- Trial state on the account: `trial_ends_at`, and the plan from Stripe webhooks as the source
-  of truth.
-- Enforce caps on the server (tables, rows, API calls/month) and show usage in the app.
-- Use Stripe Checkout + Customer Portal rather than custom billing pages. Upgrade `stripe` 8 to
-  current (HANDOFF step 6).
+Done (2026-11-26): the caps are enforced and shown (#183, #184), no trial (`docs/PRICING.md`
+3.3), and Stripe is back in #310 on the current SDK with new keys: Checkout and the Customer
+Portal, a signed webhook (`/billing/webhook`) whose plan is read from Stripe, never the browser.
+It's deployed with billing off until the business can take money (`docs/GO_LIVE.md`).
 
 ## Suggested order
 
@@ -108,7 +105,8 @@ and tracking become ordinary tables.
 2. ~~Decide on Postgres only.~~ Decided 2026-11-22: keep Mongo.
 3. Deploy (HANDOFF step 5) with Postgres and Mongo, the API and processor in separate
    containers. Live since 2026-11-22 (`deploy/`); off-site backups still to do.
-4. Stripe webhook signatures, then the trial and caps.
+4. ~~Stripe webhook signatures, then the trial and caps.~~ Done 2026-11-26 (caps #183/#184, no
+   trial, Stripe #310); live payments wait on `docs/GO_LIVE.md`.
 5. SSO (HANDOFF 5b) and polish for showing it off.
 
 ## Open questions

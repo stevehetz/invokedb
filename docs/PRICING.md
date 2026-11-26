@@ -442,6 +442,8 @@ Filed as issues (labelled `agent-found`; the owner triages):
 account menu shows. Still to go: the `subscription` table and `tracking:limits` (can go with
 #129).
 
-For #129 (Stripe): plans map to Stripe prices by id; the webhook sets the plan and the
-read-only state; no Stripe customer until the first upgrade; the downgrade, lapse and cancel
-rows of 3.4. To be added to #129 once the owner has decided.
+#129 (Stripe) shipped in #310 (2026-11-26): plans map to Stripe prices by **lookup key**
+(`core/billing/billing.ts`); the webhook sets the plan from the customer's subscriptions and
+`PlanStateService` works out the read-only state; no Stripe customer until the first upgrade;
+the downgrade, lapse (14-day grace) and cancel rows of 3.4. Off in production until the
+business is set up (`docs/GO_LIVE.md`).

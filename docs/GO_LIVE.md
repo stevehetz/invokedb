@@ -2,9 +2,11 @@
 
 _Started 2026-11-26._
 
-Paid plans (#129, PR #310) are built and work end to end in the Stripe **sandbox**. Taking real
-money needs a legal business with a bank account, verified in Stripe's live mode. This file
-tracks the owner's steps to get there, in order. Tick each box when it's done.
+Paid plans (#129, PR #310) are built, merged and deployed with billing **off** (no Stripe keys
+in production), and work end to end in the Stripe **sandbox** (`docs/HANDOFF.md`, "Stripe and
+going live"). Taking real money needs a legal business with a bank account, verified in
+Stripe's live mode. This file tracks the owner's steps to get there, in order. Tick each box
+when it's done. A session picking this up gives the owner only the next unticked step.
 
 The repo is public: keep personal and legal details (names, addresses, ID and account numbers,
 the lawyer's contact) out of this file and in the owner's own records.
@@ -23,16 +25,19 @@ the lawyer's contact) out of this file and in the owner's own records.
 
 ## Steps
 
-### 1. Talk to the lawyer
+### 1. Decide who forms the LLC
 
-- [ ] Decide who forms the new LLC: the lawyer, or the owner online (step 2).
-- [ ] Ask the lawyer to update the old **operating agreement** for the new LLC.
+- [x] The owner files it online (decided 2026-11-26).
+- [ ] Ask the lawyer to update the old **operating agreement** for the new LLC (step 4).
 
-### 2. Form the new LLC
+### 2. Form the new LLC (next)
 
-- [ ] File Articles of Organization for **InvokeDB, LLC** with the Ohio Secretary of State
-      (ohiobusinesscentral.gov; a one-time filing fee, no annual report or fee in Ohio). Name a
-      statutory agent with an Ohio address.
+- [ ] File Articles of Organization for **InvokeDB, LLC** with the Ohio Secretary of State:
+      sign in at ohiobusinesscentral.gov with an OH|ID account, start a Domestic Limited
+      Liability Company — Articles of Organization, enter the name, the owner as statutory agent
+      at an Ohio street address (no PO box; tick the agent's acceptance), a mailing address and
+      the effective date, sign as organizer, pay the one-time fee (about $99) and submit. No
+      annual report or fee in Ohio afterwards. Approval often takes a few business days.
 - [ ] Keep the filed Articles (PDF) and the new entity number in the owner's records.
 
 ### 3. Get an EIN

@@ -68,11 +68,8 @@ is merged and deployed unless it says otherwise. Details: `gh pr list --state me
 - **#184 shipped** (#280: read-only over-cap accounts, deleting idle free accounts).
 - **Open PRs:**
   - **#307** MCP server (above).
-  - **#310** Stripe billing (#129; replaces #153, closed): Checkout, Customer Portal, a signed
-    webhook that reads the plan from Stripe. Tested end to end in the Stripe sandbox
-    (2026-11-26). `needs-owner` (migration, `deploy/`); safe to merge before going live, since
-    billing stays off without keys. **Taking real money waits on the business:
-    `docs/GO_LIVE.md`** (new LLC, EIN, bank account, trademark renewal, then Stripe live mode).
+- **Billing shipped, off in production** (#129, **#310** merged 2026-11-26; replaced #153,
+  closed): see "Stripe and going live" below.
 - **Queue (`agent`):** #268 (E2E transient 502) and **#279** (delete an account's data on account
   deletion). #279 is still `agent-stuck` from when it waited on #280, which has merged: remove
   `agent-stuck` to let the agent retry it (its PR must open with `hold`: it deletes data).
@@ -96,6 +93,42 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
   (`scripts/ui-smoke.mjs`) runs **against production** only (`e2e.yml`: nightly 06:00 UTC and
   after each deploy, as `e2e@invokedb.com`; a failure sends Telegram, keeps a masked screenshot
   and starts repair). The frontend has no tests of its own.
+
+## Stripe and going live (2026-11-26)
+
+- **The code is done** (#310): Starter and Pro, monthly or yearly, through Stripe Checkout; the
+  Customer Portal to change plan, cancel or update the card; a signed webhook
+  (`POST /billing/webhook`) that re-reads the customer's subscriptions from Stripe and sets the
+  plan; the 14-day grace period on a failed payment; the subscription cancelled when grace ends
+  or the account is deleted. How it works: AGENTS.md ("Billing") and `docs/OPERATIONS.md`
+  ("Stripe"), which also has the dashboard setup steps.
+- **Production:** merged and deployed with **billing off**: `prod.env` has no Stripe keys yet,
+  so the upgrade buttons are hidden and `/billing/*` answers 503. Nothing else is needed until
+  the business can take money.
+- **Stripe sandbox:** a separate Stripe account named **InvokeDB** (not the owner's older
+  otam.vercel.app account; don't use that one's keys). In its sandbox: products InvokeDB
+  Starter and InvokeDB Pro with the four prices and their lookup keys
+  (`invokedb_starter_month`/`_year`, `invokedb_pro_month`/`_year`), the Customer Portal
+  (switching between the four prices; downgrades and cancels at the period end) and the
+  default retries (8 within 2 weeks, then cancel). Tax setup was skipped (decide before live).
+- **Testing locally:** the owner's `.env` has the sandbox `STRIPE_SECRET_KEY` and the
+  `STRIPE_WEBHOOK_SECRET` of the Stripe CLI (installed with Homebrew). Run `npm run dev`, then
+  forward webhooks without `stripe login`:
+  `stripe listen --api-key "$STRIPE_SECRET_KEY" --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,customer.subscription.paused,customer.subscription.resumed,invoice.paid,invoice.payment_failed --forward-to 127.0.0.1:8001/billing/webhook`
+  (this CLI version requires `--events`). Sign up a new account (the demo accounts are internal
+  and can't buy), Account → Get Starter, card `4242 4242 4242 4242`. Checked end to end
+  2026-11-26: the plan, caps and renewal date update within seconds, even with the events
+  arriving out of order.
+- **What blocks real money: the business.** The original InvokeDB, LLC (Ohio) was **dissolved
+  in 2021** and its bank account closed. The owner doesn't want to sell as a sole proprietor
+  (liability), so a **new LLC** comes first, then an EIN, an operating agreement and a business
+  bank account, then Stripe's live-mode verification and the live setup, then the site's
+  legal pages; the trademark renewal last. The checklist, in order: **`docs/GO_LIVE.md`**. The
+  owner files the LLC themselves (step 2) and will pick this up later in another session.
+- **For the session that picks this up:** ask where the owner is in `docs/GO_LIVE.md` and give
+  only the next step. Claude can't file, sign, pay, enter ID/bank details or pass Stripe's
+  identity checks; it can walk through each screen, then do the live Stripe setup (products,
+  portal, webhook endpoint) once the account is verified, and prepare the Terms/Privacy update.
 
 ## The cloud agent's queue (fixed 2026-11-25)
 
@@ -133,8 +166,11 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
 ## Decisions to respect
 
 - **Pricing direction** (2026-11-24): a **very limited free tier** so people can try it out,
-  then paid tiers through **Stripe, which comes back** (#129). Caps and prices come from the
-  pricing review (#137). This replaced "a trial instead of a free tier".
+  then paid tiers through **Stripe** (#129, shipped in #310, off until the business is set
+  up: `docs/GO_LIVE.md`). Caps and prices come from the pricing review (#137). This replaced
+  "a trial instead of a free tier".
+- **No selling as a sole proprietor** (2026-11-26): real payments wait for a new InvokeDB, LLC
+  (the old one was dissolved in 2021); the owner files it. Trademark renewal is done last.
 
 - **Pricing decided** (2026-11-25, `docs/PRICING.md`): Free / Starter $9 / Pro $29 with the
   caps of 3.2 (incl. audit log 7/30/90 days, per-key limits on paid tiers only), no trial,

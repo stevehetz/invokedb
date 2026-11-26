@@ -37,14 +37,6 @@
             </el-menu>
         </div>
         <div class="right">
-            <router-link
-                class="header-link help-link"
-                to="/help"
-                title="Help"
-                aria-label="Help"
-            >
-                <i class="header-icon fa fa-circle-question"></i>
-            </router-link>
             <!-- The account menu: everything about the account, at the top right -->
             <el-dropdown
                 class="account-menu"
@@ -106,6 +98,12 @@
                                 </button>
                             </span>
                         </li>
+                        <el-dropdown-item
+                            class="account-menu-help"
+                            command="help"
+                        >
+                            <i class="fa fa-circle-question"></i> Help
+                        </el-dropdown-item>
                         <el-dropdown-item
                             class="account-menu-contact"
                             command="contact"

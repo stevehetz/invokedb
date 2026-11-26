@@ -240,27 +240,6 @@ p {
 .layout > .header .right {
     display: flex;
 }
-.layout > .header .header-link {
-    color: var(--h-chrome-muted);
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin: 0 10px;
-    cursor: pointer;
-}
-.layout > .header a.header-link {
-    text-decoration: none;
-}
-.layout > .header .header-link:hover {
-    color: var(--h-chrome-text);
-}
-.layout > .header .header-link .header-icon {
-    margin-left: 0.5em;
-}
-.layout > .header .header-link *::selection {
-    background-color: transparent;
-}
 // The account menu at the top right: the avatar (the email's initial), the email and a caret;
 // highlighted while the Account page is open
 .layout > .header .right {

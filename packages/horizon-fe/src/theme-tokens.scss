@@ -184,6 +184,16 @@ $dark: (
     tier-4: #43437a
 );
 
+// In light mode the header and the tables pane's icon rail take $dark, then these on top: a
+// lighter slate than the dark theme's chrome (app-area.scss). The text tokens stay $dark's
+// (chrome-muted #b3b3b3 is 5.6:1 on chrome)
+$light-rail: (
+    chrome: #3c3f46,
+    chrome-line: #2f3137,
+    chrome-hover: #4d515a,
+    chrome-btn: #43464e
+);
+
 @mixin tokens($map) {
     @each $name, $value in $map {
         --h-#{$name}: #{$value};

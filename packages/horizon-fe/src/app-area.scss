@@ -22,6 +22,7 @@
 :root.app-area:not([data-theme='dark'])
     :is(.layout > .header, .h-tree > .left) {
     @include theme-tokens.tokens(theme-tokens.$dark);
+    @include theme-tokens.tokens(theme-tokens.$light-rail);
     @include theme-tokens.element-dark-surfaces;
     color-scheme: dark;
 }

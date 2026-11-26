@@ -120,12 +120,12 @@ jobs:
           fi
 
           # Candidates: open, labelled agent, not stuck or the owner's own task, and opened by the
-          # owner or filed by the agent as agent-found (#69). Either way the owner must have added
-          # the agent label (checked below), so the agent can't queue its own issues.
+          # owner or by the Claude app: agent-found follow-ups (#69) and the issues repair.yml opens
+          # for a failed CI/CD/E2E run (#311). Either way the owner must have added the agent label
+          # (checked below), so the agent can't queue its own issues.
           candidates=$(gh issue list -R "$R" --label agent --state open --limit 200 \
             --json number,author,labels --jq '[.[] |
-              select(.author.login == env.OWNER or
-                (.author.login == "app/claude" and (.labels | map(.name) | index("agent-found")))) |
+              select(.author.login == env.OWNER or .author.login == "app/claude") |
               select(.labels | map(.name) | (index("agent-stuck") or index("you")) | not) |
               .number] | sort')
           [ "$(jq length <<<"$candidates")" -gt 0 ] || { echo "The queue is empty"; exit 0; }

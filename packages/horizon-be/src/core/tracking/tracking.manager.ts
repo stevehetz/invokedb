@@ -14,6 +14,9 @@ import {
     quota_month,
     seconds_to_next_month
 } from '../plan/plans';
+import { quota_level_to_send, quota_levels_up_to, QuotaLevel } from '../plan/quota-alert';
+import { EmailManager } from '@app/email/email.manager';
+import { api_quota_tmpl } from '@app/email/api-quota.template';
 import env from '@app/env';
 
 // The reason of a lock this code sets on an account over its table cap (and only lifts that one)
@@ -64,13 +67,16 @@ interface Hold {
 export class TrackingManager {
     private readonly rate_limiter: KeyRateLimiter;
     private readonly storage_cache = new Map<number, { bytes: number; at: number }>();
+    // Quota emails being claimed and sent, off the API call's path (#274)
+    private readonly quota_alerts = new Set<Promise<void>>();
 
     constructor(
         private _collections: MongoDbCollections,
         @InjectRepository(Account)
         private readonly account_repository: Repository<Account>,
         @InjectRepository(FileDirectory)
-        private readonly file_directory_repository: Repository<FileDirectory>
+        private readonly file_directory_repository: Repository<FileDirectory>,
+        private readonly email_manager?: EmailManager
     ) {
         this.rate_limiter = new KeyRateLimiter(() => this.now());
     }
@@ -420,6 +426,53 @@ export class TrackingManager {
                 HttpStatus.TOO_MANY_REQUESTS
             );
         }
+
+        // The 80% and 100% emails (#274): only when the count reaches a level not yet marked
+        // on the month's document, and never awaited by the call
+        const level = plan.internal ? null : quota_level_to_send(doc.count, cap, doc.alerts);
+        if (level) {
+            const p: Promise<void> = this.send_quota_alert(account, plan, month, cap, level)
+                .catch(ex => console.error(`Quota email not sent: ${ex.message}`))
+                .finally(() => this.quota_alerts.delete(p));
+            this.quota_alerts.add(p);
+        }
+    }
+
+    /**
+     * Marks `level` (and the ones under it) as sent on the month's document in one atomic
+     * update that only matches while `level` isn't marked, so of parallel calls one sends it.
+     */
+    private async send_quota_alert(
+        account,
+        plan: AccountPlan,
+        month: string,
+        cap: number,
+        level: QuotaLevel
+    ) {
+        const c = await this.get_api_month_collection(account);
+        const res = await c.updateOne(
+            { _id: month as any, alerts: { $ne: level } },
+            { $addToSet: { alerts: { $each: quota_levels_up_to(level) } } }
+        );
+        if (!res || res.modifiedCount !== 1) return;
+        let email = account.email;
+        if (email === undefined && this.account_repository) {
+            const saved = await this.account_repository.findOneBy({ id: account.id });
+            email = saved && saved.email;
+        }
+        if (!email || !this.email_manager) return;
+        const { subject, body } = api_quota_tmpl(env.HORIZON_FE_PUB_HTTP_URL, {
+            level,
+            plan_name: plan.plan.name,
+            cap,
+            month
+        });
+        this.email_manager.send_html(email, subject, body);
+    }
+
+    /** Waits for the quota emails under way (tests). */
+    async quota_alerts_settled() {
+        await Promise.all([...this.quota_alerts]);
     }
 
     /** The account's `/api/v1` calls this UTC month. */

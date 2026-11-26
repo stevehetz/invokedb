@@ -125,7 +125,9 @@ export default {
             view_version: 0,
             view_icons: VIEW_TYPE_ICONS,
             // AI is on (#148, #149): shows "Ask" and "Generate rows"
-            ai_available: false
+            ai_available: false,
+            // How many of toolbar_order are folded into the More menu (fit_toolbar)
+            toolbar_tucked: 0
         };
     },
 
@@ -143,6 +145,10 @@ export default {
         this.ai_fields = new Set();
         // Fields the current view hides (#146); column_visible() leaves them hidden
         this.hidden_fields = new Set();
+        // fit_toolbar's observer of the top bar, its pending frame and its re-entry guard
+        this.toolbar_observer = null;
+        this.toolbar_frame = null;
+        this.fitting_toolbar = false;
         // While the table is locked waiting for a job (or after a failed load), a timer checks
         // the table's status and reloads it once it isn't PENDING (#190)
         this.pending_timer = null;
@@ -190,15 +196,25 @@ export default {
     mounted() {
         this.toast = this.$refs.grid_toast;
         this.setup_websocket_handler();
+        this.watch_toolbar();
     },
 
     beforeUnmount() {
+        if (this.toolbar_observer) this.toolbar_observer.disconnect();
+        if (this.toolbar_frame) cancelAnimationFrame(this.toolbar_frame);
         bus.$off('websocket:message', this.websocket_message);
         this.stop_pending_check();
     },
     /*** End: Mounted ***/
 
     computed: {
+        // The top bar's buttons, in the order they fold into the More menu when the bar
+        // doesn't fit (from the right); Views keeps its button and only drops its label
+        toolbar_order() {
+            const order = ['ask', 'forms', 'webhooks', 'api', 'views_label'];
+            return this.ai_available ? order : order.slice(1);
+        },
+
         // A kanban board or chart is shown instead of the grid
         other_view() {
             return !!this.current_view && this.current_view.type !== 'grid';
@@ -1117,9 +1133,59 @@ export default {
 
         // The top bar's More menu: room for table tools without widening the bar
         more_command(command) {
+            if (command === 'api') this.api_btn_clicked();
+            if (command === 'webhooks') this.webhooks_btn_clicked();
+            if (command === 'forms') this.forms_btn_clicked();
+            if (command === 'ask') this.ask_btn_clicked();
             if (command === 'history') this.history_btn_clicked();
             if (command === 'ai_columns') this.ai_columns_btn_clicked();
         },
+
+        /*** Start: Top bar fit (#297) ***/
+        // Is this top-bar button folded into the More menu?
+        tucked(name) {
+            const i = this.toolbar_order.indexOf(name);
+            return i !== -1 && i < this.toolbar_tucked;
+        },
+
+        // Refit whenever the bar or what's on it changes size: the pane is resized, or a
+        // button, the view's name or a message comes and goes
+        watch_toolbar() {
+            if (typeof ResizeObserver === 'undefined') return;
+            this.toolbar_observer = new ResizeObserver(() => {
+                if (this.toolbar_frame) return;
+                this.toolbar_frame = requestAnimationFrame(() => {
+                    this.toolbar_frame = null;
+                    this.fit_toolbar();
+                });
+            });
+            [this.$refs.top, this.$refs.top_left, this.$refs.top_info]
+                .filter(Boolean)
+                .forEach(el => this.toolbar_observer.observe(el));
+        },
+
+        // Shows every button, then folds them one at a time until the bar fits. It all
+        // happens before the browser paints, so nothing flickers; if even the folded bar is
+        // too wide, it still scrolls sideways (#226)
+        async fit_toolbar() {
+            const top = this.$refs.top;
+            if (!top || this.fitting_toolbar) return;
+            this.fitting_toolbar = true;
+            try {
+                this.toolbar_tucked = 0;
+                await this.$nextTick();
+                while (
+                    top.scrollWidth > top.clientWidth &&
+                    this.toolbar_tucked < this.toolbar_order.length
+                ) {
+                    this.toolbar_tucked++;
+                    await this.$nextTick();
+                }
+            } finally {
+                this.fitting_toolbar = false;
+            }
+        },
+        /*** End: Top bar fit ***/
 
         /*** Start: AI columns (#205) ***/
         ai_columns_btn_clicked() {

@@ -29,6 +29,7 @@ import { verify_email_tmpl } from '@app/email/verify-email.template';
 import { signup_attempt_tmpl } from '@app/email/signup-attempt.template';
 import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
 import { TwoFactorService } from '../two-factor/two-factor.service';
+import { AdminAccessService } from '../admin/admin-access.service';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -57,7 +58,8 @@ export class AuthService {
     private email_manager: EmailManager,
     private subscription_service: SubscriptionService,
     private onboarding_manager: OnboardingManager,
-    private two_factor_service: TwoFactorService
+    private two_factor_service: TwoFactorService,
+    private admin_access: AdminAccessService
   ) {}
 
     /**
@@ -116,7 +118,9 @@ export class AuthService {
                 token: session.token,
                 locked: account.locked,
                 locked_reason: account.locked_reason,
-                email_verified: is_verified(account)
+                email_verified: is_verified(account),
+                // Shows the admin area's link (#277); its routes check again on every call
+                admin: await this.admin_access.is_admin_account(account)
             };
 
             if (account.subscription_id) {

@@ -208,6 +208,8 @@ export interface PlanAccount {
     email?: string | null;
     email_verified?: boolean | null;
     subscription_id?: string | null;
+    // Put on no counted caps by an admin (#277)
+    internal?: boolean | null;
 }
 
 export interface TestPlan {
@@ -259,7 +261,8 @@ function test_plans(): Record<string, TestPlan> {
 
 export interface AccountPlan {
     plan: Plan;
-    // Not capped (INTERNAL_EMAILS): `caps` has Infinity for every counted cap
+    // Not capped (INTERNAL_EMAILS, or an admin's choice, #277): `caps` has Infinity for every
+    // counted cap
     internal: boolean;
     caps: PlanCaps;
 }
@@ -276,7 +279,10 @@ export function account_plan(
         return { plan, internal: false, caps: { ...plan.caps, ...test.caps } };
     }
     const plan = PLANS[plan_id_of(account?.subscription_id)];
-    if (account?.email_verified === true && INTERNAL_EMAILS.includes(email)) {
+    if (
+        account?.internal === true ||
+        (account?.email_verified === true && INTERNAL_EMAILS.includes(email))
+    ) {
         const caps: PlanCaps = { ...PLANS.PRO.caps };
         COUNTED_CAPS.forEach(k => ((caps as any)[k] = Infinity));
         caps.api_rate_per_second = Infinity;

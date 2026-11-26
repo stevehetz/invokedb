@@ -24,6 +24,8 @@ import { AuditController } from './http/audit/audit.controller';
 import { TwoFactorController } from './http/two-factor/two-factor.controller';
 import { AccountExportController } from './http/account-export/account-export.controller';
 import { PlanController, UsageController } from './http/plan/plan.controller';
+import { AdminController } from './http/admin/admin.controller';
+import { AdminGuard } from './http/admin/admin.guard';
 import { CoreModule } from '@app/core/core.module';
 import { WebsocketServer } from './ws/websocket-server';
 import { WebsocketClient } from './ws/websocket-client';
@@ -53,8 +55,15 @@ import { WebsocketClient } from './ws/websocket-client';
         TwoFactorController,
         AccountExportController,
         PlanController,
-        UsageController
+        UsageController,
+        AdminController
     ],
-    providers: [WebsocketServer, WebsocketClient, OnboardingInterceptor, ApiKeyUsageGuard]
+    providers: [
+        WebsocketServer,
+        WebsocketClient,
+        OnboardingInterceptor,
+        ApiKeyUsageGuard,
+        AdminGuard
+    ]
 })
 export class WebModule {}

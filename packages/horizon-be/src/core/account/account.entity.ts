@@ -49,4 +49,12 @@ export class Account {
     // (#132). Google and GitHub accounts, and accounts from before #132, are verified.
     @Column({ type: 'boolean', default: false })
     email_verified: boolean;
+
+    // When the account was made (#277); null for accounts from before that was recorded
+    @Column({ type: 'timestamp', nullable: true, default: () => 'current_timestamp' })
+    created_datetime: Date | null;
+
+    // Put on no counted caps by an admin (#277), like the INTERNAL_EMAILS (core/plan/plans.ts)
+    @Column({ type: 'boolean', default: false })
+    internal: boolean;
 }

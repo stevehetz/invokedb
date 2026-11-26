@@ -52,6 +52,46 @@
             >
         </div>
 
+        <!-- The MCP server (#305): how to connect an AI agent with a key -->
+        <div class="api-key-agents">
+            <h4>Use with AI agents</h4>
+            <p>
+                Connect Claude, Cursor or any MCP client to your tables with a
+                key. A read-only key can only read; a read and write key can
+                also add, change and delete rows, and every change shows in
+                History.
+            </p>
+            <div class="api-key-agents-url">
+                <span>Server URL</span>
+                <code>{{ mcp_url }}</code>
+            </div>
+            <el-radio-group
+                class="api-key-agents-setup"
+                v-model="agent_setup"
+                size="small"
+            >
+                <el-radio-button
+                    v-for="s in agent_setups"
+                    :key="s.value"
+                    :value="s.value"
+                    >{{ s.label }}</el-radio-button
+                >
+            </el-radio-group>
+            <div class="api-key-agents-snippet">
+                <pre>{{ agent_snippet }}</pre>
+                <el-button
+                    class="api-key-agents-copy"
+                    size="small"
+                    @click="copy_agent_snippet"
+                    >{{ agent_copied ? 'Copied' : 'Copy' }}</el-button
+                >
+            </div>
+            <p class="api-key-agents-note">
+                {{ agent_note }}
+                <router-link to="/help/agents">How it works</router-link>
+            </p>
+        </div>
+
         <div class="api-key-new" v-if="show_new">
             <div class="api-key-row">
                 <label for="api-key-name">Name</label>

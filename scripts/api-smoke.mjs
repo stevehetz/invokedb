@@ -2932,6 +2932,147 @@ await call(
     }
 );
 
+// The MCP server (#305): JSON-RPC over POST /mcp with the same API keys. The read-write key sees
+// every tool and table, the read-only key no write tools, the tasks-only key one table; a round
+// trip of create, query, update and delete; refusals come back as tool errors the agent reads.
+let mcp_id = 0;
+const mcp = (name, tok, method, params, opts = {}) =>
+    call(name, 'POST', '/mcp', {
+        token: tok,
+        body: { jsonrpc: '2.0', id: ++mcp_id, method, params },
+        ...opts
+    });
+const mcp_tool = async (name, tok, tool, args) =>
+    (await mcp(name, tok, 'tools/call', { name: tool, arguments: args }))?.result;
+const mcp_value = result => {
+    try {
+        return JSON.parse(result?.content?.[0]?.text);
+    } catch {
+        return undefined;
+    }
+};
+const mcp_init = await mcp('mcp_initialize', key, 'initialize', {
+    protocolVersion: '2025-06-18',
+    capabilities: {},
+    clientInfo: { name: 'smoke', version: '1' }
+});
+check(
+    'mcp_initialize_shape',
+    mcp_init?.result?.protocolVersion === '2025-06-18' &&
+        mcp_init?.result?.serverInfo?.name === 'invokedb' &&
+        !!mcp_init?.result?.capabilities?.tools,
+    mcp_init
+);
+await call('mcp_notification', 'POST', '/mcp', {
+    token: key,
+    body: { jsonrpc: '2.0', method: 'notifications/initialized' }
+});
+status_is('mcp_notification', 202);
+const tool_names = res => (res?.result?.tools || []).map(t => t.name);
+const rw_tools = tool_names(await mcp('mcp_tools_rw', key, 'tools/list', {}));
+const ro_tools = tool_names(await mcp('mcp_tools_ro', ro?.secret, 'tools/list', {}));
+check(
+    'mcp_tools_by_key',
+    rw_tools.includes('create_rows') &&
+        rw_tools.includes('delete_rows') &&
+        ro_tools.includes('query_rows') &&
+        !ro_tools.some(t => /create|update|delete/.test(t)),
+    { rw_tools, ro_tools }
+);
+const scoped_tables = mcp_value(
+    await mcp_tool('mcp_list_tables_scoped', scoped?.secret, 'list_tables', {})
+);
+check(
+    'mcp_list_tables_scoped',
+    scoped_tables?.tables?.length === 1 &&
+        scoped_tables.tables[0].name === 'smoke_link_tasks' &&
+        scoped_tables.tables[0].columns.some(c => c.name === 'Task'),
+    scoped_tables
+);
+const all_tables = mcp_value(await mcp_tool('mcp_list_tables', key, 'list_tables', {}));
+check(
+    'mcp_list_tables',
+    ['smoke_link_tasks', 'smoke_link_contacts'].every(n =>
+        (all_tables?.tables || []).some(t => t.name === n && typeof t.rows === 'number')
+    ),
+    all_tables
+);
+const described = mcp_value(
+    await mcp_tool('mcp_describe_table', key, 'describe_table', { table: 'smoke_link_tasks' })
+);
+check(
+    'mcp_describe_link',
+    (described?.columns || []).some(
+        c => c.name === 'Contact' && c.type === 'link' && c.links_to === 'smoke_link_contacts'
+    ),
+    described
+);
+const mcp_made = await mcp_tool('mcp_create_rows', key, 'create_rows', {
+    table: 'smoke_link_tasks',
+    rows: [{ Task: 'smoke_mcp' }]
+});
+check(
+    'mcp_create_rows_ok',
+    mcp_made?.isError === false && mcp_value(mcp_made)?.created === 1,
+    mcp_made
+);
+const mcp_found = mcp_value(
+    await mcp_tool('mcp_query_rows', key, 'query_rows', {
+        table: 'smoke_link_tasks',
+        filters: [{ column: 'Task', op: 'eq', value: 'smoke_mcp' }],
+        fields: ['Task']
+    })
+);
+const mcp_row = mcp_found?.data?.[0];
+check('mcp_query_finds_created', !!mcp_row?._id && mcp_row.Task === 'smoke_mcp', mcp_found);
+const mcp_updated = await mcp_tool('mcp_update_rows', key, 'update_rows', {
+    table: 'smoke_link_tasks',
+    rows: [{ _id: mcp_row?._id, Task: 'smoke_mcp_2' }]
+});
+check('mcp_update_rows_ok', mcp_updated?.isError === false, mcp_updated);
+const mcp_counted = mcp_value(
+    await mcp_tool('mcp_count_rows', key, 'count_rows', {
+        table: 'smoke_link_tasks',
+        filters: [{ column: 'Task', op: 'eq', value: 'smoke_mcp_2' }]
+    })
+);
+check('mcp_count_after_update', mcp_counted?.count === 1, mcp_counted);
+const mcp_ro_delete = await mcp_tool('mcp_ro_delete', ro?.secret, 'delete_rows', {
+    table: 'smoke_link_tasks',
+    ids: [mcp_row?._id]
+});
+check(
+    'mcp_ro_delete_refused',
+    mcp_ro_delete?.isError === true && /read-only/.test(mcp_ro_delete?.content?.[0]?.text),
+    mcp_ro_delete
+);
+const mcp_deleted = await mcp_tool('mcp_delete_rows', key, 'delete_rows', {
+    table: 'smoke_link_tasks',
+    ids: [mcp_row?._id]
+});
+check('mcp_delete_rows_ok', mcp_value(mcp_deleted)?.deleted === 1, mcp_deleted);
+const mcp_other = await mcp_tool('mcp_scoped_other_table', scoped?.secret, 'query_rows', {
+    table: 'smoke_link_contacts'
+});
+check(
+    'mcp_scoped_other_table_refused',
+    mcp_other?.isError === true && /No table/.test(mcp_other?.content?.[0]?.text),
+    mcp_other
+);
+const mcp_bad = await mcp_tool('mcp_bad_filter', key, 'query_rows', {
+    table: 'smoke_link_tasks',
+    filters: [{ column: 'Nope', op: 'eq', value: 1 }]
+});
+check('mcp_bad_filter_is_tool_error', mcp_bad?.isError === true, mcp_bad);
+const mcp_unknown = await mcp('mcp_unknown_tool', key, 'tools/call', { name: 'drop_everything' });
+check('mcp_unknown_tool_error', mcp_unknown?.error?.code === -32602, mcp_unknown);
+await mcp('mcp_no_key', undefined, 'tools/list', {}, { expectFail: true });
+status_is('mcp_no_key', 401);
+await mcp('mcp_session_token', token, 'tools/list', {}, { expectFail: true });
+status_is('mcp_session_token', 401);
+await call('mcp_get_stream', 'GET', '/mcp', { token: key, expectFail: true });
+status_is('mcp_get_stream', 405);
+
 // A table id that isn't one of the account's tables, bad bodies, and a key on the key routes
 await call('api_key_create_other_table', 'POST', '/api-key', {
     token,

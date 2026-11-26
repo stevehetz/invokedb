@@ -417,6 +417,71 @@
                     </p>
                 </section>
 
+                <!-- AI agents: the MCP server (#305) -->
+                <section v-if="topic.id === 'agents'">
+                    <h1>AI agents (MCP)</h1>
+                    <p>
+                        AI agents such as Claude, ChatGPT and Cursor can use
+                        your tables directly through InvokeDB's MCP server (the
+                        Model Context Protocol, the standard way agents connect
+                        to tools). Connect it with an API key and the agent sees
+                        your tables and works with their rows.
+                    </p>
+                    <h2>Connecting an agent</h2>
+                    <p>
+                        On the <b>Account</b> page, under <b>API Keys</b>, the
+                        <b>Use with AI agents</b> box has the server's address
+                        and the setup to paste. For Claude Code:
+                    </p>
+                    <pre><code>claude mcp add --transport http invokedb https://api.invokedb.com/mcp \
+  --header "Authorization: Bearer YOUR_API_KEY"</code></pre>
+                    <p>
+                        Cursor, VS Code and a project's <code>.mcp.json</code>
+                        take the same address and header as JSON; the Account
+                        page shows it.
+                    </p>
+                    <h2>What an agent can do</h2>
+                    <ul>
+                        <li>
+                            <b>list_tables</b> and <b>describe_table</b>: the
+                            tables the key can use, their columns and row
+                            counts.
+                        </li>
+                        <li>
+                            <b>query_rows</b> and <b>count_rows</b>: filters,
+                            sorting and paging, like the API's
+                            <code>/query</code>.
+                        </li>
+                        <li>
+                            <b>create_rows</b>, <b>update_rows</b> and
+                            <b>delete_rows</b>: only with a
+                            <b>Read and write</b> key, up to 100 rows a call.
+                        </li>
+                    </ul>
+                    <h2>Staying in charge</h2>
+                    <ul>
+                        <li>
+                            The key decides: a <b>Read only</b> key can't change
+                            anything, and a key limited to some tables doesn't
+                            see the others.
+                        </li>
+                        <li>
+                            Every change an agent makes is in the table's
+                            <b>History</b>, under the key's name, and fires your
+                            webhooks like any other change.
+                        </li>
+                        <li>
+                            Each tool call counts as one API call, against your
+                            plan's monthly calls and rate limit; a key's own
+                            limit and request log apply too.
+                        </li>
+                        <li>
+                            Give an agent its own key, so you can see what it
+                            did and revoke it on its own.
+                        </li>
+                    </ul>
+                </section>
+
                 <!-- Webhooks -->
                 <section v-if="topic.id === 'webhooks'">
                     <h1>Webhooks</h1>

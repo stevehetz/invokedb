@@ -40,6 +40,7 @@ import { ErrorTrackingService } from './error-tracking/error-tracking.service';
 import { StatusService } from './status/status.service';
 import { BillingService } from './billing/billing.service';
 import { stripe_client_provider } from './billing/stripe-client';
+import { McpService } from './mcp/mcp.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -81,7 +82,8 @@ import { stripe_client_provider } from './billing/stripe-client';
         ErrorTrackingService,
         StatusService,
         BillingService,
-        stripe_client_provider
+        stripe_client_provider,
+        McpService
     ],
     exports: [
         AuthService,
@@ -115,7 +117,8 @@ import { stripe_client_provider } from './billing/stripe-client';
         AdminService,
         ErrorTrackingService,
         StatusService,
-        BillingService
+        BillingService,
+        McpService
     ]
 })
 export class ApplicationModule {}

@@ -4303,6 +4303,60 @@ $page_nav_active_color: var(--h-warning);
     margin: 0 0 15px;
     color: var(--h-text-3);
 }
+// "Use with AI agents": the MCP server's URL and setup (#305)
+.account-page .api-key-form .api-key-agents {
+    margin: 0 0 18px;
+    padding: 14px 16px;
+    border: solid 1px var(--h-line);
+    border-radius: 6px;
+    background-color: var(--h-surface-2);
+}
+.account-page .api-key-form .api-key-agents h4 {
+    margin: 0 0 6px;
+    color: var(--h-text);
+}
+.account-page .api-key-form .api-key-agents p {
+    margin: 0 0 10px;
+    color: var(--h-text-3);
+}
+.account-page .api-key-form .api-key-agents-url {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    color: var(--h-muted);
+}
+.account-page .api-key-form .api-key-agents-url code {
+    color: var(--h-text);
+}
+.account-page .api-key-form .api-key-agents-snippet {
+    position: relative;
+    margin: 10px 0;
+}
+.account-page .api-key-form .api-key-agents-snippet pre {
+    margin: 0;
+    padding: 12px 14px;
+    padding-right: 80px;
+    border-radius: 5px;
+    background-color: var(--h-code-bg);
+    color: var(--h-code-text);
+    font-size: 13px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+.account-page .api-key-form .api-key-agents-copy {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+}
+.account-page .api-key-form .api-key-agents .api-key-agents-note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--h-muted);
+}
+.account-page .api-key-form .api-key-agents-note a {
+    color: var(--h-link);
+}
 .account-page .api-key-form .api-key-created,
 .account-page .api-key-form .api-key-new {
     margin-bottom: 20px;

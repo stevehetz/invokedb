@@ -11,6 +11,8 @@ const Home = () => import('@/components/home');
 const Account = () => import('@/components/account');
 const Docs = () => import('@/components/docs');
 const Guide = () => import('@/components/guide');
+// The admin area (#277): only admins see the link; the backend answers 404 to anyone else
+const Admin = () => import('@/components/admin');
 
 // Public site (marketing, login, signup)
 const SiteHome = () => import('@/view/pages/home');
@@ -72,6 +74,13 @@ const router = createRouter({
                             name: 'guide',
                             components: {
                                 page_overlay: Guide
+                            }
+                        },
+                        {
+                            path: 'admin',
+                            name: 'admin',
+                            components: {
+                                page_overlay: Admin
                             }
                         }
                     ]

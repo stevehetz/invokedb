@@ -1,0 +1,296 @@
+<div class="page admin-page">
+    <div class="page-body">
+        <div class="admin-head">
+            <h2>Admin</h2>
+            <div class="admin-tabs" v-if="!account_id">
+                <button
+                    type="button"
+                    :class="['admin-tab', { active: tab === 'overview' }]"
+                    @click="show_tab('overview')"
+                >
+                    Overview
+                </button>
+                <button
+                    type="button"
+                    :class="['admin-tab', { active: tab === 'accounts' }]"
+                    @click="show_tab('accounts')"
+                >
+                    Accounts
+                </button>
+            </div>
+        </div>
+
+        <account-detail
+            v-if="account_id"
+            :account_id="account_id"
+            @close="close_account"
+        ></account-detail>
+
+        <!-- Overview -->
+        <div class="admin-overview" v-else-if="tab === 'overview'">
+            <p class="admin-error" v-if="overview_error">
+                {{ overview_error }}
+            </p>
+            <p class="admin-loading" v-else-if="!overview">Loading…</p>
+            <template v-else>
+                <div class="admin-tiles">
+                    <div class="admin-tile">
+                        <div class="admin-tile__label">Accounts</div>
+                        <div class="admin-tile__value">
+                            {{ count_label(overview.accounts) }}
+                        </div>
+                        <div class="admin-tile__note">
+                            Free {{ overview.plans.FREE }} · Starter {{
+                            overview.plans.STARTER }} · Pro {{
+                            overview.plans.PRO }} · Internal {{
+                            overview.plans.INTERNAL }}
+                        </div>
+                    </div>
+                    <div class="admin-tile">
+                        <div class="admin-tile__label">Active</div>
+                        <div class="admin-tile__value">
+                            {{ count_label(overview.active.days_7) }}
+                        </div>
+                        <div class="admin-tile__note">
+                            in 7 days · {{ count_label(overview.active.days_30)
+                            }} in 30 days (signed in or called the API)
+                        </div>
+                    </div>
+                    <div class="admin-tile">
+                        <div class="admin-tile__label">Tables and rows</div>
+                        <div class="admin-tile__value">
+                            {{ count_label(overview.tables) }}
+                        </div>
+                        <div class="admin-tile__note">
+                            {{ count_label(overview.rows) }} rows · {{
+                            bytes_label(overview.storage_bytes) }} stored
+                        </div>
+                    </div>
+                    <div class="admin-tile">
+                        <div class="admin-tile__label">
+                            API calls this month
+                        </div>
+                        <div class="admin-tile__value">
+                            {{ count_label(overview.api_calls) }}
+                        </div>
+                        <div class="admin-tile__note">
+                            {{ overview.month }} (UTC)
+                        </div>
+                    </div>
+                    <div class="admin-tile">
+                        <div class="admin-tile__label">AI spend this month</div>
+                        <div class="admin-tile__value">
+                            {{ usd_label(overview.ai.spent_usd) }}
+                        </div>
+                        <div
+                            class="admin-tile__note"
+                            v-if="overview.ai.budget_usd"
+                        >
+                            of {{ usd_label(overview.ai.budget_usd) }} budget
+                            ({{ ai_percent }}%)
+                        </div>
+                        <div class="admin-tile__note" v-else>
+                            No budget set: AI is off
+                        </div>
+                        <el-progress
+                            v-if="overview.ai.budget_usd"
+                            :percentage="ai_percent"
+                            :status="ai_percent >= 100 ? 'exception' : ai_percent >= 80 ? 'warning' : ''"
+                            :show-text="false"
+                            :stroke-width="6"
+                        ></el-progress>
+                    </div>
+                    <div class="admin-tile">
+                        <div class="admin-tile__label">Plan caps</div>
+                        <div class="admin-tile__value">
+                            <a href="" @click.prevent="show_capped('over')"
+                                >{{ overview.over_caps }} at or over</a
+                            >
+                        </div>
+                        <div class="admin-tile__note">
+                            <a href="" @click.prevent="show_capped('near')"
+                                >{{ overview.near_caps }} near a cap</a
+                            >
+                        </div>
+                    </div>
+                    <div class="admin-tile">
+                        <div class="admin-tile__label">Production E2E test</div>
+                        <div
+                            :class="['admin-tile__value', 'e2e-' + overview.e2e.conclusion]"
+                        >
+                            <i
+                                :class="overview.e2e.conclusion === 'success' ? 'fa fa-circle-check' : overview.e2e.conclusion === 'unknown' ? 'fa fa-circle-question' : 'fa fa-circle-xmark'"
+                            ></i>
+                            {{ overview.e2e.conclusion }}
+                        </div>
+                        <div class="admin-tile__note">
+                            {{ time_label(overview.e2e.at) }}
+                            <a
+                                v-if="overview.e2e.url"
+                                :href="overview.e2e.url"
+                                target="_blank"
+                                rel="noopener"
+                                >run</a
+                            >
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-panel">
+                    <h3>
+                        Sign-ups per day, last 30 days ({{ signups_total }})
+                    </h3>
+                    <div
+                        class="signup-chart"
+                        role="img"
+                        :aria-label="'Sign-ups per day: ' + bars.map(b => b.day + ' ' + b.count).join(', ')"
+                    >
+                        <div
+                            class="signup-bar"
+                            v-for="b in bars"
+                            :key="b.day"
+                            :title="b.day + ': ' + b.count + ' sign-up' + (b.count === 1 ? '' : 's')"
+                        >
+                            <div
+                                class="signup-bar__fill"
+                                :style="{ height: b.percent + '%' }"
+                            ></div>
+                        </div>
+                    </div>
+                    <div class="signup-axis">
+                        <span>{{ bars.length ? bars[0].day : '' }}</span>
+                        <span
+                            >{{ bars.length ? bars[bars.length - 1].day : ''
+                            }}</span
+                        >
+                    </div>
+                    <p class="admin-note">
+                        Accounts made before the admin area have no sign-up
+                        date. Figures as of {{ time_label(overview.as_of) }};
+                        they're read again every few minutes.
+                    </p>
+                </div>
+            </template>
+        </div>
+
+        <!-- Accounts -->
+        <div class="admin-accounts" v-else>
+            <div class="admin-filters">
+                <el-input
+                    v-model="query.search"
+                    placeholder="Search email or id"
+                    clearable
+                    @input="search_changed"
+                    @clear="filter_changed"
+                ></el-input>
+                <el-select v-model="query.caps" @change="filter_changed">
+                    <el-option label="All accounts" value="all"></el-option>
+                    <el-option
+                        label="Over or near a cap"
+                        value="flagged"
+                    ></el-option>
+                    <el-option
+                        label="At or over a cap"
+                        value="over"
+                    ></el-option>
+                    <el-option label="Near a cap" value="near"></el-option>
+                </el-select>
+                <el-select v-model="query.plan" @change="filter_changed">
+                    <el-option label="Every plan" value=""></el-option>
+                    <el-option
+                        v-for="p in plans"
+                        :key="p.id"
+                        :label="p.label"
+                        :value="p.id"
+                    ></el-option>
+                </el-select>
+            </div>
+            <p class="admin-error" v-if="list_error">{{ list_error }}</p>
+            <div class="admin-table-wrap" v-if="list">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th v-for="c in columns" :key="c.key">
+                                <button
+                                    type="button"
+                                    class="admin-sort"
+                                    @click="sort_by(c.key)"
+                                >
+                                    {{ c.label }}
+                                    <i :class="sort_icon(c.key)"></i>
+                                </button>
+                            </th>
+                            <th>Verified</th>
+                            <th>2FA</th>
+                            <th>Caps</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="a in list.accounts"
+                            :key="a.id"
+                            :class="['admin-row', 'caps-' + cap_level(a), { locked: a.locked }]"
+                            @click="open_account(a.id)"
+                        >
+                            <td class="email">
+                                {{ a.email }}
+                                <span
+                                    v-if="a.locked"
+                                    class="admin-badge locked"
+                                    :title="a.locked_reason"
+                                    ><i class="fa fa-lock"></i> locked</span
+                                >
+                            </td>
+                            <td>{{ a.plan_name }}</td>
+                            <td>{{ date_label(a.created_at) }}</td>
+                            <td>{{ date_label(a.last_active_at) }}</td>
+                            <td class="num">{{ count_label(a.tables) }}</td>
+                            <td class="num">{{ count_label(a.rows) }}</td>
+                            <td class="num">
+                                {{ bytes_label(a.storage_bytes) }}
+                            </td>
+                            <td class="num">{{ count_label(a.api_calls) }}</td>
+                            <td class="num">{{ usd_label(a.ai_cost_usd) }}</td>
+                            <td>{{ a.verified ? 'Yes' : 'No' }}</td>
+                            <td>{{ a.two_factor ? 'On' : 'Off' }}</td>
+                            <td class="caps">
+                                <span
+                                    v-for="f in a.caps"
+                                    :key="f.limit"
+                                    :class="['admin-badge', f.level]"
+                                    ><i
+                                        :class="f.level === 'over' ? 'fa fa-circle-exclamation' : 'fa fa-triangle-exclamation'"
+                                    ></i>
+                                    {{ cap_label(f) }}</span
+                                >
+                            </td>
+                        </tr>
+                        <tr v-if="list.accounts.length === 0">
+                            <td :colspan="columns.length + 3" class="empty">
+                                No accounts match.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="admin-pager" v-if="list">
+                <el-button
+                    size="small"
+                    :disabled="query.page <= 1 || loading"
+                    @click="go_page(-1)"
+                    >Previous</el-button
+                >
+                <span
+                    >Page {{ list.page }} of {{ pages }} · {{
+                    count_label(list.total) }} accounts</span
+                >
+                <el-button
+                    size="small"
+                    :disabled="query.page >= pages || loading"
+                    @click="go_page(1)"
+                    >Next</el-button
+                >
+            </div>
+        </div>
+    </div>
+</div>

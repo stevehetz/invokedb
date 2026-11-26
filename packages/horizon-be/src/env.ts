@@ -71,7 +71,10 @@ const env = {
     HORIZON_AI_MODEL: process.env.HORIZON_AI_MODEL,
     // What the AI features may cost the whole server per UTC month, in US dollars
     // (docs/PRICING.md 3.5). Unset: the AI features are off.
-    HORIZON_AI_MONTHLY_BUDGET_USD: process.env.HORIZON_AI_MONTHLY_BUDGET_USD
+    HORIZON_AI_MONTHLY_BUDGET_USD: process.env.HORIZON_AI_MONTHLY_BUDGET_USD,
+    // The admin area (#277): a comma-separated allowlist of the admins' emails. Each one also
+    // needs a verified email and two-factor sign-in on. Unset or empty: nobody is an admin.
+    HORIZON_ADMIN_EMAILS: process.env.HORIZON_ADMIN_EMAILS
 };
 
 export default env;

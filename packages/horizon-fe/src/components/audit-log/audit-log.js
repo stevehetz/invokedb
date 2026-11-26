@@ -11,7 +11,9 @@ const PAGE_SIZE = 50;
 const ACTOR_ICONS = {
     user: 'fa fa-user',
     api_key: 'fa fa-key',
-    form: 'fa fa-list-alt'
+    form: 'fa fa-list-alt',
+    // InvokeDB support acting on the account (#277)
+    admin: 'fa fa-user-shield'
 };
 
 /** @param {any} ex @param {string} fallback */

@@ -63,7 +63,8 @@ function setup(
         email_manager as any,
         {} as any,
         onboarding_manager as any,
-        two_factor_service as any
+        two_factor_service as any,
+        { is_admin_account: jest.fn(async () => false) } as any
     );
     return {
         service,

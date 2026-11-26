@@ -25,16 +25,23 @@ export const AUDIT_ACTIONS = [
     'table.renamed',
     'table.deleted',
     'api_key.created',
-    'api_key.revoked'
+    'api_key.revoked',
+    // An admin's actions on the account (#277)
+    'admin.plan_changed',
+    'admin.locked',
+    'admin.unlocked',
+    'admin.verification_sent',
+    'admin.two_factor_reset',
+    'admin.account_deleted'
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export type AuditSource = 'app' | 'api' | 'form';
+export type AuditSource = 'app' | 'api' | 'form' | 'admin';
 
 // Who made a change: the signed-in user (by email), an API key (by name and prefix, never the
-// key), or a visitor through one of the account's forms
+// key), a visitor through one of the account's forms, or an admin (#277, by email)
 export interface AuditActor {
-    type: 'user' | 'api_key' | 'form';
+    type: 'user' | 'api_key' | 'form' | 'admin';
     label: string;
     key_id?: number;
     key_prefix?: string;
@@ -98,9 +105,15 @@ export function form_actor(form_id: string, form_name?: string): AuditActor {
     return { type: 'form', label: form_name ? `Form "${form_name}"` : 'A form', form_id };
 }
 
+/** An admin acting on someone's account (#277): shown in that account's history. */
+export function admin_actor(admin_email: string): AuditActor {
+    return { type: 'admin', label: `InvokeDB admin (${admin_email})` };
+}
+
 export function source_of(actor: AuditActor): AuditSource {
     if (actor.type === 'api_key') return 'api';
     if (actor.type === 'form') return 'form';
+    if (actor.type === 'admin') return 'admin';
     return 'app';
 }
 

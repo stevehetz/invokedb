@@ -319,6 +319,11 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `core/plan/idle.ts` (pure) and `application/plan/idle-account.service.ts` (hourly in the
   processor) send warnings at 5 months and a week before 6, then delete through
   `AccountDeletionService` (the account's Mongo DB, its tracking documents, its Postgres rows).
+  Deleting an account (the owner's or an admin's, `AccountService.delete_account`, #279) marks
+  it deleted, ends its sessions, then deletes everything at once through
+  `AccountDeletionService`; `DeletedAccountService` (hourly in the processor) finishes accounts
+  still marked deleted (older ones, failed deletions). A new store of account data goes in
+  `AccountDeletionService`'s lists (and `api-smoke.mjs`'s `SHARED_TRACKING`).
   Last sign-in is recorded by `SessionManager.create_session`, the last API call by
   `TrackingManager.update_req_count` (hourly). Paid, internal and soft-deleted accounts are
   never touched; without Mailgun (outside local mode) nobody is warned, so nobody is deleted.

@@ -9,7 +9,9 @@ export default {
         async on_click() {
             this.$bus.$emit('confirm-dialog:open', {
                 title: 'Delete Account',
-                message: 'Are you sure?',
+                message:
+                    'This deletes your account and all its tables, rows ' +
+                    "and settings at once. It can't be undone. Are you sure?",
                 callback: async () => {
                     await account_manager.delete_account(this.account.id);
                     await account_manager.logout();

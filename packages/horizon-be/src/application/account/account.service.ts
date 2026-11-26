@@ -7,6 +7,8 @@ import { AccountManager } from '@app/core/account/account.manager';
 import { AccountUpdateDto } from './dto/account-update.dto';
 import { AccountPassChangeDto } from './dto/account-pass-change.dto';
 import type { Theme } from '@app/core/theme/theme';
+import { AccountDeletionService } from './account-deletion.service';
+import logger from '@app/logger';
 
 @Injectable()
 export class AccountService {
@@ -16,7 +18,8 @@ export class AccountService {
         private readonly account_repository: Repository<Account>,
         @InjectRepository(Session)
         private readonly session_repository: Repository<Session>,
-        private account_manager: AccountManager
+        private account_manager: AccountManager,
+        private readonly deletion: AccountDeletionService
     ) {}
 
     async get(id) {
@@ -84,11 +87,24 @@ export class AccountService {
         this.before_delete = fn;
     }
 
-    /** Marks the account deleted and ends all its sessions, on every device (#282). */
+    /**
+     * Deletes the account and all its data at once (#279). First it's marked deleted and all its
+     * sessions end, on every device (#282), so it's unusable even if the rest fails; then
+     * AccountDeletionService removes its tables, tracking data and Postgres rows, the account
+     * row last. A deletion that fails half-way is finished by DeletedAccountService's sweep.
+     */
     async delete_account(account_id: number) {
         if (this.before_delete) await this.before_delete(account_id);
-        const res = await this.account_repository.update({ id: account_id }, { deleted: true });
+        await this.account_repository.update({ id: account_id }, { deleted: true });
         await this.session_repository.delete({ account_id });
-        return res;
+        try {
+            await this.deletion.delete_account(account_id);
+        } catch (ex) {
+            logger.error(
+                `Account ${account_id} marked deleted, but its data isn't deleted yet (the ` +
+                    `processor's sweep tries again): ${ex && ex.message}`
+            );
+        }
+        return { deleted: true };
     }
 }

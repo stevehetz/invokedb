@@ -4223,6 +4223,17 @@ $page_nav_active_color: var(--h-warning);
 .account-page .data-export-form .data-export-error {
     color: var(--h-danger);
 }
+.account-page .delete-account-form .form-body {
+    padding: 0 1em;
+}
+.account-page .delete-account-form .delete-account-intro {
+    margin: 0 0 15px;
+    max-width: 640px;
+    color: var(--h-text-3);
+}
+.account-page .delete-account-form .form-body .el-form-item {
+    padding: 0;
+}
 
 .account-page .api-key-form {
     margin-bottom: 20px;

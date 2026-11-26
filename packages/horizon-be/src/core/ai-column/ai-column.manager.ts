@@ -30,6 +30,11 @@ export interface AiColumn extends AiColumnSettings {
     dirty_ids?: string[];
     lease_until?: number;
     turn_at?: number;
+    // The work a run took (claim), kept until the run is over (release), so a run whose
+    // processor stopped is taken again with it once its lease is over
+    claimed?: boolean;
+    claimed_full?: boolean;
+    claimed_ids?: string[];
 }
 
 const PUBLIC = {
@@ -38,8 +43,56 @@ const PUBLIC = {
     full: 0,
     dirty_ids: 0,
     lease_until: 0,
-    turn_at: 0
+    turn_at: 0,
+    claimed: 0,
+    claimed_full: 0,
+    claimed_ids: 0
 };
+
+/**
+ * The update claim() makes: the waiting work (`full`, `dirty_ids`) joins the work a run that
+ * never ended left (`claimed_*`, only when `claimed`) into the run's fields, and the queue is
+ * emptied. Past max_dirty_ids the run looks at the whole table, as rows_changed() does.
+ */
+export function claim_pipeline(lease_until: number, now: number) {
+    const was_claimed = { $eq: ['$claimed', true] };
+    return [
+        {
+            $set: {
+                _prev_full: { $cond: [was_claimed, { $eq: ['$claimed_full', true] }, false] },
+                _prev_ids: { $cond: [was_claimed, { $ifNull: ['$claimed_ids', []] }, []] }
+            }
+        },
+        {
+            $set: {
+                claimed_full: { $or: ['$_prev_full', { $eq: ['$full', true] }] },
+                claimed_ids: { $setUnion: ['$_prev_ids', { $ifNull: ['$dirty_ids', []] }] }
+            }
+        },
+        {
+            $set: {
+                claimed_full: {
+                    $or: [
+                        '$claimed_full',
+                        { $gt: [{ $size: '$claimed_ids' }, AI_COLUMN_LIMITS.max_dirty_ids] }
+                    ]
+                }
+            }
+        },
+        {
+            $set: {
+                claimed_ids: { $cond: ['$claimed_full', [], '$claimed_ids'] },
+                claimed: true,
+                pending: false,
+                full: false,
+                dirty_ids: [],
+                lease_until,
+                turn_at: now
+            }
+        },
+        { $unset: ['_prev_full', '_prev_ids'] }
+    ];
+}
 
 // The AI columns of every account, in one collection of the tracking database shared by all
 // accounts: one document per table and column. Every read and write filters on account_id, but
@@ -55,6 +108,7 @@ export class AiColumnManager {
         if (!this.indexed) {
             await cols.createIndex({ account_id: 1, file_id: 1, field: 1 }, { unique: true });
             await cols.createIndex({ pending: 1 });
+            await cols.createIndex({ claimed: 1 });
             this.indexed = true;
         }
         return cols;
@@ -181,30 +235,32 @@ export class AiColumnManager {
 
     /**
      * The processor takes the next column with work waiting, of any account (the one read
-     * across accounts), and holds it for a while; the work it had is cleared, so changes made
-     * meanwhile wait for the next turn. The column whose last turn is oldest (or never was)
-     * goes first, so a big column doesn't keep the others waiting. Answers the column as it
-     * was, or null.
+     * across accounts), and holds it for a while. The waiting work moves into the run's own
+     * fields (`claimed_full`, `claimed_ids`), so changes made meanwhile wait for the next turn,
+     * and stays stored until release(): a column whose run never ended (its processor stopped)
+     * is taken again, with that work, once the lease is over. The column whose last turn is
+     * oldest (or never was) goes first, so a big column doesn't keep the others waiting.
+     * Answers the column with the run's work as `full` and `dirty_ids`, or null.
      */
     async claim(now: number): Promise<AiColumn | null> {
         const cols = await this.collection();
         const doc = await cols.findOneAndUpdate(
             {
-                pending: true,
-                $or: [{ lease_until: { $exists: false } }, { lease_until: { $lt: now } }]
+                $and: [
+                    { $or: [{ pending: true }, { claimed: true }] },
+                    { $or: [{ lease_until: { $exists: false } }, { lease_until: { $lt: now } }] }
+                ]
             },
-            {
-                $set: {
-                    pending: false,
-                    full: false,
-                    dirty_ids: [],
-                    lease_until: now + LEASE_MS,
-                    turn_at: now
-                }
-            },
-            { returnDocument: 'before', sort: { turn_at: 1 } }
+            claim_pipeline(now + LEASE_MS, now),
+            { returnDocument: 'after', sort: { turn_at: 1 } }
         );
-        return (doc as unknown as AiColumn) || null;
+        if (!doc) return null;
+        const col = doc as unknown as AiColumn;
+        return {
+            ...col,
+            full: !!col.claimed_full,
+            dirty_ids: Array.isArray(col.claimed_ids) ? col.claimed_ids.map(String) : []
+        };
     }
 
     /**
@@ -223,7 +279,7 @@ export class AiColumnManager {
         const filter = { account_id: col.account_id, file_id: col.file_id, field: col.field };
         await cols.updateOne(filter, {
             $set: { ...changes, ...(more ? { pending: true, full: true } : {}) },
-            $unset: { lease_until: '' },
+            $unset: { lease_until: '', claimed: '', claimed_full: '', claimed_ids: '' },
             $inc: { computed: computed || 0 }
         });
         if (!keep || more) return;

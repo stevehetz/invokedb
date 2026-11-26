@@ -281,7 +281,8 @@ describe('AuthService.authorize', () => {
             none,
             none,
             none,
-            none
+            none,
+            { is_admin_account: jest.fn(async () => false) } as any
         );
     }
 

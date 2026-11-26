@@ -972,7 +972,7 @@ $nav_active_color: var(--h-chrome-text);
     padding-left: 6px;
 }
 .h-data-grid .top .controls .el-button.is-disabled {
-    color: var(--h-faint);
+    color: var(--h-btn-disabled);
 }
 .h-data-grid .top .controls .control-box {
     display: flex;
@@ -1087,13 +1087,13 @@ $nav_active_color: var(--h-chrome-text);
 .h-data-grid .top .webhooks-button .el-button.is-disabled,
 .h-data-grid .top .forms-button .el-button.is-disabled,
 .h-data-grid .top .more-button .el-button.is-disabled {
-    color: var(--h-faint);
+    color: var(--h-btn-disabled);
 }
 .h-data-grid .top .api-button:hover .el-button.is-disabled,
 .h-data-grid .top .webhooks-button:hover .el-button.is-disabled,
 .h-data-grid .top .forms-button:hover .el-button.is-disabled,
 .h-data-grid .top .more-button:hover .el-button.is-disabled {
-    color: var(--h-faint);
+    color: var(--h-btn-disabled);
 }
 // The More menu (#217): icon only, so it barely widens the bar
 .h-data-grid .top .more-button .el-dropdown {

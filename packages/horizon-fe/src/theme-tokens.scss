@@ -85,6 +85,8 @@ $light: (
     btn-blue: #1a63ba,
     btn-purple: #5b4ccc,
     btn-white: #3a3a3a,
+    // Disabled buttons: not text, so not held to AA, but well apart from the enabled ones
+    btn-disabled: #b9b9c0,
     dialog-head: #ececf0,
     dialog-head-text: #1f1f1f,
     input-bg: #f5f5f5,
@@ -169,6 +171,7 @@ $dark: (
     btn-blue: #5aaeff,
     btn-purple: #a597ff,
     btn-white: #e8e8e8,
+    btn-disabled: #6b6b6b,
     dialog-head: #2f2f2f,
     dialog-head-text: #ffffff,
     input-bg: #1c1c1c,

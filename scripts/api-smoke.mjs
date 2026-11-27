@@ -42,7 +42,9 @@
 // monthly API quota with 429; demo6 on Starter; GET /usage matches and is the caller's own),
 // checks the read-only state (#184: demo5 moved from Pro to a tiny Free by the test-only
 // PUT /test-plan reads, exports and deletes, every write path refused with 403
-// `plan_read_only`, writable again once deleted down to the caps), then deletes the tables and the new account. Writes every response to out.json
+// `plan_read_only`, writable again once deleted down to the caps), checks that deleting an
+// account (its own or the admin's) deletes its data at once (#279: read from Mongo through the
+// backend's driver and HORIZON_ENV_FILE, and its email signs up again), then deletes the tables and the new account. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -50,6 +52,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:8001';
 const OUT = process.argv[3];
@@ -5169,16 +5172,135 @@ if (unv_dir) {
         body: { ids: [unv_dir] }
     });
 }
+// Deleting an account deletes its data at once (#279). What's left of an account in Mongo: its
+// own database, its tracking collections (`...:acct_<id>`) and its documents in the shared
+// tracking collections (AccountDeletionService's list). Read straight from Mongo, with the
+// backend's driver and the smoke env file's settings (HORIZON_ENV_FILE); without them the Mongo
+// checks are skipped (the re-signup below still shows the account row is gone).
+const SHARED_TRACKING = [
+    'tracking:url_source',
+    'tracking:webhook',
+    'tracking:webhook_delivery',
+    'tracking:form',
+    'tracking:view',
+    'tracking:audit',
+    'tracking:ai_usage',
+    'tracking:api_key_request',
+    'tracking:account_export',
+    'tracking:ai_column'
+];
+function smoke_env_value(name) {
+    const env_file = process.env.HORIZON_ENV_FILE;
+    if (process.env[name]) return process.env[name];
+    if (!env_file || !fs.existsSync(env_file)) return null;
+    const line = fs
+        .readFileSync(env_file, 'utf8')
+        .split('\n')
+        .filter(l => l.startsWith(`${name}=`))
+        .pop();
+    return line
+        ? line
+              .slice(name.length + 1)
+              .trim()
+              .replace(/^["']|["']$/g, '')
+        : null;
+}
+async function account_leftovers(account_id) {
+    const uri = smoke_env_value('HORIZON_MONGO_URI');
+    const db_name = smoke_env_value('HORIZON_MONGO_DB');
+    const tracking_uri = smoke_env_value('HORIZON_MONGO_TRACKING_URI') || uri;
+    const tracking_name = smoke_env_value('HORIZON_MONGO_TRACKING_DB');
+    if (!uri || !db_name || !tracking_name || !Number.isInteger(account_id)) return null;
+    let MongoClient;
+    try {
+        const be_require = createRequire(
+            new URL('../packages/horizon-be/package.json', import.meta.url)
+        );
+        ({ MongoClient } = be_require('mongodb'));
+    } catch {
+        return null;
+    }
+    const left = [];
+    const clients = [];
+    try {
+        const client = await MongoClient.connect(uri, { serverSelectionTimeoutMS: 5000 });
+        clients.push(client);
+        const dbs = await client.db().admin().listDatabases({ nameOnly: true });
+        const own = `${db_name}:acct_${account_id}`;
+        if (dbs.databases.some(d => d.name === own)) left.push(own);
+        const t_client =
+            tracking_uri === uri
+                ? client
+                : await MongoClient.connect(tracking_uri, { serverSelectionTimeoutMS: 5000 });
+        if (t_client !== client) clients.push(t_client);
+        const tracking = t_client.db(tracking_name);
+        const names = await tracking.listCollections({}, { nameOnly: true }).toArray();
+        for (const { name } of names) {
+            if (name.endsWith(`:acct_${account_id}`)) left.push(name);
+        }
+        for (const name of SHARED_TRACKING) {
+            const n = await tracking.collection(name).countDocuments({ account_id });
+            if (n) left.push(`${name} (${n})`);
+        }
+    } catch (ex) {
+        console.log(`      (Mongo not readable for the deletion checks: ${ex.message})`);
+        return null;
+    } finally {
+        for (const c of clients) await c.close().catch(() => {});
+    }
+    return left;
+}
+// Checks an account's data was there before it was deleted and is gone after
+async function check_account_data_gone(name, account_id, before) {
+    if (before === null) {
+        console.log(`skip --- ${name}_data_gone (no Mongo settings or driver)`);
+        return;
+    }
+    const after = await account_leftovers(account_id);
+    check(`${name}_data_there_before`, before.length > 0, before);
+    check(`${name}_data_gone`, Array.isArray(after) && after.length === 0, after);
+}
+// The account row is gone too: the same email signs up again as a new account (a deleted but
+// kept row would answer the same but make none, so the new password wouldn't sign in)
+async function check_email_free_again(name, email) {
+    const password = 'Again-pass1!';
+    await call(`${name}_signup_again`, 'POST', '/auth/create-account', {
+        body: { email, password }
+    });
+    const again = await call(`${name}_login_again`, 'POST', '/auth/login', {
+        body: { email, password }
+    });
+    check(`${name}_account_row_gone`, !!again?.token, results[`${name}_login_again`]);
+    if (!again?.token) return;
+    const again_me = await call(
+        `${name}_again_authorize`,
+        'GET',
+        `/auth/authorize?token=${again.token}`
+    );
+    if (again_me?.id) {
+        await call(`${name}_again_delete`, 'PUT', `/account/delete_account/${again_me.id}`, {
+            token: again.token
+        });
+    }
+}
+
 // Deleting an account ends all its sessions (#282): a second session, as from another device,
 // is refused at once on internal routes and `authorize` answers null for it
 const second_session = await call('deleted_account_second_login', 'POST', '/auth/login', {
     body: { email: signup_email, password: signup_password }
 });
 const second_token = second_session?.token;
+const unv_before_delete = await account_leftovers(unv_me?.id);
 if (unv_me?.id) {
     await call('unverified_delete_account', 'PUT', `/account/delete_account/${unv_me.id}`, {
         token: unv_token
     });
+    check(
+        'unverified_delete_account_answer',
+        results.unverified_delete_account?.data?.deleted === true,
+        results.unverified_delete_account
+    );
+    await check_account_data_gone('unverified_delete', unv_me.id, unv_before_delete);
 }
 await call('deleted_account_second_session', 'GET', '/file-directory', {
     token: second_token,
@@ -5204,6 +5326,8 @@ await call('deleted_account_first_session', 'GET', '/file-directory', {
     expectFail: true
 });
 await call('unverified_logout', 'GET', `/auth/logout?token=${unv_token}`);
+// One signup more per run (create-account allows 10 an hour per IP), so only here
+if (unv_me?.id) await check_email_free_again('unverified_delete', signup_email);
 check(
     'billing_deleted_account_cancelled',
     stripe_stub.cancelled.includes('sub_smoke_2') && !stripe_stub.cancelled.includes('sub_smoke_1'),
@@ -6470,10 +6594,13 @@ await call('admin_delete_unconfirmed', 'POST', `${adm_path}/delete`, {
     expectFail: true
 });
 check('admin_delete_unconfirmed_400', results.admin_delete_unconfirmed?.status === 400);
+const adm_before_delete = await account_leftovers(adm_id);
 await call('admin_delete', 'POST', `${adm_path}/delete`, {
     token: tf_token,
     body: { confirm: adm_email.toUpperCase() }
 });
+// The admin's delete is the user's own: the account's data goes at once (#279)
+if (adm_id) await check_account_data_gone('admin_delete', adm_id, adm_before_delete);
 await call('admin_deleted_detail', 'GET', adm_path, { token: tf_token, expectFail: true });
 check('admin_deleted_detail_404', results.admin_deleted_detail?.status === 404);
 await call('admin_deleted_session_ended', 'GET', '/file-directory', {

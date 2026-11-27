@@ -34,6 +34,7 @@ import { UsageService } from './plan/usage.service';
 import { PlanStateService } from './plan/plan-state.service';
 import { IdleAccountService } from './plan/idle-account.service';
 import { AccountDeletionService } from './account/account-deletion.service';
+import { DeletedAccountService } from './account/deleted-account.service';
 import { AdminAccessService } from './admin/admin-access.service';
 import { AdminService } from './admin/admin.service';
 import { ErrorTrackingService } from './error-tracking/error-tracking.service';
@@ -77,6 +78,7 @@ import { McpService } from './mcp/mcp.service';
         PlanStateService,
         IdleAccountService,
         AccountDeletionService,
+        DeletedAccountService,
         AdminAccessService,
         AdminService,
         ErrorTrackingService,

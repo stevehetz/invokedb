@@ -46,26 +46,40 @@
 
     <template v-if="!is_settings && !loading">
         <p class="link-intro">
-            The rows of <b>{{ props.column_name }}</b> this cell links to. Type
-            to search.
+            Pick the rows of <b>{{ table_name }}</b> this cell links to<span
+                v-if="display_name"
+            >
+                (shown by <b>{{ display_name }}</b>)</span
+            >. Type to search. Choose rows, then <b>Save</b>.
         </p>
-        <el-select
-            class="link-row-select"
-            v-model="chosen"
-            multiple
-            filterable
-            remote
-            :remote-method="search"
-            :loading="searching"
-            placeholder="Search rows"
-        >
-            <el-option
-                v-for="o in options"
-                :key="o._id"
-                :label="o.label"
-                :value="o._id"
-            ></el-option>
-        </el-select>
+        <!-- Room below the select for its row list, so the list never covers Save -->
+        <div class="link-pick">
+            <!-- Above the select: its open list would cover anything below it -->
+            <div class="link-status link-no-match" v-if="no_match">
+                {{ no_match_text }}
+            </div>
+            <el-select
+                class="link-row-select"
+                popper-class="link-row-popper"
+                placement="bottom-start"
+                v-model="chosen"
+                multiple
+                filterable
+                remote
+                :remote-method="search"
+                :loading="searching"
+                :no-data-text="no_match_text"
+                :no-match-text="no_match_text"
+                placeholder="Search rows"
+            >
+                <el-option
+                    v-for="o in options"
+                    :key="o._id"
+                    :label="o.label"
+                    :value="o._id"
+                ></el-option>
+            </el-select>
+        </div>
     </template>
 
     <div class="link-actions">

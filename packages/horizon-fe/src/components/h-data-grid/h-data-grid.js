@@ -71,6 +71,8 @@ const PENDING_CHECK_FIRST_MS = 5000;
 const PENDING_CHECK_MAX_MS = 60000;
 const ADD_ROW_MODE_ROW_COUNT = 4;
 const LOADING_MESSAGE_DELAY_MS = 400;
+// How long a click on a link cell waits for a second click before opening the picker (#320)
+const LINK_CLICK_DELAY_MS = 250;
 
 const ROW_INDEX_COLUMN = {
     order: '0',
@@ -143,6 +145,10 @@ export default {
         this.new_rows = [];
         // What link cells (#147) show: { field: { row id: label } }, from the row pages
         this.link_labels = {};
+        // A link cell's picker is open (a double-click's first click opens it)
+        this.link_picker_open = false;
+        // A single click on a link cell, waiting to see if it's a double-click
+        this.link_click_timer = null;
         // The table's AI columns (#205), by field
         this.ai_fields = new Set();
         // Fields the current view hides (#146); column_visible() leaves them hidden
@@ -204,6 +210,7 @@ export default {
     beforeUnmount() {
         if (this.toolbar_observer) this.toolbar_observer.disconnect();
         if (this.toolbar_frame) cancelAnimationFrame(this.toolbar_frame);
+        clearTimeout(this.link_click_timer);
         this.cancel_loading();
         bus.$off('websocket:message', this.websocket_message);
         this.stop_pending_check();
@@ -666,10 +673,28 @@ export default {
             }
         },
 
-        cell_clicked(e) {},
+        // A click on a link cell picks its rows (#320); a click on one of its chips opens the
+        // linked table instead (the chip's own handler). It opens a moment later, so that the
+        // second click of a double-click doesn't land on the dialog's overlay and close it;
+        // a double-click opens it at once.
+        cell_clicked(e) {
+            if (col_meta(e.colDef).col_type !== 'link') return;
+            const target = e.event && e.event.target;
+            if (target && target.closest && target.closest('.link-chip')) {
+                return;
+            }
+            clearTimeout(this.link_click_timer);
+            this.link_click_timer = setTimeout(() => {
+                this.link_click_timer = null;
+                this.pick_links(e);
+            }, LINK_CLICK_DELAY_MS);
+        },
 
         cell_double_clicked(e) {
-            if (col_meta(e.colDef).col_type === 'link') this.pick_links(e);
+            if (col_meta(e.colDef).col_type !== 'link') return;
+            clearTimeout(this.link_click_timer);
+            this.link_click_timer = null;
+            this.pick_links(e);
         },
         /*** End: AgGrid - event handlers ***/
 
@@ -685,7 +710,7 @@ export default {
         },
 
         // A link cell: one chip per linked row, labelled by its display column. Clicking a
-        // chip opens the linked table; double-clicking the cell picks its rows.
+        // chip opens the linked table; clicking the rest of the cell picks its rows.
         render_link_cell(params) {
             const cell = document.createElement('span');
             cell.className = 'link-cell';
@@ -716,7 +741,9 @@ export default {
             if (
                 this.edit_column_mode ||
                 this.table_lock ||
-                this.saving_columns
+                this.saving_columns ||
+                // Already open: the click before a double-click opened it
+                this.link_picker_open
             ) {
                 return;
             }
@@ -725,6 +752,8 @@ export default {
             if (this.add_row_mode && !is_new) return;
             const labels = this.link_labels[field] || {};
             const current = Array.isArray(e.data[field]) ? e.data[field] : [];
+            const meta = col_meta(e.colDef);
+            this.link_picker_open = true;
             this.$bus.$emit('container-dialog:open', {
                 title: `${e.colDef.headerName}: linked rows`,
                 props: {
@@ -732,11 +761,16 @@ export default {
                     file: this.file,
                     field,
                     column_name: e.colDef.headerName,
+                    link_table_id: meta.link_table_id,
+                    link_display_field: meta.link_display_field,
+                    on_cancel: () => (this.link_picker_open = false),
                     selected: current.map(id => ({
                         _id: id,
                         label: labels[id] || id
                     })),
                     on_save: async chosen => {
+                        // The modal dialog closes after this (or shows an error over the grid)
+                        this.link_picker_open = false;
                         const ids = chosen.map(c => c._id);
                         this.link_labels[field] = this.link_labels[field] || {};
                         chosen.forEach(

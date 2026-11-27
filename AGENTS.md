@@ -446,7 +446,11 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   count and by dollars, model prices, the server-wide budget and its Telegram alerts; unverified
   accounts get none) and the usage store (`ai-usage.manager.ts`, `tracking:ai_usage` per account,
   filter on `account_id`; `tracking:ai_server_usage` per month). Current models refuse a forced
-  `tool_choice`, so the first turn is `auto` and the prompt asks for the query. Routes are
+  `tool_choice`, so the first turn is `auto` and the prompt asks for the query. `run_query` may
+  read another of the caller's tables by name (`table`, #322, `resolve_ask_table` over
+  `get_by_account_id` only; the prompt lists up to 30 of them with their columns), and
+  `propose_rows` may carry the rows themselves (`AiService.given_rows`: `check_rows`, counted
+  as AI rows, no model call); rows and edits are only ever for the dialog's table. Routes are
   `GET /ai/status` and `POST /ai/ask` (session only). The model is never called in tests:
   `smoke-env.sh` points `ANTHROPIC_BASE_URL` at a stub on `127.0.0.1:8197` that `api-smoke.mjs`
   and `ui-smoke.mjs` start. The frontend's dialog is the grid's Ask button (`ask-dialog`).

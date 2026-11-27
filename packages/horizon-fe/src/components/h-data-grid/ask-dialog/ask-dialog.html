@@ -2,14 +2,16 @@
     <p class="ask-intro">
         Ask about <b>{{ table_name }}</b> in plain English, ask for new rows, or
         ask to change rows. A question becomes an API query that only reads the
-        table: you see the answer, the rows behind it and the API call. Rows you
-        ask for are made up to fit the columns and shown here first; nothing is
-        saved until you add them and click Save. A change ("title-case the
-        names") is shown row by row, before and after, and is made only when you
-        apply it. <b>Clean up</b> looks for duplicates, invalid emails and
-        inconsistent formats, and suggests fixes you review the same way.
-        <b>Paste text</b> turns an email, a PDF or a messy CSV into rows of this
-        table's columns, to review the same way as new rows.
+        table: you see the answer, the rows behind it and the API call. The AI
+        can also read your other tables ("add rows using the emails from
+        signups"), but it only ever changes this one. Rows you ask for are made
+        up to fit the columns, or taken from what it read, and shown here first;
+        nothing is saved until you add them and click Save. A change
+        ("title-case the names") is shown row by row, before and after, and is
+        made only when you apply it. <b>Clean up</b> looks for duplicates,
+        invalid emails and inconsistent formats, and suggests fixes you review
+        the same way. <b>Paste text</b> turns an email, a PDF or a messy CSV
+        into rows of this table's columns, to review the same way as new rows.
     </p>
 
     <div class="ask-row">
@@ -220,7 +222,7 @@
 
         <div v-if="result.api_call">
             <h4>
-                Rows
+                Rows from {{ rows_table_name }}
                 <span class="ask-count"
                     >{{ rows.length }} of {{ result.total }} matching</span
                 >

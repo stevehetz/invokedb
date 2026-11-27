@@ -107,6 +107,14 @@ export default defineComponent({
             );
         },
 
+        // The table the rows shown were read from (#322): this one, or another of the
+        // account's tables the AI read
+        /** @returns {string} */
+        rows_table_name() {
+            const t = this.result && this.result.table;
+            return t ? table_display_name(t) : this.table_name;
+        },
+
         /** @returns {string[]} */
         columns() {
             return (this.result && this.result.columns) || [];

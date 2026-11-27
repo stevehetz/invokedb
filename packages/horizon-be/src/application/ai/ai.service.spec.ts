@@ -260,6 +260,35 @@ describe('AiService', () => {
         expect(used()).toBe(5);
     });
 
+    it("checks and counts rows Ask's model gave itself (#322), with no model call", async () => {
+        const { svc, model, used, tracking_manager } = setup();
+        const account = { id: ACCT, subscription_id: 'SUB_FREE', email_verified: true };
+        const file = { id: 11 };
+        const res = await svc.given_rows(account, file, [
+            { Name: 'ada@example.com', Age: 36, Owner: ['x'], Extra: 'dropped' },
+            // Values of the wrong type are made null
+            { Name: 'bea@example.com', Age: 'old' },
+            // Nothing usable: left out, not counted
+            { Nope: 1 }
+        ]);
+        expect(res.rows).toEqual([
+            { a: 'ada@example.com', b: 36 },
+            { a: 'bea@example.com', b: null }
+        ]);
+        expect(res.columns.map(c => c.field)).toEqual(['a', 'b']);
+        expect(used()).toBe(2);
+        expect(res.usage.used).toBe(2);
+        expect(model.json).not.toHaveBeenCalled();
+        expect(tracking_manager.check_table_lock).toHaveBeenCalledWith(11);
+        // None usable: 400, nothing counted
+        expect(await status_of(svc.given_rows(account, file, [{ Nope: 1 }]))).toBe(400);
+        expect(used()).toBe(2);
+        // Over the month's rows: 429
+        const many = Array.from({ length: FREE_ROWS }, (_, i) => ({ Name: `p${i}` }));
+        expect(await status_of(svc.given_rows(account, file, many))).toBe(429);
+        expect(used()).toBe(2);
+    });
+
     it('splits a big request into several model calls', async () => {
         const { svc, model, used } = setup();
         const res = await svc.generate_rows(OTHER, 12, { prompt: 'x', count: 60 });

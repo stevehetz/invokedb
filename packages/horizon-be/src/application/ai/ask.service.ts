@@ -24,7 +24,9 @@ import {
     ASK_TOOL_NAME,
     AskError,
     AskQuery,
+    ASK_PROMPT_MAX_TABLES,
     PROPOSE_TOOL_NAME,
+    ProposeRequest,
     api_call,
     ask_columns,
     ask_system_prompt,
@@ -32,8 +34,10 @@ import {
     parse_ask_input,
     parse_propose_input,
     parse_question,
+    prompt_tables,
     propose_tool,
     reply_text,
+    resolve_ask_table,
     tool_result_content
 } from '@app/core/ai/ask';
 import {
@@ -55,10 +59,20 @@ import logger from '@app/logger';
 
 // A run_query call that ran: its body and what it returned
 interface RanQuery {
+    // The name of the table read (#322: the current one or another of the account's)
+    table: string;
     body: Record<string, unknown>;
     rows: any[];
     total: number;
     fields: string[];
+}
+
+// The tables a question's run_query calls can read (#322): the caller's own live tables only,
+// with the columns of those already looked up
+interface ReadableTables {
+    current: { id: number; name: string };
+    tables: { id: number; name: string }[];
+    known: Map<number, QueryColumn[]>;
 }
 
 export { AI_OFF_MESSAGE, AI_PAUSED_MESSAGE, AI_UNVERIFIED_MESSAGE };
@@ -192,6 +206,25 @@ export class AskService {
     }
 
     /**
+     * The account's live tables (#322), run_query's table input picks one of them, and the
+     * other ones (by name) with their columns, capped for the prompt. Only the caller's own.
+     */
+    private async account_tables(acct_id: number, current_id: number) {
+        const files = ((await this.file_directory_svc.get_by_account_id(acct_id)) || []).filter(
+            f => f && f.type === 'file' && !f.deleted && f.account_id === acct_id
+        );
+        const others = files
+            .filter(f => f.id !== current_id)
+            .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        const listed = [];
+        for (const t of others.slice(0, ASK_PROMPT_MAX_TABLES)) {
+            const columns = ask_columns(await this.web_file_manager.get_columns(acct_id, t.id));
+            listed.push({ name: t.name, columns });
+        }
+        return { tables: files, prompt: prompt_tables(listed, others.length) };
+    }
+
+    /**
      * Body: `{ table: <table id>, question }`. Returns `{ answer, rows, columns, total,
      * api_call: { method, url, body, curl } | null, usage }`.
      */
@@ -216,6 +249,15 @@ export class AskService {
 
         // Read before the question is reserved, so a failed read doesn't use one up
         const samples = await this.samples(acct_id, file.id, columns);
+        // The account's other tables (#322): the model may read them, never change them
+        const account_tables = await this.account_tables(acct_id, file.id);
+        const has_others = account_tables.tables.some(t => t.id !== file.id);
+        // What run_query can read: the account's tables, the current one's columns known
+        const readable: ReadableTables = {
+            current: file,
+            tables: account_tables.tables,
+            known: new Map([[file.id, columns]])
+        };
 
         const month = await this.reserve_question(account);
 
@@ -224,9 +266,10 @@ export class AskService {
             columns,
             samples,
             new Date(this.now()).toISOString().slice(0, 10),
-            edit_prompt_lines()
+            edit_prompt_lines(),
+            account_tables.prompt
         );
-        const tool = ask_tool(columns);
+        const tool = ask_tool(columns, has_others);
         const tools = [tool as any, propose_tool() as any, edit_tool(columns) as any];
         const messages: any[] = [{ role: 'user', content: question }];
         let last: RanQuery | null = null;
@@ -269,7 +312,7 @@ export class AskService {
                 const propose = calls.find(c => c.name === PROPOSE_TOOL_NAME);
                 let bad_propose = '';
                 if (propose) {
-                    let request: { prompt: string; count: number } | null = null;
+                    let request: ProposeRequest | null = null;
                     try {
                         request = parse_propose_input(propose.input);
                     } catch (ex) {
@@ -278,7 +321,14 @@ export class AskService {
                     }
                     if (request) {
                         try {
-                            proposal = await this.ai_service.preview_rows(account, file, request);
+                            // Rows the model gave (#322, from a table it read) are checked like
+                            // generated ones, with no second model call; always for this table
+                            proposal = request.rows
+                                ? await this.ai_service.given_rows(account, file, request.rows)
+                                : await this.ai_service.preview_rows(account, file, {
+                                      prompt: request.prompt,
+                                      count: request.count
+                                  });
                             const n = proposal.rows.length;
                             answer =
                                 `Here ${n === 1 ? 'is 1 new row' : `are ${n} new rows`} for you ` +
@@ -323,7 +373,7 @@ export class AskService {
                         });
                         continue;
                     }
-                    const res = await this.tool_result(acct_id, file.id, columns, call);
+                    const res = await this.tool_result(acct_id, readable, call);
                     if (res.ran) last = res.ran;
                     results.push(res.result);
                 }
@@ -349,7 +399,9 @@ export class AskService {
             rows: last ? last.rows : [],
             columns: last ? last.fields : [],
             total: last ? last.total : 0,
-            api_call: last ? api_call(base_url, file.name, last.body) : null,
+            // The table the rows are from (#322): this one or another the model read
+            table: last ? last.table : null,
+            api_call: last ? api_call(base_url, last.table, last.body) : null,
             // Rows to review (keyed by field) and their columns, or null
             proposed: proposal ? { rows: proposal.rows, columns: proposal.columns } : null,
             // An edit to review (#204): `{ summary, columns, rows: [{ _id, before, after }],
@@ -363,8 +415,7 @@ export class AskService {
     // Runs one run_query call of the model's, or tells it what was wrong with the input
     private async tool_result(
         acct_id: number,
-        file_id: number,
-        columns: QueryColumn[],
+        readable: ReadableTables,
         call: any
     ): Promise<{ result: any; ran: RanQuery | null }> {
         const error = (message: string) => ({
@@ -373,20 +424,37 @@ export class AskService {
         });
         if (call.name !== ASK_TOOL_NAME) return error(`Unknown tool: ${String(call.name)}`);
         let ask: AskQuery;
+        let table: { id: number; name: string };
         try {
+            // Another of the account's tables (#322), by name, or the current one
+            table = resolve_ask_table(call.input, readable.tables) || readable.current;
+            let columns = readable.known.get(table.id);
+            if (!columns) {
+                columns = ask_columns(await this.web_file_manager.get_columns(acct_id, table.id));
+                readable.known.set(table.id, columns);
+            }
+            if (columns.length === 0) {
+                throw new AskError(`The table ${JSON.stringify(table.name)} has no columns yet`);
+            }
             ask = parse_ask_input(call.input, columns);
         } catch (ex) {
             if (ex instanceof AskError) return error(ex.message);
             throw ex;
         }
-        const { rows, total } = await this.run(acct_id, file_id, ask);
+        const { rows, total } = await this.run(acct_id, table.id, ask);
         return {
             result: {
                 type: 'tool_result',
                 tool_use_id: call.id,
                 content: tool_result_content(total, rows)
             },
-            ran: { body: ask.body, rows, total, fields: ask.query.fields.map(c => c.name) }
+            ran: {
+                table: table.name,
+                body: ask.body,
+                rows,
+                total,
+                fields: ask.query.fields.map(c => c.name)
+            }
         };
     }
 }

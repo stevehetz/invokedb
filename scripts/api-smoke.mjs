@@ -3660,6 +3660,9 @@ const ai_requests = [];
 let ai_next_input = {};
 // The tool the stub calls first: run_query, or propose_rows to test asking for rows (#234)
 let ai_next_tool = 'run_query';
+// Or a script of tool calls (#322), `[{ name, input }]`: the stub makes the nth call once n
+// tool results are in the conversation, and answers as below after the last one
+let ai_next_script = null;
 // What the stub says each call used (a big number tests the cost cap)
 let ai_next_usage = { input_tokens: 50, output_tokens: 5 };
 // The stub's answer to a cleanup scan (#206): spellings and near-duplicate rows
@@ -3729,8 +3732,21 @@ const ai_stub = http.createServer((req, res) => {
             : null;
         // Generated rows and table designs (#148) ask for JSON in a schema
         const structured = !!body.output_config?.format;
+        const results_so_far = (body.messages || []).filter(
+            m => Array.isArray(m.content) && m.content.some(c => c.type === 'tool_result')
+        ).length;
+        const scripted = !structured && ai_next_script ? ai_next_script[results_so_far] : null;
         let content;
-        if (structured) {
+        if (scripted) {
+            content = [
+                {
+                    type: 'tool_use',
+                    id: `toolu_smoke_${ai_requests.length}`,
+                    name: scripted.name,
+                    input: scripted.input
+                }
+            ];
+        } else if (structured) {
             content = [{ type: 'text', text: JSON.stringify(ai_stub_json(body)) }];
         } else if (!result) {
             content = [
@@ -3755,7 +3771,7 @@ const ai_stub = http.createServer((req, res) => {
                 role: 'assistant',
                 model: body.model,
                 content,
-                stop_reason: structured || result ? 'end_turn' : 'tool_use',
+                stop_reason: content[0].type === 'tool_use' ? 'tool_use' : 'end_turn',
                 stop_sequence: null,
                 usage: ai_next_usage
             })
@@ -3796,7 +3812,12 @@ check(
         ai_turns[0].body.output_config?.effort === 'low' &&
         ai_turns[0].body.tool_choice?.type === 'auto' &&
         String(ai_turns[0].body.system).includes('smoke_people') &&
-        ai_turns[0].body.tools?.[0]?.input_schema?.properties?.fields?.items?.enum?.includes('age'),
+        String(ai_turns[0].body.system).includes('"age" (') &&
+        // With other tables (#322) column names are plain strings and table picks one
+        (ai_turns[0].body.tools?.[0]?.input_schema?.properties?.fields?.items?.enum?.includes(
+            'age'
+        ) ||
+            ai_turns[0].body.tools?.[0]?.input_schema?.properties?.table?.type === 'string'),
     ai_turns.map(r => ({
         path: r.path,
         model: r.body.model,
@@ -4104,6 +4125,99 @@ check(
     'gen_ask_saves_nothing',
     (await gen_count('gen_rows_after_ask', file_id)) === gen_rows_before + 10
 );
+
+// Reading the account's other tables (#322): asked on smoke_people, the model reads the emails
+// of another of demo's tables with run_query's table, then proposes rows with them in
+// propose_rows' rows. The answer shows that table's rows and API call and the proposed rows
+// (checked against smoke_people's columns, counted as AI rows, not saved). A table of another
+// account (demo2's) can't be read: its name is a tool error, and nothing of it comes back.
+const xt_name = 'smoke_ai_signups';
+const xt_table = await call('ask_other_table_create', 'POST', '/table-template/waitlist', {
+    token,
+    body: { name: xt_name }
+});
+const xt_emails = (
+    (
+        await call('ask_other_table_emails', 'POST', `/api/v1/query?table=${xt_name}`, {
+            token: key,
+            body: { fields: ['Email'], limit: 3 }
+        })
+    )?.data || []
+).map(r => r.Email);
+check('ask_other_table_has_emails', xt_emails.length === 3, xt_emails);
+ai_next_script = [
+    { name: 'run_query', input: { table: xt_name.toUpperCase(), fields: ['Email'], limit: 3 } },
+    {
+        name: 'propose_rows',
+        input: { description: 'people from the signups', rows: xt_emails.map(e => ({ name: e })) }
+    }
+];
+const xt_seen = ai_requests.length;
+const xt_ask = await call('ask_other_table', 'POST', '/ai/ask', {
+    token,
+    body: { table: file_id, question: `add rows using the emails from ${xt_name}` }
+});
+ai_next_script = null;
+const xt_turns = ai_requests.slice(xt_seen).filter(r => !r.body.output_config?.format);
+const xt_result = xt_turns[1]?.body?.messages?.at(-1)?.content?.[0];
+const xt_name_field = (xt_ask?.proposed?.columns || []).find(c => c.name === 'name')?.field;
+check(
+    'ask_other_table_reads_and_proposes',
+    xt_turns.length === 2 &&
+        String(xt_turns[0].body.system).includes(`"${xt_name}": "Email" (string)`) &&
+        xt_result?.is_error !== true &&
+        xt_emails.every(e => String(xt_result?.content).includes(e)) &&
+        xt_ask?.table === xt_name &&
+        JSON.stringify((xt_ask?.rows || []).map(r => r.Email)) === JSON.stringify(xt_emails) &&
+        xt_ask?.api_call?.url === `${BASE}/api/v1/query?table=${xt_name}` &&
+        xt_ask?.proposed?.rows?.length === 3 &&
+        !!xt_name_field &&
+        JSON.stringify(xt_ask.proposed.rows.map(r => r[xt_name_field])) ===
+            JSON.stringify(xt_emails) &&
+        xt_ask?.rows_usage?.used === (gen_ask?.rows_usage?.used ?? -99) + 3,
+    { xt_ask, xt_result }
+);
+check(
+    'ask_other_table_saves_nothing',
+    (await gen_count('ask_other_table_rows_after', file_id)) === gen_rows_before + 10
+);
+// demo2's table, by its name: refused like an unknown table
+const xt_other = await call('ask_theirs_login', 'POST', '/auth/login', {
+    body: { email: 'demo2@invokedb.com', password: 'password' }
+});
+const xt_theirs = await call('ask_theirs_table_create', 'POST', '/table-template/waitlist', {
+    token: xt_other.token,
+    body: { name: 'smoke_ai_theirs' }
+});
+ai_next_script = [{ name: 'run_query', input: { table: 'smoke_ai_theirs' } }];
+const xt_theirs_seen = ai_requests.length;
+const xt_theirs_ask = await call('ask_theirs_table', 'POST', '/ai/ask', {
+    token,
+    body: { table: file_id, question: 'what is in smoke_ai_theirs?' }
+});
+ai_next_script = null;
+const xt_theirs_result = ai_requests.slice(xt_theirs_seen)[1]?.body?.messages?.at(-1)?.content?.[0];
+check(
+    'ask_theirs_table_refused',
+    xt_theirs_result?.is_error === true &&
+        String(xt_theirs_result.content).includes('no table named') &&
+        !String(xt_theirs_result.content).includes('@example.com') &&
+        !String(ai_requests[xt_theirs_seen]?.body?.system).includes('smoke_ai_theirs') &&
+        xt_theirs_ask?.api_call === null &&
+        xt_theirs_ask?.table === null &&
+        Array.isArray(xt_theirs_ask?.rows) &&
+        xt_theirs_ask.rows.length === 0,
+    { xt_theirs_ask, xt_theirs_result }
+);
+await call('ask_theirs_table_delete', 'POST', '/file-directory/batch_delete', {
+    token: xt_other.token,
+    body: { ids: [xt_theirs] }
+});
+await call('ask_theirs_logout', 'GET', `/auth/logout?token=${xt_other.token}`);
+await call('ask_other_table_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [xt_table] }
+});
 
 // Editing rows in Ask AI (#204): the model calls propose_edit (two rows by _id, " (edited)"
 // added to their names); the answer previews them before and after, nothing changes until

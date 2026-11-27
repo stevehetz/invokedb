@@ -35,6 +35,16 @@ const ROWS = [
     { _id: new ObjectId(), a: 'Desk', b: 250 }
 ];
 
+// The rows of another of the account's tables (#322), "Signups"
+const SIGNUPS = [
+    { _id: new ObjectId(), e: 'ada@example.com', n: 5 },
+    { _id: new ObjectId(), e: 'bea@example.com', n: 12 }
+];
+
+function rows_of(file_id: unknown) {
+    return Number(file_id) === 14 ? SIGNUPS : ROWS;
+}
+
 function tool_use(input: any, id = 'tu_1', name = 'run_query') {
     return { type: 'tool_use', id, name, input };
 }
@@ -53,12 +63,19 @@ function setup(
         subscription_id?: string;
         email_verified?: boolean;
         usage?: any;
+        files?: Record<number, any>;
     } = {}
 ) {
     const files = {
         11: { id: 11, account_id: ACCT, name: 'Products', type: 'file', deleted: false },
         12: { id: 12, account_id: OTHER, name: 'Theirs', type: 'file', deleted: false },
-        13: { id: 13, account_id: ACCT, name: 'Gone', type: 'file', deleted: true }
+        13: { id: 13, account_id: ACCT, name: 'Gone', type: 'file', deleted: true },
+        // The account's other tables (#322)
+        14: { id: 14, account_id: ACCT, name: 'Signups', type: 'file', deleted: false },
+        15: { id: 15, account_id: ACCT, name: 'Twin', type: 'file', deleted: false },
+        16: { id: 16, account_id: ACCT, name: 'twin ', type: 'file', deleted: false },
+        17: { id: 17, account_id: ACCT, name: 'A folder', type: 'directory', deleted: false },
+        ...(opts.files || {})
     };
     const file_directory_svc = {
         assert_owned: jest.fn(async (acct, id) => {
@@ -66,7 +83,10 @@ function setup(
             if (!f) throw new NotFoundException();
             if (f.account_id !== acct) throw new ForbiddenException();
             return f;
-        })
+        }),
+        get_by_account_id: jest.fn(async acct =>
+            Object.values(files).filter((f: any) => f.account_id === acct && !f.deleted)
+        )
     };
     const account_svc = {
         get: jest.fn(async id => ({
@@ -80,13 +100,20 @@ function setup(
         check_not_read_only: jest.fn(async () => undefined)
     };
     const web_file_manager = {
-        get_columns: jest.fn(async () => [
-            { field: 'a', headerName: 'Name' },
-            { field: 'b', headerName: 'Price', col_type: 'number' }
-        ]),
+        get_columns: jest.fn(async (_acct, file_id) =>
+            Number(file_id) === 14
+                ? [
+                      { field: 'e', headerName: 'Email' },
+                      { field: 'n', headerName: 'Visits', col_type: 'number' }
+                  ]
+                : [
+                      { field: 'a', headerName: 'Name' },
+                      { field: 'b', headerName: 'Price', col_type: 'number' }
+                  ]
+        ),
         // A tiny Mongo: $and of { field: { $gt } } conditions, sorted by the first sort key
-        query_rows: jest.fn(async (_acct, _file, query) => {
-            let docs = ROWS.filter(r => matches(r, query.filter));
+        query_rows: jest.fn(async (_acct, file_id, query) => {
+            let docs = rows_of(file_id).filter(r => matches(r, query.filter));
             const key = query.sort[0];
             if (key.field !== '_id') {
                 docs = [...docs].sort((x, y) => (x[key.field] - y[key.field]) * key.dir);
@@ -94,7 +121,8 @@ function setup(
             return { docs: docs.slice(0, query.limit + 1), explain: null };
         }),
         count_rows: jest.fn(
-            async (_acct, _file, query) => ROWS.filter(r => matches(r, query.filter)).length
+            async (_acct, file_id, query) =>
+                rows_of(file_id).filter(r => matches(r, query.filter)).length
         ),
         format_date_field: jest.fn(v => v)
     };
@@ -153,6 +181,15 @@ function setup(
                 { field: 'b', name: 'Price', type: 'number' }
             ],
             usage: { month: '2026-11', used: request.count, limit: 50 }
+        })),
+        // Rows the model gave itself (#322): as AiService.given_rows answers them
+        given_rows: jest.fn(async (_account: any, _file: any, rows: any[]) => ({
+            rows: rows.map(r => ({ a: r.Name ?? null, b: r.Price ?? null })),
+            columns: [
+                { field: 'a', name: 'Name', type: 'string' },
+                { field: 'b', name: 'Price', type: 'number' }
+            ],
+            usage: { month: '2026-11', used: rows.length, limit: 50 }
         })),
         rows_usage: jest.fn(async () => ({ month: '2026-11', used: 0, limit: 50 }))
     };
@@ -253,6 +290,7 @@ describe('AskService', () => {
         const { svc, calls, web_file_manager } = setup([
             [tool_use({ filters: [{ column: 'Price', op: '$where', value: 'sleep(100)' }] })],
             [tool_use({ cursor: 'x' }, 'tu_2')],
+            [tool_use({ explain: true }, 'tu_3')],
             [text('I could not answer that.')]
         ]);
         const res = await svc.ask(ACCT, { table: 11, question: 'anything' }, BASE);
@@ -270,6 +308,116 @@ describe('AskService', () => {
         // The last turn may only answer
         expect(calls).toHaveLength(ASK_MAX_TURNS);
         expect(calls[ASK_MAX_TURNS - 1].tool_choice).toEqual({ type: 'none' });
+    });
+
+    it("lists the account's other tables in the prompt, not another account's (#322)", async () => {
+        const { svc, calls } = setup([[tool_use({})], [text('Three.')]]);
+        await svc.ask(ACCT, { table: 11, question: 'how many?' }, BASE);
+        const system = calls[0].system;
+        expect(system).toContain('- "Signups": "Email" (string), "Visits" (number)');
+        expect(system).toContain('- "Twin": ');
+        expect(system).not.toContain('Theirs');
+        expect(system).not.toContain('Gone');
+        expect(system).not.toContain('A folder');
+        expect(system).not.toContain('more tables not listed');
+        // run_query takes a table, and column names aren't limited to this table's
+        const props = calls[0].tools[0].input_schema.properties;
+        expect(props.table.type).toBe('string');
+        expect(props.fields.items.enum).toBeUndefined();
+    });
+
+    it('caps the tables and columns listed, and says so (#322)', async () => {
+        const files = {};
+        for (let i = 0; i < 40; i++) {
+            files[100 + i] = {
+                id: 100 + i,
+                account_id: ACCT,
+                name: `T${String(i).padStart(2, '0')}`,
+                type: 'file',
+                deleted: false
+            };
+        }
+        const { svc, calls, web_file_manager } = setup([[tool_use({})], [text('x')]], { files });
+        await svc.ask(ACCT, { table: 11, question: 'q' }, BASE);
+        // 44 other tables (Signups, Twin, twin, T00..T39): 30 listed, the rest counted
+        expect(calls[0].system).toContain('(and 13 more tables not listed)');
+        // Columns are read for the listed tables only (and the current one)
+        expect(web_file_manager.get_columns).toHaveBeenCalledTimes(31);
+    });
+
+    it("reads another of the account's tables and proposes rows from it (#322)", async () => {
+        const { svc, calls, usage, ai_service, web_file_svc } = setup([
+            [tool_use({ table: 'signups', fields: ['Email'] })],
+            [
+                tool_use(
+                    {
+                        description: 'products named after the signups',
+                        rows: [{ Name: 'ada@example.com' }, { Name: 'bea@example.com' }]
+                    },
+                    'tu_2',
+                    'propose_rows'
+                )
+            ]
+        ]);
+        const res = await svc.ask(ACCT, { table: 11, question: 'add rows from Signups' }, BASE);
+        // The rows read went back to the model
+        const result = JSON.parse(calls[1].messages[2].content[0].content);
+        expect(result.rows.map(r => r.Email)).toEqual(['ada@example.com', 'bea@example.com']);
+        // The answer shows the table read and its API call
+        expect(res.table).toBe('Signups');
+        expect(res.rows.map(r => r.Email)).toEqual(['ada@example.com', 'bea@example.com']);
+        expect(res.columns).toEqual(['Email']);
+        expect(res.api_call.url).toBe(`${BASE}/query?table=Signups`);
+        expect(res.api_call.body).toEqual({ fields: ['Email'], limit: 20 });
+        // The rows are proposed for this table, checked by given_rows, with no generation
+        expect(ai_service.preview_rows).not.toHaveBeenCalled();
+        const [account, file, rows] = ai_service.given_rows.mock.calls[0];
+        expect(account.id).toBe(ACCT);
+        expect(file.id).toBe(11);
+        expect(rows).toEqual([{ Name: 'ada@example.com' }, { Name: 'bea@example.com' }]);
+        expect(res.proposed.rows).toEqual([
+            { a: 'ada@example.com', b: null },
+            { a: 'bea@example.com', b: null }
+        ]);
+        expect(res.answer).toContain('2 new rows');
+        // Nothing written, one question used, two model calls
+        expect(web_file_svc.batch_update_internal).not.toHaveBeenCalled();
+        expect(calls).toHaveLength(2);
+        expect(usage[`${ACCT}:2026-11`].questions).toBe(1);
+    });
+
+    it("can't read another account's table, an unknown one or an ambiguous name (#322)", async () => {
+        const { svc, calls, web_file_manager } = setup([
+            [tool_use({ table: 'Theirs' })],
+            [tool_use({ table: 'Gone' }, 'tu_2')],
+            [tool_use({ table: 'twin' }, 'tu_3')],
+            [text('I can only read your tables.')]
+        ]);
+        const res = await svc.ask(ACCT, { table: 11, question: 'read Theirs' }, BASE);
+        const errors = [calls[1].messages[2], calls[2].messages[4], calls[3].messages[6]].map(
+            m => m.content[0]
+        );
+        expect(errors.every(e => e.is_error === true)).toBe(true);
+        expect(errors[0].content).toBe('There is no table named "Theirs" in this account');
+        expect(errors[1].content).toContain('no table named "Gone"');
+        expect(errors[2].content).toContain('2 tables are named "twin"');
+        expect(res.api_call).toBeNull();
+        expect(res.table).toBeNull();
+        expect(res.rows).toEqual([]);
+        // Only this table's sample rows were read; never the other account's table
+        expect(web_file_manager.query_rows).toHaveBeenCalledTimes(1);
+        expect(web_file_manager.query_rows.mock.calls.every(c => c[0] === ACCT)).toBe(true);
+        expect(web_file_manager.get_columns.mock.calls.some(c => c[1] === 12)).toBe(false);
+    });
+
+    it('sends bad explicit rows back to the model (#322)', async () => {
+        const { svc, calls, ai_service } = setup([
+            [tool_use({ rows: ['not a row'] }, 'tu_1', 'propose_rows')],
+            [text('Sorry.')]
+        ]);
+        await svc.ask(ACCT, { table: 11, question: 'add rows' }, BASE);
+        expect(ai_service.given_rows).not.toHaveBeenCalled();
+        expect(calls[1].messages[2].content[0]).toMatchObject({ is_error: true });
     });
 
     it('proposes rows when asked for them, saving nothing (#234)', async () => {

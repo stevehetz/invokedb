@@ -290,6 +290,33 @@ export class AiService {
     }
 
     /**
+     * Rows Ask's model gave itself (#322), keyed by column name, from data it read: checked
+     * with check_rows like generated rows and answered the same way, `{ rows (keyed by field),
+     * columns, usage }`, not saved. No model call; every usable row counts against the month's
+     * AI rows (docs/PRICING.md 3.5), 429 when they don't fit. 400 when none fit the columns.
+     */
+    async given_rows(account, file, given: Record<string, unknown>[]) {
+        await this.tracking_manager.check_table_lock(file.id);
+        const columns = ai_columns(await this.web_file_manager.get_columns(account.id, file.id));
+        if (columns.length === 0) {
+            throw new BadRequestException('Add a column (other than a link) first');
+        }
+        const by_field = (Array.isArray(given) ? given : []).map(item => {
+            const row = {};
+            if (item && typeof item === 'object' && !Array.isArray(item)) {
+                columns.forEach(c => (row[c.field] = item[c.name]));
+            }
+            return row;
+        });
+        const rows = check_rows(columns, { rows: by_field }, AI_LIMITS.max_rows_per_request);
+        if (rows.length === 0) {
+            throw new BadRequestException("None of the rows had a value for this table's columns");
+        }
+        await this.reserve(account, rows.length);
+        return { rows, columns, usage: await this.rows_usage(account) };
+    }
+
+    /**
      * Body: `{ description, row_count }`. Answers a new table's design and sample rows, not
      * saved: `{ table_name, columns: [{ name, type }], rows (keyed by column name), usage }`.
      */

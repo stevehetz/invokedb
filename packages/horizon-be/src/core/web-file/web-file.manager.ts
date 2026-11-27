@@ -851,6 +851,12 @@ export class WebFileManager {
         return await col_coll.find({ col_type: LINK_TYPE, deleted: { $ne: true } }).toArray();
     }
 
+    /** A table's columns, deleted ones and unused placeholders too, in insertion order. */
+    async get_all_columns(acct_id, file_id) {
+        const col_coll = await this._collections.get_dg_col(acct_id, file_id);
+        return await col_coll.find({}).toArray();
+    }
+
     /** A table's live columns, as stored. */
     async get_columns(acct_id, file_id) {
         const col_coll = await this._collections.get_dg_col(acct_id, file_id);

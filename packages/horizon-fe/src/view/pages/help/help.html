@@ -497,13 +497,21 @@
                             <b>delete_rows</b>: only with a
                             <b>Read and write</b> key, up to 100 rows a call.
                         </li>
+                        <li>
+                            <b>create_table</b> and <b>add_columns</b>: make a
+                            new table (optionally in a folder) and add columns
+                            to one. Columns are text, number or date; link and
+                            AI columns are set up in the app. Only with a
+                            <b>Read and write</b> key for all tables, and within
+                            your plan's table and column limits.
+                        </li>
                     </ul>
                     <h2>Staying in charge</h2>
                     <ul>
                         <li>
                             The key decides: a <b>Read only</b> key can't change
                             anything, and a key limited to some tables doesn't
-                            see the others.
+                            see the others or make new ones.
                         </li>
                         <li>
                             Every change an agent makes is in the table's

@@ -419,7 +419,9 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   JSON answers only (`GET`/`DELETE` are 405); no MCP SDK: `src/core/mcp/mcp.ts` (pure) is the
   JSON-RPC handling, version negotiation and the tools (`list_tables`, `describe_table`,
   `query_rows`, `count_rows`, and for `read_write` keys `create_rows`, `update_rows`,
-  `delete_rows`) with their argument checks. `application/mcp/mcp.service.ts` runs them: rows
+  `delete_rows`, plus `create_table` and `add_columns` for keys of all tables, #329: string,
+  number and date columns through `FileDirectoryService.create` and `batch_create_internal`)
+  with their argument checks. `application/mcp/mcp.service.ts` runs them: rows
   through `WebFileService`'s `external_*` paths (quota, locks, read-only state, caps, webhooks,
   audit), table lookup by name then id within the key's `table_ids` (an unusable table reads as
   missing), and a 4xx refusal becomes a tool error the agent reads; one tool call is one API

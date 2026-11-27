@@ -26,7 +26,7 @@ import {
 } from '@app/core/email-verification/email-verification';
 import { build_schema_diagram } from '@app/core/schema-diagram/schema-diagram';
 import { AuditService } from '../audit/audit.service';
-import { table_change } from '@app/core/audit/audit';
+import { AuditActor, table_change } from '@app/core/audit/audit';
 import _c from '@app/constants';
 import logger from '@app/logger';
 
@@ -142,8 +142,11 @@ export class FileDirectoryService {
         return same;
     }
 
-    /** `acct_id` is the caller's account; any `account_id` in `data` is overwritten with it. */
-    async create(acct_id, data, no_file) {
+    /**
+     * `acct_id` is the caller's account; any `account_id` in `data` is overwritten with it.
+     * `actor`: who the audit log says made the table, when not the account's user (an API key).
+     */
+    async create(acct_id, data, no_file, actor?: AuditActor) {
         data.account_id = acct_id;
         const account = await this.account_service.get(acct_id);
         // Every way of making a table comes through here (new, upload, template, URL import)
@@ -169,7 +172,7 @@ export class FileDirectoryService {
                     account,
                     res.id,
                     [{ action: 'table.created', ...table_change('table.created', res.name) }],
-                    { table_name: res.name }
+                    { table_name: res.name, actor }
                 );
             }
             return res;

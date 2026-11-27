@@ -5,7 +5,9 @@
 //
 // Model output is never run as code. The tool input is checked here (only the read-only keys
 // filters, match, sort, fields and limit) and then by parse_row_query against the table's
-// columns, exactly as an API call would be, before anything reaches Mongo.
+// columns, exactly as an API call would be, before anything reaches Mongo. run_query may name
+// another of the caller's tables (#322), checked against that table's columns the same way;
+// new rows and edits are only ever for the table the question is about.
 import { HttpException } from '@nestjs/common';
 import {
     OPERATORS,
@@ -28,12 +30,19 @@ export const PROPOSE_DEFAULT_ROWS = 10;
 export const ASK_MAX_ROWS = 50;
 export const ASK_DEFAULT_ROWS = 20;
 export const MAX_QUESTION_LENGTH = 500;
-// Model calls per question: the query, a retry or a follow-up query, and the answer
-export const ASK_MAX_TURNS = 3;
+// Model calls per question: the query, a retry or a follow-up query (of another table, #322),
+// and the answer or the proposed rows
+export const ASK_MAX_TURNS = 4;
 export const ASK_SAMPLE_ROWS = 3;
 // A cell longer than this is cut short in what the model reads
 const MAX_CELL_FOR_MODEL = 200;
 const ASK_KEYS = ['filters', 'match', 'sort', 'fields', 'limit'];
+// run_query's other key (#322): the name of another of the account's tables to read. It isn't
+// part of the /api/v1/query body (the table is in the URL).
+const ASK_TABLE_KEY = 'table';
+// The account's other tables listed in the prompt (#322)
+export const ASK_PROMPT_MAX_TABLES = 30;
+export const ASK_PROMPT_MAX_COLUMNS = 40;
 
 export class AskError extends Error {}
 
@@ -66,20 +75,35 @@ export function ask_columns(col_defs: any[]): QueryColumn[] {
         }));
 }
 
-/** The run_query tool: an /api/v1/query body, with the table's column names as an enum. */
-export function ask_tool(columns: QueryColumn[]) {
+/**
+ * The run_query tool: an /api/v1/query body, plus the table to read (#322). With no other
+ * tables the column names are an enum; with others, a column may be one of another table's,
+ * so the names are plain strings (the prompt lists them, and the input is checked anyway).
+ */
+export function ask_tool(columns: QueryColumn[], other_tables = false) {
     const names = columns.map(c => c.name);
-    const column = { type: 'string', enum: [...names, '_id'] };
+    const column = other_tables
+        ? { type: 'string', description: 'A column of the table read, or _id' }
+        : { type: 'string', enum: [...names, '_id'] };
+    const field = other_tables ? { type: 'string' } : { type: 'string', enum: names };
+    const table = {
+        type: 'string',
+        description:
+            "The name of another of the account's tables to read, as listed. Leave it out " +
+            'to read the current table.'
+    };
     return {
         name: ASK_TOOL_NAME,
         description:
-            'Reads rows of the table. The input is the body of a POST /api/v1/query call: ' +
-            'filters, match, sort, fields and limit. Returns the number of rows matching the ' +
-            `filters and the first ${ASK_MAX_ROWS} (or limit) of them.`,
+            "Reads rows of the table (or, with table, of another of the account's tables). " +
+            'The input is the body of a POST /api/v1/query call: filters, match, sort, fields ' +
+            'and limit. Returns the number of rows matching the filters and the first ' +
+            `${ASK_MAX_ROWS} (or limit) of them. It never changes anything.`,
         input_schema: {
             type: 'object',
             additionalProperties: false,
             properties: {
+                ...(other_tables ? { table } : {}),
                 filters: {
                     type: 'array',
                     maxItems: MAX_FILTERS,
@@ -121,7 +145,7 @@ export function ask_tool(columns: QueryColumn[]) {
                 fields: {
                     type: 'array',
                     description: 'The columns to return (all when left out)',
-                    items: { type: 'string', enum: names }
+                    items: field
                 },
                 limit: { type: 'integer', minimum: 1, maximum: ASK_MAX_ROWS }
             }
@@ -145,15 +169,70 @@ export function rows_for_model(rows: Record<string, unknown>[]) {
     });
 }
 
+/** The account's other tables as the prompt lists them (#322), capped. */
+export interface PromptTables {
+    tables: { name: string; columns: QueryColumn[]; more_columns: number }[];
+    more_tables: number;
+}
+
+export const NO_OTHER_TABLES: PromptTables = { tables: [], more_tables: 0 };
+
+/**
+ * Caps the account's other tables for the prompt: the first ASK_PROMPT_MAX_TABLES of
+ * `total_tables`, at most ASK_PROMPT_MAX_COLUMNS columns each, counting what was left out.
+ */
+export function prompt_tables(
+    tables: { name: string; columns: QueryColumn[] }[],
+    total_tables = tables.length
+): PromptTables {
+    const listed = tables.slice(0, ASK_PROMPT_MAX_TABLES).map(t => ({
+        name: t.name,
+        columns: t.columns.slice(0, ASK_PROMPT_MAX_COLUMNS),
+        more_columns: Math.max(0, t.columns.length - ASK_PROMPT_MAX_COLUMNS)
+    }));
+    return { tables: listed, more_tables: Math.max(0, total_tables - listed.length) };
+}
+
+function has_other_tables(others: PromptTables) {
+    return others.tables.length > 0 || others.more_tables > 0;
+}
+
+function other_tables_lines(table: string, others: PromptTables): string[] {
+    if (!has_other_tables(others)) return [];
+    const lines = others.tables.map(t => {
+        const cols = t.columns.map(c => `${JSON.stringify(c.name)} (${c.type})`).join(', ');
+        const more = t.more_columns > 0 ? `, and ${t.more_columns} more columns not listed` : '';
+        return `- ${JSON.stringify(t.name)}: ${cols || 'no columns'}${more}`;
+    });
+    if (others.more_tables > 0) lines.push(`(and ${others.more_tables} more tables not listed)`);
+    return [
+        '',
+        "The account's other tables (name, then columns and types). You can read them with " +
+            `${ASK_TOOL_NAME} by giving the table's name as its table input; you cannot change ` +
+            `them. New rows and edits are only ever for ${JSON.stringify(table)}.`,
+        ...lines
+    ];
+}
+
 export function ask_system_prompt(
     table: string,
     columns: QueryColumn[],
     samples: Record<string, unknown>[],
     today: string,
     // More tools' instructions (propose_edit, #204)
-    extra: string[] = []
+    extra: string[] = [],
+    // The account's other tables (#322)
+    others: PromptTables = NO_OTHER_TABLES
 ) {
     const cols = columns.map(c => `- ${JSON.stringify(c.name)} (${c.type})`).join('\n');
+    const from_other = has_other_tables(others)
+        ? [
+              'If the new rows should use values from another table (its emails, say), first ' +
+                  `read them with ${ASK_TOOL_NAME} and that table's name, then call ` +
+                  `${PROPOSE_TOOL_NAME} with the rows themselves in rows, keyed by the column ` +
+                  `names of ${JSON.stringify(table)}, using only values you read.`
+          ]
+        : [];
     return [
         `You answer questions about one table of an InvokeDB account, named ${JSON.stringify(table)}.`,
         `Today is ${today}.`,
@@ -163,11 +242,13 @@ export function ask_system_prompt(
         '',
         `A few of its rows, to show what the values look like:`,
         JSON.stringify(rows_for_model(samples)),
+        ...other_tables_lines(table, others),
         '',
         `If the user asks to add, generate or make up rows (sample or test data, more ` +
             `entries...), call ${PROPOSE_TOOL_NAME} with how many rows (default 10, at most ` +
             `${PROPOSE_MAX_ROWS}) and a short description of what they should contain. It only ` +
             'prepares rows for the user to review; the user decides whether to save them.',
+        ...from_other,
         ...extra,
         `For anything else, always call ${ASK_TOOL_NAME} first to read the rows the question ` +
             `is about. It returns ` +
@@ -182,18 +263,30 @@ export function ask_system_prompt(
     ].join('\n');
 }
 
-/** The propose_rows tool: how many rows to generate and what they should contain. */
+/**
+ * The propose_rows tool: how many rows to generate and what they should contain, or the rows
+ * themselves (#322), when their values come from data the model read.
+ */
 export function propose_tool() {
     return {
         name: PROPOSE_TOOL_NAME,
         description:
-            'Prepares new rows for the table, made up to fit its columns, for the user to ' +
-            'review and save. Use it when the user asks to add, generate or make up rows. It ' +
-            'saves nothing.',
+            'Prepares new rows for the table, for the user to review and save: made up to fit ' +
+            'its columns, or the rows given in rows. Use it when the user asks to add, generate ' +
+            'or make up rows. It saves nothing.',
         input_schema: {
             type: 'object',
             additionalProperties: false,
             properties: {
+                rows: {
+                    type: 'array',
+                    maxItems: PROPOSE_MAX_ROWS,
+                    description:
+                        'The rows themselves, as objects keyed by column name of this table, ' +
+                        `when their values come from rows you read with ${ASK_TOOL_NAME}. Leave ` +
+                        'it out to have rows made up from the description.',
+                    items: { type: 'object' }
+                },
                 count: {
                     type: 'integer',
                     minimum: 1,
@@ -210,9 +303,30 @@ export function propose_tool() {
     };
 }
 
-/** The model's propose_rows input as a "Generate rows" request: `{ prompt, count }`. */
-export function parse_propose_input(input: unknown): { prompt: string; count: number } {
+export interface ProposeRequest {
+    prompt: string;
+    count: number;
+    // Rows the model gave (#322), keyed by column name, still to be checked against the columns
+    rows?: Record<string, unknown>[];
+}
+
+/**
+ * The model's propose_rows input as a "Generate rows" request: `{ prompt, count }`, or with
+ * explicit rows (#322) `{ prompt, count: rows.length, rows }` (no description needed).
+ */
+export function parse_propose_input(input: unknown): ProposeRequest {
     if (!is_plain_object(input)) throw new AskError('The input must be a JSON object');
+    if (input.rows !== undefined) {
+        const rows = input.rows;
+        if (!Array.isArray(rows) || rows.length === 0 || rows.length > PROPOSE_MAX_ROWS) {
+            throw new AskError(`rows must be a list of 1 to ${PROPOSE_MAX_ROWS} rows`);
+        }
+        if (!rows.every(is_plain_object)) {
+            throw new AskError('Each row in rows must be an object keyed by column name');
+        }
+        const d = typeof input.description === 'string' ? input.description.trim() : '';
+        return { prompt: d.slice(0, MAX_QUESTION_LENGTH * 2), count: rows.length, rows };
+    }
     const description = input.description;
     if (typeof description !== 'string' || description.trim() === '') {
         throw new AskError('Say what the rows should contain (description)');
@@ -247,10 +361,12 @@ function is_plain_object(value: unknown): value is Record<string, unknown> {
  */
 export function parse_ask_input(input: unknown, columns: QueryColumn[]): AskQuery {
     if (!is_plain_object(input)) throw new AskError('The input must be a JSON object');
-    const unknown = Object.keys(input).filter(k => !ASK_KEYS.includes(k));
+    // table (#322) picks the table; resolve_ask_table reads it
+    const allowed = [ASK_TABLE_KEY, ...ASK_KEYS];
+    const unknown = Object.keys(input).filter(k => !allowed.includes(k));
     if (unknown.length > 0) {
         throw new AskError(
-            `Unknown key: ${unknown[0].slice(0, 50)}. Allowed: ${ASK_KEYS.join(', ')}`
+            `Unknown key: ${unknown[0].slice(0, 50)}. Allowed: ${allowed.join(', ')}`
         );
     }
     const body: Record<string, unknown> = {};
@@ -267,6 +383,33 @@ export function parse_ask_input(input: unknown, columns: QueryColumn[]): AskQuer
         if (ex instanceof HttpException) throw new AskError(String(ex.message));
         throw ex;
     }
+}
+
+/**
+ * The table a run_query input reads (#322): null for the current table (no table given), else
+ * the one of `tables` (the caller's own tables, nothing else) whose name matches, ignoring case
+ * and surrounding spaces. No match, or two tables of that name, is an error the model reads.
+ */
+export function resolve_ask_table<T extends { name: string }>(
+    input: unknown,
+    tables: T[]
+): T | null {
+    if (!is_plain_object(input)) return null;
+    const raw = input[ASK_TABLE_KEY];
+    if (raw === undefined || raw === null) return null;
+    if (typeof raw !== 'string') throw new AskError('table must be the name of a table');
+    const name = raw.trim().toLowerCase();
+    if (name === '') return null;
+    const shown = JSON.stringify(raw.trim().slice(0, 100));
+    const found = tables.filter(t => String(t.name).trim().toLowerCase() === name);
+    if (found.length === 0) throw new AskError(`There is no table named ${shown} in this account`);
+    if (found.length > 1) {
+        throw new AskError(
+            `${found.length} tables are named ${shown}, so it can't be read by name. Leave ` +
+                'table out to read the current table.'
+        );
+    }
+    return found[0];
 }
 
 /** What run_query returns to the model. */

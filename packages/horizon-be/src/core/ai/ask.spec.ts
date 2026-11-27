@@ -1,16 +1,24 @@
 import {
     ASK_DEFAULT_ROWS,
     ASK_MAX_ROWS,
+    ASK_MAX_TURNS,
+    ASK_PROMPT_MAX_COLUMNS,
+    ASK_PROMPT_MAX_TABLES,
     ASK_TOOL_NAME,
     AskError,
     MAX_QUESTION_LENGTH,
+    PROPOSE_MAX_ROWS,
     api_call,
     ask_columns,
     ask_system_prompt,
     ask_tool,
     parse_ask_input,
+    parse_propose_input,
     parse_question,
+    prompt_tables,
+    propose_tool,
     reply_text,
+    resolve_ask_table,
     rows_for_model,
     tool_result_content
 } from './ask';
@@ -109,6 +117,109 @@ describe('ask_tool', () => {
         ]);
         expect(props.limit.maximum).toBe(ASK_MAX_ROWS);
         expect(Object.keys(props).sort()).toEqual(['fields', 'filters', 'limit', 'match', 'sort']);
+    });
+
+    it('takes a table when the account has other tables (#322)', () => {
+        const props: any = ask_tool(COLUMNS, true).input_schema.properties;
+        expect(props.table.type).toBe('string');
+        // Another table's columns aren't in this table's enum
+        expect(props.fields.items.enum).toBeUndefined();
+        expect(props.filters.items.properties.column.enum).toBeUndefined();
+        expect(props.limit.maximum).toBe(ASK_MAX_ROWS);
+    });
+
+    it('leaves room to read another table, then propose (#322)', () => {
+        expect(ASK_MAX_TURNS).toBe(4);
+    });
+});
+
+describe("the account's other tables (#322)", () => {
+    const TABLES = [
+        { id: 1, name: 'Products' },
+        { id: 2, name: 'email_campaign_events' },
+        { id: 3, name: 'Twin' },
+        { id: 4, name: ' twin' }
+    ];
+
+    it('resolves a table by name, ignoring case, or the current table without one', () => {
+        expect(resolve_ask_table({}, TABLES)).toBeNull();
+        expect(resolve_ask_table({ table: '' }, TABLES)).toBeNull();
+        expect(resolve_ask_table({ table: null }, TABLES)).toBeNull();
+        expect(resolve_ask_table({ table: ' Email_Campaign_Events ' }, TABLES)).toBe(TABLES[1]);
+    });
+
+    it("refuses a table that isn't one of the given ones, or an ambiguous name", () => {
+        expect(() => resolve_ask_table({ table: 'Theirs' }, TABLES)).toThrow(
+            'There is no table named "Theirs" in this account'
+        );
+        expect(() => resolve_ask_table({ table: 'twin' }, TABLES)).toThrow(
+            '2 tables are named "twin"'
+        );
+        expect(() => resolve_ask_table({ table: 7 }, TABLES)).toThrow(AskError);
+        expect(() => resolve_ask_table({ table: 'Products' }, [])).toThrow(AskError);
+    });
+
+    it('accepts table in the input but leaves it out of the API body', () => {
+        const ask = parse_ask_input({ table: 'Products', fields: ['Name'] }, COLUMNS);
+        expect(ask.body).toEqual({ fields: ['Name'], limit: ASK_DEFAULT_ROWS });
+    });
+
+    it('caps the tables and columns listed in the prompt, and says what was cut', () => {
+        const many_cols = Array.from({ length: 50 }, (_, i) => ({
+            name: `c${i}`,
+            header_name: `c${i}`,
+            field: `f${i}`,
+            type: 'string' as const
+        }));
+        const tables = Array.from({ length: 35 }, (_, i) => ({
+            name: `t${i}`,
+            columns: i === 0 ? many_cols : COLUMNS
+        }));
+        const listed = prompt_tables(tables, 40);
+        expect(listed.tables).toHaveLength(ASK_PROMPT_MAX_TABLES);
+        expect(listed.tables[0].columns).toHaveLength(ASK_PROMPT_MAX_COLUMNS);
+        expect(listed.tables[0].more_columns).toBe(10);
+        expect(listed.tables[1].more_columns).toBe(0);
+        expect(listed.more_tables).toBe(10);
+
+        const prompt = ask_system_prompt('Products', COLUMNS, [], '2026-11-27', [], listed);
+        expect(prompt).toContain('- "t1": "Name" (string), "Price" (number), "Added" (date)');
+        expect(prompt).toContain('and 10 more columns not listed');
+        expect(prompt).toContain('(and 10 more tables not listed)');
+        expect(prompt).toContain('New rows and edits are only ever for "Products"');
+        expect(prompt).not.toContain('"t30"');
+        expect(prompt).not.toContain('"c40"');
+        // No rows of other tables in the prompt
+        expect(prompt).not.toContain('"t1": [');
+    });
+
+    it('says nothing of other tables when there are none', () => {
+        const prompt = ask_system_prompt('Products', COLUMNS, [], '2026-11-27');
+        expect(prompt).not.toContain('other tables');
+    });
+});
+
+describe('propose_rows', () => {
+    it('takes a description and a count', () => {
+        expect(parse_propose_input({ description: ' people ', count: 3 })).toEqual({
+            prompt: 'people',
+            count: 3
+        });
+        expect(() => parse_propose_input({ count: 3 })).toThrow(AskError);
+    });
+
+    it('takes explicit rows (#322), counted by their number', () => {
+        const rows = [{ Name: 'a@x.com' }, { Name: 'b@x.com' }];
+        expect(parse_propose_input({ rows })).toEqual({ prompt: '', count: 2, rows });
+        expect(parse_propose_input({ rows, count: 50, description: 'd' }).count).toBe(2);
+        expect(() => parse_propose_input({ rows: [] })).toThrow(AskError);
+        expect(() => parse_propose_input({ rows: 'x' })).toThrow(AskError);
+        expect(() => parse_propose_input({ rows: [1, 2] })).toThrow(AskError);
+        expect(() => parse_propose_input({ rows: [[]] })).toThrow(AskError);
+        const too_many = Array.from({ length: PROPOSE_MAX_ROWS + 1 }, () => ({ Name: 'x' }));
+        expect(() => parse_propose_input({ rows: too_many })).toThrow(AskError);
+        const props: any = propose_tool().input_schema.properties;
+        expect(props.rows.maxItems).toBe(PROPOSE_MAX_ROWS);
     });
 });
 

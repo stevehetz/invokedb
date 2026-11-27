@@ -1,0 +1,231 @@
+<div class="page agents-page">
+    <div class="main-content">
+        <div class="main-heading">
+            <div class="flex-row">
+                <div class="col col-25">
+                    <router-link class="title-link" to="/">
+                        <img
+                            class="heading-logo-title"
+                            src="@/assets/logo-title.svg"
+                        />
+                        <img
+                            class="heading-logo-icon"
+                            src="@/assets/logo.svg"
+                        />
+                    </router-link>
+                </div>
+                <div class="col col-75 pull-right">
+                    <router-link to="/agents" class="active"
+                        >Agents</router-link
+                    >
+                    <router-link to="/help">Help</router-link>
+                    <router-link to="/contact">Contact</router-link>
+                    <router-link to="/pricing">Pricing</router-link>
+                    <router-link to="/create-account" v-if="!account"
+                        >Sign Up</router-link
+                    >
+                    <router-link to="/login" class="sign-in" v-if="!account">
+                        <span>Sign In</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                    <router-link to="/app" class="sign-in" v-if="account">
+                        <span>Database</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                </div>
+            </div>
+        </div>
+        <div class="agents-body">
+            <div class="agents-intro">
+                <span class="agents-label">Agent quickstart</span>
+                <h1>Give your AI agent a database</h1>
+                <p>
+                    Connect Claude, Cursor or any MCP client to InvokeDB and it
+                    can read, query and change your tables, while you see every
+                    row in a spreadsheet. It takes a couple of minutes.
+                </p>
+            </div>
+
+            <div class="agents-can">
+                <h2>What an agent can do</h2>
+                <ul>
+                    <li>
+                        <b>See your tables</b>: list them, with their columns
+                        and row counts.
+                    </li>
+                    <li>
+                        <b>Query and count rows</b>: filters, sorting and
+                        paging, and the saved views you made in the app.
+                    </li>
+                    <li>
+                        <b>Add, update and delete rows</b>, up to 100 a call,
+                        with a read-and-write key.
+                    </li>
+                    <li>
+                        <b>Make tables and add columns</b> (text, number or
+                        date) with a read-and-write key for all tables.
+                    </li>
+                </ul>
+                <p>
+                    It does this through InvokeDB's MCP server. Agents that
+                    prefer plain HTTP can use the
+                    <router-link to="/help/api">REST API</router-link> with the
+                    same key. The key decides what an agent may touch, every
+                    change is in the table's history under the key's name, and
+                    each tool call counts as one API call on your plan.
+                </p>
+            </div>
+
+            <ol class="agents-steps">
+                <li class="agents-step">
+                    <h2>
+                        <span class="agents-step__n">1</span>
+                        {{ account ? "You're signed up" : 'Sign up' }}
+                    </h2>
+                    <p v-if="account">
+                        You're signed in, so skip ahead.
+                        <router-link to="/app">Open your database</router-link>.
+                    </p>
+                    <p v-else>
+                        <router-link to="/create-account"
+                            >Make a free account</router-link
+                        >
+                        with an email, Google or GitHub. With an email, confirm
+                        it with the link we send you before you make tables or
+                        keys.
+                    </p>
+                </li>
+                <li class="agents-step">
+                    <h2><span class="agents-step__n">2</span> Make a table</h2>
+                    <p>
+                        On the <b>Tables</b> page, click <b>+</b>. A
+                        <b>Table from Template</b> (a CRM, a task list, an
+                        inventory…) comes with sample rows, so the agent has
+                        something to work with at once. You can also upload a
+                        CSV, import a URL or Google Sheet, or describe the table
+                        and let AI suggest it.
+                    </p>
+                </li>
+                <li class="agents-step">
+                    <h2>
+                        <span class="agents-step__n">3</span> Make an API key
+                    </h2>
+                    <p>
+                        On the
+                        <router-link to="/app/account">Account</router-link>
+                        page, under <b>API Keys</b>, click <b>New key</b>.
+                        Choose <b>Read and write</b> if the agent should change
+                        rows, and limit it to some tables if you like. Copy it:
+                        it's shown only once. Give each agent its own key, so
+                        you can see what it did and revoke it on its own.
+                    </p>
+                </li>
+                <li class="agents-step">
+                    <h2>
+                        <span class="agents-step__n">4</span> Connect your agent
+                    </h2>
+                    <p>
+                        The MCP server is at <code>{{ mcp_url }}</code>. Pick
+                        your client and replace <code>YOUR_API_KEY</code> with
+                        your key. The <b>Use with AI agents</b> box on the
+                        Account page shows the same setup, with a new key filled
+                        in.
+                    </p>
+                    <div class="agents-tabs" role="tablist">
+                        <button
+                            v-for="c in clients"
+                            :key="c.value"
+                            type="button"
+                            role="tab"
+                            :aria-selected="client === c.value"
+                            :class="['agents-tab', { active: client === c.value }]"
+                            @click="client = c.value"
+                        >
+                            {{ c.label }}
+                        </button>
+                    </div>
+                    <p class="agents-where" v-if="client === 'claude_code'">
+                        Run this in a terminal:
+                    </p>
+                    <p class="agents-where" v-else-if="client === 'cursor'">
+                        Add this to <code>~/.cursor/mcp.json</code> (or
+                        <code>.cursor/mcp.json</code> in a project):
+                    </p>
+                    <p class="agents-where" v-else>
+                        Add this server to your MCP configuration. In a
+                        workspace's <code>.vscode/mcp.json</code>, the top-level
+                        key is <code>servers</code> instead of
+                        <code>mcpServers</code>.
+                    </p>
+                    <div class="agents-snippet">
+                        <pre><code>{{ snippet }}</code></pre>
+                        <button
+                            type="button"
+                            class="agents-copy"
+                            @click="copy_text('snippet')"
+                        >
+                            {{ copied === 'snippet' ? 'Copied' : 'Copy' }}
+                        </button>
+                    </div>
+                </li>
+                <li class="agents-step">
+                    <h2>
+                        <span class="agents-step__n">5</span> Ask it something
+                    </h2>
+                    <p>Start a new chat with the agent and try:</p>
+                    <div class="agents-snippet">
+                        <pre
+                            class="agents-prompt"
+                        ><code>{{ first_prompt }}</code></pre>
+                        <button
+                            type="button"
+                            class="agents-copy"
+                            @click="copy_text('prompt')"
+                        >
+                            {{ copied === 'prompt' ? 'Copied' : 'Copy' }}
+                        </button>
+                    </div>
+                    <p>
+                        Then open the table in InvokeDB to see what it read, and
+                        its <b>History</b> to see anything it changed.
+                    </p>
+                </li>
+            </ol>
+
+            <div class="agents-more">
+                <h2>Learn more</h2>
+                <ul>
+                    <li>
+                        <router-link to="/help/agents"
+                            >AI agents (MCP)</router-link
+                        >: every tool, and how to stay in charge.
+                    </li>
+                    <li>
+                        <router-link to="/help/api">The API</router-link>: the
+                        REST endpoints. Each table's <b>API</b> button in the
+                        app shows its own docs, examples and OpenAPI spec.
+                    </li>
+                    <li>
+                        <router-link to="/help/api-keys">API keys</router-link>:
+                        access, table limits, rate limits and request logs.
+                    </li>
+                    <li>
+                        <router-link to="/pricing">Pricing</router-link>: what
+                        each plan allows.
+                    </li>
+                </ul>
+            </div>
+
+            <div class="agents-cta" v-if="!account">
+                <router-link to="/create-account" class="agents-button"
+                    >Start free</router-link
+                >
+            </div>
+        </div>
+        <div class="footer">
+            <div class="flex-row">
+                <div class="col">© InvokeDB, LLC</div>
+            </div>
+        </div>
+    </div>
+</div>

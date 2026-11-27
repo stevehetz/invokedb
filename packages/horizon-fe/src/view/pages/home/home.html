@@ -10,6 +10,7 @@
                     <img class="heading-logo-icon" src="@/assets/logo.svg" />
                 </div>
                 <div class="col col-75 pull-right">
+                    <router-link to="/agents">Agents</router-link>
                     <router-link to="/help">Help</router-link>
                     <router-link to="/contact">Contact</router-link>
                     <router-link to="/pricing">Pricing</router-link>
@@ -44,6 +45,9 @@
                         class="banner-button primary"
                         >{{ account ? 'Open your database' : 'Start free'
                         }}</router-link
+                    >
+                    <router-link to="/agents" class="banner-button"
+                        >Connect an agent</router-link
                     >
                     <router-link to="/pricing" class="banner-button"
                         >See pricing</router-link

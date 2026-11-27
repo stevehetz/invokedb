@@ -29,6 +29,7 @@ const Privacy = () => import('@/view/pages/privacy');
 const Help = () => import('@/view/pages/help');
 const Changelog = () => import('@/view/pages/changelog');
 const Status = () => import('@/view/pages/status');
+const Agents = () => import('@/view/pages/agents');
 
 // The public site and the app were separate apps with separate global stylesheets that clash
 // (.page, .home-page, .flex-*, Element theme colours). Each area's shell imports its own CSS
@@ -129,6 +130,8 @@ const router = createRouter({
                 { path: 'changelog', name: 'changelog', component: Changelog },
                 // The public status page, from the backend's own checks (#212)
                 { path: 'status', name: 'status', component: Status },
+                // The agent quickstart (#331): connect an AI agent to your tables
+                { path: 'agents', name: 'agents', component: Agents },
                 { path: ':pathMatch(.*)*', redirect: { name: 'site-home' } }
             ]
         }

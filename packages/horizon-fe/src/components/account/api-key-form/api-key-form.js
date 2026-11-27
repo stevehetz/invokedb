@@ -6,33 +6,13 @@ import copy from 'copy-to-clipboard';
 import { bus } from '@/core/bus';
 import { store } from '@/store';
 import { api_key_http } from '@/core/context/api-key/api-key-http';
-
-// The setups the "Use with AI agents" box shows (#305), for the MCP server at <backend>/mcp
-const AGENT_SETUPS = [
-    { value: 'claude_code', label: 'Claude Code' },
-    { value: 'json', label: 'JSON config' }
-];
-
-/**
- * How to connect an MCP client to this account's tables with `key`.
- * @param {string} setup @param {string} url @param {string} key
- */
-function agent_snippet(setup, url, key) {
-    if (setup === 'claude_code') {
-        return `claude mcp add --transport http invokedb ${url} \\\n  --header "Authorization: Bearer ${key}"`;
-    }
-    // Cursor's mcp.json, VS Code, and a project's .mcp.json for Claude Code all read this shape
-    const config = {
-        mcpServers: {
-            invokedb: {
-                type: 'http',
-                url,
-                headers: { Authorization: `Bearer ${key}` }
-            }
-        }
-    };
-    return JSON.stringify(config, null, 2);
-}
+// The setups the "Use with AI agents" box shows (#305), shared with the site's /agents page
+import {
+    AGENT_SETUPS,
+    KEY_PLACEHOLDER,
+    agent_snippet,
+    mcp_url
+} from '@/core/agent-setup';
 
 const ACCESS_LABELS = {
     read: 'Read only',
@@ -110,12 +90,12 @@ export default defineComponent({
     computed: {
         // The MCP server's address: the backend's public URL (api.invokedb.com in production)
         mcp_url() {
-            return `${this.backend_url.replace(/\/+$/, '')}/mcp`;
+            return mcp_url(this.backend_url);
         },
 
         // The key just made goes straight into the setup; otherwise a placeholder
         agent_snippet() {
-            const key = this.created ? this.created.secret : 'YOUR_API_KEY';
+            const key = this.created ? this.created.secret : KEY_PLACEHOLDER;
             return agent_snippet(this.agent_setup, this.mcp_url, key);
         },
 

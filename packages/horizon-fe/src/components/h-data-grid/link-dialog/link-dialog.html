@@ -42,6 +42,83 @@
                 ></el-option>
             </el-select>
         </div>
+
+        <!-- Fill links by matching (#321): only for a column saved as a link to this table -->
+        <div class="link-match" v-if="table_id">
+            <h4>Fill links by matching</h4>
+            <p class="link-match-note" v-if="!can_match">
+                Save the column first: click <b>Save</b> here, then save your
+                column changes. Then open this column's link settings again (its
+                type menu → Link) to fill its empty cells by matching a column
+                of each table.
+            </p>
+            <template v-else>
+                <p class="link-match-note">
+                    Links each row whose cell is empty to every row of
+                    <b>{{ target_table_name }}</b> with the same value. Text is
+                    compared ignoring case and spaces at either end; empty
+                    values never match. Cells that already hold links are left
+                    as they are.
+                </p>
+                <div class="link-row">
+                    <label>This table's</label>
+                    <el-select
+                        class="link-match-source"
+                        v-model="source_field"
+                        placeholder="Choose a column"
+                        @change="match_changed"
+                    >
+                        <el-option
+                            v-for="c in source_columns"
+                            :key="c.field"
+                            :label="c.headerName"
+                            :value="c.field"
+                        ></el-option>
+                    </el-select>
+                </div>
+                <div class="link-row">
+                    <label>Matches its</label>
+                    <el-select
+                        class="link-match-target"
+                        v-model="target_field"
+                        placeholder="Choose a column"
+                        @change="match_changed"
+                    >
+                        <el-option
+                            v-for="c in target_columns"
+                            :key="c.field"
+                            :label="c.headerName"
+                            :value="c.field"
+                        ></el-option>
+                    </el-select>
+                </div>
+                <div class="link-match-result" v-if="match_counts">
+                    {{ match_summary }}
+                </div>
+                <div class="link-match-done" v-if="match_done">
+                    {{ match_done }}
+                </div>
+                <div class="link-match-actions">
+                    <el-button
+                        class="link-match-find"
+                        @click="find_matches"
+                        :disabled="!can_find"
+                        :loading="matching && !match_counts"
+                    >
+                        Find matches
+                    </el-button>
+                    <el-button
+                        type="primary"
+                        class="link-match-apply"
+                        @click="apply_matches"
+                        :disabled="!can_apply"
+                        :loading="matching && !!match_counts"
+                    >
+                        Link rows
+                    </el-button>
+                </div>
+            </template>
+        </div>
     </template>
 
     <template v-if="!is_settings && !loading">

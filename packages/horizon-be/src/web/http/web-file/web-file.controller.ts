@@ -111,6 +111,20 @@ export class WebFileController {
         );
     }
 
+    // Fill a link column by matching a column of each table (#321): counts, then a write with
+    // `apply: true`. Before the `/:web_file_type/:file_directory_id` route, which it would match.
+    @Post(':file_directory_id/link-match')
+    async web_file_link_match(@Request() req) {
+        const acct_id = session_account_id(req.user);
+        await this.web_file_service.validate(acct_id, req.params.file_directory_id);
+        const account = await this.account_service.get(acct_id);
+        return await this.web_file_service.link_match(
+            account,
+            req.params.file_directory_id,
+            req.body
+        );
+    }
+
     @Post('batch_create/:web_file_type/:file_directory_id')
     async web_file_batch_create(@Request() req) {
         const acct_id = session_account_id(req.user);

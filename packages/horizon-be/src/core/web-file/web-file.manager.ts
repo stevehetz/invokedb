@@ -863,6 +863,15 @@ export class WebFileManager {
         return await row_coll.find({}).limit(n).toArray();
     }
 
+    /**
+     * Every row of a table with only these fields, streamed in `_id` order (an update doesn't
+     * move a row, so a row being written while it's read isn't read twice).
+     */
+    async row_cursor(acct_id, file_id, projection: any) {
+        const row_coll = await this._collections.get_dg_row(acct_id, file_id);
+        return row_coll.find({}, { projection }).sort({ _id: 1 });
+    }
+
     /** These rows of a table (ids as strings; anything else is skipped), by id. */
     async rows_by_ids(acct_id, file_id, ids: string[], projection?: any) {
         const object_ids = ids.filter(is_row_id).map(id => new ObjectId(id));

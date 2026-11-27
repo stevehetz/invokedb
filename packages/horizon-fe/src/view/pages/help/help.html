@@ -264,6 +264,43 @@
                         <code>expand=&lt;column&gt;</code> to a Get, Search or
                         Query call to get the linked rows themselves.
                     </p>
+                    <h2>Fill links by matching</h2>
+                    <p>
+                        When both tables already share a value, like an Email in
+                        your signups and in your contacts, a link column can
+                        fill itself. Save the link column, then open its link
+                        settings again (in <b>Edit Columns</b>, its type menu →
+                        <b>Link</b>). Under <b>Fill links by matching</b>,
+                        choose a column of this table and the column of the
+                        linked table it should match (a column with the same
+                        name is chosen for you), then click <b>Find matches</b>.
+                    </p>
+                    <p>
+                        You see how many rows will be linked, how many have no
+                        match, how many match more than one row and how many
+                        already have links. Nothing changes until you click
+                        <b>Link rows</b>.
+                    </p>
+                    <ul>
+                        <li>
+                            Text matches ignoring capitals and spaces at either
+                            end; numbers match by value and dates by the same
+                            moment. Empty values never match.
+                        </li>
+                        <li>
+                            A row that matches several rows is linked to all of
+                            them (at most 50).
+                        </li>
+                        <li>
+                            Only empty link cells are filled: cells you already
+                            linked are left as they are.
+                        </li>
+                        <li>
+                            It fills the column once. Rows you add or change
+                            later aren't matched again; run it again to fill
+                            them.
+                        </li>
+                    </ul>
                     <h2>When rows or tables are deleted</h2>
                     <ul>
                         <li>

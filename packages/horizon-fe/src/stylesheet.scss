@@ -2646,6 +2646,32 @@ $nav_active_color: var(--h-chrome-text);
     padding: 0 0 8px;
     color: var(--h-text-3);
 }
+// Fill links by matching (#321), under the settings
+.link-dialog .link-match {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--h-line);
+}
+.link-dialog .link-match h4 {
+    margin: 0 0 8px;
+    color: var(--h-text);
+}
+.link-dialog .link-match-note {
+    margin: 0 0 10px;
+    color: var(--h-text-3);
+}
+.link-dialog .link-match-result,
+.link-dialog .link-match-done {
+    padding: 4px 0 8px;
+}
+.link-dialog .link-match-done {
+    color: var(--h-success);
+}
+.link-dialog .link-match-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
 .link-row-popper .el-select-dropdown__wrap {
     max-height: 220px;
 }

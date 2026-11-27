@@ -814,6 +814,13 @@ export default {
                 props: {
                     mode: 'settings',
                     file: this.file,
+                    // Filling by matching (#321) needs the column saved as a link to the table
+                    field,
+                    saved_link_table_id:
+                        col_def._id && col_def.col_type === 'link'
+                            ? col_def.link_table_id
+                            : null,
+                    on_matched: () => this.refresh_clicked(),
                     link_table_id:
                         change.link_table_id || col_def.link_table_id,
                     link_display_field:

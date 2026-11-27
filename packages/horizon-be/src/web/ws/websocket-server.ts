@@ -17,7 +17,7 @@ export class WebsocketServer {
         try {
             if (env.IS_HORIZON_SB === 'true') {
                 this.start();
-                setInterval(async () => await this.restart_stale_jobs(), 5000);
+                setInterval(() => this.restart_stale_jobs_tick(), 5000);
             }
         } catch (ex) {
             logger.error(ex);
@@ -44,6 +44,23 @@ export class WebsocketServer {
         });
     }
 
+    // Runs in the api container (the SB role). A failure here (a Postgres query, say) must
+    // only be logged: an unhandled rejection ends the process (main.ts) and the proxy answers
+    // 502 until it's back (#268). A tick is skipped while the last one is still running.
+    private stale_jobs_running = false;
+
+    async restart_stale_jobs_tick() {
+        if (this.stale_jobs_running) return;
+        this.stale_jobs_running = true;
+        try {
+            await this.restart_stale_jobs();
+        } catch (ex) {
+            logger.error(`restart_stale_jobs failed: ${ex?.message || ex}`);
+        } finally {
+            this.stale_jobs_running = false;
+        }
+    }
+
     async restart_stale_jobs() {
         const client_prc_server_names = Object.keys(this.socket_manager.client_registry)
             .filter(c => c.indexOf('horizon-prc') > -1)
@@ -58,15 +75,15 @@ export class WebsocketServer {
                 `found ${abandoned_jobs.length} abandoned jobs. Setting statuses to PENDING`
             );
 
-            abandoned_jobs.forEach(async job => {
-                let restarts = job.restarts || 0;
-                restarts++;
-                await this._job.update_job(job.id, {
-                    status: 'PENDING',
-                    job_processor_id: null,
-                    restarts
-                });
-            });
+            await Promise.all(
+                abandoned_jobs.map(job =>
+                    this._job.update_job(job.id, {
+                        status: 'PENDING',
+                        job_processor_id: null,
+                        restarts: (job.restarts || 0) + 1
+                    })
+                )
+            );
         }
     }
 

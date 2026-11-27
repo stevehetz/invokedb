@@ -1650,3 +1650,196 @@ $HOME_PAGE_MAX_WIDTH: 900px;
         padding: 15px 20px;
     }
 }
+
+// Agent quickstart (#331)
+.agents-page {
+    display: block;
+}
+.agents-page .main-content {
+    background-color: var(--h-bg);
+    min-height: 100vh;
+}
+.agents-page .agents-body {
+    max-width: 900px;
+    margin: 40px auto;
+    background-color: var(--h-surface);
+    border: solid 1px var(--h-line);
+    box-shadow: 0 1px 3px var(--h-shadow);
+    padding: 30px 40px;
+    line-height: 1.6;
+    color: var(--h-text);
+}
+.agents-page .agents-body a {
+    color: var(--h-link);
+}
+.agents-page h2 {
+    font-size: 1.25em;
+    margin: 0 0 8px;
+}
+.agents-page .agents-intro {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 32px;
+}
+.agents-page .agents-label {
+    color: var(--h-accent-text);
+    background-color: var(--h-tint-accent);
+    border-radius: 12px;
+    padding: 3px 12px;
+    font-size: 0.85em;
+    font-weight: bold;
+}
+.agents-page .agents-intro h1 {
+    margin: 14px 0 12px;
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+.agents-page .agents-intro p {
+    color: var(--h-text-2);
+    font-size: 1.1em;
+}
+.agents-page .agents-can,
+.agents-page .agents-more {
+    margin-bottom: 28px;
+}
+.agents-page .agents-body ul {
+    padding-left: 1.5em;
+}
+.agents-page .agents-body li {
+    margin: 6px 0;
+}
+.agents-page .agents-body code {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    background-color: var(--h-surface-3);
+    padding: 1px 4px;
+    border-radius: 3px;
+    overflow-wrap: anywhere;
+}
+.agents-page .agents-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 28px;
+}
+.agents-page .agents-body .agents-step {
+    border-top: solid 1px var(--h-line);
+    padding: 20px 0 8px;
+    margin: 0;
+}
+.agents-page .agents-step__n {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background-color: var(--h-btn-primary);
+    color: #ffffff;
+    font-size: 0.8em;
+}
+.agents-page .agents-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 12px 0 4px;
+}
+.agents-page .agents-tab {
+    padding: 6px 14px;
+    border: solid 1px var(--h-line-strong);
+    border-radius: 4px;
+    background-color: var(--h-surface);
+    color: var(--h-text-2);
+    font: inherit;
+    cursor: pointer;
+}
+.agents-page .agents-tab.active {
+    border-color: var(--h-btn-primary);
+    background-color: var(--h-tint-accent);
+    color: var(--h-accent-text);
+    font-weight: bold;
+}
+.agents-page .agents-where {
+    margin: 8px 0;
+    color: var(--h-text-2);
+}
+.agents-page .agents-snippet {
+    position: relative;
+    margin: 8px 0 12px;
+}
+.agents-page .agents-snippet pre {
+    background-color: var(--h-code-bg);
+    color: var(--h-code-text);
+    padding: 14px 80px 14px 16px;
+    border-radius: 4px;
+    overflow-x: auto;
+    line-height: 1.45;
+    margin: 0;
+}
+.agents-page .agents-body .agents-snippet pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    overflow-wrap: normal;
+}
+.agents-page .agents-snippet pre.agents-prompt {
+    white-space: pre-wrap;
+}
+// On the code block, so the same in both themes
+.agents-page .agents-copy {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 12px;
+    border: solid 1px rgba(255, 255, 255, 0.4);
+    border-radius: 4px;
+    background-color: transparent;
+    color: #e9e9e9;
+    font: inherit;
+    font-size: 0.85em;
+    cursor: pointer;
+}
+.agents-page .agents-copy:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+.agents-page .agents-cta {
+    text-align: center;
+    margin-top: 8px;
+}
+.agents-page .agents-body a.agents-button {
+    display: inline-block;
+    padding: 11px 26px;
+    border-radius: 6px;
+    background-color: var(--h-btn-primary);
+    color: #ffffff;
+    font-weight: bold;
+    text-decoration: none;
+}
+.agents-page .footer {
+    height: 60px;
+}
+.agents-page .footer .col {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+@media only screen and (max-width: 800px) {
+    .agents-page .agents-body {
+        margin: 20px 10px;
+        padding: 20px;
+    }
+    .agents-page .agents-intro h1 {
+        font-size: 28px;
+    }
+}
+// The site nav's six links (#331) need a little less room on a phone
+@media only screen and (max-width: 420px) {
+    .main-heading a {
+        margin-left: 8px;
+        font-size: 0.9em;
+    }
+    .main-heading .title-link {
+        margin-left: 0;
+    }
+}

@@ -18,27 +18,21 @@ import { AiSpend } from '@app/core/ai/ai-spend';
 import { AiService } from './ai.service';
 import { EditPreview, EditService } from './edit.service';
 import { QueryColumn, parse_row_query } from '@app/core/web-file/row-query';
+import { AccountTables, RanQuery, ReadableTables } from './account-tables';
 import {
     ASK_MAX_TURNS,
     ASK_SAMPLE_ROWS,
-    ASK_TOOL_NAME,
     AskError,
-    AskQuery,
-    ASK_PROMPT_MAX_TABLES,
     PROPOSE_TOOL_NAME,
     ProposeRequest,
     api_call,
     ask_columns,
     ask_system_prompt,
     ask_tool,
-    parse_ask_input,
     parse_propose_input,
     parse_question,
-    prompt_tables,
     propose_tool,
-    reply_text,
-    resolve_ask_table,
-    tool_result_content
+    reply_text
 } from '@app/core/ai/ask';
 import {
     EDIT_TOOL_NAME,
@@ -56,24 +50,6 @@ import {
     usage_month
 } from '@app/core/ai/ai-plan';
 import logger from '@app/logger';
-
-// A run_query call that ran: its body and what it returned
-interface RanQuery {
-    // The name of the table read (#322: the current one or another of the account's)
-    table: string;
-    body: Record<string, unknown>;
-    rows: any[];
-    total: number;
-    fields: string[];
-}
-
-// The tables a question's run_query calls can read (#322): the caller's own live tables only,
-// with the columns of those already looked up
-interface ReadableTables {
-    current: { id: number; name: string };
-    tables: { id: number; name: string }[];
-    known: Map<number, QueryColumn[]>;
-}
 
 export { AI_OFF_MESSAGE, AI_PAUSED_MESSAGE, AI_UNVERIFIED_MESSAGE };
 // Tells the model to read the table when its first reply didn't
@@ -99,7 +75,12 @@ export class AskService {
         private ai_spend: AiSpend,
         private ai_service: AiService,
         private edit_service: EditService
-    ) {}
+    ) {
+        this.account_tables = new AccountTables(file_directory_svc, web_file_manager);
+    }
+
+    // Reading the account's tables (#322), shared with "New table from a description" (#324)
+    private account_tables: AccountTables;
 
     // Overridden by the unit tests
     now() {
@@ -174,54 +155,13 @@ export class AskService {
         return file;
     }
 
-    // Rows keyed by column name, as /api/v1/query returns them
-    private api_rows(docs: any[], fields: QueryColumn[]) {
-        return docs.map(doc => {
-            const row: any = { _id: doc._id };
-            fields.forEach(c => {
-                const value = doc[c.field] === undefined ? null : doc[c.field];
-                row[c.name] =
-                    c.type === 'date' && value
-                        ? this.web_file_manager.format_date_field(value)
-                        : value;
-            });
-            return row;
-        });
-    }
-
-    private async run(acct_id: number, file_id: number, ask: AskQuery) {
-        const res = await this.web_file_manager.query_rows(acct_id, file_id, ask.query);
-        const docs = res.docs.slice(0, ask.query.limit);
-        const total = await this.web_file_manager.count_rows(acct_id, file_id, ask.count_query);
-        return { rows: this.api_rows(docs, ask.query.fields), total };
-    }
-
     private async samples(acct_id: number, file_id: number, columns: QueryColumn[]) {
         const query = parse_row_query({ limit: ASK_SAMPLE_ROWS }, columns, ASK_SAMPLE_ROWS);
         const res = await this.web_file_manager.query_rows(acct_id, file_id, query);
-        return this.api_rows(res.docs.slice(0, ASK_SAMPLE_ROWS), columns).map(r => {
+        return this.account_tables.api_rows(res.docs.slice(0, ASK_SAMPLE_ROWS), columns).map(r => {
             const { _id, ...rest } = r;
             return rest;
         });
-    }
-
-    /**
-     * The account's live tables (#322), run_query's table input picks one of them, and the
-     * other ones (by name) with their columns, capped for the prompt. Only the caller's own.
-     */
-    private async account_tables(acct_id: number, current_id: number) {
-        const files = ((await this.file_directory_svc.get_by_account_id(acct_id)) || []).filter(
-            f => f && f.type === 'file' && !f.deleted && f.account_id === acct_id
-        );
-        const others = files
-            .filter(f => f.id !== current_id)
-            .sort((a, b) => String(a.name).localeCompare(String(b.name)));
-        const listed = [];
-        for (const t of others.slice(0, ASK_PROMPT_MAX_TABLES)) {
-            const columns = ask_columns(await this.web_file_manager.get_columns(acct_id, t.id));
-            listed.push({ name: t.name, columns });
-        }
-        return { tables: files, prompt: prompt_tables(listed, others.length) };
     }
 
     /**
@@ -250,7 +190,7 @@ export class AskService {
         // Read before the question is reserved, so a failed read doesn't use one up
         const samples = await this.samples(acct_id, file.id, columns);
         // The account's other tables (#322): the model may read them, never change them
-        const account_tables = await this.account_tables(acct_id, file.id);
+        const account_tables = await this.account_tables.list(acct_id, file.id);
         const has_others = account_tables.tables.some(t => t.id !== file.id);
         // What run_query can read: the account's tables, the current one's columns known
         const readable: ReadableTables = {
@@ -373,7 +313,7 @@ export class AskService {
                         });
                         continue;
                     }
-                    const res = await this.tool_result(acct_id, readable, call);
+                    const res = await this.account_tables.tool_result(acct_id, readable, call);
                     if (res.ran) last = res.ran;
                     results.push(res.result);
                 }
@@ -409,52 +349,6 @@ export class AskService {
             edit,
             usage: await this.usage(account),
             rows_usage: await this.ai_service.rows_usage(account)
-        };
-    }
-
-    // Runs one run_query call of the model's, or tells it what was wrong with the input
-    private async tool_result(
-        acct_id: number,
-        readable: ReadableTables,
-        call: any
-    ): Promise<{ result: any; ran: RanQuery | null }> {
-        const error = (message: string) => ({
-            result: { type: 'tool_result', tool_use_id: call.id, is_error: true, content: message },
-            ran: null
-        });
-        if (call.name !== ASK_TOOL_NAME) return error(`Unknown tool: ${String(call.name)}`);
-        let ask: AskQuery;
-        let table: { id: number; name: string };
-        try {
-            // Another of the account's tables (#322), by name, or the current one
-            table = resolve_ask_table(call.input, readable.tables) || readable.current;
-            let columns = readable.known.get(table.id);
-            if (!columns) {
-                columns = ask_columns(await this.web_file_manager.get_columns(acct_id, table.id));
-                readable.known.set(table.id, columns);
-            }
-            if (columns.length === 0) {
-                throw new AskError(`The table ${JSON.stringify(table.name)} has no columns yet`);
-            }
-            ask = parse_ask_input(call.input, columns);
-        } catch (ex) {
-            if (ex instanceof AskError) return error(ex.message);
-            throw ex;
-        }
-        const { rows, total } = await this.run(acct_id, table.id, ask);
-        return {
-            result: {
-                type: 'tool_result',
-                tool_use_id: call.id,
-                content: tool_result_content(total, rows)
-            },
-            ran: {
-                table: table.name,
-                body: ask.body,
-                rows,
-                total,
-                fields: ask.query.fields.map(c => c.name)
-            }
         };
     }
 }

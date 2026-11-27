@@ -34,9 +34,21 @@ import {
     rows_schema,
     sample_rows,
     table_prompt,
-    table_schema
+    table_schema,
+    DESIGN_MAX_TURNS,
+    DESIGN_READ_MAX_ROWS,
+    DESIGN_TOOL_NAME,
+    design_rows,
+    design_tool,
+    parse_design_input,
+    table_system_with_tables
 } from '@app/core/ai/ai';
+import { ask_tool } from '@app/core/ai/ask';
 import { IMPORT_LIMITS } from '@app/core/ai/import-text';
+import { AccountTables, ReadableTables } from './account-tables';
+
+// Tells the design's model (#324) to answer with the tool when its reply didn't
+const DESIGN_FIRST = 'Call propose_table with the new table, or run_query to read a table first.';
 import { validate_template } from '@app/core/table-template/table-template';
 import { assert_verified } from '@app/core/email-verification/email-verification';
 import logger from '@app/logger';
@@ -63,7 +75,12 @@ export class AiService {
         private ai_client: AiClient,
         private ai_usage: AiUsageManager,
         private ai_spend: AiSpend
-    ) {}
+    ) {
+        this.account_tables = new AccountTables(file_directory_svc, web_file_manager);
+    }
+
+    // Reading the account's tables (#322), for a table from a description (#324)
+    private account_tables: AccountTables;
 
     // Overridden by the unit tests
     now() {
@@ -326,28 +343,47 @@ export class AiService {
         const account = await this.verified_account(acct_id);
         await this.tracking_manager.check_account_lock(account);
         await this.tracking_manager.check_not_read_only(account);
+        // The account's own tables (#324): the design may read them, never change them.
+        // Read before the rows are reserved, so a failed read doesn't use any up.
+        const tables = await this.account_tables.list(acct_id);
 
         const cost = Math.max(1, request.row_count);
         const month = await this.reserve(account, cost);
-        // The design counts as one row, and every row asked of the model counts; only rows
-        // never asked for are handed back.
+        // The design counts as one row, and every row in the preview counts: generated ones as
+        // asked of the model, copied ones (#324) as kept; only rows never asked for are handed
+        // back. Reading a table costs no row.
         const spent: Spent[] = [];
         let used = 0;
         let preview;
         try {
             used = 1;
-            const raw = await this.call(
-                {
-                    system: TABLE_SYSTEM,
-                    prompt: table_prompt(request.description),
-                    schema: table_schema(),
-                    max_tokens: 2048
-                },
-                spent
-            );
-            const design = this.checked(() => check_table_design(raw));
+            let design: { table_name: string; columns: any[] };
+            // Rows the model built from tables it read (#324), checked, or null
+            let given: any[] | null = null;
+            let read: string[] = [];
+            if (tables.tables.length === 0) {
+                const raw = await this.call(
+                    {
+                        system: TABLE_SYSTEM,
+                        prompt: table_prompt(request.description),
+                        schema: table_schema(),
+                        max_tokens: 2048
+                    },
+                    spent
+                );
+                design = this.checked(() => check_table_design(raw));
+            } else {
+                ({
+                    design,
+                    rows: given,
+                    read
+                } = await this.design_with_tables(acct_id, request, tables, spent));
+            }
             let rows = [];
-            if (request.row_count > 0) {
+            if (given) {
+                rows = given;
+                used = Math.max(1, rows.length);
+            } else if (request.row_count > 0) {
                 const result = await this.generate(
                     design_columns(design.columns),
                     [],
@@ -360,12 +396,100 @@ export class AiService {
                 rows = result.rows;
                 if (rows.length === 0) this.no_rows(result.error);
             }
-            preview = { ...design, rows };
+            // read: the tables the model read (#324), for the dialog
+            preview = { ...design, rows, read };
         } finally {
             await this.ai_usage.release_rows(account.id, month, cost - used);
             await this.ai_spend.charge(account.id, month, spent);
         }
         return { ...preview, usage: await this.rows_usage(account) };
+    }
+
+    /**
+     * A design that can read the account's tables (#324): at most DESIGN_MAX_TURNS model calls,
+     * with run_query (read-only, the caller's own tables, checked against each one's columns)
+     * and propose_table. Answers the design, its rows when the model gave them (checked, at most
+     * row_count; null to generate them as before) and the names of the tables read. A bad input
+     * goes back to the model; no design at all is a 502.
+     */
+    private async design_with_tables(
+        acct_id: number,
+        request: { description: string; row_count: number },
+        tables: Awaited<ReturnType<AccountTables['list']>>,
+        spent: Spent[]
+    ) {
+        const readable: ReadableTables = {
+            current: null,
+            tables: tables.tables,
+            known: new Map()
+        };
+        const system = table_system_with_tables(tables.prompt, request.row_count);
+        const tools: any[] = [
+            ask_tool([], true, { no_current: true, max_rows: DESIGN_READ_MAX_ROWS }),
+            design_tool()
+        ];
+        const messages: any[] = [{ role: 'user', content: table_prompt(request.description) }];
+        const read: string[] = [];
+        const max_tokens = Math.max(2048, max_tokens_for(request.row_count, 12));
+        for (let turn = 0; turn < DESIGN_MAX_TURNS; turn++) {
+            let reply: any;
+            try {
+                const res: any = await this.ai_client.create_message({
+                    max_tokens,
+                    system,
+                    tools,
+                    tool_choice: { type: 'auto' } as any,
+                    messages
+                });
+                reply = res.reply;
+                spent.push({ model: res.model, usage: reply.usage });
+            } catch (ex) {
+                logger.error(`AI table design failed for acct ${acct_id}: ${ex && ex.message}`);
+                throw new BadGatewayException("The AI didn't answer. Try again in a minute.");
+            }
+            if (reply.stop_reason === 'refusal') {
+                throw new BadGatewayException('The AI declined this request');
+            }
+            const calls = (reply.content || []).filter(c => c && c.type === 'tool_use');
+            messages.push({ role: 'assistant', content: reply.content });
+            if (calls.length === 0) {
+                messages.push({ role: 'user', content: DESIGN_FIRST });
+                continue;
+            }
+            const results = [];
+            for (const call of calls) {
+                if (call.name === DESIGN_TOOL_NAME) {
+                    try {
+                        const { design, rows } = parse_design_input(call.input);
+                        if (!rows || request.row_count === 0) {
+                            return { design, rows: null, read };
+                        }
+                        const checked = design_rows(design.columns, rows, request.row_count);
+                        if (checked.length > 0) return { design, rows: checked, read };
+                        throw new AiError("None of the rows had a value for the table's columns");
+                    } catch (ex) {
+                        if (!(ex instanceof AiError)) throw ex;
+                        results.push({
+                            type: 'tool_result',
+                            tool_use_id: call.id,
+                            is_error: true,
+                            content: ex.message
+                        });
+                    }
+                    continue;
+                }
+                const res = await this.account_tables.tool_result(
+                    acct_id,
+                    readable,
+                    call,
+                    DESIGN_READ_MAX_ROWS
+                );
+                if (res.ran && !read.includes(res.ran.table)) read.push(res.ran.table);
+                results.push(res.result);
+            }
+            messages.push({ role: 'user', content: results });
+        }
+        throw new BadGatewayException("The AI didn't design a table. Try rewording it.");
     }
 
     /**

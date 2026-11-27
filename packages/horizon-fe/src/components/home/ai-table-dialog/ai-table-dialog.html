@@ -5,6 +5,11 @@
             types and some sample rows. You can change them before the table is
             made.
         </p>
+        <p class="ai-intro">
+            It can use your existing tables: name one ("follow-ups for the
+            emails in crm_contacts") and it reads that table and fills the rows
+            with its values, instead of making them up. It only reads them.
+        </p>
         <div class="ai-row">
             <label>Table for</label>
             <textarea
@@ -88,6 +93,9 @@
         </table>
 
         <label class="ai-label">Sample rows ({{ rows.length }})</label>
+        <p class="ai-intro ai-read" v-if="read.length > 0">
+            Read from {{ read.join(', ') }}.
+        </p>
         <div class="ai-preview" v-if="rows.length > 0">
             <table>
                 <thead>

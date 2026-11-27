@@ -2800,6 +2800,208 @@ await call('schema_diagram_api_key', 'GET', '/file-directory/schema', {
 });
 await call('schema_diagram_no_token', 'GET', '/file-directory/schema', { expectFail: true });
 
+// Fill a link column by matching (#321): two CRM tables share their Email column. In the
+// signups table, Ada's email is in capitals with spaces (still matches), Bram's is empty (no
+// match), Chiara's matches two contacts (linked to both) and Dev's cell is already linked to
+// Bram (left alone). The preview writes nothing; apply fills the empty cells only.
+const match_contacts = await call('match_contacts_create', 'POST', '/table-template/crm', {
+    token,
+    body: { name: 'smoke_match_contacts' }
+});
+const match_signups = await call('match_signups_create', 'POST', '/table-template/crm', {
+    token,
+    body: { name: 'smoke_match_signups' }
+});
+const mc_cols = await call(
+    'match_contacts_cols',
+    'POST',
+    `/web-file/data_grid_column/${match_contacts}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const mc_email = (mc_cols.data || []).find(c => c.headerName === 'Email')?.field;
+const mc_name = (mc_cols.data || []).find(c => c.headerName === 'Name')?.field;
+await call('match_contacts_add', 'POST', `/web-file/batch_create/data_grid_row/${match_contacts}`, {
+    token,
+    body: [{ [mc_name]: 'Chiara Again', [mc_email]: 'chiara@example.com' }]
+});
+const mc_rows = await call(
+    'match_contacts_rows',
+    'POST',
+    `/web-file/data_grid_row/${match_contacts}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const mc_by_email = email =>
+    (mc_rows.data || []).filter(r => r[mc_email] === email).map(r => r._id);
+const ms_cols = await call(
+    'match_signups_cols',
+    'POST',
+    `/web-file/data_grid_column/${match_signups}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const ms_email = (ms_cols.data || []).find(c => c.headerName === 'Email')?.field;
+const ms_link_col = await call(
+    'match_new_column',
+    'GET',
+    `/web-file/${match_signups}/get_new_column`,
+    { token }
+);
+await call(
+    'match_link_col_create',
+    'PUT',
+    `/web-file/${ms_link_col?._id}/data_grid_column/${match_signups}`,
+    {
+        token,
+        body: {
+            ...ms_link_col,
+            headerName: 'Contact',
+            deleted: false,
+            col_type: 'link',
+            link_table_id: match_contacts,
+            link_display_field: mc_name
+        }
+    }
+);
+await sleep(500);
+const msf = ms_link_col?.field;
+const ms_rows = await call(
+    'match_signups_rows',
+    'POST',
+    `/web-file/data_grid_row/${match_signups}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const ms_row = email => (ms_rows.data || []).find(r => r[ms_email] === email);
+const [s_ada, s_bram, s_chiara, s_dev] = [
+    'ada@example.com',
+    'bram@example.com',
+    'chiara@example.com',
+    'dev@example.com'
+].map(ms_row);
+check(
+    'match_ready',
+    !!(mc_email && ms_email && msf && s_ada && s_bram && s_chiara && s_dev) &&
+        mc_by_email('chiara@example.com').length === 2,
+    [mc_rows, ms_rows]
+);
+await call(
+    'match_signups_prepare',
+    'PUT',
+    `/web-file/batch_update/data_grid_row/${match_signups}`,
+    {
+        token,
+        body: [
+            { _id: s_ada?._id, [ms_email]: '  ADA@Example.com ' },
+            { _id: s_bram?._id, [ms_email]: null },
+            { _id: s_dev?._id, [msf]: mc_by_email('bram@example.com') }
+        ]
+    }
+);
+const match_body = { field: msf, source_field: ms_email, target_field: mc_email };
+const match_preview = await call('match_preview', 'POST', `/web-file/${match_signups}/link-match`, {
+    token,
+    body: { ...match_body, apply: false }
+});
+const match_expected = { linked: 2, no_match: 1, multiple: 1, already_linked: 1 };
+check(
+    'match_preview_counts',
+    JSON.stringify(match_preview) === JSON.stringify(match_expected),
+    match_preview
+);
+const match_cells = async name => {
+    const res = await call(
+        name,
+        'POST',
+        `/web-file/data_grid_row/${match_signups}?skip=0&limit=50`,
+        {
+            token,
+            body: {}
+        }
+    );
+    const cell = row => (res.data || []).find(r => r._id === row?._id)?.[msf] ?? null;
+    return {
+        ada: cell(s_ada),
+        bram: cell(s_bram),
+        chiara: cell(s_chiara),
+        dev: cell(s_dev)
+    };
+};
+const before_apply = await match_cells('match_rows_after_preview');
+check(
+    'match_preview_wrote_nothing',
+    before_apply.ada === null &&
+        before_apply.chiara === null &&
+        JSON.stringify(before_apply.dev) === JSON.stringify(mc_by_email('bram@example.com')),
+    before_apply
+);
+const match_applied = await call('match_apply', 'POST', `/web-file/${match_signups}/link-match`, {
+    token,
+    body: { ...match_body, apply: true }
+});
+check(
+    'match_apply_counts',
+    JSON.stringify(match_applied) === JSON.stringify(match_expected),
+    match_applied
+);
+const after_apply = await match_cells('match_rows_after_apply');
+const same_ids = (a, b) =>
+    Array.isArray(a) && JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+check(
+    'match_apply_linked',
+    same_ids(after_apply.ada, mc_by_email('ada@example.com')) &&
+        same_ids(after_apply.chiara, mc_by_email('chiara@example.com')) &&
+        after_apply.bram === null &&
+        JSON.stringify(after_apply.dev) === JSON.stringify(mc_by_email('bram@example.com')),
+    after_apply
+);
+// Applied again, nothing is left to fill
+const match_again = await call(
+    'match_preview_again',
+    'POST',
+    `/web-file/${match_signups}/link-match`,
+    { token, body: { ...match_body, apply: false } }
+);
+check(
+    'match_again_all_linked',
+    match_again?.linked === 0 && match_again?.already_linked === 3 && match_again?.no_match === 1,
+    match_again
+);
+// Not a link column, a link column to match on, an unknown column: 400s. demo2 and an API key
+// can't use it on demo's table.
+await call('match_not_link', 'POST', `/web-file/${match_signups}/link-match`, {
+    token,
+    body: { ...match_body, field: ms_email },
+    expectFail: true
+});
+await call('match_source_is_link', 'POST', `/web-file/${match_signups}/link-match`, {
+    token,
+    body: { ...match_body, source_field: msf },
+    expectFail: true
+});
+await call('match_unknown_target', 'POST', `/web-file/${match_signups}/link-match`, {
+    token,
+    body: { ...match_body, target_field: 'nope' },
+    expectFail: true
+});
+check(
+    'match_bad_bodies_are_400',
+    ['match_not_link', 'match_source_is_link', 'match_unknown_target'].every(
+        n => results[n]?.status === 400
+    )
+);
+await call('match_other_account', 'POST', `/web-file/${match_signups}/link-match`, {
+    token: ltoken2,
+    body: { ...match_body, apply: true },
+    expectFail: true
+});
+await call('match_api_key', 'POST', `/web-file/${match_signups}/link-match`, {
+    token: key,
+    body: { ...match_body, apply: true },
+    expectFail: true
+});
+await call('match_tables_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [match_signups, match_contacts] }
+});
+
 // API keys (#138), on the two linked tables: a read-only key reads but can't write, a key limited
 // to the tasks table can't reach contacts (nor expand its link to them), a revoked key works
 // nowhere, only hashes are kept, the key migrated from the old api_key column still works, a key

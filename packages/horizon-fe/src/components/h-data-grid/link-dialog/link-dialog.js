@@ -6,10 +6,34 @@
 //   { mode, file, field, column_name, link_table_id, link_display_field,
 //   selected: [{ _id, label }], on_save }; on_save gets the chosen [{ _id, label }]. The intro
 //   names the linked table and its display column (#320), looked up in `link-targets`.
+//   Settings mode also fills the column by matching (#321), once it's saved as a link to the
+//   chosen table: props `field` and `saved_link_table_id` say so, and `on_matched` is called
+//   after rows were linked, to refresh the grid.
 // Closing the dialog without saving calls on_cancel (if given).
 import { defineComponent } from 'vue';
 import { bus } from '@/core/bus';
 import { web_file_http } from '@/core/context/web-file/web-file-http';
+
+/** @param {number} n @returns {string} */
+function rows_text(n) {
+    return n === 1 ? '1 row' : `${n} rows`;
+}
+
+/**
+ * A column of each list with the same name, ignoring case, if there is one
+ * @param {any[]} cols @param {any[]} others
+ * @returns {[string | null, string | null]}
+ */
+function same_named(cols, others) {
+    for (const c of cols) {
+        const name = String(c.headerName).trim().toLowerCase();
+        const other = others.find(
+            o => String(o.headerName).trim().toLowerCase() === name
+        );
+        if (other) return [c.field, other.field];
+    }
+    return [null, null];
+}
 
 /** @param {any} ex @param {string} fallback */
 function message_of(ex, fallback) {
@@ -35,6 +59,16 @@ export default defineComponent({
             table_id: null,
             /** @type {string | null} */
             display_field: null,
+            // settings: fill by matching (#321)
+            /** @type {string | null} */
+            source_field: null,
+            /** @type {string | null} */
+            target_field: null,
+            /** @type {{ linked: number, no_match: number, multiple: number, already_linked: number } | null} */
+            match_counts: null,
+            // What the last Link rows did
+            match_done: '',
+            matching: false,
             // pick
             /** @type {string[]} */
             chosen: [],
@@ -57,6 +91,89 @@ export default defineComponent({
         table_columns() {
             const table = this.tables.find(t => t.id === this.table_id);
             return table ? table.columns : [];
+        },
+
+        /** @returns {boolean} The column is saved as a link to the chosen table */
+        can_match() {
+            const saved = this.props.saved_link_table_id;
+            return (
+                !!this.props.field &&
+                saved !== null &&
+                saved !== undefined &&
+                Number(saved) === Number(this.table_id)
+            );
+        },
+
+        /** @returns {any[]} This table's columns a match can be made on */
+        source_columns() {
+            const own = this.tables.find(
+                t => Number(t.id) === Number(this.props.file.id)
+            );
+            return ((own && own.columns) || []).filter(
+                (/** @type {any} */ c) =>
+                    c.col_type !== 'link' && c.field !== this.props.field
+            );
+        },
+
+        /** @returns {any[]} The linked table's columns a match can be made on */
+        target_columns() {
+            return this.table_columns.filter(
+                (/** @type {any} */ c) => c.col_type !== 'link'
+            );
+        },
+
+        /** @returns {string} */
+        target_table_name() {
+            const table = this.tables.find(t => t.id === this.table_id);
+            return table ? table.name : 'the linked table';
+        },
+
+        /** @returns {boolean} */
+        can_find() {
+            return (
+                this.can_match &&
+                !!this.source_field &&
+                !!this.target_field &&
+                !this.matching &&
+                !this.saving
+            );
+        },
+
+        /** @returns {boolean} */
+        can_apply() {
+            return (
+                this.can_find &&
+                !!this.match_counts &&
+                this.match_counts.linked > 0
+            );
+        },
+
+        /** @returns {string} The preview's counts, in words */
+        match_summary() {
+            const c = this.match_counts;
+            if (!c) return '';
+            const parts = [
+                c.linked === 0
+                    ? 'No rows will be linked'
+                    : `${rows_text(c.linked)} will be linked`
+            ];
+            if (c.multiple > 0) {
+                const verb = c.multiple === 1 ? 'matches' : 'match';
+                parts.push(
+                    `${rows_text(c.multiple)} ${verb} more than one row (linked to all of them)`
+                );
+            }
+            if (c.no_match > 0) {
+                const verb = c.no_match === 1 ? 'has' : 'have';
+                parts.push(`${rows_text(c.no_match)} ${verb} no match`);
+            }
+            if (c.already_linked > 0) {
+                const verb = c.already_linked === 1 ? 'has' : 'have';
+                parts.push(
+                    `${rows_text(c.already_linked)} already ${verb} links and stay as they are`
+                );
+            }
+            return `${parts.join(', ')}.`;
         },
 
         /** @returns {any} */
@@ -132,6 +249,7 @@ export default defineComponent({
                     this.table_id = null;
                 this.display_field = this.props.link_display_field || null;
                 this.fix_display_field();
+                this.default_match_fields();
                 this.error = null;
             } catch (ex) {
                 this.error = message_of(ex, 'Could not load your tables');
@@ -163,6 +281,68 @@ export default defineComponent({
 
         table_changed() {
             this.fix_display_field();
+            this.default_match_fields();
+        },
+
+        // Fill by matching: a same-named column of each table by default (Email ↔ Email)
+        default_match_fields() {
+            const [source, target] = same_named(
+                this.source_columns,
+                this.target_columns
+            );
+            this.source_field = source;
+            this.target_field = target;
+            this.match_changed();
+        },
+
+        match_changed() {
+            this.match_counts = null;
+            this.match_done = '';
+        },
+
+        /**
+         * @param {boolean} apply
+         * @returns {Promise<any>} the counts, or null if it failed
+         */
+        async run_match(apply) {
+            if (!this.can_find) return null;
+            this.matching = true;
+            try {
+                const counts = await web_file_http.link_match(
+                    this.props.file.id,
+                    {
+                        field: this.props.field,
+                        source_field: String(this.source_field),
+                        target_field: String(this.target_field),
+                        apply
+                    }
+                );
+                this.error = null;
+                return counts;
+            } catch (ex) {
+                this.error = message_of(ex, 'Could not match the rows');
+                return null;
+            } finally {
+                this.matching = false;
+            }
+        },
+
+        async find_matches() {
+            this.match_done = '';
+            const counts = await this.run_match(false);
+            if (counts) this.match_counts = counts;
+        },
+
+        async apply_matches() {
+            if (!this.can_apply) return;
+            const counts = await this.run_match(true);
+            if (!counts) return;
+            this.match_counts = null;
+            this.match_done =
+                counts.linked === 0
+                    ? 'No rows were linked.'
+                    : `Linked ${rows_text(counts.linked)}.`;
+            if (this.props.on_matched) this.props.on_matched();
         },
 
         /** @param {string} q */

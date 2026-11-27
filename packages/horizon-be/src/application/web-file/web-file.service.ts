@@ -46,9 +46,22 @@ import {
     link_display_column,
     parse_expand
 } from '@app/core/web-file/link';
+import {
+    MatchIndex,
+    add_to_counts,
+    assert_source_columns,
+    assert_target_column,
+    columns_match_kind,
+    empty_counts,
+    match_row,
+    parse_link_match_body
+} from '@app/core/web-file/link-match';
 import { AiColumnManager } from '@app/core/ai-column/ai-column.manager';
 
 const fs = require('fs');
+
+// Rows written per update when a link column is filled by matching (#321)
+const LINK_MATCH_BATCH = 200;
 
 @Injectable()
 export class WebFileService {
@@ -195,6 +208,66 @@ export class WebFileService {
             );
         }
         return await this.web_file_manager.link_options(account.id, file_id, field, q);
+    }
+
+    /**
+     * Fill a link column by matching (#321): `apply: false` answers the counts only; `apply:
+     * true` also writes the empty link cells that match, through `batch_update_internal` in
+     * batches (locks, read-only state, webhooks and the audit log as for any row update). Both
+     * tables are streamed; only the linked table's value → ids map is held in memory. The
+     * caller has checked that `file_id` is the account's.
+     */
+    async link_match(account, file_id, body) {
+        await this.tracking_manager.check_account_lock(account);
+        const req = parse_link_match_body(body);
+        // Refused up front, so a read-only account (#184) isn't shown a preview it can't apply
+        if (req.apply) {
+            await this.tracking_manager.check_not_read_only(account);
+            await this.tracking_manager.check_table_lock(file_id);
+        }
+        const cols = await this.web_file_manager.get_columns(account.id, file_id);
+        const { link, source } = assert_source_columns(req, cols);
+        const target_table = await this.file_directory_svc.assert_owned(
+            account.id,
+            link.link_table_id
+        );
+        if (target_table.type !== 'file' || target_table.deleted) {
+            throw new NotFoundException('The linked table is gone');
+        }
+        const target_cols = await this.web_file_manager.get_columns(account.id, target_table.id);
+        const target = assert_target_column(req, target_cols);
+        const index = new MatchIndex(columns_match_kind(source, target));
+
+        const targets = await this.web_file_manager.row_cursor(account.id, target_table.id, {
+            [target.field]: 1
+        });
+        for await (const doc of targets) index.add(doc._id, doc[target.field]);
+
+        const counts = empty_counts();
+        const rows = await this.web_file_manager.row_cursor(account.id, file_id, {
+            [link.field]: 1,
+            [source.field]: 1
+        });
+        let batch: any[] = [];
+        const write = async () => {
+            if (batch.length === 0) return;
+            const data = batch;
+            batch = [];
+            await this.batch_update_internal(account, file_id, 'data_grid_row', data);
+        };
+        try {
+            for await (const doc of rows) {
+                const res = match_row(doc[link.field], doc[source.field], index);
+                add_to_counts(counts, res);
+                if (!req.apply || res.outcome !== 'linked') continue;
+                batch.push({ _id: String(doc._id), [link.field]: res.ids });
+                if (batch.length >= LINK_MATCH_BATCH) await write();
+            }
+            await write();
+        } finally {
+            await rows.close();
+        }
+        return counts;
     }
 
     /**

@@ -42,6 +42,16 @@ export const web_file_http = {
     },
 
     /**
+     * Fills a link column's empty cells by matching a column of each table (#321). Answers
+     * `{ linked, no_match, multiple, already_linked }`; writes only with `apply: true`.
+     * @param {number} id
+     * @param {{ field: string, source_field: string, target_field: string, apply: boolean }} body
+     */
+    async link_match(id, body) {
+        return http.post(http.get_url(`/web-file/${id}/link-match`), body);
+    },
+
+    /**
      * The table's file-directory record (its `status` is PENDING while a job runs on it),
      * or null if it's gone.
      * @param {number} id

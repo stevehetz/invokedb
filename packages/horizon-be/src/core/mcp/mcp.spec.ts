@@ -3,10 +3,13 @@ import {
     handle_body,
     handle_message,
     JSONRPC_ERRORS,
+    MAX_COLUMNS_PER_CALL,
     MAX_ROWS_PER_CALL,
     McpContext,
     negotiate_version,
+    new_column_docs,
     PROTOCOL_VERSIONS,
+    TABLE_LIMITED_KEY_REFUSAL,
     TOOLS,
     tool_result,
     tools_for
@@ -48,7 +51,9 @@ describe('mcp: tools', () => {
             'count_rows',
             'create_rows',
             'update_rows',
-            'delete_rows'
+            'delete_rows',
+            'create_table',
+            'add_columns'
         ]);
     });
 
@@ -97,12 +102,112 @@ describe('mcp: check_arguments', () => {
         expect(check_arguments(del, { table: 't', ids: [1] })).toMatch(/string/);
     });
 
+    it("checks create_table's name, folder and columns", () => {
+        const create = tool('create_table');
+        const cols = [
+            { name: 'Name', type: 'string' },
+            { name: 'Age', type: 'number' },
+            { name: 'Joined', type: 'date' }
+        ];
+        expect(check_arguments(create, { name: 'people', columns: cols })).toBeNull();
+        expect(
+            check_arguments(create, { name: 'people', folder: 'crm', columns: cols })
+        ).toBeNull();
+        expect(check_arguments(create, { name: 'people', folder: 3, columns: cols })).toBeNull();
+        expect(check_arguments(create, { columns: cols })).toBe('name is required');
+        expect(check_arguments(create, { name: 'people' })).toBe('columns is required');
+        expect(check_arguments(create, { name: 'my people', columns: cols })).toMatch(/name/);
+        expect(check_arguments(create, { name: 'x'.repeat(151), columns: cols })).toMatch(
+            /at most 150/
+        );
+        expect(check_arguments(create, { name: 'p', folder: '', columns: cols })).toMatch(/folder/);
+        expect(check_arguments(create, { name: 'p', folder: 1.5, columns: cols })).toMatch(
+            /folder/
+        );
+        expect(check_arguments(create, { name: 'p', columns: cols, table: 't' })).toMatch(
+            /unknown argument: table/
+        );
+    });
+
+    it('checks the columns of create_table and add_columns', () => {
+        for (const t of [tool('create_table'), tool('add_columns')]) {
+            const args = (columns: unknown) =>
+                t.name === 'create_table' ? { name: 'p', columns } : { table: 'p', columns };
+            expect(check_arguments(t, args([{ name: 'A', type: 'string' }]))).toBeNull();
+            expect(check_arguments(t, args([]))).toMatch(/non-empty/);
+            expect(check_arguments(t, args('A'))).toMatch(/non-empty/);
+            expect(check_arguments(t, args(['A']))).toMatch(/object/);
+            expect(check_arguments(t, args([{ type: 'string' }]))).toMatch(/name/);
+            expect(check_arguments(t, args([{ name: ' ', type: 'string' }]))).toMatch(/name/);
+            expect(check_arguments(t, args([{ name: 'A' }]))).toMatch(/type must be one of/);
+            // Link and AI columns need settings of their own
+            expect(check_arguments(t, args([{ name: 'A', type: 'link' }]))).toMatch(/type/);
+            expect(
+                check_arguments(t, args([{ name: 'A', type: 'string', link_table_id: 2 }]))
+            ).toMatch(/unknown column key: link_table_id/);
+            expect(
+                check_arguments(
+                    t,
+                    args([
+                        { name: 'A', type: 'string' },
+                        { name: 'A', type: 'number' }
+                    ])
+                )
+            ).toBe('Duplicate column name: A');
+            const many = Array.from({ length: MAX_COLUMNS_PER_CALL + 1 }, (_, i) => ({
+                name: `c${i}`,
+                type: 'string'
+            }));
+            expect(check_arguments(t, args(many))).toMatch(/at most/);
+        }
+        expect(check_arguments(tool('add_columns'), { columns: [] })).toBe('table is required');
+    });
+
     it('checks the query keys it relies on', () => {
         const q = tool('query_rows');
         expect(check_arguments(q, { table: 't', limit: 10, cursor: 'c', match: 'any' })).toBeNull();
         expect(check_arguments(q, { table: 't', limit: 0 })).toMatch(/limit/);
         expect(check_arguments(q, { table: 't', cursor: 3 })).toMatch(/cursor/);
         expect(check_arguments(q, { table: 't', match: 'some' })).toMatch(/match/);
+    });
+});
+
+describe('mcp: new_column_docs', () => {
+    const next = (f: string) => String.fromCharCode(f.charCodeAt(0) + 1);
+    const cols = [
+        { name: 'Name', type: 'string' },
+        { name: 'Age', type: 'number' }
+    ];
+
+    it('a new table starts at field a', () => {
+        expect(new_column_docs(7, cols, null, next)).toEqual([
+            {
+                file_directory_id: 7,
+                col_index: 1,
+                field: 'a',
+                order: 1,
+                headerName: 'Name',
+                width: 200,
+                col_type: 'string'
+            },
+            {
+                file_directory_id: 7,
+                col_index: 2,
+                field: 'b',
+                order: 2,
+                headerName: 'Age',
+                width: 200,
+                col_type: 'number'
+            }
+        ]);
+    });
+
+    it('goes on after the last column, skipping fields in use', () => {
+        const docs = new_column_docs(7, cols, { field: 'c', col_index: 3 }, next, new Set(['e']));
+        expect(docs.map(d => [d.field, d.col_index, d.order])).toEqual([
+            ['d', 4, 4],
+            ['f', 5, 5]
+        ]);
     });
 });
 
@@ -184,6 +289,31 @@ describe('mcp: protocol', () => {
         const bad: any = await handle_message(call('describe_table', {}), c);
         expect(bad.result.isError).toBe(true);
         expect(calls).toEqual([]);
+    });
+
+    it('a key limited to some tables gets a tool error for create_table and add_columns', async () => {
+        const { c, calls } = ctx();
+        c.table_limited = true;
+        const cols = [{ name: 'A', type: 'string' }];
+        for (const msg of [
+            call('create_table', { name: 'p', columns: cols }),
+            call('add_columns', { table: 'p', columns: cols })
+        ]) {
+            const res: any = await handle_message(msg, c);
+            expect(res.result).toEqual({
+                content: [{ type: 'text', text: TABLE_LIMITED_KEY_REFUSAL }],
+                isError: true
+            });
+        }
+        // Its rows tools still run
+        await handle_message(call('create_rows', { table: 'p', rows: [{ A: 'x' }] }), c);
+        expect(calls.map(x => x.name)).toEqual(['create_rows']);
+
+        const read: any = await handle_message(
+            call('create_table', { name: 'p', columns: cols }),
+            ctx('read').c
+        );
+        expect(read.result.content[0].text).toBe('This API key is read-only');
     });
 
     it('an unknown tool is a JSON-RPC error', async () => {

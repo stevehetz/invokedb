@@ -3269,6 +3269,231 @@ const mcp_bad = await mcp_tool('mcp_bad_filter', key, 'query_rows', {
     filters: [{ column: 'Nope', op: 'eq', value: 1 }]
 });
 check('mcp_bad_filter_is_tool_error', mcp_bad?.isError === true, mcp_bad);
+// Tables and columns (#329): the read-write key for every table makes a table, adds a column and
+// writes rows to it; the read-only and tasks-only keys are refused; the grid's column rules, the
+// name in use and the 52-column limit come back as tool errors; demo2 can't see the table
+const mcp_text = result => result?.content?.[0]?.text || '';
+const mcp_dirs0 = await call('mcp_table_leftovers', 'GET', '/file-directory', { token });
+const mcp_leftover = (Array.isArray(mcp_dirs0) ? mcp_dirs0 : []).filter(
+    d =>
+        (d.type === 'file' && d.name === 'smoke_mcp_table') ||
+        (d.type === 'dir' && d.name === 'smoke_mcp_dir')
+);
+if (mcp_leftover.length) {
+    await call('mcp_table_leftovers_delete', 'POST', '/file-directory/batch_delete', {
+        token,
+        body: { ids: mcp_leftover.map(d => d.id) }
+    });
+}
+const mcp_cols = [
+    { name: 'Name', type: 'string' },
+    { name: 'Age', type: 'number' }
+];
+check(
+    'mcp_tools_schema',
+    rw_tools.includes('create_table') &&
+        rw_tools.includes('add_columns') &&
+        !ro_tools.includes('create_table') &&
+        !ro_tools.includes('add_columns'),
+    { rw_tools, ro_tools }
+);
+const mcp_ro_table = await mcp_tool('mcp_ro_create_table', ro?.secret, 'create_table', {
+    name: 'smoke_mcp_table',
+    columns: mcp_cols
+});
+check(
+    'mcp_ro_create_table_refused',
+    mcp_ro_table?.isError === true && /read-only/.test(mcp_text(mcp_ro_table)),
+    mcp_ro_table
+);
+const mcp_scoped_table = await mcp_tool('mcp_scoped_create_table', scoped?.secret, 'create_table', {
+    name: 'smoke_mcp_table',
+    columns: mcp_cols
+});
+check(
+    'mcp_scoped_create_table_refused',
+    mcp_scoped_table?.isError === true && /limited to some tables/.test(mcp_text(mcp_scoped_table)),
+    mcp_scoped_table
+);
+const mcp_scoped_cols = await mcp_tool('mcp_scoped_add_columns', scoped?.secret, 'add_columns', {
+    table: 'smoke_link_tasks',
+    columns: [{ name: 'Extra', type: 'string' }]
+});
+check(
+    'mcp_scoped_add_columns_refused',
+    mcp_scoped_cols?.isError === true && /limited to some tables/.test(mcp_text(mcp_scoped_cols)),
+    mcp_scoped_cols
+);
+const mcp_link_type = await mcp_tool('mcp_create_table_link_type', key, 'create_table', {
+    name: 'smoke_mcp_table',
+    columns: [{ name: 'Contact', type: 'link' }]
+});
+check('mcp_create_table_link_type_refused', mcp_link_type?.isError === true, mcp_link_type);
+const mcp_table_made = await mcp_tool('mcp_create_table', key, 'create_table', {
+    name: 'smoke_mcp_table',
+    columns: mcp_cols
+});
+const mcp_new_table = mcp_value(mcp_table_made);
+check(
+    'mcp_create_table_ok',
+    mcp_table_made?.isError === false &&
+        Number.isInteger(mcp_new_table?.id) &&
+        mcp_new_table?.name === 'smoke_mcp_table' &&
+        JSON.stringify(mcp_new_table?.columns) === JSON.stringify(mcp_cols),
+    mcp_table_made
+);
+const mcp_table_again = await mcp_tool('mcp_create_table_taken', key, 'create_table', {
+    name: 'smoke_mcp_table',
+    columns: mcp_cols
+});
+check(
+    'mcp_create_table_taken_refused',
+    mcp_table_again?.isError === true && /in use/i.test(mcp_text(mcp_table_again)),
+    mcp_table_again
+);
+// A name used in another folder is refused too; a second table of the same name made in the app
+// makes the name ambiguous, so add_columns by name asks for the id instead of guessing
+const mcp_dir = await call('mcp_dir_create', 'POST', '/file-directory', {
+    token,
+    body: { account_id: me.id, name: 'smoke_mcp_dir', type: 'dir' }
+});
+const mcp_in_dir = await mcp_tool('mcp_create_table_taken_other_folder', key, 'create_table', {
+    name: 'smoke_mcp_table',
+    folder: 'smoke_mcp_dir',
+    columns: mcp_cols
+});
+check(
+    'mcp_create_table_taken_other_folder_refused',
+    mcp_in_dir?.isError === true && /in use/i.test(mcp_text(mcp_in_dir)),
+    mcp_in_dir
+);
+await call('mcp_dir_twin_create', 'POST', '/file-directory', {
+    token,
+    body: {
+        account_id: me.id,
+        name: 'smoke_mcp_table',
+        type: 'file',
+        web_file_type: 'data-grid',
+        parent_id: mcp_dir
+    }
+});
+const mcp_ambiguous = await mcp_tool('mcp_add_columns_ambiguous', key, 'add_columns', {
+    table: 'smoke_mcp_table',
+    columns: [{ name: 'Twin', type: 'string' }]
+});
+check(
+    'mcp_add_columns_ambiguous_refused',
+    mcp_ambiguous?.isError === true && /give its id/.test(mcp_text(mcp_ambiguous)),
+    mcp_ambiguous
+);
+const mcp_dirs1 = await call('mcp_dir_list', 'GET', '/file-directory', { token });
+const mcp_twins = (Array.isArray(mcp_dirs1) ? mcp_dirs1 : []).filter(
+    d => d.parent_id === mcp_dir || d.id === mcp_dir
+);
+// The table in the folder first, then the folder
+const mcp_rank = d => (d.type === 'file' ? 0 : 1);
+for (const d of mcp_twins.sort((a, b) => mcp_rank(a) - mcp_rank(b))) {
+    await call(`mcp_dir_cleanup_${d.type}`, 'POST', '/file-directory/batch_delete', {
+        token,
+        body: { ids: [d.id] }
+    });
+}
+const mcp_added = await mcp_tool('mcp_add_columns', key, 'add_columns', {
+    table: 'smoke_mcp_table',
+    columns: [{ name: 'Joined', type: 'date' }]
+});
+check(
+    'mcp_add_columns_ok',
+    mcp_added?.isError === false &&
+        mcp_value(mcp_added)?.added === 1 &&
+        JSON.stringify((mcp_value(mcp_added)?.columns || []).map(c => [c.name, c.type])) ===
+            JSON.stringify([
+                ['Name', 'string'],
+                ['Age', 'number'],
+                ['Joined', 'date']
+            ]),
+    mcp_added
+);
+const mcp_dup = await mcp_tool('mcp_add_columns_duplicate', key, 'add_columns', {
+    table: 'smoke_mcp_table',
+    columns: [{ name: 'Name', type: 'string' }]
+});
+check(
+    'mcp_add_columns_duplicate_refused',
+    mcp_dup?.isError === true && /Duplicate column name: Name/.test(mcp_text(mcp_dup)),
+    mcp_dup
+);
+// 3 columns + 50: past the most a table can have (52), the plan_limit as a tool error
+const mcp_too_many = await mcp_tool('mcp_add_columns_over_cap', key, 'add_columns', {
+    table: 'smoke_mcp_table',
+    columns: Array.from({ length: 50 }, (_, i) => ({ name: `c${i}`, type: 'string' }))
+});
+check(
+    'mcp_add_columns_over_cap_refused',
+    mcp_too_many?.isError === true &&
+        /plan_limit/.test(mcp_text(mcp_too_many)) &&
+        /columns_per_table/.test(mcp_text(mcp_too_many)),
+    mcp_too_many
+);
+const mcp_new_rows = await mcp_tool('mcp_new_table_rows', key, 'create_rows', {
+    table: 'smoke_mcp_table',
+    rows: [{ Name: 'Ada', Age: 36, Joined: '2026-01-02' }]
+});
+check('mcp_new_table_rows_ok', mcp_value(mcp_new_rows)?.created === 1, mcp_new_rows);
+const mcp_new_found = mcp_value(
+    await mcp_tool('mcp_new_table_query', key, 'query_rows', { table: 'smoke_mcp_table' })
+);
+check(
+    'mcp_new_table_query',
+    mcp_new_found?.data?.length === 1 &&
+        mcp_new_found.data[0].Name === 'Ada' &&
+        mcp_new_found.data[0].Age === 36 &&
+        String(mcp_new_found.data[0].Joined).startsWith('2026-01-02'),
+    mcp_new_found
+);
+const mcp_other_tables = mcp_value(
+    await mcp_tool('mcp_other_list_tables', other_me.api_key, 'list_tables', {})
+);
+check(
+    'mcp_other_cant_see_new_table',
+    Array.isArray(mcp_other_tables?.tables) &&
+        !mcp_other_tables.tables.some(t => t.name === 'smoke_mcp_table'),
+    mcp_other_tables
+);
+for (const [n, ref] of [
+    ['name', 'smoke_mcp_table'],
+    ['id', mcp_new_table?.id]
+]) {
+    const other = await mcp_tool(`mcp_other_query_by_${n}`, other_me.api_key, 'query_rows', {
+        table: ref
+    });
+    check(
+        `mcp_other_query_by_${n}_refused`,
+        other?.isError === true && /No table/.test(mcp_text(other)),
+        other
+    );
+    const other_cols = await mcp_tool(
+        `mcp_other_add_columns_${n}`,
+        other_me.api_key,
+        'add_columns',
+        {
+            table: ref,
+            columns: [{ name: 'Sneaky', type: 'string' }]
+        }
+    );
+    check(
+        `mcp_other_add_columns_${n}_refused`,
+        other_cols?.isError === true && /No table/.test(mcp_text(other_cols)),
+        other_cols
+    );
+}
+if (Number.isInteger(mcp_new_table?.id)) {
+    await call('mcp_new_table_delete', 'POST', '/file-directory/batch_delete', {
+        token,
+        body: { ids: [mcp_new_table.id] }
+    });
+}
+
 const mcp_unknown = await mcp('mcp_unknown_tool', key, 'tools/call', { name: 'drop_everything' });
 check('mcp_unknown_tool_error', mcp_unknown?.error?.code === -32602, mcp_unknown);
 await mcp('mcp_no_key', undefined, 'tools/list', {}, { expectFail: true });
@@ -6654,6 +6879,26 @@ await call('plan_paid_logout', 'GET', `/auth/logout?token=${p6}`);
         expectFail: true
     });
     read_only_is('ro_url_import');
+    // The MCP server's table and column tools (#329): the read-only state as a tool error
+    for (const [n, tool, args] of [
+        [
+            'ro_mcp_create_table',
+            'create_table',
+            { name: 'smoke_ro_mcp', columns: [{ name: 'A', type: 'string' }] }
+        ],
+        [
+            'ro_mcp_add_columns',
+            'add_columns',
+            { table: 'smoke_ro_a', columns: [{ name: 'B', type: 'string' }] }
+        ]
+    ]) {
+        const res = await mcp_tool(n, r_key?.secret, tool, args);
+        check(
+            `${n}_read_only`,
+            res?.isError === true && /plan_read_only/.test(res?.content?.[0]?.text || ''),
+            res
+        );
+    }
     results.ro_api_create = await rv1('create?table=smoke_ro_a', {
         method: 'POST',
         body: JSON.stringify([{ column1: 'x' }])
@@ -6741,6 +6986,28 @@ await call('plan_paid_logout', 'GET', `/auth/logout?token=${p6}`);
         body: JSON.stringify([{ column1: 'x' }])
     });
     plan_limit_is('ro_api_create_at_cap', 'rows_per_account');
+    // At the table cap (1), MCP's create_table answers the plan_limit as a tool error and makes
+    // nothing (#329)
+    const ro_mcp_at_cap = await mcp_tool('ro_mcp_table_at_cap', r_key?.secret, 'create_table', {
+        name: 'smoke_ro_mcp',
+        columns: [{ name: 'A', type: 'string' }]
+    });
+    const ro_mcp_cap_text = ro_mcp_at_cap?.content?.[0]?.text || '';
+    check(
+        'ro_mcp_table_at_cap_plan_limit',
+        ro_mcp_at_cap?.isError === true &&
+            /plan_limit/.test(ro_mcp_cap_text) &&
+            /"limit":"tables"/.test(ro_mcp_cap_text),
+        ro_mcp_at_cap
+    );
+    const ro_dirs_cap = await call('ro_mcp_table_at_cap_dirs', 'GET', '/file-directory', {
+        token: r5
+    });
+    check(
+        'ro_mcp_table_at_cap_made_nothing',
+        Array.isArray(ro_dirs_cap) && !ro_dirs_cap.some(d => d.name === 'smoke_ro_mcp'),
+        ro_dirs_cap
+    );
     await call('ro_test_plan_reset', 'DELETE', '/test-plan', { token: r5 });
     await plan_cleanup('ro_end', r5);
     await call('ro_logout', 'GET', `/auth/logout?token=${r5}`);

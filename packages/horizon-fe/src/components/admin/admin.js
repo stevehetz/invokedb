@@ -9,6 +9,7 @@ import {
     cap_label,
     count_label,
     date_label,
+    NUM_COLUMNS,
     signup_bars,
     time_label,
     usd_label
@@ -112,6 +113,14 @@ export default defineComponent({
     },
 
     methods: {
+        /**
+         * The cell class of an accounts list column: `num` lines it up with its header.
+         * @param {string} key
+         */
+        cell_class(key) {
+            return { num: NUM_COLUMNS.has(key) };
+        },
+
         bytes_label,
         count_label,
         date_label,

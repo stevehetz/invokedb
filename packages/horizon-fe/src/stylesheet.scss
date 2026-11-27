@@ -5065,6 +5065,9 @@ $admin_muted: var(--h-muted);
     color: inherit;
     cursor: pointer;
     font: inherit;
+    // No margin or padding, so a header's label starts (or, right-aligned, ends) where its
+    // cells' text does (#318)
+    margin: 0;
     padding: 0;
 }
 .admin-page .admin-badge {

@@ -4643,7 +4643,8 @@ check(
         gen_preview.columns.every(c => ['string', 'number', 'date'].includes(c.type)) &&
         Array.isArray(gen_preview?.rows) &&
         gen_preview.rows.length === 3 &&
-        gen_preview?.usage?.used === gen_used_before + 17,
+        // 10 generated, 4 asked for, 3 proposed from another table (#322), 3 here
+        gen_preview?.usage?.used === gen_used_before + 20,
     gen_preview
 );
 const gen_table = await call('gen_table_create', 'POST', '/ai/table', {

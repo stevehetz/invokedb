@@ -254,9 +254,12 @@
                         to show for each linked row.
                     </p>
                     <p>
-                        Click a link cell to pick rows. A cell can link to
-                        several rows. In the API the cell is an array of the
-                        linked rows' <code>_id</code> values (or
+                        Click a link cell to pick the rows of the linked table
+                        it points at: type to search them by the column it
+                        shows, choose rows, then <b>Save</b>. A cell can link to
+                        several rows. Click one of the cell's linked rows to
+                        open the linked table instead. In the API the cell is an
+                        array of the linked rows' <code>_id</code> values (or
                         <code>null</code>); add
                         <code>expand=&lt;column&gt;</code> to a Get, Search or
                         Query call to get the linked rows themselves.

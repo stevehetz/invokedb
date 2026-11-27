@@ -2637,6 +2637,18 @@ $nav_active_color: var(--h-chrome-text);
     flex: 1;
     width: 100%;
 }
+// Pick mode (#320): room below the select for its open row list, so the list never covers
+// Cancel and Save
+.link-dialog .link-pick {
+    padding-bottom: 250px;
+}
+.link-dialog .link-no-match {
+    padding: 0 0 8px;
+    color: var(--h-text-3);
+}
+.link-row-popper .el-select-dropdown__wrap {
+    max-height: 220px;
+}
 .link-dialog .link-actions {
     display: flex;
     justify-content: flex-end;

@@ -1,6 +1,6 @@
 # InvokeDB: handoff
 
-_Last updated 2026-11-27 (early morning UTC)_
+_Last updated 2026-11-27 (midday UTC)_
 
 InvokeDB ("horizon") is an **agentic web database**, "the database for you and your AI agents":
 tables people edit like a spreadsheet and code and AI agents use through an API (and soon an MCP
@@ -23,20 +23,47 @@ Elsewhere:
   the repo stay the source of truth (agents and workflows read them).
 - Git history and closed issues/PRs: everything done so far.
 
-## Where things stand (2026-11-26, night)
+## The plan (decided 2026-11-27)
 
-Production is green (CD and E2E passed for `main` at `9e6509c`, ~16:55 UTC on 2026-11-26).
+**Keep the SaaS route and get it working end to end, mainly as a portfolio piece.** If people
+use it one day, great; a sale someday would be a bonus. What that means for the work:
+
+- Rank work by whether it makes the product complete, polished and easy to show. Portfolio
+  polish when the owner wants it: a short demo video (Claude using tables through the MCP
+  server), a "how it's built" page (including the agent pipeline), maybe a no-signup demo
+  workspace (not an issue yet).
+- **Billing stays built but off.** The LLC and the rest of `docs/GO_LIVE.md` wait **until
+  someone actually asks to pay** (or a buyer, a partner or real users' important data shows up).
+  A single-member LLC would be little upkeep (taxed on the owner's Schedule C, no K-1), so it can
+  be filed within days when needed. Don't push the go-live steps unless the owner brings them up.
+- **The LICENSE stays "all rights reserved"** (sole copyright keeps a sale clean; no outside
+  contributions without an assignment).
+- **Talked through and dropped** (don't reopen unless the owner does): open-sourcing or a
+  self-hosted product (NocoDB, Baserow, Grist and Teable already do it, each with an official MCP
+  server, as does Airtable); repositioning as a GitHub/agent-workflow product; an agent ops
+  dashboard in InvokeDB (the board, Actions and Telegram already cover it); more link-column work
+  (little value without lookups/rollups; the matching flow (#321) is confusing but stays as is).
+
+## Where things stand (2026-11-27, midday)
+
 Everything below is merged and deployed unless it says otherwise. Details:
-`gh pr list --state merged`.
+`gh pr list --state merged`. No open PRs and nothing queued for the agent at midday 2026-11-27.
 
-- **Open PRs (2026-11-27):**
-  - **#312** (closes #311): the agent queue now takes `agent` issues the Claude app opened
-    without `agent-found`, i.e. the ones `repair.yml` opens for failed CI/CD/E2E runs (#268 sat
-    with `agent` and the queue logged "The queue is empty"). CI passed, `review-ok`,
-    `needs-owner` (it touches `.github/`): **the owner merges it**
-    (`gh pr merge 312 --merge`).
-  - **#313**: security fix for CodeQL alert #19 (a quadratic regex in `clean_stack`);
-    `review-ok`, should auto-merge.
+- **Shipped 2026-11-27** (agent PRs from issues the owner filed in a local session):
+  - **#319** (#318): the admin accounts table's number headers line up with their cells.
+  - **#323** (#320): the link picker names the linked table, opens with a single click, keeps
+    Save visible.
+  - **#325** (#321): "Fill links by matching" in a link column's settings (preview the counts,
+    then **Link rows**; **Save** only saves the settings, which confused the owner).
+  - **#326** (#322): Ask AI reads the account's other tables (`run_query` takes a `table`;
+    `propose_rows` can carry explicit rows); it still writes only to the open table.
+  - **#327** (#324): Table from a Description reads the account's tables and builds rows from
+    their real values.
+  - Also merged: **#312**/**#316** (the queue and `implement.yml` take repair-opened `agent`
+    issues), **#313** (CodeQL #19), **#314** (#279, an account's data deleted with it), **#317**
+    (#268).
+- **The board's auto-add missed #321, #322 and #324**: check every new issue is on the board
+  (GraphQL items query) and add it by hand if not (see the queue section below).
 
 - **Shipped 2026-11-26 (owner session):**
   - **Light and dark theme** (#290, reached `main` inside **#301**; #290 closed by hand). In light mode the app header
@@ -76,13 +103,10 @@ Everything below is merged and deployed unless it says otherwise. Details:
 - **#184 shipped** (#280: read-only over-cap accounts, deleting idle free accounts).
 - **Billing shipped, off in production** (#129, **#310** merged 2026-11-26; replaced #153,
   closed): see "Stripe and going live" below.
-- **Queue (`agent`):** **#279** (delete an account's data on account deletion) is being worked by
-  the cloud agent (`agent-stuck` removed, `implement.yml` started ~23:52 UTC 2026-11-26). Its PR
-  must open with `hold` (it deletes data): check, and add `hold` before CI and the review finish
-  if it didn't. Next is **#268** (E2E transient 502), once #312 is merged and #279's PR merges or
-  is parked.
 - **Ideas the rebrand points to** (not issues yet): more agent features on top of the MCP
-  server, e.g. MCP tools for views or table creation, an agent-friendly quickstart page.
+  server, e.g. MCP tools for views or table creation, an agent-friendly quickstart page; OAuth
+  sign-in for the MCP server, so claude.ai and ChatGPT connectors can use it (today it needs an
+  API key header, which suits Claude Code, Cursor and VS Code).
 - **Incident (2026-11-25), fixed:** a stale local `prod.env` was pushed to Dropbox and the
   server, which turned off Google/GitHub sign-in for a few minutes. Always `npm run
 secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env`.
@@ -132,7 +156,8 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
   (liability), so a **new LLC** comes first, then an EIN, an operating agreement and a business
   bank account, then Stripe's live-mode verification and the live setup, then the site's
   legal pages; the trademark renewal last. The checklist, in order: **`docs/GO_LIVE.md`**. The
-  owner files the LLC themselves (step 2) and will pick this up later in another session.
+  owner files the LLC themselves (step 2), **but only once someone asks to pay** (decided
+  2026-11-27, "The plan" above).
 - **For the session that picks this up:** ask where the owner is in `docs/GO_LIVE.md` and give
   only the next step. Claude can't file, sign, pay, enter ID/bank details or pass Stripe's
   identity checks; it can walk through each screen, then do the live Stripe setup (products,
@@ -157,9 +182,8 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
   really moves on events (a PR merged, closed or labelled, an issue labelled). If a run sees an
   agent PR a moment before it's parked, it waits and nothing else wakes it; it once sat idle for
   six hours. If nothing has started for a while, `gh workflow run agent-queue.yml`.
-- **Until #312 merges, an `agent` issue opened by the Claude app is only picked up with
-  `agent-found`** (the candidate filter). After it, any Claude-app issue counts; the owner must
-  still have added `agent`.
+- An `agent` issue opened by the Claude app (e.g. by `repair.yml`) is picked up without
+  `agent-found` since #312/#316; the owner must still have added `agent`.
 - **Removing `agent-stuck` doesn't wake the queue** (that run is skipped): run
   `gh workflow run agent-queue.yml` after it.
 - **An issue that isn't on the board is never picked up** (#277 was missed by the board's
@@ -183,7 +207,10 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
   up: `docs/GO_LIVE.md`). Caps and prices come from the pricing review (#137). This replaced
   "a trial instead of a free tier".
 - **No selling as a sole proprietor** (2026-11-26): real payments wait for a new InvokeDB, LLC
-  (the old one was dissolved in 2021); the owner files it. Trademark renewal is done last.
+  (the old one was dissolved in 2021); the owner files it, **when someone asks to pay**
+  (2026-11-27). Trademark renewal is done last.
+- **Direction** (2026-11-27): the SaaS, finished end to end, as a portfolio piece; see "The
+  plan" at the top.
 
 - **Pricing decided** (2026-11-25, `docs/PRICING.md`): Free / Starter $9 / Pro $29 with the
   caps of 3.2 (incl. audit log 7/30/90 days, per-key limits on paid tiers only), no trial,

@@ -30,7 +30,10 @@ the lawyer's contact) out of this file and in the owner's own records.
 - [x] The owner files it online (decided 2026-11-26).
 - [ ] Ask the lawyer to update the old **operating agreement** for the new LLC (step 4).
 
-### 2. Form the new LLC (next)
+### 2. Form the new LLC (next, on hold)
+
+**On hold (2026-11-27):** the owner files it once someone actually asks to pay (or a buyer or
+partner shows up). Until then billing stays off (`docs/HANDOFF.md`, "The plan").
 
 - [ ] File Articles of Organization for **InvokeDB, LLC** with the Ohio Secretary of State:
       sign in at ohiobusinesscentral.gov with an OH|ID account, start a Domestic Limited

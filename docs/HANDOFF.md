@@ -79,8 +79,7 @@ Everything below is merged and deployed unless it says otherwise. Details:
   - **#303**: the UI test's theme step checks the page background (the header stays slate).
   - **#306, the rebrand** (#304): home page, title and meta tags, help, guide and README now say
     "The database for you and your AI agents" with the label "Agentic web database". The GitHub
-    repo's description and topics (`ai-agents`, `agentic-ai`) were updated to match; add
-    `mcp-server` now that #307 has shipped.
+    repo's description and topics (`ai-agents`, `agentic-ai`, `mcp-server`) were updated to match.
 - **#307, the MCP server (#305): merged and live** (`https://api.invokedb.com/mcp` answers 401
   without a key). `POST /mcp` with an API
   key; tools `list_tables`, `describe_table`, `query_rows`, `count_rows`, and for read-write keys
@@ -103,10 +102,11 @@ Everything below is merged and deployed unless it says otherwise. Details:
 - **#184 shipped** (#280: read-only over-cap accounts, deleting idle free accounts).
 - **Billing shipped, off in production** (#129, **#310** merged 2026-11-26; replaced #153,
   closed): see "Stripe and going live" below.
-- **Ideas the rebrand points to** (not issues yet): more agent features on top of the MCP
-  server, e.g. MCP tools for views or table creation, an agent-friendly quickstart page; OAuth
-  sign-in for the MCP server, so claude.ai and ChatGPT connectors can use it (today it needs an
-  API key header, which suits Claude Code, Cursor and VS Code).
+- **Board after the 2026-11-27 cleanup:** #150 (workspaces) and #213 (staging) closed as not
+  planned. New, in order: #328 MCP OAuth sign-in for claude.ai/ChatGPT connectors (`you`:
+  decisions in the issue), #329 MCP table/column tools, #330 MCP view tools, #331 `/agents`
+  quickstart page (all three labelled `agent` 2026-11-27), #332 "How it's built" page, #333
+  no-signup demo workspace (`you`), #334 demo video (`you`, after #329/#331).
 - **Incident (2026-11-25), fixed:** a stale local `prod.env` was pushed to Dropbox and the
   server, which turned off Google/GitHub sign-in for a few minutes. Always `npm run
 secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env`.

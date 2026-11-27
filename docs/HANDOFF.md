@@ -47,8 +47,7 @@ use it one day, great; a sale someday would be a bonus. What that means for the 
 ## Where things stand (2026-11-27, midday)
 
 Everything below is merged and deployed unless it says otherwise. Details:
-`gh pr list --state merged`. No open PRs and nothing queued for the agent at midday 2026-11-27
-(#224, the Sonnet add-on, is `agent` + `agent-stuck`; it needs billing on, so leave it).
+`gh pr list --state merged`. No open PRs and nothing queued for the agent at midday 2026-11-27.
 
 - **Shipped 2026-11-27** (agent PRs from issues the owner filed in a local session):
   - **#319** (#318): the admin accounts table's number headers line up with their cells.
@@ -219,8 +218,8 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
   after 6 months with warnings). Enforced by #276 (and #184 when it merges).
 - **AI costs are capped in the pricing** (2026-11-25, `docs/PRICING.md` 3.5): Haiku 5.5 for
   every tier, monthly allowances (Free: 10 questions, 50 generated rows; every AI-column cell
-  counts as a row), a dollar budget per account and server-wide, and Sonnet 5.5 only as a
-  separate paid add-on (#224, after Stripe). AI features go through `AiSpend` and `AiClient`.
+  counts as a row), a dollar budget per account and server-wide. **No Sonnet add-on** (#224
+  closed 2026-11-27, not needed). AI features go through `AiSpend` and `AiClient`.
 - **One AI button** (2026-11-25): everything AI on a table lives in **Ask AI**; the AI never
   saves by itself (proposed rows and edits are reviewed, then saved by the user).
 - **Dashboards removed** (2026-11-26): the owner didn't want them (#264).

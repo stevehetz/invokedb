@@ -272,7 +272,7 @@ export const TOOLS: McpTool[] = [
         name: 'create_table',
         title: 'Create a table',
         description:
-            'Make a new, empty table with these columns. Needs a read-write key for all tables. The name is letters, digits, - and _, and must not be taken; folder (optional) is the name or id of an existing folder.',
+            'Make a new, empty table with these columns. Needs a read-write key for all tables. The name is letters, digits, - and _, and must not be taken by any table in any folder; folder (optional) is the name or id of an existing folder.',
         inputSchema: {
             type: 'object',
             properties: {

@@ -30,6 +30,10 @@ class ToolRefusal extends Error {}
 // count as one API call each, like any /api/v1 call.
 @Injectable()
 export class McpService {
+    // The last add_columns queued for each table. The HTTP role runs as one process, so an
+    // in-memory queue is enough to keep two calls from picking the same new fields.
+    private readonly table_queue = new Map<number, Promise<void>>();
+
     constructor(
         private readonly file_dir_service: FileDirectoryService,
         private readonly web_file_service: WebFileService,
@@ -144,17 +148,30 @@ export class McpService {
             .map(f => ({ id: f.id, name: f.name }));
     }
 
-    /** A table by name (first, like /api/v1) or id; refused if the key can't use it. */
+    /**
+     * A table by name or id; refused if the key can't use it. Names are unique per folder
+     * only, so a name two usable tables share is refused rather than guessed (the agent is
+     * asked for the id), and a tool never changes the wrong table.
+     */
     private async table(account: Account, ref: string | number, write = false): Promise<Table> {
         const all = (await this.file_dir_service.get_by_account_id(account.id)) || [];
         const files = all.filter(f => f.type === 'file');
-        const by_name =
+        const scope = account.key_scope;
+        const named =
             typeof ref === 'string'
-                ? files.find(f => f.name.toLowerCase() === ref.trim().toLowerCase())
-                : undefined;
+                ? files.filter(f => f.name.toLowerCase() === ref.trim().toLowerCase())
+                : [];
+        const usable_named = named.filter(
+            f => !scope || key_refusal(scope, f.id, false) !== 'table'
+        );
+        if (usable_named.length > 1) {
+            throw new ToolRefusal(
+                `More than one table is named ${JSON.stringify(ref)}; give its id instead (list_tables shows them)`
+            );
+        }
+        const by_name = usable_named[0] || named[0];
         const id = typeof ref === 'number' ? ref : /^\d+$/.test(ref.trim()) ? Number(ref) : NaN;
         const found = by_name || files.find(f => f.id === id);
-        const scope = account.key_scope;
         const refusal = found && scope ? key_refusal(scope, found.id, write) : null;
         // Not told apart from a missing table, so a key can't learn names it can't use
         if (!found || refusal === 'table') {
@@ -214,6 +231,15 @@ export class McpService {
         this.check_column_names([], columns);
         await this.check_column_cap(account, 0, columns.length);
         const parent_id = await this.folder(account, args.folder);
+        // Agents address tables by name, so a name used in any folder is refused (the app
+        // only refuses one in the same folder)
+        const all = (await this.file_dir_service.get_by_account_id(account.id)) || [];
+        const wanted = String(args.name).trim().toLowerCase();
+        if (all.some(f => f.type === 'file' && f.name.toLowerCase() === wanted)) {
+            throw new ToolRefusal(
+                `The table name ${JSON.stringify(args.name)} is already in use; choose another name`
+            );
+        }
 
         const no_file = true;
         const file = await this.file_dir_service.create(
@@ -247,6 +273,28 @@ export class McpService {
         this.assert_schema_access(account);
         const table = await this.table(account, args.table, true);
         await this.count_call(account);
+        // One add_columns per table at a time: the new fields are picked from a read of the
+        // columns, so two calls at once would otherwise pick the same fields
+        return await this.with_table(table.id, () => this.add_columns_now(account, table, args));
+    }
+
+    // Runs fn once every earlier call queued for the same table has finished
+    private async with_table<T>(table_id: number, fn: () => Promise<T>): Promise<T> {
+        const before = this.table_queue.get(table_id) || Promise.resolve();
+        const run = before.then(fn);
+        const done = run.then(
+            () => undefined,
+            () => undefined
+        );
+        this.table_queue.set(table_id, done);
+        try {
+            return await run;
+        } finally {
+            if (this.table_queue.get(table_id) === done) this.table_queue.delete(table_id);
+        }
+    }
+
+    private async add_columns_now(account: Account, table: Table, args: Record<string, any>) {
         await this.tracking_manager.check_not_read_only(account);
         await this.tracking_manager.check_table_lock(table.id);
         const columns: NewColumn[] = args.columns;

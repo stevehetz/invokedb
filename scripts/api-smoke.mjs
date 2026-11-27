@@ -3275,7 +3275,9 @@ check('mcp_bad_filter_is_tool_error', mcp_bad?.isError === true, mcp_bad);
 const mcp_text = result => result?.content?.[0]?.text || '';
 const mcp_dirs0 = await call('mcp_table_leftovers', 'GET', '/file-directory', { token });
 const mcp_leftover = (Array.isArray(mcp_dirs0) ? mcp_dirs0 : []).filter(
-    d => d.type === 'file' && d.name === 'smoke_mcp_table'
+    d =>
+        (d.type === 'file' && d.name === 'smoke_mcp_table') ||
+        (d.type === 'dir' && d.name === 'smoke_mcp_dir')
 );
 if (mcp_leftover.length) {
     await call('mcp_table_leftovers_delete', 'POST', '/file-directory/batch_delete', {
@@ -3349,6 +3351,53 @@ check(
     mcp_table_again?.isError === true && /in use/i.test(mcp_text(mcp_table_again)),
     mcp_table_again
 );
+// A name used in another folder is refused too; a second table of the same name made in the app
+// makes the name ambiguous, so add_columns by name asks for the id instead of guessing
+const mcp_dir = await call('mcp_dir_create', 'POST', '/file-directory', {
+    token,
+    body: { account_id: me.id, name: 'smoke_mcp_dir', type: 'dir' }
+});
+const mcp_in_dir = await mcp_tool('mcp_create_table_taken_other_folder', key, 'create_table', {
+    name: 'smoke_mcp_table',
+    folder: 'smoke_mcp_dir',
+    columns: mcp_cols
+});
+check(
+    'mcp_create_table_taken_other_folder_refused',
+    mcp_in_dir?.isError === true && /in use/i.test(mcp_text(mcp_in_dir)),
+    mcp_in_dir
+);
+await call('mcp_dir_twin_create', 'POST', '/file-directory', {
+    token,
+    body: {
+        account_id: me.id,
+        name: 'smoke_mcp_table',
+        type: 'file',
+        web_file_type: 'data-grid',
+        parent_id: mcp_dir
+    }
+});
+const mcp_ambiguous = await mcp_tool('mcp_add_columns_ambiguous', key, 'add_columns', {
+    table: 'smoke_mcp_table',
+    columns: [{ name: 'Twin', type: 'string' }]
+});
+check(
+    'mcp_add_columns_ambiguous_refused',
+    mcp_ambiguous?.isError === true && /give its id/.test(mcp_text(mcp_ambiguous)),
+    mcp_ambiguous
+);
+const mcp_dirs1 = await call('mcp_dir_list', 'GET', '/file-directory', { token });
+const mcp_twins = (Array.isArray(mcp_dirs1) ? mcp_dirs1 : []).filter(
+    d => d.parent_id === mcp_dir || d.id === mcp_dir
+);
+// The table in the folder first, then the folder
+const mcp_rank = d => (d.type === 'file' ? 0 : 1);
+for (const d of mcp_twins.sort((a, b) => mcp_rank(a) - mcp_rank(b))) {
+    await call(`mcp_dir_cleanup_${d.type}`, 'POST', '/file-directory/batch_delete', {
+        token,
+        body: { ids: [d.id] }
+    });
+}
 const mcp_added = await mcp_tool('mcp_add_columns', key, 'add_columns', {
     table: 'smoke_mcp_table',
     columns: [{ name: 'Joined', type: 'date' }]

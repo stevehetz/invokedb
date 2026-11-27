@@ -8,8 +8,16 @@
 // as typed), so a grid view puts them back in the grid's filter row unchanged. Nothing from a
 // body reaches Mongo as a key or operator: fields come from the table's columns and filter
 // types from the fixed lists below.
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { parse_utc_date } from '../date';
+import {
+    DEFAULT_QUERY_LIMIT,
+    ParsedRowQuery,
+    QueryColumn,
+    SortKey,
+    after_cursor,
+    decode_cursor
+} from '../web-file/row-query';
 
 export type ViewType = 'grid' | 'kanban' | 'chart' | 'calendar' | 'map';
 export type ViewColumnType = 'string' | 'number' | 'date' | 'link';
@@ -448,6 +456,53 @@ export function view_mongo_sort(sort: ViewSort | null, columns: ViewColumn[]) {
     }
     if (out._id === undefined) out._id = 1;
     return out;
+}
+
+/** The columns a view shows: the table's, without its hidden ones. */
+export function visible_columns(view: ViewSettings, columns: ViewColumn[]) {
+    const hidden = new Set(view.hidden_fields || []);
+    return columns.filter(c => !hidden.has(c.field));
+}
+
+/**
+ * A grid view's rows as a page of /api/v1/query (#330, for the MCP server's query_view): the
+ * view's own filters and sort (as the grid applies them, view_filter_query and view_mongo_sort)
+ * and its visible columns, paged by the same keyset cursor. A cursor is tied to the view and its
+ * filters and sort, so one from before the view changed is refused. `limit` defaults to 100,
+ * at most `max_limit` (the plan's query page).
+ */
+export function grid_view_query(
+    view: ViewSettings & { id: string },
+    columns: ViewColumn[],
+    page: { limit?: unknown; cursor?: unknown },
+    max_limit: number
+): ParsedRowQuery {
+    const limit = page.limit === undefined ? Math.min(DEFAULT_QUERY_LIMIT, max_limit) : page.limit;
+    if (typeof limit !== 'number' || !Number.isInteger(limit) || limit < 1 || limit > max_limit) {
+        throw new ViewError(`limit must be a whole number from 1 to ${max_limit}`);
+    }
+    const where = view_filter_query(view.filters, columns);
+    const sort: SortKey[] = Object.entries(view_mongo_sort(view.sort, columns)).map(
+        ([field, dir]) => ({ field, dir })
+    );
+    // Link cells are arrays of row ids, returned as they are (like /api/v1/query's)
+    const fields: QueryColumn[] = visible_columns(view, columns).map(c => ({
+        name: c.name,
+        field: c.field,
+        type: c.type === 'number' || c.type === 'date' ? c.type : 'string'
+    }));
+    const signature = createHash('sha256')
+        .update(JSON.stringify(['view', view.id, view.filters || [], sort]))
+        .digest('base64url')
+        .slice(0, 16);
+    const filter =
+        page.cursor === undefined || page.cursor === null
+            ? where
+            : and_filter(where, [after_cursor(sort, decode_cursor(page.cursor, sort, signature))]);
+    const projection: Record<string, 1> = { _id: 1 };
+    fields.forEach(c => (projection[c.field] = 1));
+    sort.forEach(k => (projection[k.field] = 1));
+    return { filter, sort, fields, projection, limit, explain: false, signature };
 }
 
 // --- Kanban ---

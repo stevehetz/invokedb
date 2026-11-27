@@ -1,5 +1,7 @@
 import {
+    agent_view_answer,
     check_arguments,
+    check_view_args,
     handle_body,
     handle_message,
     JSONRPC_ERRORS,
@@ -42,13 +44,17 @@ describe('mcp: tools', () => {
             'list_tables',
             'describe_table',
             'query_rows',
-            'count_rows'
+            'count_rows',
+            'list_views',
+            'query_view'
         ]);
         expect(tools_for('read_write').map(t => t.name)).toEqual([
             'list_tables',
             'describe_table',
             'query_rows',
             'count_rows',
+            'list_views',
+            'query_view',
             'create_rows',
             'update_rows',
             'delete_rows',
@@ -169,6 +175,115 @@ describe('mcp: check_arguments', () => {
         expect(check_arguments(q, { table: 't', limit: 0 })).toMatch(/limit/);
         expect(check_arguments(q, { table: 't', cursor: 3 })).toMatch(/cursor/);
         expect(check_arguments(q, { table: 't', match: 'some' })).toMatch(/match/);
+    });
+
+    it("checks list_views' and query_view's arguments", () => {
+        expect(check_arguments(tool('list_views'), { table: 'people' })).toBeNull();
+        expect(check_arguments(tool('list_views'), {})).toBe('table is required');
+        const q = tool('query_view');
+        const id = 'view_0123456789abcdef01234567';
+        expect(check_arguments(q, { view: id })).toBeNull();
+        expect(check_arguments(q, { view: id, limit: 5, cursor: 'c' })).toBeNull();
+        expect(check_arguments(q, { view: id, from: '2026-12-01', to: '2027-01-01' })).toBeNull();
+        expect(check_arguments(q, {})).toBe('view is required');
+        expect(check_arguments(q, { view: '' })).toMatch(/view id/);
+        expect(check_arguments(q, { view: 3 })).toMatch(/view id/);
+        expect(check_arguments(q, { view: id, limit: 0 })).toMatch(/limit/);
+        expect(check_arguments(q, { view: id, from: 20261201 })).toMatch(/from/);
+        expect(check_arguments(q, { view: id, table: 't' })).toMatch(/unknown argument: table/);
+    });
+
+    it('views are read tools, open to read keys', () => {
+        for (const name of ['list_views', 'query_view']) {
+            expect(tool(name).write).toBe(false);
+            expect(tool(name).annotations.readOnlyHint).toBe(true);
+        }
+    });
+});
+
+describe('mcp: saved views', () => {
+    it("limit and cursor are a grid's, from and to a calendar's", () => {
+        expect(check_view_args('grid', { view: 'v', limit: 5, cursor: 'c' })).toBeNull();
+        expect(check_view_args('calendar', { view: 'v', from: 'a', to: 'b' })).toBeNull();
+        expect(check_view_args('kanban', { view: 'v' })).toBeNull();
+        expect(check_view_args('chart', { view: 'v', limit: 5 })).toMatch(/grid views only/);
+        expect(check_view_args('calendar', { view: 'v', cursor: 'c' })).toMatch(/grid/);
+        expect(check_view_args('grid', { view: 'v', from: '2026-01-01' })).toMatch(
+            /calendar views only/
+        );
+        expect(check_view_args('map', { view: 'v', to: '2026-01-01' })).toMatch(/calendar/);
+    });
+
+    const columns = [
+        { field: 'a', name: 'Task' },
+        { field: 'b', name: 'Status' },
+        { field: 'c', name: 'Hours' }
+    ];
+
+    it("names a view's columns and keys a board's rows by name", () => {
+        const answer = {
+            group_field: 'b',
+            groups: [
+                {
+                    value: 'Done',
+                    count: 1,
+                    rows: [{ _id: 'r1', a: 'Ship', b: 'Done', c: 2, row_index: 4, _ai: {} }]
+                }
+            ],
+            truncated: false,
+            columns: [{ field: 'a', name: 'Task', type: 'string' }]
+        };
+        expect(agent_view_answer(answer, columns, columns.slice(0, 2))).toEqual({
+            group_column: 'Status',
+            groups: [
+                { value: 'Done', count: 1, rows: [{ _id: 'r1', Task: 'Ship', Status: 'Done' }] }
+            ],
+            truncated: false
+        });
+    });
+
+    it("names a chart's, calendar's and map's columns (null when unset or gone)", () => {
+        expect(
+            agent_view_answer(
+                {
+                    kind: 'pie',
+                    group_field: 'b',
+                    agg: 'sum',
+                    value_field: 'c',
+                    points: [{ label: 'Done', value: 2 }],
+                    truncated: false
+                },
+                columns,
+                columns
+            )
+        ).toEqual({
+            kind: 'pie',
+            group_column: 'Status',
+            agg: 'sum',
+            value_column: 'Hours',
+            points: [{ label: 'Done', value: 2 }],
+            truncated: false
+        });
+        expect(
+            agent_view_answer(
+                { date_field: 'c', title_field: null, from: '2026-12-01', events: [] },
+                columns,
+                columns
+            )
+        ).toEqual({ date_column: 'Hours', title_column: null, from: '2026-12-01', events: [] });
+        expect(
+            agent_view_answer(
+                { lat_field: 'c', lng_field: 'z', label_field: 'a', points: [], missing: 1 },
+                columns,
+                columns
+            )
+        ).toEqual({
+            lat_column: 'Hours',
+            lng_column: null,
+            label_column: 'Task',
+            points: [],
+            missing: 1
+        });
     });
 });
 

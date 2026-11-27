@@ -3487,6 +3487,172 @@ for (const [n, ref] of [
         other_cols
     );
 }
+// Saved views over MCP (#330): views made in the app on smoke_mcp_table, listed and read with
+// the keys; the tasks-only key and demo2's key see none of them
+await mcp_tool('mcp_view_add_lng', key, 'add_columns', {
+    table: 'smoke_mcp_table',
+    columns: [{ name: 'Lng', type: 'number' }]
+});
+await mcp_tool('mcp_view_rows', key, 'create_rows', {
+    table: 'smoke_mcp_table',
+    rows: [
+        { Name: 'Bob', Age: 25, Joined: '2026-01-10', Lng: 10 },
+        { Name: 'Cy', Age: 41, Joined: '2026-01-05', Lng: 20 }
+    ]
+});
+const mcp_view_cols = await call(
+    'mcp_view_table_cols',
+    'POST',
+    `/web-file/data_grid_column/${mcp_new_table?.id}?skip=0&limit=50`,
+    { token, body: {} }
+);
+const mcp_col = name => (mcp_view_cols?.data || []).find(c => c.headerName === name)?.field;
+const [mv_name, mv_age, mv_joined, mv_lng] = ['Name', 'Age', 'Joined', 'Lng'].map(mcp_col);
+const mcp_view_of = async (name, body) =>
+    await call(`mcp_view_create_${name}`, 'POST', '/view', {
+        token,
+        body: { file_id: mcp_new_table?.id, name: `mcp ${name}`, ...body }
+    });
+const mv_grid = await mcp_view_of('grid', {
+    type: 'grid',
+    filters: [{ field: mv_age, type: 'greaterThanOrEqual', value: '30' }],
+    sort: { field: mv_age, dir: 'desc' },
+    hidden_fields: [mv_joined]
+});
+const mv_kanban = await mcp_view_of('kanban', { type: 'kanban', kanban: { group_field: mv_name } });
+const mv_chart = await mcp_view_of('chart', {
+    type: 'chart',
+    chart: { kind: 'bar', group_field: mv_name, agg: 'sum', value_field: mv_age }
+});
+const mv_calendar = await mcp_view_of('calendar', {
+    type: 'calendar',
+    calendar: { date_field: mv_joined, title_field: mv_name }
+});
+const mv_map = await mcp_view_of('map', {
+    type: 'map',
+    map: { lat_field: mv_age, lng_field: mv_lng, label_field: mv_name }
+});
+const mv_views = [mv_grid, mv_kanban, mv_chart, mv_calendar, mv_map];
+for (const [n, tok] of [
+    ['rw', key],
+    ['ro', ro?.secret]
+]) {
+    const listed_views = mcp_value(
+        await mcp_tool(`mcp_list_views_${n}`, tok, 'list_views', { table: 'smoke_mcp_table' })
+    );
+    check(
+        `mcp_list_views_${n}`,
+        listed_views?.table === 'smoke_mcp_table' &&
+            JSON.stringify((listed_views?.views || []).map(v => [v.id, v.type])) ===
+                JSON.stringify(mv_views.map(v => [v?.id, v?.type])),
+        listed_views
+    );
+}
+const mv_page1 = mcp_value(
+    await mcp_tool('mcp_query_view_grid', ro?.secret, 'query_view', { view: mv_grid?.id, limit: 1 })
+);
+const mv_page2 = mcp_value(
+    await mcp_tool('mcp_query_view_grid_next', ro?.secret, 'query_view', {
+        view: mv_grid?.id,
+        limit: 1,
+        cursor: mv_page1?.next_cursor
+    })
+);
+check(
+    'mcp_query_view_grid',
+    mv_page1?.view?.type === 'grid' &&
+        mv_page1?.data?.length === 1 &&
+        mv_page1.data[0].Name === 'Cy' &&
+        mv_page1.data[0].Age === 41 &&
+        !('Joined' in mv_page1.data[0]) &&
+        typeof mv_page1?.next_cursor === 'string' &&
+        mv_page2?.data?.length === 1 &&
+        mv_page2.data[0].Name === 'Ada' &&
+        mv_page2?.next_cursor === null,
+    { mv_page1, mv_page2 }
+);
+const mv_board = mcp_value(
+    await mcp_tool('mcp_query_view_kanban', key, 'query_view', { view: mv_kanban?.id })
+);
+check(
+    'mcp_query_view_kanban',
+    mv_board?.group_column === 'Name' &&
+        JSON.stringify((mv_board?.groups || []).map(g => [g.value, g.count])) ===
+            JSON.stringify([
+                ['Ada', 1],
+                ['Bob', 1],
+                ['Cy', 1]
+            ]) &&
+        mv_board.groups[1].rows?.[0]?.Age === 25 &&
+        !('columns' in mv_board),
+    mv_board
+);
+const mv_points = mcp_value(
+    await mcp_tool('mcp_query_view_chart', key, 'query_view', { view: mv_chart?.id })
+);
+check(
+    'mcp_query_view_chart',
+    mv_points?.group_column === 'Name' &&
+        mv_points?.value_column === 'Age' &&
+        (mv_points?.points || [])
+            .map(p => `${p.label}=${p.value}`)
+            .sort()
+            .join(',') === 'Ada=36,Bob=25,Cy=41',
+    mv_points
+);
+const mv_events = mcp_value(
+    await mcp_tool('mcp_query_view_calendar', key, 'query_view', {
+        view: mv_calendar?.id,
+        from: '2026-01-01',
+        to: '2026-02-01'
+    })
+);
+check(
+    'mcp_query_view_calendar',
+    mv_events?.date_column === 'Joined' &&
+        (mv_events?.events || []).map(e => `${e.date} ${e.title}`).join(',') ===
+            '2026-01-02 Ada,2026-01-05 Cy,2026-01-10 Bob',
+    mv_events
+);
+const mv_place = mcp_value(
+    await mcp_tool('mcp_query_view_map', key, 'query_view', { view: mv_map?.id })
+);
+check(
+    'mcp_query_view_map',
+    mv_place?.lat_column === 'Age' &&
+        (mv_place?.points || [])
+            .map(p => `${p.label}:${p.lat},${p.lng}`)
+            .sort()
+            .join(';') === 'Bob:25,10;Cy:41,20' &&
+        mv_place?.missing === 1,
+    mv_place
+);
+const mv_refusals = {
+    mcp_query_view_kanban_limit: [key, { view: mv_kanban?.id, limit: 5 }, /grid views only/],
+    mcp_query_view_bad_range: [key, { view: mv_calendar?.id, from: '2026-01-01' }, /both/],
+    mcp_query_view_unknown: [key, { view: 'view_000000000000000000000000' }, /No view/],
+    mcp_query_view_scoped: [scoped?.secret, { view: mv_grid?.id }, /No view/],
+    mcp_query_view_other: [other_me.api_key, { view: mv_grid?.id }, /No view/],
+    mcp_query_view_other_map: [other_me.api_key, { view: mv_map?.id }, /No view/]
+};
+for (const [n, [tok, args, text]] of Object.entries(mv_refusals)) {
+    const res = await mcp_tool(n, tok, 'query_view', args);
+    check(`${n}_refused`, res?.isError === true && text.test(mcp_text(res)), res);
+}
+for (const [n, tok] of [
+    ['scoped', scoped?.secret],
+    ['other', other_me.api_key]
+]) {
+    const res = await mcp_tool(`mcp_list_views_${n}`, tok, 'list_views', {
+        table: 'smoke_mcp_table'
+    });
+    check(
+        `mcp_list_views_${n}_refused`,
+        res?.isError === true && /No table/.test(mcp_text(res)),
+        res
+    );
+}
+
 if (Number.isInteger(mcp_new_table?.id)) {
     await call('mcp_new_table_delete', 'POST', '/file-directory/batch_delete', {
         token,

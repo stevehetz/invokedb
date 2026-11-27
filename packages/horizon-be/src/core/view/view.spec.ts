@@ -8,6 +8,7 @@ import {
     calendar_filter,
     chart_pipeline,
     chart_points,
+    grid_view_query,
     is_view_id,
     kanban_group_filter,
     kanban_groups,
@@ -21,6 +22,8 @@ import {
     view_filter_query,
     view_mongo_sort
 } from './view';
+import { ObjectId } from 'mongodb';
+import { encode_cursor } from '../web-file/row-query';
 
 const COLUMNS: ViewColumn[] = [
     { field: 'a', name: 'Task', type: 'string' },
@@ -292,6 +295,67 @@ describe('view_mongo_sort', () => {
             _id: 1
         });
         expect(view_mongo_sort({ field: 'gone', dir: 'asc' }, COLUMNS)).toEqual({ _id: 1 });
+    });
+});
+
+describe('grid_view_query (#330)', () => {
+    const view = {
+        ...parse({
+            name: 'Sam',
+            type: 'grid',
+            filters: [{ field: 'c', type: 'greaterThanOrEqual', value: '2' }],
+            sort: { field: 'c', dir: 'desc' },
+            hidden_fields: ['d']
+        }),
+        id: 'view_0123456789abcdef01234567'
+    };
+
+    it("applies the view's filters, sort and visible columns", () => {
+        const q = grid_view_query(view, COLUMNS, {}, 1000);
+        expect(q.filter).toEqual({ $and: [{ c: { $gte: 2 } }] });
+        expect(q.sort).toEqual([
+            { field: 'c', dir: -1 },
+            { field: '_id', dir: 1 }
+        ]);
+        expect(q.fields.map(f => [f.name, f.field, f.type])).toEqual([
+            ['Task', 'a', 'string'],
+            ['Status', 'b', 'string'],
+            ['Hours', 'c', 'number'],
+            ['Contact', 'e', 'string']
+        ]);
+        expect(q.projection).toEqual({ _id: 1, a: 1, b: 1, c: 1, e: 1 });
+        expect(q.limit).toBe(100);
+        expect(q.explain).toBe(false);
+    });
+
+    it("pages with the view's cursor, and refuses another view's", () => {
+        const first = grid_view_query(view, COLUMNS, { limit: 2 }, 1000);
+        const cursor = encode_cursor(
+            { c: 5, _id: new ObjectId('0123456789abcdef01234567') },
+            first.sort,
+            first.signature
+        );
+        const next = grid_view_query(view, COLUMNS, { limit: 2, cursor }, 1000);
+        expect(next.filter.$and[0]).toEqual({ $and: [{ c: { $gte: 2 } }] });
+        expect(JSON.stringify(next.filter.$and[1])).toContain('"$lt":5');
+        const other = { ...view, id: 'view_76543210fedcba9876543210' };
+        expect(() => grid_view_query(other, COLUMNS, { cursor }, 1000)).toThrow(/other filters/);
+        const resorted = { ...view, sort: { field: 'a', dir: 'asc' as const } };
+        expect(() => grid_view_query(resorted, COLUMNS, { cursor }, 1000)).toThrow(/other/);
+    });
+
+    it("keeps the plan's page size", () => {
+        expect(grid_view_query(view, COLUMNS, {}, 50).limit).toBe(50);
+        expect(() => grid_view_query(view, COLUMNS, { limit: 101 }, 100)).toThrow(ViewError);
+        expect(() => grid_view_query(view, COLUMNS, { limit: 0 }, 100)).toThrow(/limit/);
+    });
+
+    it('a view without filters or sort reads every row in _id order', () => {
+        const plain = { ...parse({ name: 'All', type: 'grid' }), id: view.id };
+        const q = grid_view_query(plain, COLUMNS, {}, 100);
+        expect(q.filter).toEqual({});
+        expect(q.sort).toEqual([{ field: '_id', dir: 1 }]);
+        expect(q.fields).toHaveLength(COLUMNS.length);
     });
 });
 

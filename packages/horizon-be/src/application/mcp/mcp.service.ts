@@ -1,8 +1,10 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, NotFoundException } from '@nestjs/common';
 import { Account } from '@app/core/account/account.entity';
 import { key_refusal } from '@app/core/api-key/api-key-rules';
 import { actor_of } from '@app/core/audit/audit';
 import {
+    agent_view_answer,
+    check_view_args,
     McpContext,
     NewColumn,
     new_column_docs,
@@ -12,8 +14,11 @@ import {
 import { MAX_COLUMNS, plan_limit_error } from '@app/core/plan/plans';
 import _c from '@app/constants';
 import { TrackingManager } from '@app/core/tracking/tracking.manager';
+import { View } from '@app/core/view/view.manager';
+import { ViewError, grid_view_query, visible_columns } from '@app/core/view/view';
 import { WebFileManager } from '@app/core/web-file/web-file.manager';
 import { FileDirectoryService } from '@app/application/file-directory/file-directory.service';
+import { ViewService } from '@app/application/view/view.service';
 import { WebFileService } from '@app/application/web-file/web-file.service';
 
 interface Table {
@@ -38,7 +43,8 @@ export class McpService {
         private readonly file_dir_service: FileDirectoryService,
         private readonly web_file_service: WebFileService,
         private readonly web_file_manager: WebFileManager,
-        private readonly tracking_manager: TrackingManager
+        private readonly tracking_manager: TrackingManager,
+        private readonly view_service: ViewService
     ) {}
 
     /** The protocol context for one request made with this API key's account. */
@@ -59,7 +65,7 @@ export class McpService {
         try {
             return { value: await this.call(account, name, args) };
         } catch (ex) {
-            if (ex instanceof ToolRefusal) return { error: ex.message };
+            if (ex instanceof ToolRefusal || ex instanceof ViewError) return { error: ex.message };
             // A 4xx the API would answer (bad filter, plan limit, read-only account...): the
             // agent is told why. Anything else is a server error and fails the request.
             if (ex instanceof HttpException && ex.getStatus() < 500) {
@@ -97,6 +103,10 @@ export class McpService {
                     undefined
                 );
             }
+            case 'list_views':
+                return await this.list_views(account, args.table);
+            case 'query_view':
+                return await this.query_view(account, args);
             case 'create_rows': {
                 const table = await this.table(account, args.table, true);
                 await this.web_file_service.external_create_rows(
@@ -364,6 +374,68 @@ export class McpService {
             );
         }
         return found[0].id;
+    }
+
+    /** A table's saved views (#330): id, name and type. */
+    private async list_views(account: Account, ref: string | number) {
+        const table = await this.table(account, ref);
+        await this.count_call(account);
+        const { views } = await this.view_service.list(account.id, table.id);
+        return {
+            table: table.name,
+            views: views.map(v => ({ id: v.id, name: v.name, type: v.type }))
+        };
+    }
+
+    /**
+     * A saved view's rows (grid) or what the app's /view/:id/<type> route answers (kanban,
+     * chart, calendar, map), with columns named as in query_rows. One API call.
+     */
+    private async query_view(account: Account, args: Record<string, any>) {
+        const ref = String(args.view).trim();
+        const missing = () =>
+            new ToolRefusal(`No view ${JSON.stringify(ref)}. list_views shows a table's views.`);
+        try {
+            const view = (await this.view_service.get(account.id, ref)) as View;
+            // A view of a table the key can't use reads as missing, like the table itself
+            const table = (await this.tables(account)).find(t => t.id === view.file_id);
+            if (!table) throw missing();
+            const problem = check_view_args(view.type, args);
+            if (problem) throw new ToolRefusal(problem);
+            const about = { id: view.id, name: view.name, type: view.type, table: table.name };
+            if (view.type === 'grid') {
+                const grid = await this.view_service.grid(account.id, view.id);
+                const page = await this.web_file_service.external_view_rows(
+                    account,
+                    table.id,
+                    max_limit => grid_view_query(grid.view, grid.columns, args, max_limit)
+                );
+                return { view: about, ...page };
+            }
+            await this.count_call(account);
+            await this.tracking_manager.check_table_lock(table.id);
+            const { columns } = await this.view_service.list(account.id, table.id);
+            let answer: Record<string, any>;
+            if (view.type === 'kanban') {
+                answer = await this.view_service.kanban(account.id, view.id);
+            } else if (view.type === 'chart') {
+                answer = await this.view_service.chart(account.id, view.id);
+            } else if (view.type === 'calendar') {
+                answer = await this.view_service.calendar(account.id, view.id, args.from, args.to);
+            } else if (view.type === 'map') {
+                answer = await this.view_service.map(account.id, view.id);
+            } else {
+                throw new ToolRefusal(`Views of type ${view.type} can't be read here`);
+            }
+            return {
+                view: about,
+                ...agent_view_answer(answer, columns, visible_columns(view, columns))
+            };
+        } catch (ex) {
+            // A missing view, or one whose table has gone
+            if (ex instanceof NotFoundException) throw missing();
+            throw ex;
+        }
     }
 
     private async describe_table(account: Account, ref: string | number) {

@@ -20,6 +20,7 @@ import { assert_array_body } from '@app/core/helpers/array-body';
 import { assert_column_update } from '@app/core/helpers/column-update';
 import { build_openapi, build_table_docs, TableDocsInput } from '@app/core/table-docs/table-docs';
 import {
+    ParsedRowQuery,
     QueryColumn,
     encode_cursor,
     explain_indexes,
@@ -524,8 +525,30 @@ export class WebFileService {
         if (query.explain) {
             return { explain: explain_indexes(res.explain, columns) };
         }
-        const docs = res.docs.slice(0, query.limit);
-        const has_more = res.docs.length > query.limit;
+        const page = this.rows_page(res.docs, query);
+        if (col_defs.length > 0) {
+            await this.expand_links(account, page.data, col_defs, expand, format);
+        }
+        return page;
+    }
+
+    /**
+     * A grid view's rows (#330, the MCP server's query_view), counted as one API call like
+     * /api/v1/query: `build` makes the query from the plan's page size (grid_view_query).
+     */
+    async external_view_rows(account, file_id, build: (max_limit: number) => ParsedRowQuery) {
+        await this.check_external_request(account, file_id);
+        const { caps } = await this.tracking_manager.plan(account);
+        const query = build(caps.query_page);
+        const res = await this.web_file_manager.query_rows(account.id, file_id, query);
+        return this.rows_page(res.docs, query);
+    }
+
+    // A query's docs (one more than the page, read to know if there's another) as
+    // `{ data, next_cursor }`, rows keyed by column name
+    private rows_page(docs_read: any[], query: ParsedRowQuery) {
+        const docs = docs_read.slice(0, query.limit);
+        const has_more = docs_read.length > query.limit;
         const last = docs[docs.length - 1];
         const data = docs.map(doc => {
             const row: any = { _id: doc._id };
@@ -538,9 +561,6 @@ export class WebFileService {
             });
             return row;
         });
-        if (col_defs.length > 0) {
-            await this.expand_links(account, data, col_defs, expand, format);
-        }
         return {
             data,
             next_cursor: has_more && last ? encode_cursor(last, query.sort, query.signature) : null

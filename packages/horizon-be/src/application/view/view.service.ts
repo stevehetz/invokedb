@@ -143,13 +143,27 @@ export class ViewService {
     }
 
     // A view of the given type, with its table's current columns
-    private async live(acct_id: number, id: string, type: 'kanban' | 'chart' | 'calendar' | 'map') {
+    private async live(
+        acct_id: number,
+        id: string,
+        type: 'grid' | 'kanban' | 'chart' | 'calendar' | 'map'
+    ) {
         const view = await this.owned(acct_id, id);
         if (view.type !== type) throw new BadRequestException(`This isn't a ${type} view`);
         const file = await this.owned_table(acct_id, view.file_id);
         const columns = await this.columns(acct_id, file.id);
         this.checked(() => assert_view_columns(view, columns));
         return { view, columns, filter: view_filter_query(view.filters, columns) };
+    }
+
+    /**
+     * A grid view with its table's current columns, for the MCP server's query_view (#330),
+     * which reads its rows a page at a time (grid_view_query); the app's grid applies a grid
+     * view itself.
+     */
+    async grid(acct_id: number, id: string) {
+        const { view, columns } = await this.live(acct_id, id, 'grid');
+        return { view, columns };
     }
 
     private format_rows(rows: any[], columns: ViewColumn[]) {

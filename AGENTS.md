@@ -418,7 +418,10 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   bearer guard, `ApiKeyUsageGuard` and onboarding tick as `/api/v1`). Streamable HTTP, stateless,
   JSON answers only (`GET`/`DELETE` are 405); no MCP SDK: `src/core/mcp/mcp.ts` (pure) is the
   JSON-RPC handling, version negotiation and the tools (`list_tables`, `describe_table`,
-  `query_rows`, `count_rows`, and for `read_write` keys `create_rows`, `update_rows`,
+  `query_rows`, `count_rows`, `list_views` and `query_view` (#330: saved views; a grid view's
+  rows through `grid_view_query` in `core/view/view.ts` and `WebFileService.external_view_rows`,
+  the other types through `ViewService`'s own readers, columns named by `agent_view_answer`;
+  a view of a table the key can't use reads as missing), and for `read_write` keys `create_rows`, `update_rows`,
   `delete_rows`, plus `create_table` and `add_columns` for keys of all tables, #329: string,
   number and date columns through `FileDirectoryService.create` and `batch_create_internal`)
   with their argument checks. `application/mcp/mcp.service.ts` runs them: rows

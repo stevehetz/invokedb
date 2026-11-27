@@ -12,18 +12,24 @@ export const ADMIN_PLANS = [
     { id: 'INTERNAL', label: 'Internal (no caps)' }
 ];
 
-// The accounts list's sortable columns
+// The accounts list's sortable columns. `num` ones are right-aligned, header and cells (#318).
+/** @type {{ key: string, label: string, num?: boolean }[]} */
 export const ACCOUNT_COLUMNS = [
     { key: 'email', label: 'Email' },
     { key: 'plan', label: 'Plan' },
     { key: 'created_at', label: 'Created' },
     { key: 'last_active_at', label: 'Last active' },
-    { key: 'tables', label: 'Tables' },
-    { key: 'rows', label: 'Rows' },
-    { key: 'storage_bytes', label: 'Storage' },
-    { key: 'api_calls', label: 'API calls' },
-    { key: 'ai_cost_usd', label: 'AI cost' }
+    { key: 'tables', label: 'Tables', num: true },
+    { key: 'rows', label: 'Rows', num: true },
+    { key: 'storage_bytes', label: 'Storage', num: true },
+    { key: 'api_calls', label: 'API calls', num: true },
+    { key: 'ai_cost_usd', label: 'AI cost', num: true }
 ];
+
+/** Keys of the right-aligned columns */
+export const NUM_COLUMNS = new Set(
+    ACCOUNT_COLUMNS.filter(c => c.num).map(c => c.key)
+);
 
 /** @type {Record<string, string>} */
 const CAP_LABELS = {

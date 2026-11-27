@@ -236,14 +236,27 @@
                 <table class="admin-table">
                     <thead>
                         <tr>
-                            <th v-for="c in columns" :key="c.key">
+                            <th
+                                v-for="c in columns"
+                                :key="c.key"
+                                :class="{ num: c.num }"
+                            >
+                                <!-- In a right-aligned header the icon goes first, so the
+                                     label ends where the numbers do -->
                                 <button
                                     type="button"
                                     class="admin-sort"
                                     @click="sort_by(c.key)"
                                 >
+                                    <i
+                                        v-if="c.num && sort_icon(c.key)"
+                                        :class="sort_icon(c.key)"
+                                    ></i>
                                     {{ c.label }}
-                                    <i :class="sort_icon(c.key)"></i>
+                                    <i
+                                        v-if="!c.num && sort_icon(c.key)"
+                                        :class="sort_icon(c.key)"
+                                    ></i>
                                 </button>
                             </th>
                             <th>Verified</th>
@@ -270,13 +283,21 @@
                             <td>{{ a.plan_name }}</td>
                             <td>{{ date_label(a.created_at) }}</td>
                             <td>{{ date_label(a.last_active_at) }}</td>
-                            <td class="num">{{ count_label(a.tables) }}</td>
-                            <td class="num">{{ count_label(a.rows) }}</td>
-                            <td class="num">
+                            <td :class="cell_class('tables')">
+                                {{ count_label(a.tables) }}
+                            </td>
+                            <td :class="cell_class('rows')">
+                                {{ count_label(a.rows) }}
+                            </td>
+                            <td :class="cell_class('storage_bytes')">
                                 {{ bytes_label(a.storage_bytes) }}
                             </td>
-                            <td class="num">{{ count_label(a.api_calls) }}</td>
-                            <td class="num">{{ usd_label(a.ai_cost_usd) }}</td>
+                            <td :class="cell_class('api_calls')">
+                                {{ count_label(a.api_calls) }}
+                            </td>
+                            <td :class="cell_class('ai_cost_usd')">
+                                {{ usd_label(a.ai_cost_usd) }}
+                            </td>
                             <td>{{ a.verified ? 'Yes' : 'No' }}</td>
                             <td>{{ a.two_factor ? 'On' : 'Off' }}</td>
                             <td class="caps">

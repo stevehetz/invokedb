@@ -47,7 +47,8 @@ use it one day, great; a sale someday would be a bonus. What that means for the 
 ## Where things stand (2026-11-27, midday)
 
 Everything below is merged and deployed unless it says otherwise. Details:
-`gh pr list --state merged`. No open PRs and nothing queued for the agent at midday 2026-11-27.
+`gh pr list --state merged`. No open PRs and nothing queued for the agent at midday 2026-11-27
+(#224, the Sonnet add-on, is `agent` + `agent-stuck`; it needs billing on, so leave it).
 
 - **Shipped 2026-11-27** (agent PRs from issues the owner filed in a local session):
   - **#319** (#318): the admin accounts table's number headers line up with their cells.

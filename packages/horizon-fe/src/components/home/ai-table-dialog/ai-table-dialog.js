@@ -49,7 +49,10 @@ export default defineComponent({
             /** @type {{ name: string, type: string }[] | null} */
             columns: null,
             /** @type {any[][]} */
-            rows: []
+            rows: [],
+            // The tables the AI read for the rows (#324)
+            /** @type {string[]} */
+            read: []
         };
     },
 
@@ -114,6 +117,7 @@ export default defineComponent({
                 this.rows = res.rows.map(
                     /** @param {any} r */ r => cols.map(c => r[c.name])
                 );
+                this.read = Array.isArray(res.read) ? res.read : [];
                 this.columns = cols;
             } catch (ex) {
                 this.error = message_of(ex, 'Could not design the table');
@@ -124,6 +128,7 @@ export default defineComponent({
         start_over() {
             this.columns = null;
             this.rows = [];
+            this.read = [];
             this.error = null;
         },
 

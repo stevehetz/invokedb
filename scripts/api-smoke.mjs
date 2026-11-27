@@ -3736,6 +3736,9 @@ const ai_stub = http.createServer((req, res) => {
             m => Array.isArray(m.content) && m.content.some(c => c.type === 'tool_result')
         ).length;
         const scripted = !structured && ai_next_script ? ai_next_script[results_so_far] : null;
+        // A new table from a description in an account with tables (#324) offers propose_table;
+        // unscripted, the stub answers the same design as a structured one, without rows
+        const designing = (body.tools || []).some(t => t.name === 'propose_table');
         let content;
         if (scripted) {
             content = [
@@ -3748,6 +3751,17 @@ const ai_stub = http.createServer((req, res) => {
             ];
         } else if (structured) {
             content = [{ type: 'text', text: JSON.stringify(ai_stub_json(body)) }];
+        } else if (designing) {
+            content = [
+                {
+                    type: 'tool_use',
+                    id: `toolu_smoke_${ai_requests.length}`,
+                    name: 'propose_table',
+                    input: ai_stub_json({
+                        output_config: { format: { schema: { properties: { columns: {} } } } }
+                    })
+                }
+            ];
         } else if (!result) {
             content = [
                 {
@@ -4647,6 +4661,106 @@ check(
         gen_preview?.usage?.used === gen_used_before + 20,
     gen_preview
 );
+
+// A new table from a description that reads the account's tables (#324): the design call
+// lists demo's tables; the model reads one with run_query and answers propose_table with rows
+// built from its emails, which the preview holds (a column it didn't fill stays empty). Only the
+// rows kept count, not the 20 asked for, and the read costs none. A table of demo2's can't be
+// read (a tool error, nothing of it sent), and with no rows given they're generated as before.
+const tfd_name = 'smoke_ai_crm_contacts';
+const tfd_table = await call('table_from_tables_source', 'POST', '/table-template/waitlist', {
+    token,
+    body: { name: tfd_name }
+});
+const tfd_emails = (
+    (
+        await call('table_from_tables_emails', 'POST', `/api/v1/query?table=${tfd_name}`, {
+            token: key,
+            body: { fields: ['Email'], limit: 3 }
+        })
+    )?.data || []
+).map(r => r.Email);
+check('table_from_tables_has_emails', tfd_emails.length === 3, tfd_emails);
+ai_next_script = [
+    { name: 'run_query', input: { table: tfd_name, fields: ['Email'], limit: 3 } },
+    {
+        name: 'propose_table',
+        input: {
+            table_name: 'follow_ups',
+            columns: [
+                { name: 'Email', type: 'string' },
+                { name: 'Follow up', type: 'date' }
+            ],
+            rows: tfd_emails.map(e => ({ Email: e }))
+        }
+    }
+];
+const tfd_seen = ai_requests.length;
+const tfd = await call('table_from_tables_preview', 'POST', '/ai/table/preview', {
+    token,
+    body: { description: `A table of follow-ups for the emails in ${tfd_name}`, row_count: 20 }
+});
+ai_next_script = null;
+const tfd_turns = ai_requests.slice(tfd_seen);
+const tfd_result = tfd_turns[1]?.body?.messages
+    ?.at(-1)
+    ?.content?.find?.(c => c.type === 'tool_result');
+check(
+    'table_from_tables_copies_rows',
+    tfd_turns.length === 2 &&
+        tfd_turns.every(r => !r.body.output_config?.format) &&
+        String(tfd_turns[0].body.system).includes(`"${tfd_name}": "Email" (string)`) &&
+        tfd_result?.is_error !== true &&
+        tfd_emails.every(e => String(tfd_result?.content).includes(e)) &&
+        tfd?.table_name === 'follow_ups' &&
+        JSON.stringify((tfd?.rows || []).map(r => r.Email)) === JSON.stringify(tfd_emails) &&
+        tfd.rows.every(r => r['Follow up'] === null) &&
+        JSON.stringify(tfd?.read) === JSON.stringify([tfd_name]) &&
+        tfd?.usage?.used === (gen_preview?.usage?.used ?? -99) + 3,
+    { tfd, tfd_result }
+);
+const tfd_theirs_name = 'smoke_ai_theirs_contacts';
+const tfd_theirs = await call(
+    'table_from_tables_theirs_create',
+    'POST',
+    '/table-template/waitlist',
+    {
+        token: gen_token2,
+        body: { name: tfd_theirs_name }
+    }
+);
+ai_next_script = [{ name: 'run_query', input: { table: tfd_theirs_name } }];
+const tfd_theirs_seen = ai_requests.length;
+const tfd_t = await call('table_from_tables_theirs', 'POST', '/ai/table/preview', {
+    token,
+    body: { description: `follow-ups for the emails in ${tfd_theirs_name}`, row_count: 2 }
+});
+ai_next_script = null;
+const tfd_t_turns = ai_requests.slice(tfd_theirs_seen);
+const tfd_t_result = tfd_t_turns[1]?.body?.messages
+    ?.at(-1)
+    ?.content?.find?.(c => c.type === 'tool_result');
+check(
+    'table_from_tables_theirs_refused',
+    tfd_t_result?.is_error === true &&
+        String(tfd_t_result.content).includes('no table named') &&
+        !String(tfd_t_turns[0]?.body?.system).includes(tfd_theirs_name) &&
+        !JSON.stringify(tfd_t_turns.map(r => r.body)).includes('@example') &&
+        Array.isArray(tfd_t?.read) &&
+        tfd_t.read.length === 0 &&
+        tfd_t?.rows?.length === 2 &&
+        tfd_t_turns.filter(r => r.body.output_config?.format).length === 1 &&
+        tfd_t?.usage?.used === (tfd?.usage?.used ?? -99) + 2,
+    { tfd_t, tfd_t_result }
+);
+await call('table_from_tables_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [tfd_table] }
+});
+await call('table_from_tables_theirs_delete', 'POST', '/file-directory/batch_delete', {
+    token: gen_token2,
+    body: { ids: [tfd_theirs] }
+});
 const gen_table = await call('gen_table_create', 'POST', '/ai/table', {
     token,
     body: {

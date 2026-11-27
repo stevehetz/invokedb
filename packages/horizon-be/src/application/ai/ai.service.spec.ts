@@ -74,12 +74,50 @@ function stub_answer(schema: any, n: number) {
 // The rows a prompt asks for ("Generate exactly N new rows.")
 const asked = (prompt: string) => Number((/exactly (\d+) new rows/.exec(prompt) || [])[1] || 0);
 
-function setup(opts: { available?: boolean; budget?: number } = {}) {
+// The rows of the account's crm_contacts table (#324)
+const CONTACTS = [
+    { _id: 'r1', e: 'ada@acme.test', n: 'Ada' },
+    { _id: 'r2', e: 'bea@acme.test', n: 'Bea' },
+    { _id: 'r3', e: 'cy@acme.test', n: 'Cy' }
+];
+// The rows of another account's table: never read
+const THEIRS = [{ _id: 't1', e: 'secret@theirs.test', n: 'Them' }];
+
+function setup(
+    opts: {
+        available?: boolean;
+        budget?: number;
+        // With the account's own named tables (#324): crm_contacts, and demo8's theirs_secret
+        tables?: boolean;
+        // Scripted replies of the design's tool loop (#324)
+        replies?: any[][];
+    } = {}
+) {
     const files = {
         11: { id: 11, account_id: ACCT, type: 'file', deleted: false },
         12: { id: 12, account_id: OTHER, type: 'file', deleted: false },
-        13: { id: 13, account_id: ACCT, type: 'file', deleted: true }
+        13: { id: 13, account_id: ACCT, type: 'file', deleted: true },
+        ...(opts.tables
+            ? {
+                  21: {
+                      id: 21,
+                      account_id: ACCT,
+                      name: 'crm_contacts',
+                      type: 'file',
+                      deleted: false
+                  },
+                  22: {
+                      id: 22,
+                      account_id: OTHER,
+                      name: 'theirs_secret',
+                      type: 'file',
+                      deleted: false
+                  },
+                  23: { id: 23, account_id: ACCT, name: 'old_list', type: 'file', deleted: true }
+              }
+            : {})
     };
+    const rows_of = (file_id: unknown) => (Number(file_id) === 22 ? THEIRS : CONTACTS);
     const accounts = {
         [ACCT]: { id: ACCT, subscription_id: 'SUB_FREE', email_verified: true },
         [OTHER]: { id: OTHER, subscription_id: 'SUB_LIVE_PLUS', email_verified: true },
@@ -91,7 +129,11 @@ function setup(opts: { available?: boolean; budget?: number } = {}) {
             if (!f) throw new NotFoundException();
             if (f.account_id !== acct) throw new ForbiddenException();
             return f;
-        })
+        }),
+        // Only the named tables (#324) are listed: the others stand for an account with none
+        get_by_account_id: jest.fn(async acct =>
+            Object.values(files).filter((f: any) => f.name && f.account_id === acct && !f.deleted)
+        )
     };
     const account_svc = { get: jest.fn(async id => accounts[id] || null) };
     const table_template_svc = {
@@ -103,13 +145,30 @@ function setup(opts: { available?: boolean; budget?: number } = {}) {
         check_table_lock: jest.fn(async () => undefined)
     };
     const web_file_manager = {
-        get_columns: jest.fn(async () => [
-            { field: 'a', headerName: 'Name', order: 1 },
-            { field: 'b', headerName: 'Age', col_type: 'number', order: 2 },
-            { field: 'c', headerName: 'Owner', col_type: 'link', order: 3 }
-        ]),
-        first_rows: jest.fn(async () => [{ _id: 'x', a: 'Ada', b: 36, c: ['id'] }])
+        get_columns: jest.fn(async (_acct?: any, file_id?: any): Promise<any[]> =>
+            [21, 22].includes(Number(file_id))
+                ? [
+                      { field: 'e', headerName: 'Email', order: 1 },
+                      { field: 'n', headerName: 'Name', order: 2 }
+                  ]
+                : [
+                      { field: 'a', headerName: 'Name', order: 1 },
+                      { field: 'b', headerName: 'Age', col_type: 'number', order: 2 },
+                      { field: 'c', headerName: 'Owner', col_type: 'link', order: 3 }
+                  ]
+        ),
+        first_rows: jest.fn(async () => [{ _id: 'x', a: 'Ada', b: 36, c: ['id'] }]),
+        // Reads of the account's tables (#324): every row, up to the limit
+        query_rows: jest.fn(async (_acct, file_id, query) => ({
+            docs: rows_of(file_id).slice(0, query.limit + 1),
+            explain: null
+        })),
+        count_rows: jest.fn(async (_acct, file_id) => rows_of(file_id).length),
+        format_date_field: jest.fn(v => v)
     };
+    // The design's tool loop (#324): scripted replies, and what each call was sent
+    const replies = [...(opts.replies || [])];
+    const messages_sent: any[] = [];
     // Never the real model
     const answer = jest.fn(async (req: any): Promise<any> =>
         stub_answer(req.schema, asked(req.prompt))
@@ -121,7 +180,13 @@ function setup(opts: { available?: boolean; budget?: number } = {}) {
             data: await answer(req),
             usage: CALL_USAGE,
             model: 'claude-haiku-5-5'
-        }))
+        })),
+        create_message: jest.fn(async (params: any) => {
+            messages_sent.push(JSON.parse(JSON.stringify(params)));
+            const content = replies.shift();
+            if (!content) throw new Error('no more replies');
+            return { reply: { content, usage: CALL_USAGE }, model: 'claude-haiku-5-5' };
+        })
     };
     const usage: Record<string, any> = {};
     const server: Record<string, number> = {};
@@ -182,9 +247,28 @@ function setup(opts: { available?: boolean; budget?: number } = {}) {
         server,
         table_template_svc,
         tracking_manager,
-        web_file_manager
+        web_file_manager,
+        messages_sent
     };
 }
+
+function tool_use(name: string, input: any, id = `tu_${name}`) {
+    return { type: 'tool_use', id, name, input };
+}
+
+// The last tool result sent to the model, of the nth create_message call
+function result_of(sent: any[], n: number) {
+    return sent[n].messages.at(-1).content.find(c => c.type === 'tool_result');
+}
+
+const FOLLOW_UPS = {
+    table_name: 'follow_ups',
+    columns: [
+        { name: 'Email', type: 'string' },
+        { name: 'Status', type: 'string' },
+        { name: 'Due', type: 'date' }
+    ]
+};
 
 async function status_of(p: Promise<unknown>) {
     try {
@@ -461,6 +545,133 @@ describe('AiService', () => {
             502
         );
         expect(used()).toBe(8);
+    });
+
+    it("copies rows from a table it read (#324): the account's real values, counted", async () => {
+        const { svc, model, used, cost, messages_sent } = setup({
+            tables: true,
+            replies: [
+                [tool_use('run_query', { table: 'CRM_Contacts', fields: ['Email'] })],
+                [
+                    tool_use('propose_table', {
+                        ...FOLLOW_UPS,
+                        rows: [
+                            { Email: 'ada@acme.test', Status: null },
+                            // A key the design's name was made from still fills it
+                            { 'e-mail!?': 'nope', 'Email ': 'bea@acme.test' },
+                            { email: 'cy@acme.test', Due: 'not a date' },
+                            // Nothing usable: dropped, not counted
+                            { Other: 'x' }
+                        ]
+                    })
+                ]
+            ]
+        });
+        const res = await svc.preview_table(ACCT, {
+            description: 'A table of follow-ups for the emails in crm_contacts',
+            row_count: 20
+        });
+        expect(res.table_name).toBe('follow_ups');
+        expect(res.columns).toEqual(FOLLOW_UPS.columns);
+        expect(res.rows).toEqual([
+            { Email: 'ada@acme.test', Status: null, Due: null },
+            { Email: 'bea@acme.test', Status: null, Due: null },
+            { Email: 'cy@acme.test', Status: null, Due: null }
+        ]);
+        expect(res.read).toEqual(['crm_contacts']);
+        // The rows kept count (not the 20 asked for), the read costs none; two calls charged
+        expect(used()).toBe(3);
+        expect(res.usage.used).toBe(3);
+        expect(cost()).toBe(1200);
+        expect(model.json).not.toHaveBeenCalled();
+        // The design call knew the account's own tables, and only those
+        expect(messages_sent[0].system).toContain('"crm_contacts": "Email" (string), "Name"');
+        expect(messages_sent[0].system).toContain('at most 20 rows');
+        expect(messages_sent[0].system).not.toContain('theirs_secret');
+        expect(messages_sent[0].system).not.toContain('old_list');
+        expect(messages_sent[0].tools.map(t => t.name)).toEqual(['run_query', 'propose_table']);
+        expect(messages_sent[0].tools[0].input_schema.required).toEqual(['table']);
+        expect(messages_sent[0].tools[0].input_schema.properties.limit.maximum).toBe(100);
+        const read = result_of(messages_sent, 1);
+        expect(read.is_error).toBeUndefined();
+        expect(read.content).toContain('ada@acme.test');
+    });
+
+    it("can't read another account's tables (#324), and generates rows without one", async () => {
+        const { svc, model, used, messages_sent, web_file_manager } = setup({
+            tables: true,
+            replies: [
+                [tool_use('run_query', { table: 'theirs_secret' })],
+                // A table that was deleted reads as missing too
+                [tool_use('run_query', { table: 'old_list' })],
+                [tool_use('propose_table', FOLLOW_UPS)]
+            ]
+        });
+        const res = await svc.preview_table(ACCT, {
+            description: 'follow-ups for theirs_secret',
+            row_count: 2
+        });
+        for (const n of [1, 2]) {
+            const r = result_of(messages_sent, n);
+            expect(r.is_error).toBe(true);
+            expect(r.content).toContain('no table named');
+        }
+        expect(JSON.stringify(messages_sent)).not.toContain('secret@theirs.test');
+        expect(web_file_manager.query_rows).not.toHaveBeenCalled();
+        expect(res.read).toEqual([]);
+        // No rows given: generated as before, from the design's columns
+        expect(res.rows).toEqual([
+            { Email: 'Email 1', Status: 'Status 1', Due: '2026-01-01' },
+            { Email: 'Email 2', Status: 'Status 2', Due: '2026-01-02' }
+        ]);
+        expect(model.json).toHaveBeenCalledTimes(1);
+        expect(used()).toBe(2);
+    });
+
+    it('designs from the description alone when it names no table (#324)', async () => {
+        const { svc, model, used, messages_sent } = setup({
+            tables: true,
+            replies: [
+                // No tool call: reminded once
+                [{ type: 'text', text: 'Sure!' }],
+                [tool_use('propose_table', { table_name: 'x', columns: [] })],
+                [tool_use('propose_table', { ...FOLLOW_UPS, rows: [{ Other: 1 }] })],
+                [tool_use('propose_table', FOLLOW_UPS)]
+            ]
+        });
+        const res = await svc.preview_table(ACCT, { description: 'a CRM', row_count: 3 });
+        expect(messages_sent[1].messages.at(-1).content).toContain('propose_table');
+        // A design with no columns, and rows that fit none of them, go back as tool errors
+        expect(result_of(messages_sent, 2).content).toMatch(/usable columns/);
+        expect(result_of(messages_sent, 3).content).toMatch(/None of the rows/);
+        expect(res.rows).toHaveLength(3);
+        expect(model.json).toHaveBeenCalledTimes(1);
+        expect(used()).toBe(3);
+    });
+
+    it('keeps no rows when none were asked for, and 502s with no design (#324)', async () => {
+        const rows = [{ Email: 'ada@acme.test' }];
+        const { svc, used, model } = setup({
+            tables: true,
+            replies: [
+                [tool_use('propose_table', { ...FOLLOW_UPS, rows })],
+                ...Array.from({ length: 4 }, () => [tool_use('run_query', { table: 'nope' })])
+            ]
+        });
+        const res = await svc.preview_table(ACCT, { description: 'x', row_count: 0 });
+        expect(res.rows).toEqual([]);
+        expect(used()).toBe(1);
+        expect(await status_of(svc.preview_table(ACCT, { description: 'x', row_count: 5 }))).toBe(
+            502
+        );
+        // The design counts as one row, failed or not
+        expect(used()).toBe(2);
+        // The model failing to answer is a 502 too
+        expect(await status_of(svc.preview_table(ACCT, { description: 'x', row_count: 5 }))).toBe(
+            502
+        );
+        expect(used()).toBe(3);
+        expect(model.json).not.toHaveBeenCalled();
     });
 
     it('creates a previewed table like a template', async () => {

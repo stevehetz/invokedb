@@ -7,7 +7,11 @@ import {
     check_table_design,
     check_value,
     design_columns,
+    design_rows,
+    design_tool,
     max_tokens_for,
+    parse_design_input,
+    table_system_with_tables,
     parse_rows_request,
     parse_table_request,
     rows_prompt,
@@ -241,5 +245,88 @@ describe('model calls', () => {
         expect(max_tokens_for(1, 1)).toBe(1024);
         expect(max_tokens_for(25, 10)).toBeGreaterThan(25 * 10 * 20);
         expect(max_tokens_for(1000, 52)).toBe(32000);
+    });
+
+    // A new table from a description that can read the account's tables (#324)
+    const TABLES = {
+        tables: [
+            {
+                name: 'crm_contacts',
+                columns: [
+                    { name: 'Email', header_name: 'Email', field: 'a', type: 'string' as const }
+                ],
+                more_columns: 0
+            }
+        ],
+        more_tables: 2
+    };
+
+    it('lists the tables in the design prompt and says how rows are made (#324)', () => {
+        const system = table_system_with_tables(TABLES, 20);
+        expect(system).toContain('- "crm_contacts": "Email" (string)');
+        expect(system).toContain('(and 2 more tables not listed)');
+        expect(system).toContain('at most 20 rows');
+        expect(system).toContain('never make values up');
+        expect(system).toContain('without rows');
+        const none = table_system_with_tables(TABLES, 0);
+        expect(none).toContain('asked for no rows');
+        expect(none).not.toContain('at most 0 rows');
+    });
+
+    it('takes a design tool like the table schema, plus rows (#324)', () => {
+        const tool = design_tool();
+        expect(tool.name).toBe('propose_table');
+        expect(Object.keys(tool.input_schema.properties)).toEqual([
+            'table_name',
+            'columns',
+            'rows'
+        ]);
+        expect(tool.input_schema.required).toEqual(['table_name', 'columns']);
+        expect(tool.input_schema.properties.rows.maxItems).toBe(AI_LIMITS.max_table_rows);
+    });
+
+    it("checks the design tool's input (#324)", () => {
+        const columns = [{ name: 'Email', type: 'string' }];
+        expect(parse_design_input({ table_name: 'Follow Ups', columns })).toEqual({
+            design: { table_name: 'follow_ups', columns },
+            rows: null
+        });
+        expect(parse_design_input({ table_name: 't', columns, rows: [] }).rows).toBeNull();
+        expect(
+            parse_design_input({ table_name: 't', columns, rows: [{ Email: 'x' }] }).rows
+        ).toEqual([{ Email: 'x' }]);
+        expect(
+            message_of(() => parse_design_input({ table_name: 't', columns, rows: 'x' }))
+        ).toMatch(/rows must be/);
+        expect(
+            message_of(() => parse_design_input({ table_name: 't', columns, rows: [1] }))
+        ).toMatch(/rows must be/);
+        expect(message_of(() => parse_design_input({ table_name: 't', columns: [] }))).toMatch(
+            /usable columns/
+        );
+    });
+
+    it('checks the rows the model built for a new table (#324)', () => {
+        const design = [
+            { name: 'Email', type: 'string' as const },
+            { name: 'Visits', type: 'number' as const },
+            { name: 'Email 2', type: 'string' as const }
+        ];
+        const rows = design_rows(
+            design,
+            [
+                { Email: 'ada@acme.test', Visits: '3', 'Email 2': 'a2@acme.test', Extra: 'x' },
+                // Matched by the cleaned-up name, ignoring case
+                { 'EMAIL?': 'bea@acme.test', visits: 'many' },
+                { Nothing: 1 },
+                { Email: 'cy@acme.test' }
+            ],
+            2
+        );
+        expect(rows).toEqual([
+            { Email: 'ada@acme.test', Visits: 3, 'Email 2': 'a2@acme.test' },
+            { Email: 'bea@acme.test', Visits: null, 'Email 2': null }
+        ]);
+        expect(design_rows(design, [{ toString: 'x' }] as any, 5)).toEqual([]);
     });
 });

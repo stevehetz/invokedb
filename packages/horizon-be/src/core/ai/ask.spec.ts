@@ -68,6 +68,23 @@ describe('parse_ask_input', () => {
         expect(parse_ask_input({}, COLUMNS).query.limit).toBe(ASK_DEFAULT_ROWS);
         expect(parse_ask_input({ limit: ASK_MAX_ROWS }, COLUMNS).query.limit).toBe(ASK_MAX_ROWS);
         expect(() => parse_ask_input({ limit: ASK_MAX_ROWS + 1 }, COLUMNS)).toThrow(AskError);
+        // A table from a description (#324) can read a whole preview's worth
+        const big = { limit: PROPOSE_MAX_ROWS };
+        expect(parse_ask_input(big, COLUMNS, PROPOSE_MAX_ROWS).query.limit).toBe(PROPOSE_MAX_ROWS);
+        expect(() => parse_ask_input({ limit: 101 }, COLUMNS, PROPOSE_MAX_ROWS)).toThrow(AskError);
+    });
+
+    it('builds a run_query that must name a table when there is no current one (#324)', () => {
+        const tool = ask_tool([], true, { no_current: true, max_rows: PROPOSE_MAX_ROWS });
+        expect(tool.name).toBe(ASK_TOOL_NAME);
+        expect((tool.input_schema as any).required).toEqual(['table']);
+        expect(tool.input_schema.properties.limit.maximum).toBe(PROPOSE_MAX_ROWS);
+        expect(tool.description).toContain(`first ${PROPOSE_MAX_ROWS}`);
+        expect(tool.input_schema.properties.table.description).not.toContain('current');
+        // Ask AI's own tool is unchanged
+        const own = ask_tool(COLUMNS, true);
+        expect((own.input_schema as any).required).toBeUndefined();
+        expect(own.input_schema.properties.limit.maximum).toBe(ASK_MAX_ROWS);
     });
 
     it('only takes the read-only query keys', () => {

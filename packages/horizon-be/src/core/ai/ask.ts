@@ -80,30 +80,45 @@ export function ask_columns(col_defs: any[]): QueryColumn[] {
  * tables the column names are an enum; with others, a column may be one of another table's,
  * so the names are plain strings (the prompt lists them, and the input is checked anyway).
  */
-export function ask_tool(columns: QueryColumn[], other_tables = false) {
+export function ask_tool(
+    columns: QueryColumn[],
+    other_tables = false,
+    // A new table from a description (#324): no current table, so table is required, and up
+    // to max_rows rows can be read
+    opts: { no_current?: boolean; max_rows?: number } = {}
+) {
+    const max_rows = opts.max_rows || ASK_MAX_ROWS;
+    const no_current = !!opts.no_current;
     const names = columns.map(c => c.name);
-    const column = other_tables
-        ? { type: 'string', description: 'A column of the table read, or _id' }
-        : { type: 'string', enum: [...names, '_id'] };
-    const field = other_tables ? { type: 'string' } : { type: 'string', enum: names };
-    const table = {
-        type: 'string',
-        description:
-            "The name of another of the account's tables to read, as listed. Leave it out " +
-            'to read the current table.'
-    };
+    const column =
+        other_tables || no_current
+            ? { type: 'string', description: 'A column of the table read, or _id' }
+            : { type: 'string', enum: [...names, '_id'] };
+    const field = other_tables || no_current ? { type: 'string' } : { type: 'string', enum: names };
+    const table = no_current
+        ? { type: 'string', description: "The name of the account's table to read, as listed" }
+        : {
+              type: 'string',
+              description:
+                  "The name of another of the account's tables to read, as listed. Leave it " +
+                  'out to read the current table.'
+          };
     return {
         name: ASK_TOOL_NAME,
         description:
-            "Reads rows of the table (or, with table, of another of the account's tables). " +
+            (no_current
+                ? "Reads rows of one of the account's tables, named in table. "
+                : "Reads rows of the table (or, with table, of another of the account's " +
+                  'tables). ') +
             'The input is the body of a POST /api/v1/query call: filters, match, sort, fields ' +
             'and limit. Returns the number of rows matching the filters and the first ' +
-            `${ASK_MAX_ROWS} (or limit) of them. It never changes anything.`,
+            `${max_rows} (or limit) of them. It never changes anything.`,
         input_schema: {
             type: 'object',
             additionalProperties: false,
+            ...(no_current ? { required: [ASK_TABLE_KEY] } : {}),
             properties: {
-                ...(other_tables ? { table } : {}),
+                ...(other_tables || no_current ? { table } : {}),
                 filters: {
                     type: 'array',
                     maxItems: MAX_FILTERS,
@@ -147,7 +162,7 @@ export function ask_tool(columns: QueryColumn[], other_tables = false) {
                     description: 'The columns to return (all when left out)',
                     items: field
                 },
-                limit: { type: 'integer', minimum: 1, maximum: ASK_MAX_ROWS }
+                limit: { type: 'integer', minimum: 1, maximum: max_rows }
             }
         }
     };
@@ -193,18 +208,24 @@ export function prompt_tables(
     return { tables: listed, more_tables: Math.max(0, total_tables - listed.length) };
 }
 
-function has_other_tables(others: PromptTables) {
+export function has_other_tables(others: PromptTables) {
     return others.tables.length > 0 || others.more_tables > 0;
 }
 
-function other_tables_lines(table: string, others: PromptTables): string[] {
-    if (!has_other_tables(others)) return [];
+/** One line per listed table: its name, then its columns and types (#322, #324). */
+export function prompt_table_lines(others: PromptTables): string[] {
     const lines = others.tables.map(t => {
         const cols = t.columns.map(c => `${JSON.stringify(c.name)} (${c.type})`).join(', ');
         const more = t.more_columns > 0 ? `, and ${t.more_columns} more columns not listed` : '';
         return `- ${JSON.stringify(t.name)}: ${cols || 'no columns'}${more}`;
     });
     if (others.more_tables > 0) lines.push(`(and ${others.more_tables} more tables not listed)`);
+    return lines;
+}
+
+function other_tables_lines(table: string, others: PromptTables): string[] {
+    if (!has_other_tables(others)) return [];
+    const lines = prompt_table_lines(others);
     return [
         '',
         "The account's other tables (name, then columns and types). You can read them with " +
@@ -359,7 +380,12 @@ function is_plain_object(value: unknown): value is Record<string, unknown> {
  * read-only body keys are accepted (no cursor, no explain), the limit is at most
  * ASK_MAX_ROWS, and parse_row_query checks every column, operator and value.
  */
-export function parse_ask_input(input: unknown, columns: QueryColumn[]): AskQuery {
+export function parse_ask_input(
+    input: unknown,
+    columns: QueryColumn[],
+    // A new table from a description (#324) may copy up to PROPOSE_MAX_ROWS rows
+    max_rows = ASK_MAX_ROWS
+): AskQuery {
     if (!is_plain_object(input)) throw new AskError('The input must be a JSON object');
     // table (#322) picks the table; resolve_ask_table reads it
     const allowed = [ASK_TABLE_KEY, ...ASK_KEYS];
@@ -373,7 +399,7 @@ export function parse_ask_input(input: unknown, columns: QueryColumn[]): AskQuer
     ASK_KEYS.forEach(k => input[k] !== undefined && (body[k] = input[k]));
     if (body.limit === undefined) body.limit = ASK_DEFAULT_ROWS;
     try {
-        const query = parse_row_query(body, columns, ASK_MAX_ROWS);
+        const query = parse_row_query(body, columns, max_rows);
         const count_query = parse_count_query(
             { filters: body.filters, match: body.match },
             columns

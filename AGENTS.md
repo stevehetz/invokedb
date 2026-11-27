@@ -464,7 +464,12 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `POST /ai/table/preview` and `POST /ai/table` make a table from a description like a template.
   Rows count against the month's row allowance (Free 50) when asked of the model, used or not;
   rows never asked for are handed back. The smoke stubs answer structured-output requests with
-  rows made from the schema. There is one AI button on the grid, **Ask AI** (#234): its model
+  rows made from the schema. In an account with tables, the table design (#324) is a tool loop
+  instead (`AiService.design_with_tables`, at most 4 turns): `run_query` must name one of the
+  account's tables (up to 100 rows a call) and `propose_table` answers the design, with rows
+  built from what it read (`design_rows`, counted as kept) or without (generated as before);
+  `application/ai/account-tables.ts` is the table reading it shares with Ask AI. The smoke stub
+  answers `propose_table` whenever it's offered. There is one AI button on the grid, **Ask AI** (#234): its model
   has two tools, `run_query` and `propose_rows`; the second calls `AiService.preview_rows` and
   the answer carries `proposed: { rows, columns }`, which the dialog's "Add to table" hands to
   the grid's `preview_generated_rows` (review, then Save). The `generate-rows` route stays for

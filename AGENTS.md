@@ -152,8 +152,10 @@ e.g. `gh project item-list 1 --owner stevehetz`). There is no other task list;
    this branch. Mention it in the PR.
 5. **Finish:** run the checks for what changed (`verify-backend`; frontend build + lint +
    typecheck), prettier, commit, push, and `gh pr create` with `Closes #<issue>` in the body and how it
-   was checked. CI and the Claude review run on it. Tick the "Done when" boxes that are done;
-   say plainly which aren't.
+   was checked. CI and the Claude review run on it; the review also checks the diff against
+   the closed issues' "Done when" items (#338: only issues by the owner or the Claude app, with
+   the owner's comments), and an item not met is a finding. Tick the "Done when" boxes that are
+   done; say plainly which aren't.
 6. **Merge:** `automerge.yml` merges a PR that qualifies (see Hard rules, "Auto-merge");
    otherwise the user does. Never merge yourself unless asked. The merge closes the issue and
    the board moves it to `Done`. Decisions and findings made along the way go in issue or PR comments; anything a

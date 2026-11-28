@@ -77,6 +77,9 @@ export default defineComponent({
             agent_setups: AGENT_SETUPS,
             agent_setup: AGENT_SETUPS[0].value,
             agent_copied: false,
+            // Whether the box is open: null until the user (or a new key) decides, then the
+            // box is open only while the account has no key (#345)
+            agents_open: null,
             backend_url: (store.get('env') || {}).HORIZON_BE_PUB_HTTP_URL || ''
         };
     },
@@ -104,6 +107,13 @@ export default defineComponent({
                 ? 'Your new key is filled in above.'
                 : 'Replace YOUR_API_KEY with a key; a new key is filled in for you.';
         },
+
+        agents_expanded() {
+            if (this.agents_open !== null) return this.agents_open;
+            if (this.created) return true;
+            return !this.loading && this.live_count === 0;
+        },
+
         live_count() {
             return this.keys.filter(k => !k.revoked_datetime).length;
         },
@@ -155,10 +165,16 @@ export default defineComponent({
             return ACCESS_LABELS[access] || access;
         },
 
-        tables_label(key) {
-            if (!key.table_ids) return 'All tables';
-            if (!key.tables || key.tables.length === 0) return 'No tables left';
-            return key.tables.map(t => t.name).join(', ');
+        // The Tables column's tags: one per table, or a single "All tables"
+        table_tags(key) {
+            if (!key.table_ids) return ['All tables'];
+            if (!key.tables || key.tables.length === 0)
+                return ['No tables left'];
+            return key.tables.map(t => t.name);
+        },
+
+        toggle_agents() {
+            this.agents_open = !this.agents_expanded;
         },
 
         limit_label(key) {
@@ -202,6 +218,15 @@ export default defineComponent({
             return value ? new Date(value).toLocaleString() : '';
         },
 
+        // The keys table's "Last used": short enough for one line; the full time is its tooltip
+        short_time(value) {
+            if (!value) return '';
+            return new Date(value).toLocaleString(undefined, {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+        },
+
         async load() {
             try {
                 const res = await api_key_http.list();
@@ -241,6 +266,8 @@ export default defineComponent({
                             : null
                 });
                 this.show_new = false;
+                // The snippet now has the new key in it: show it
+                this.agents_open = true;
                 await this.load();
             } catch (ex) {
                 bus.$emit(

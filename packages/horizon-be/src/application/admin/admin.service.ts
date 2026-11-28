@@ -52,7 +52,7 @@ import logger from '@app/logger';
 export const SNAPSHOT_MS = 3 * 60 * 1000;
 // The production E2E test's latest run (.github/workflows/e2e.yml), from the public repo
 export const E2E_RUNS_URL =
-    'https://api.github.com/repos/stevehetz/invokedb/actions/workflows/e2e.yml/runs?per_page=1&status=completed';
+    'https://api.github.com/repos/stevehetzl/invokedb/actions/workflows/e2e.yml/runs?per_page=1&status=completed';
 export const E2E_CACHE_MS = 5 * 60 * 1000;
 // Accounts read at the same time while the snapshot is built
 const PARALLEL = 8;

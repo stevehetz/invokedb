@@ -3,7 +3,7 @@ import { store } from '@/store';
 // labelled enhancement (#219), so the page needs no GitHub call
 import entries from './changelog.json';
 
-const REPO_URL = 'https://github.com/stevehetz/invokedb';
+const REPO_URL = 'https://github.com/stevehetzl/invokedb';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-US', {
     year: 'numeric',

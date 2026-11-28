@@ -8,7 +8,7 @@ RUN npm ci --no-audit --no-fund
 COPY . .
 # The changelog page (#259): the copy cd.yml publishes before each deploy, if it can be fetched
 # and is a list; otherwise the file in the repo stays. Public repo, so no token.
-ARG CHANGELOG_URL=https://github.com/stevehetz/invokedb/releases/download/changelog/changelog.json
+ARG CHANGELOG_URL=https://github.com/stevehetzl/invokedb/releases/download/changelog/changelog.json
 # Changes on every deploy (release.sh), so Docker's cache never skips the fetch below, also when
 # the frontend's files didn't change (a backend-only enhancement still reaches the changelog)
 ARG CHANGELOG_STAMP=none

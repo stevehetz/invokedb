@@ -293,14 +293,14 @@ describe('overview figures', () => {
                     {
                         conclusion: 'success',
                         updated_at: '2026-11-26T06:10:00Z',
-                        html_url: 'https://github.com/stevehetz/invokedb/actions/runs/1'
+                        html_url: 'https://github.com/stevehetzl/invokedb/actions/runs/1'
                     }
                 ]
             })
         ).toEqual({
             conclusion: 'success',
             at: Date.parse('2026-11-26T06:10:00Z'),
-            url: 'https://github.com/stevehetz/invokedb/actions/runs/1'
+            url: 'https://github.com/stevehetzl/invokedb/actions/runs/1'
         });
         expect(e2e_result({ workflow_runs: [] })).toEqual({
             conclusion: 'unknown',

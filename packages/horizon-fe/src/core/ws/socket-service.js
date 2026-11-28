@@ -1,4 +1,3 @@
-// @ts-nocheck: not type-checked yet
 import { bus } from '@/core/bus';
 import { logger } from '@/core/logger/logger';
 import SocketManager from '@/core/ws/socket-manager';

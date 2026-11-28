@@ -8,7 +8,7 @@
     "homepage": "https://invokedb.com",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/stevehetz/invokedb.git"
+        "url": "git+https://github.com/stevehetzl/invokedb.git"
     },
     "scripts": {
         "prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",

@@ -57,7 +57,7 @@ const LINKED_TASK = 'Write the launch post';
 const AI_TABLE = 'ui_smoke_ai_table';
 // A public CSV for "Table from URL" (#144): this repo's own example data on GitHub
 const URL_SOURCE =
-    'https://raw.githubusercontent.com/stevehetz/invokedb/main/examples/data/todo.csv';
+    'https://raw.githubusercontent.com/stevehetzl/invokedb/main/examples/data/todo.csv';
 const OUT = opt('--out');
 const ARTIFACTS = opt('--artifacts');
 if (ARTIFACTS) fs.mkdirSync(ARTIFACTS, { recursive: true });

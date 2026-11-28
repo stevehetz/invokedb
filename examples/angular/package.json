@@ -7,7 +7,7 @@
   "author": "Steve Hetzel",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/stevehetz/invokedb.git",
+    "url": "git+https://github.com/stevehetzl/invokedb.git",
     "directory": "examples/angular"
   },
   "scripts": {

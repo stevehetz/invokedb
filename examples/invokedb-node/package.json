@@ -4,14 +4,14 @@
   "description": "InvokeDB JavaScript/TypeScript client (Node 18+ and browsers)",
   "license": "MIT",
   "author": "Steve Hetzel",
-  "homepage": "https://github.com/stevehetz/invokedb/tree/main/examples/invokedb-node#readme",
+  "homepage": "https://github.com/stevehetzl/invokedb/tree/main/examples/invokedb-node#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/stevehetz/invokedb.git",
+    "url": "git+https://github.com/stevehetzl/invokedb.git",
     "directory": "examples/invokedb-node"
   },
   "bugs": {
-    "url": "https://github.com/stevehetz/invokedb/issues"
+    "url": "https://github.com/stevehetzl/invokedb/issues"
   },
   "engines": {
     "node": ">=18"

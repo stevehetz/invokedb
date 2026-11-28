@@ -526,7 +526,7 @@ await call('template_delete', 'POST', '/file-directory/batch_delete', {
 // CSV and a JSON URL (this repo's own files on GitHub, so CI needs internet) become tables;
 // re-syncs replace or upsert, and a failed one leaves the rows alone; demo2 can't read,
 // change or sync demo's.
-const RAW = 'https://raw.githubusercontent.com/stevehetz/invokedb/main';
+const RAW = 'https://raw.githubusercontent.com/stevehetzl/invokedb/main';
 const refused_urls = {
     this_backend: `${BASE}/health`,
     loopback: 'http://127.0.0.1/',

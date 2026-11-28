@@ -6,7 +6,7 @@
 # key can only redeploy what's already on main. The settings (/opt/invokedb/prod.env) aren't
 # touched: they sit outside the app folder and only `deploy.sh up`/`env` write them.
 set -euo pipefail
-REPO=stevehetz/invokedb
+REPO=stevehetzl/invokedb
 APP=/opt/invokedb/app
 ENV=/opt/invokedb/prod.env
 

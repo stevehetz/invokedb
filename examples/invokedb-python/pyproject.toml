@@ -18,8 +18,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/stevehetz/invokedb/tree/main/examples/invokedb-python#readme"
-Issues = "https://github.com/stevehetz/invokedb/issues"
+Homepage = "https://github.com/stevehetzl/invokedb/tree/main/examples/invokedb-python#readme"
+Issues = "https://github.com/stevehetzl/invokedb/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -677,13 +677,17 @@ function verify(secret, raw_body, header) {
                     <ul>
                         <li>
                             <b>Answer questions</b>: "How many orders over $100
-                            came from Paris?" It runs a query and shows it, so
-                            you can check its answer.
+                            came from Paris?" The question becomes an API query
+                            that only reads the table, and you see the answer,
+                            the rows behind it and the API call, so you can
+                            check it.
                         </li>
                         <li>
                             <b>Propose rows</b>: "Add 20 sample customers." The
-                            rows appear in the grid as new rows; nothing is
-                            saved until you click Save.
+                            rows are made up to fit the columns (or taken from
+                            what it read) and shown in the dialog first; click
+                            <b>Add to table</b> and they appear in the grid as
+                            new rows, and nothing is saved until you click Save.
                         </li>
                         <li>
                             <b>Use your other tables</b>: "Add 10 rows using the
@@ -698,8 +702,9 @@ function verify(secret, raw_body, header) {
                         <li>
                             <b>Edit rows</b>: "Capitalise the city names" or
                             "Set status to done where due is before today." You
-                            see every row before and after first, and can undo
-                            the last edit.
+                            see every row before and after first, nothing
+                            changes until you click <b>Apply</b>, and you can
+                            undo the last edit.
                         </li>
                         <li>
                             <b>Clean up</b> (the button next to Ask): looks

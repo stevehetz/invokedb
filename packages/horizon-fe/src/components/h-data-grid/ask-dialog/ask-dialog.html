@@ -1,17 +1,14 @@
 <div class="ask-dialog">
     <p class="ask-intro">
-        Ask about <b>{{ table_name }}</b> in plain English, ask for new rows, or
-        ask to change rows. A question becomes an API query that only reads the
-        table: you see the answer, the rows behind it and the API call. The AI
-        can also read your other tables ("add rows using the emails from
-        signups"), but it only ever changes this one. Rows you ask for are made
-        up to fit the columns, or taken from what it read, and shown here first;
-        nothing is saved until you add them and click Save. A change
-        ("title-case the names") is shown row by row, before and after, and is
-        made only when you apply it. <b>Clean up</b> looks for duplicates,
-        invalid emails and inconsistent formats, and suggests fixes you review
-        the same way. <b>Paste text</b> turns an email, a PDF or a messy CSV
-        into rows of this table's columns, to review the same way as new rows.
+        Ask a question about <b>{{ table_name }}</b>, or ask for new or changed
+        rows. Nothing is saved until you review it.
+        <a
+            class="ask-help"
+            href="/help/ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            >How it works</a
+        >
     </p>
 
     <div class="ask-row">
@@ -37,7 +34,7 @@
             class="ask-cleanup"
             size="small"
             :disabled="asking || used_up || unverified"
-            title="Look for duplicates, invalid emails and inconsistent formats"
+            title="Find duplicates, bad emails and inconsistent formats"
             @click="clean_up"
             >Clean up</el-button
         >
@@ -45,7 +42,7 @@
             class="ask-paste-toggle"
             size="small"
             :disabled="asking"
-            title="Turn pasted text (an email, a PDF, a messy CSV) into rows"
+            title="Turn pasted text into rows"
             @click="toggle_paste"
             >Paste text</el-button
         >
@@ -70,9 +67,7 @@
             >
             <span class="ask-hint"
                 >{{ paste_text.length }} of {{ max_paste_length }} characters.
-                Uses one question; the rows it makes count as AI rows (at most
-                {{ max_paste_rows }}). Values the text doesn't give are left
-                empty.</span
+                Uses one question and up to {{ max_paste_rows }} AI rows.</span
             >
         </div>
     </div>

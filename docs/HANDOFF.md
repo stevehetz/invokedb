@@ -37,7 +37,7 @@ use it one day, great; a sale someday would be a bonus. What that means for the 
   details), with its own board, https://github.com/users/stevehetzl/projects/2. A Next.js 16 app
   for agent evaluation, tracing, LLM-as-a-judge, time to signal and an observability dashboard,
   storing its data in the owner's personal InvokeDB account. **Live at
-  https://agent-evals-flax.vercel.app.** Its work goes on its own board; gaps it finds in
+  https://agent-evals-app.vercel.app.** Its work goes on its own board; gaps it finds in
   InvokeDB become issues here. No LICENSE yet (all rights reserved by default).
   - **Done 2026-11-28:** #1 tables (`lib/schema.mjs`, `scripts/setup-tables.mjs` through the
     MCP server), #2 the collector (`npm run collect`: every GitHub Actions job that ran Claude →

@@ -1,0 +1,329 @@
+<div class="page built-page">
+    <div class="main-content">
+        <div class="main-heading">
+            <div class="flex-row">
+                <div class="col col-25">
+                    <router-link class="title-link" to="/">
+                        <img
+                            class="heading-logo-title"
+                            src="@/assets/logo-title.svg"
+                        />
+                        <img
+                            class="heading-logo-icon"
+                            src="@/assets/logo.svg"
+                        />
+                    </router-link>
+                </div>
+                <div class="col col-75 pull-right">
+                    <router-link to="/agents">Agents</router-link>
+                    <router-link to="/help">Help</router-link>
+                    <router-link to="/contact">Contact</router-link>
+                    <router-link to="/pricing">Pricing</router-link>
+                    <router-link to="/create-account" v-if="!account"
+                        >Sign Up</router-link
+                    >
+                    <router-link to="/login" class="sign-in" v-if="!account">
+                        <span>Sign In</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                    <router-link to="/app" class="sign-in" v-if="account">
+                        <span>Database</span>
+                        <i class="fa fa-arrow-right"></i>
+                    </router-link>
+                </div>
+            </div>
+        </div>
+        <div class="built-body">
+            <div class="built-intro">
+                <span class="built-label">How it's built</span>
+                <h1>One server, and a pipeline of agents</h1>
+                <p>
+                    InvokeDB runs on a single server with Docker Compose. Most
+                    of its code is written by Claude in GitHub Actions: an issue
+                    goes in, and a reviewed, tested and deployed change comes
+                    out, with the owner deciding what gets worked and what needs
+                    a person.
+                </p>
+            </div>
+
+            <section class="built-section">
+                <h2>Architecture</h2>
+                <p>
+                    Everything runs on one DigitalOcean droplet (2 vCPUs, 4 GB)
+                    with <code>docker compose</code>. Only Caddy publishes
+                    ports; the cloud firewall lets in HTTP and HTTPS from
+                    anywhere and SSH only from the owner's address, plus a
+                    deploy's runner for the length of the deploy.
+                </p>
+                <div
+                    class="built-arch"
+                    role="img"
+                    aria-label="Browsers, API clients and AI agents reach the droplet through Cloudflare DNS and the DigitalOcean firewall. On the droplet, Caddy serves the site and proxies to the API container, which works with the processor container, Postgres and Mongo. Backups go nightly to DigitalOcean Spaces."
+                >
+                    <div class="built-arch__row">
+                        <div class="built-box built-box--outside">
+                            <b>Browsers</b>
+                            <span>the site and the app</span>
+                        </div>
+                        <div class="built-box built-box--outside">
+                            <b>API clients</b>
+                            <span>REST, <code>/api/v1</code></span>
+                        </div>
+                        <div class="built-box built-box--outside">
+                            <b>AI agents</b>
+                            <span>MCP, <code>/mcp</code></span>
+                        </div>
+                    </div>
+                    <div class="built-arrow" aria-hidden="true">
+                        HTTPS · Cloudflare DNS · DigitalOcean firewall
+                    </div>
+                    <div class="built-arch__droplet">
+                        <div class="built-arch__title">
+                            Droplet · <code>docker compose</code>
+                        </div>
+                        <div class="built-arch__row">
+                            <div class="built-box built-box--wide">
+                                <b>web: Caddy</b>
+                                <span
+                                    >TLS from Let's Encrypt, the built Vue app,
+                                    a reverse proxy to the API</span
+                                >
+                            </div>
+                        </div>
+                        <div class="built-arrow" aria-hidden="true">↓</div>
+                        <div class="built-arch__row">
+                            <div class="built-box">
+                                <b>api: NestJS</b>
+                                <span
+                                    >HTTP routes, <code>/api/v1</code>,
+                                    <code>/mcp</code>, uploads, the websocket
+                                    broker</span
+                                >
+                            </div>
+                            <div class="built-box">
+                                <b>prc: processor</b>
+                                <span
+                                    >CSV loads, URL syncs, webhooks, exports, AI
+                                    columns; its own CPU limit</span
+                                >
+                            </div>
+                        </div>
+                        <div class="built-arrow" aria-hidden="true">↓</div>
+                        <div class="built-arch__row">
+                            <div class="built-box built-box--data">
+                                <b>Postgres 17</b>
+                                <span
+                                    >accounts, sessions, API keys, the job
+                                    queue</span
+                                >
+                            </div>
+                            <div class="built-box built-box--data">
+                                <b>Mongo 8</b>
+                                <span
+                                    >one database per account, a collection per
+                                    table</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+                    <div class="built-arrow" aria-hidden="true">
+                        nightly, encrypted
+                    </div>
+                    <div class="built-arch__row">
+                        <div class="built-box built-box--outside">
+                            <b>DigitalOcean Spaces</b>
+                            <span
+                                ><code>pg_dump</code> and
+                                <code>mongodump</code>, kept 30 days</span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <ul>
+                    <li>
+                        <b>Backups:</b> every night a script dumps Postgres and
+                        Mongo, encrypts them and uploads them off the server,
+                        keeping 30 days; a <code>verify</code> command restores
+                        the latest into throwaway containers and compares the
+                        counts. DigitalOcean's weekly droplet backup is a second
+                        copy.
+                    </li>
+                    <li>
+                        <b>Monitoring:</b> UptimeRobot checks the site and the
+                        API every 5 minutes; Healthchecks.io expects each
+                        night's backup; errors from the API, the processor and
+                        the browser are grouped and stored on the server itself,
+                        with a Telegram message for each new one; the
+                        <router-link to="/status">status page</router-link>
+                        shows the server's own checks.
+                    </li>
+                    <li>
+                        <b>Deploys:</b> the images are built on the server from
+                        the commit being deployed, and migrations run before the
+                        containers restart. The server's settings live outside
+                        the app folder, so a deploy ships code only.
+                    </li>
+                </ul>
+            </section>
+
+            <section class="built-section">
+                <h2>The stack</h2>
+                <dl class="built-stack">
+                    <dt>Backend</dt>
+                    <dd>
+                        NestJS 12 in TypeScript, with TypeORM on Postgres and
+                        the native MongoDB driver (no ODM). Each account's rows
+                        live in its own Mongo database, so tables can have any
+                        columns and one account's data never shares a collection
+                        with another's.
+                    </dd>
+                    <dt>Frontend</dt>
+                    <dd>
+                        Vue 3 and Vite 6, with ag-grid 36 for the spreadsheet
+                        and Element Plus for the controls. The public site and
+                        the app are one build with two areas, each with its own
+                        stylesheet; light and dark themes come from one set of
+                        colour tokens. Kanban, calendar, chart and map views are
+                        drawn in SVG, with no chart or map library.
+                    </dd>
+                    <dt>API</dt>
+                    <dd>
+                        A REST API for every table, with its own docs, snippets
+                        and OpenAPI spec built from its columns, and keys scoped
+                        to read or write and to some tables.
+                    </dd>
+                    <dt>MCP server</dt>
+                    <dd>
+                        <code>/mcp</code> lets AI agents list, query and change
+                        tables with an API key. It's written without an MCP SDK:
+                        a small JSON-RPC handler over stateless streamable HTTP,
+                        and each tool goes through the same paths as the REST
+                        API (quotas, locks, webhooks, the audit log).
+                        <router-link to="/agents">Connect an agent</router-link
+                        >.
+                    </dd>
+                    <dt>AI features</dt>
+                    <dd>
+                        Ask AI, AI columns and cleanup call the Anthropic API,
+                        with a monthly allowance per account and a budget for
+                        the whole server. The model never writes code: edits are
+                        a fixed set of operations, checked and previewed before
+                        anything is saved.
+                    </dd>
+                    <dt>Tests</dt>
+                    <dd>
+                        Jest unit tests for the pure rules, an API smoke test
+                        that runs the built backend against real Postgres and
+                        Mongo on every PR, and a Playwright test of the main UI
+                        flows that runs against production.
+                    </dd>
+                </dl>
+            </section>
+
+            <section class="built-section">
+                <h2>The agent pipeline</h2>
+                <p>
+                    Work is tracked only in GitHub issues. The owner writes an
+                    issue, puts it on the board and labels it for the agent;
+                    from there, GitHub Actions workflows take it to production.
+                    Claude runs in them through the Claude GitHub App.
+                </p>
+                <ol class="built-flow">
+                    <li v-for="(step, i) in pipeline" :key="step.name">
+                        <div class="built-flow__step">
+                            <span class="built-flow__n">{{ i + 1 }}</span>
+                            <div>
+                                <div class="built-flow__name">
+                                    {{ step.name }}
+                                    <code v-if="step.file"
+                                        >{{ step.file }}</code
+                                    >
+                                </div>
+                                <div class="built-flow__what">
+                                    {{ step.what }}
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                </ol>
+                <h3>Around it</h3>
+                <p>
+                    These keep the line moving when something goes wrong,
+                    without waiting for a person:
+                </p>
+                <div class="built-helpers">
+                    <div
+                        class="built-box"
+                        v-for="step in helpers"
+                        :key="step.name"
+                    >
+                        <b>{{ step.name }}</b>
+                        <code>{{ step.file }}</code>
+                        <span>{{ step.what }}</span>
+                    </div>
+                </div>
+                <h3>Where a person stays in charge</h3>
+                <ul>
+                    <li>
+                        The agent only works issues the owner opened and
+                        labelled, and sees only the issue and the owner's
+                        comments. Bugs it finds on the way become new issues
+                        instead of growing the change.
+                    </li>
+                    <li>
+                        Every change reaches <code>main</code> through a pull
+                        request with CI passing. A PR that touches the deploy
+                        setup, the workflows or a migration is held for the
+                        owner.
+                    </li>
+                    <li>
+                        The agent has no databases, no secrets and no production
+                        access, and can't change the workflows that run it.
+                    </li>
+                    <li>
+                        A PR stuck on failed CI, idle for 2 hours, or out of
+                        review rounds is labelled and the owner mentioned; the
+                        queue moves on to the next issue, and stops if two are
+                        stuck.
+                    </li>
+                </ul>
+                <h3>By the numbers</h3>
+                <div class="built-numbers">
+                    <div
+                        class="built-number"
+                        v-for="n in numbers"
+                        :key="n.label"
+                    >
+                        <b>{{ n.value }}</b>
+                        <span>{{ n.label }}</span>
+                    </div>
+                </div>
+                <p class="built-note">
+                    Counted from the git history of <code>main</code> on {{
+                    as_of }}. "Written by Claude" means the PR's last commit was
+                    made by the Claude GitHub App: mostly issues the cloud agent
+                    worked, plus fixes from the repair, security, revise and
+                    resolve workflows.
+                </p>
+            </section>
+
+            <div class="built-more">
+                <router-link to="/agents" class="built-button"
+                    >Connect an agent</router-link
+                >
+                <router-link to="/changelog">See what's shipped</router-link>
+            </div>
+        </div>
+        <div class="footer">
+            <div class="flex-row">
+                <div class="col">
+                    <span>© InvokeDB, LLC</span>•
+                    <router-link to="/changelog">Changelog</router-link>•
+                    <router-link to="/status">Status</router-link>•
+                    <router-link to="/tos">Terms</router-link>•
+                    <router-link to="/privacy">Privacy</router-link>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

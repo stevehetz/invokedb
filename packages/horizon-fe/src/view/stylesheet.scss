@@ -709,6 +709,19 @@ $HOME_PAGE_MAX_WIDTH: 900px;
     background-color: #56599a;
     color: #ffffff;
 }
+// The link to "How it's built" (#332)
+.home-page .built-teaser {
+    margin-top: 40px;
+    padding: 0 20px;
+    box-sizing: border-box;
+    text-align: center;
+    color: var(--h-text-2);
+    font-size: 17px;
+    line-height: 1.5;
+}
+.home-page .built-teaser a {
+    color: var(--h-link);
+}
 .home-page .footer {
     margin-top: 40px;
     min-height: 60px;
@@ -716,6 +729,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 }
 .home-page .footer .col {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
 }
@@ -1222,6 +1236,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 }
 .pricing-page .footer .col {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
 }
@@ -1500,6 +1515,7 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .help-page .footer .col,
 .changelog-page .footer .col {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-items: center;
 }
@@ -1833,6 +1849,273 @@ $HOME_PAGE_MAX_WIDTH: 900px;
         font-size: 28px;
     }
 }
+// How it's built (#332)
+.built-page {
+    display: block;
+}
+.built-page .main-content {
+    background-color: var(--h-bg);
+    min-height: 100vh;
+}
+.built-page .built-body {
+    max-width: 900px;
+    margin: 40px auto;
+    background-color: var(--h-surface);
+    border: solid 1px var(--h-line);
+    box-shadow: 0 1px 3px var(--h-shadow);
+    padding: 30px 40px;
+    line-height: 1.6;
+    color: var(--h-text);
+}
+.built-page .built-body a {
+    color: var(--h-link);
+}
+.built-page h2 {
+    font-size: 1.4em;
+    margin: 0 0 8px;
+}
+.built-page h3 {
+    font-size: 1.1em;
+    margin: 24px 0 6px;
+}
+.built-page .built-intro {
+    text-align: center;
+    max-width: 660px;
+    margin: 0 auto 32px;
+}
+.built-page .built-label {
+    color: var(--h-accent-text);
+    background-color: var(--h-tint-accent);
+    border-radius: 12px;
+    padding: 3px 12px;
+    font-size: 0.85em;
+    font-weight: bold;
+}
+.built-page .built-intro h1 {
+    margin: 14px 0 12px;
+    font-size: 36px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+.built-page .built-intro p {
+    color: var(--h-text-2);
+    font-size: 1.1em;
+}
+.built-page .built-section {
+    border-top: solid 1px var(--h-line);
+    padding-top: 24px;
+    margin-bottom: 28px;
+}
+.built-page .built-body ul {
+    padding-left: 1.5em;
+}
+.built-page .built-body li {
+    margin: 6px 0;
+}
+.built-page .built-body code {
+    font-family: Menlo, Consolas, monospace;
+    font-size: 0.88em;
+    background-color: var(--h-surface-3);
+    padding: 1px 4px;
+    border-radius: 3px;
+    overflow-wrap: anywhere;
+}
+// The architecture diagram: boxes in rows, wrapping to a column on a phone
+.built-page .built-arch {
+    margin: 18px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+.built-page .built-arch__row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+.built-page .built-arch__droplet {
+    border: dashed 2px var(--h-accent);
+    border-radius: 8px;
+    padding: 12px;
+    background-color: var(--h-surface-2);
+}
+.built-page .built-arch__title {
+    font-weight: bold;
+    color: var(--h-accent-text);
+    margin-bottom: 10px;
+    text-align: center;
+}
+.built-page .built-box {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border: solid 1px var(--h-line-strong);
+    border-radius: 6px;
+    background-color: var(--h-surface);
+    font-size: 0.92em;
+    line-height: 1.4;
+}
+.built-page .built-box span {
+    color: var(--h-muted);
+}
+.built-page .built-box--outside {
+    max-width: 260px;
+    background-color: var(--h-tint-info);
+    border-color: var(--h-line);
+}
+.built-page .built-box--wide {
+    max-width: none;
+}
+.built-page .built-box--data {
+    background-color: var(--h-tint-success);
+    border-color: var(--h-line);
+}
+.built-page .built-arrow {
+    text-align: center;
+    color: var(--h-muted);
+    font-size: 0.85em;
+    padding: 6px 0;
+}
+.built-page .built-arrow::before {
+    content: '↓ ';
+}
+.built-page .built-arch__droplet .built-arrow::before {
+    content: none;
+}
+.built-page .built-stack dt {
+    font-weight: bold;
+    margin-top: 12px;
+}
+.built-page .built-stack dd {
+    margin: 2px 0 0;
+    color: var(--h-text-2);
+}
+// The pipeline: numbered steps joined by a line
+.built-page .built-flow {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0;
+}
+.built-page .built-body .built-flow li {
+    margin: 0;
+    padding: 0 0 14px;
+    position: relative;
+}
+.built-page .built-body .built-flow li:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 13px;
+    top: 30px;
+    bottom: 2px;
+    border-left: solid 2px var(--h-line-strong);
+}
+.built-page .built-flow__step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+.built-page .built-flow__n {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background-color: var(--h-btn-primary);
+    color: #ffffff;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+.built-page .built-flow__name {
+    font-weight: bold;
+}
+.built-page .built-flow__name code {
+    margin-left: 6px;
+    font-weight: normal;
+}
+.built-page .built-flow__what {
+    color: var(--h-text-2);
+}
+.built-page .built-helpers {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+}
+.built-page .built-helpers code {
+    align-self: flex-start;
+}
+.built-page .built-numbers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin: 12px 0;
+}
+.built-page .built-number {
+    display: flex;
+    flex-direction: column;
+    padding: 14px;
+    border-radius: 6px;
+    background-color: var(--h-tint-accent);
+}
+.built-page .built-number b {
+    font-size: 30px;
+    line-height: 1.1;
+    color: var(--h-accent-text);
+}
+.built-page .built-number span {
+    color: var(--h-text-2);
+    font-size: 0.92em;
+}
+.built-page .built-note {
+    color: var(--h-muted);
+    font-size: 0.9em;
+}
+.built-page .built-more {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    justify-content: center;
+    align-items: center;
+}
+.built-page .built-body a.built-button {
+    display: inline-block;
+    padding: 11px 26px;
+    border-radius: 6px;
+    background-color: var(--h-btn-primary);
+    color: #ffffff;
+    font-weight: bold;
+    text-decoration: none;
+}
+.built-page .footer {
+    min-height: 60px;
+}
+.built-page .footer .col {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+}
+@media only screen and (max-width: 800px) {
+    .built-page .built-body {
+        margin: 20px 10px;
+        padding: 20px;
+    }
+    .built-page .built-intro h1 {
+        font-size: 28px;
+    }
+    .built-page .built-arch__row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .built-page .built-box--outside {
+        max-width: none;
+    }
+}
+
 // The site nav's six links (#331) need a little less room on a phone
 @media only screen and (max-width: 420px) {
     .main-heading a {

@@ -23,7 +23,11 @@ import {
     assert_verified,
     creating_needs_verified_email
 } from '@app/core/email-verification/email-verification';
-import { build_schema_diagram } from '@app/core/schema-diagram/schema-diagram';
+import {
+    SchemaFolder,
+    SchemaFolderPick,
+    build_schema_diagram
+} from '@app/core/schema-diagram/schema-diagram';
 import { AuditService } from '../audit/audit.service';
 import { AuditActor, table_change } from '@app/core/audit/audit';
 import _c from '@app/constants';
@@ -75,15 +79,46 @@ export class FileDirectoryService {
         return await this.file_directory_repository.findBy({ account_id, deleted: false });
     }
 
-    /** The account's tables, their columns and the links between them, laid out (#208). */
-    async schema_diagram(account_id: number) {
+    /**
+     * The account's tables, their columns and the links between them, laid out (#208). With
+     * `folder` (a folder id, or 'unfiled'), only that folder's tables and the tables one hop
+     * away; with `linked_only`, only tables with an arrow (#376). The folder must be one of
+     * the account's live folders: 404 otherwise, 400 for a value that isn't an id.
+     */
+    async schema_diagram(
+        account_id: number,
+        query: { folder?: unknown; linked_only?: unknown } = {}
+    ) {
+        let folder: SchemaFolderPick | null = null;
+        const raw_folder = query.folder;
+        if (raw_folder !== undefined && raw_folder !== '') {
+            if (raw_folder === 'unfiled') folder = 'unfiled';
+            else if (typeof raw_folder === 'string' && /^\d{1,15}$/.test(raw_folder)) {
+                folder = Number(raw_folder);
+            } else {
+                throw new HttpException(
+                    'folder must be a folder id or "unfiled"',
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+        }
+        const linked_only = query.linked_only === 'true';
+
         const files = (await this.get_by_account_id(account_id)) || [];
+        const folders: SchemaFolder[] = files
+            .filter(f => f.type === 'dir')
+            .map(f => ({ id: f.id, name: f.name, parent_id: f.parent_id || null }));
+        // Only the caller's own live folders (the same answer for another account's folder
+        // as for one that doesn't exist)
+        if (typeof folder === 'number' && !folders.some(f => f.id === folder)) {
+            throw new NotFoundException();
+        }
         const input = [];
         for (const table of files.filter(f => f.type === 'file')) {
             const columns = await this.web_file_manager.get_columns(account_id, table.id);
-            input.push({ id: table.id, name: table.name, columns });
+            input.push({ id: table.id, name: table.name, parent_id: table.parent_id, columns });
         }
-        return build_schema_diagram(input);
+        return build_schema_diagram(input, { folders, folder, linked_only });
     }
 
     async get_all(account_id) {

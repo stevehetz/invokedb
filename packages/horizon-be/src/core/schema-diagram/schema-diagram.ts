@@ -4,6 +4,10 @@
  * table's id, e.g. "Customer Id" next to a "customers" table) as dashed arrows. Everything here
  * is pure: the service hands in the tables and their stored columns, and the frontend draws the
  * result as SVG in the coordinates computed here.
+ *
+ * Folders (#376): the diagram can show one folder (with its subfolders) or the unfiled tables,
+ * plus the tables one hop away from them through a link or a suggestion ("outside" cards, laid
+ * out after the folder's own), and can leave out every card with no arrow ("linked only").
  */
 
 /** A table as read from file_directory, with its stored column documents. */
@@ -11,6 +15,28 @@ export interface SchemaTableInput {
     id: number;
     name: string;
     columns: any[];
+    /** The table's folder; null, 0 or a folder that isn't live means the top level */
+    parent_id?: number | null;
+}
+
+/** One of the account's live folders. */
+export interface SchemaFolder {
+    id: number;
+    name: string;
+    /** null at the top level */
+    parent_id: number | null;
+}
+
+/** What to draw: one folder (with its subfolders) or the tables in no folder. */
+export type SchemaFolderPick = number | 'unfiled';
+
+export interface SchemaOptions {
+    /** The account's live folders (also answered, for the frontend's picker) */
+    folders?: SchemaFolder[];
+    /** Absent or null: every table */
+    folder?: SchemaFolderPick | null;
+    /** Leave out every card with no arrow in the view */
+    linked_only?: boolean;
 }
 
 export interface SchemaColumn {
@@ -28,6 +54,10 @@ export interface SchemaTable {
     columns: SchemaColumn[];
     /** How many columns the card leaves out (shown as "+N more") */
     hidden_columns: number;
+    /** A table from another folder, drawn because it's linked to the picked folder's tables */
+    outside: boolean;
+    /** The name of the table's folder; null at the top level */
+    folder_name: string | null;
     x: number;
     y: number;
     width: number;
@@ -53,6 +83,8 @@ export interface SchemaDiagram {
     tables: SchemaTable[];
     links: SchemaEdge[];
     suggestions: SchemaEdge[];
+    /** The account's live folders, by name (empty without any) */
+    folders: SchemaFolder[];
     width: number;
     height: number;
 }
@@ -175,6 +207,105 @@ export function layout_order(
     return [...linked, ...lone].flat();
 }
 
+/** A pair of tables joined by an arrow (a link column or a suggestion). */
+export interface SchemaPair {
+    from: number;
+    to: number;
+}
+
+/** The folder and every folder under it, at any depth (a cycle can't loop). */
+export function folder_and_subfolders(folders: SchemaFolder[], root: number): Set<number> {
+    const out = new Set<number>();
+    if (!(folders || []).some(f => f.id === root)) return out;
+    const queue = [root];
+    out.add(root);
+    while (queue.length > 0) {
+        const id = queue.shift();
+        for (const f of folders) {
+            if (f.parent_id === id && !out.has(f.id)) {
+                out.add(f.id);
+                queue.push(f.id);
+            }
+        }
+    }
+    return out;
+}
+
+/**
+ * The folder a table is in, or null at the top level: no parent, 0, or a parent that isn't
+ * one of the live folders.
+ */
+export function table_folder_id(
+    parent_id: number | null | undefined,
+    folder_ids: Set<number>
+): number | null {
+    if (parent_id === null || parent_id === undefined) return null;
+    const id = Number(parent_id);
+    return id && folder_ids.has(id) ? id : null;
+}
+
+/** The tables a pick is about: those in the folder or its subfolders, or those in no folder. */
+export function picked_table_ids(
+    tables: { id: number; parent_id?: number | null }[],
+    folders: SchemaFolder[],
+    pick: SchemaFolderPick
+): Set<number> {
+    const live = new Set((folders || []).map(f => f.id));
+    if (pick === 'unfiled') {
+        return new Set(
+            tables.filter(t => table_folder_id(t.parent_id, live) === null).map(t => t.id)
+        );
+    }
+    const under = folder_and_subfolders(folders || [], pick);
+    return new Set(
+        tables.filter(t => under.has(table_folder_id(t.parent_id, live))).map(t => t.id)
+    );
+}
+
+/**
+ * The tables one hop from the picked ones, in either direction (they point at a picked table,
+ * or a picked table points at them), that aren't picked themselves. Never a second hop.
+ */
+export function one_hop_ids(picked: Set<number>, pairs: SchemaPair[]): Set<number> {
+    const out = new Set<number>();
+    for (const p of pairs) {
+        if (picked.has(p.from) && !picked.has(p.to)) out.add(p.to);
+        if (picked.has(p.to) && !picked.has(p.from)) out.add(p.from);
+    }
+    return out;
+}
+
+/** The arrows drawn for a pick: only those touching a picked table. */
+export function pairs_touching<T extends SchemaPair>(pairs: T[], picked: Set<number>): T[] {
+    return pairs.filter(p => picked.has(p.from) || picked.has(p.to));
+}
+
+/** "Only linked tables": the shown tables with an arrow (in or out) between shown tables. */
+export function linked_only_ids(shown: Set<number>, pairs: SchemaPair[]): Set<number> {
+    const out = new Set<number>();
+    for (const p of pairs) {
+        if (shown.has(p.from) && shown.has(p.to)) {
+            out.add(p.from);
+            out.add(p.to);
+        }
+    }
+    return out;
+}
+
+/**
+ * The layout order of a view: the picked folder's own tables first (grouped as `layout_order`
+ * does), then the outside ones, by name.
+ */
+export function view_order(
+    tables: { id: number; name: string }[],
+    outside: Set<number>,
+    pairs: [number, number][]
+): number[] {
+    const own = tables.filter(t => !outside.has(t.id));
+    const others = tables.filter(t => outside.has(t.id));
+    return [...layout_order(own, pairs), ...layout_order(others, [])];
+}
+
 /** The columns a card draws: all of them, or the first ones plus every linked one. */
 function shown_columns(cols: SchemaColumn[], keep: Set<string>) {
     if (cols.length <= MAX_COLUMNS_SHOWN) return { columns: cols, hidden: 0 };
@@ -227,19 +358,31 @@ function edge(from: SchemaTable, field: string, to: SchemaTable, suggested: bool
     };
 }
 
-/** The whole diagram: cards placed on a grid, link and suggestion arrows between them. */
-export function build_schema_diagram(input: SchemaTableInput[]): SchemaDiagram {
-    const tables = (input || []).map(t => ({
+/**
+ * The whole diagram: cards placed on a grid, link and suggestion arrows between them. Without
+ * a folder, every table; with one, its tables and those one hop away (see the top).
+ */
+export function build_schema_diagram(
+    input: SchemaTableInput[],
+    options: SchemaOptions = {}
+): SchemaDiagram {
+    const folders = [...(options.folders || [])].sort(
+        (a, b) => String(a.name).localeCompare(String(b.name)) || a.id - b.id
+    );
+    const folder_ids = new Set(folders.map(f => f.id));
+    const folder_names = new Map(folders.map(f => [f.id, f.name]));
+    const all_tables = (input || []).map(t => ({
         id: Number(t.id),
         name: String(t.name ?? ''),
+        parent_id: t.parent_id ?? null,
         all_columns: schema_columns(t.columns)
     }));
-    const ids = new Set(tables.map(t => t.id));
+    const ids = new Set(all_tables.map(t => t.id));
 
     // Links to a table that isn't the account's (or is gone) aren't drawn
-    const links: { from: number; field: string; to: number }[] = [];
-    const suggestions: { from: number; field: string; to: number }[] = [];
-    for (const t of tables) {
+    let links: { from: number; field: string; to: number }[] = [];
+    let suggestions: { from: number; field: string; to: number }[] = [];
+    for (const t of all_tables) {
         for (const c of t.all_columns) {
             if (c.type === 'link') {
                 if (c.link_table_id !== undefined && ids.has(c.link_table_id)) {
@@ -247,7 +390,8 @@ export function build_schema_diagram(input: SchemaTableInput[]): SchemaDiagram {
                 }
                 continue;
             }
-            const target = suggested_target(c.name, t.id, tables);
+            // Worked out over every table, so a pick never changes what a column suggests
+            const target = suggested_target(c.name, t.id, all_tables);
             if (target === null) continue;
             // Already linked that way: nothing to suggest
             if (t.all_columns.some(o => o.type === 'link' && o.link_table_id === target)) {
@@ -257,8 +401,24 @@ export function build_schema_diagram(input: SchemaTableInput[]): SchemaDiagram {
         }
     }
 
-    const order = layout_order(
+    // A pick: its tables, those one hop away, and only the arrows touching its tables
+    let shown = ids;
+    let outside = new Set<number>();
+    if (options.folder !== undefined && options.folder !== null) {
+        const picked = picked_table_ids(all_tables, folders, options.folder);
+        outside = one_hop_ids(picked, [...links, ...suggestions]);
+        shown = new Set([...picked, ...outside]);
+        links = pairs_touching(links, picked);
+        suggestions = pairs_touching(suggestions, picked);
+    }
+    if (options.linked_only) shown = linked_only_ids(shown, [...links, ...suggestions]);
+    links = links.filter(l => shown.has(l.from) && shown.has(l.to));
+    suggestions = suggestions.filter(l => shown.has(l.from) && shown.has(l.to));
+    const tables = all_tables.filter(t => shown.has(t.id));
+
+    const order = view_order(
         tables,
+        outside,
         [...links, ...suggestions].map(l => [l.from, l.to] as [number, number])
     );
     const grid_columns = Math.max(
@@ -281,6 +441,8 @@ export function build_schema_diagram(input: SchemaTableInput[]): SchemaDiagram {
             name: t.name,
             columns,
             hidden_columns: hidden,
+            outside: outside.has(t.id),
+            folder_name: folder_names.get(table_folder_id(t.parent_id, folder_ids)) ?? null,
             x: 0,
             y: 0,
             width: CARD_WIDTH,
@@ -312,6 +474,7 @@ export function build_schema_diagram(input: SchemaTableInput[]): SchemaDiagram {
         tables: cards,
         links: links.map(to_edge(false)),
         suggestions: suggestions.map(to_edge(true)),
+        folders,
         // Room on the right for arrows that leave and come back on the right side
         width: width + GAP_X / 2,
         height

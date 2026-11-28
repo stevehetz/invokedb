@@ -62,8 +62,17 @@ Everything below is merged and deployed unless it says otherwise. Details:
   - Also merged: **#312**/**#316** (the queue and `implement.yml` take repair-opened `agent`
     issues), **#313** (CodeQL #19), **#314** (#279, an account's data deleted with it), **#317**
     (#268).
-- **The board's auto-add missed #321, #322 and #324**: check every new issue is on the board
-  (GraphQL items query) and add it by hand if not (see the queue section below).
+- **The board's auto-add missed issues (#321, #322, #324, #340, #342, #345)** because its
+  filter was GitHub's default `is:issue,pr is:open label:bug` (only bugs). Fixed 2026-11-28: the
+  filter is now `is:issue is:open`. Still check a new issue landed (see the queue section below).
+- **2026-11-28:** #332 shipped (#341, the "How it's built" page). New: #342 (Account page split
+  into sections, agent working it), #343/#344 (`ElInputNumber` and `ElCheckbox` weren't
+  registered: the key's own rate limit and Clean up's tick boxes didn't render), #345 (API keys
+  section readability, after #342), #340 (React support-desk example at
+  `examples.invokedb.com/react-demo`, decisions in the issue), #333 rewritten with its decisions.
+- **agent-evals** (2026-11-28): a separate public repo, `stevehetz/agent-evals`, with its own
+  board (project 2): a Next.js app for agent evals and tracing on the owner's InvokeDB account,
+  first measuring this repo's agent pipeline. Gaps it finds in InvokeDB become issues here.
 
 - **Shipped 2026-11-26 (owner session):**
   - **Light and dark theme** (#290, reached `main` inside **#301**; #290 closed by hand). In light mode the app header
@@ -187,7 +196,7 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
 - **Removing `agent-stuck` doesn't wake the queue** (that run is skipped): run
   `gh workflow run agent-queue.yml` after it.
 - **An issue that isn't on the board is never picked up** (#277 was missed by the board's
-  auto-add). Check with the GraphQL items query, and add it with `addProjectV2ItemById` and
+  auto-add, whose filter only matched bugs until 2026-11-28). Check with the GraphQL items query, and add it with `addProjectV2ItemById` and
   `updateProjectV2ItemPosition` (top) and set Status to Todo.
 - **To hold an agent PR for the owner**, say so in the issue ("open the PR with the `hold`
   label"); the agent usually does, but check, and add `hold` if it didn't before CI and the

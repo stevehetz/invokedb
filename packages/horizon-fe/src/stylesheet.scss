@@ -883,6 +883,51 @@ $nav_active_color: var(--h-chrome-text);
     margin-right: 5px;
     margin-bottom: 3px;
 }
+.h-tree-menu-popper .el-menu .el-menu-item.divide-top {
+    border-top: solid 1px var(--h-line);
+}
+// The tree's right-click menu (#357), teleported to <body>
+.h-tree-context-menu {
+    position: fixed;
+    z-index: 3000;
+    min-width: 200px;
+    padding: 4px 0;
+    background-color: var(--h-popper);
+    color: var(--h-popper-text);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px var(--h-shadow);
+    font-size: 14px;
+    user-select: none;
+}
+.h-tree-context-menu .context-item {
+    padding: 7px 16px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.h-tree-context-menu .context-item:hover {
+    background-color: var(--h-popper-hover);
+}
+.h-tree-context-menu .context-item i {
+    width: 18px;
+    margin-right: 6px;
+    text-align: center;
+}
+.h-tree-context-menu .context-item.divide-top {
+    border-top: solid 1px var(--h-line);
+    margin-top: 4px;
+    padding-top: 9px;
+}
+.h-tree-context-menu .context-item.danger i {
+    color: var(--h-danger);
+}
+.move-folder-dialog .move-folder-select {
+    width: 100%;
+}
+.move-folder-dialog .move-folder-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
 .h-tree .empty-db-message {
     margin-top: 60px;
     text-align: center;
@@ -1102,7 +1147,6 @@ $nav_active_color: var(--h-chrome-text);
 .h-data-grid .top .views-button,
 .h-data-grid .top .api-button,
 .h-data-grid .top .webhooks-button,
-.h-data-grid .top .forms-button,
 .h-data-grid .top .ask-data-button,
 .h-data-grid .top .more-button {
     display: flex;
@@ -1116,7 +1160,6 @@ $nav_active_color: var(--h-chrome-text);
 .h-data-grid .top .views-button .el-button.is-link,
 .h-data-grid .top .api-button .el-button.is-link,
 .h-data-grid .top .webhooks-button .el-button.is-link,
-.h-data-grid .top .forms-button .el-button.is-link,
 .h-data-grid .top .ask-data-button .el-button.is-link,
 .h-data-grid .top .more-button .el-button.is-link {
     color: var(--h-accent-2);
@@ -1124,7 +1167,6 @@ $nav_active_color: var(--h-chrome-text);
 .h-data-grid .top .views-button:hover .el-button.is-link,
 .h-data-grid .top .api-button:hover .el-button.is-link,
 .h-data-grid .top .webhooks-button:hover .el-button.is-link,
-.h-data-grid .top .forms-button:hover .el-button.is-link,
 .h-data-grid .top .ask-data-button:hover .el-button.is-link,
 .h-data-grid .top .more-button:hover .el-button.is-link {
     color: var(--h-accent-2);
@@ -1132,13 +1174,11 @@ $nav_active_color: var(--h-chrome-text);
 .h-data-grid .top .views-button .el-button.is-disabled,
 .h-data-grid .top .api-button .el-button.is-disabled,
 .h-data-grid .top .webhooks-button .el-button.is-disabled,
-.h-data-grid .top .forms-button .el-button.is-disabled,
 .h-data-grid .top .more-button .el-button.is-disabled {
     color: var(--h-btn-disabled);
 }
 .h-data-grid .top .api-button:hover .el-button.is-disabled,
 .h-data-grid .top .webhooks-button:hover .el-button.is-disabled,
-.h-data-grid .top .forms-button:hover .el-button.is-disabled,
 .h-data-grid .top .more-button:hover .el-button.is-disabled {
     color: var(--h-btn-disabled);
 }
@@ -1958,6 +1998,12 @@ $nav_active_color: var(--h-chrome-text);
     color: var(--h-text);
     font-size: 1.2rem;
 }
+.h-data-grid
+    .ag-floating-filter-body
+    .custom-filter.invalid
+    .custom-filter-text {
+    box-shadow: inset 0 -2px 0 var(--h-danger);
+}
 .h-data-grid .ag-row {
     font-size: 18px;
 }
@@ -2729,144 +2775,6 @@ $nav_active_color: var(--h-chrome-text);
     margin-top: 14px;
 }
 
-// A table's shareable forms (#145); its top-bar button (.forms-button) is styled with .api-button
-.forms-dialog {
-    color: var(--h-text-2);
-}
-.forms-dialog h4 {
-    margin: 4px 0 10px;
-    color: var(--h-text);
-}
-.forms-dialog .forms-intro {
-    margin: 0 0 8px;
-}
-.forms-dialog .forms-status {
-    padding: 10px 0;
-}
-.forms-dialog .forms-status.error {
-    color: var(--h-danger);
-}
-.forms-dialog .forms-empty {
-    padding: 10px 0;
-    color: var(--h-muted);
-}
-.forms-dialog .forms-add,
-.forms-dialog .form-editor {
-    padding-bottom: 12px;
-    margin-bottom: 8px;
-    border-bottom: solid 1px var(--h-line);
-}
-.forms-dialog input:not([type='checkbox']),
-.forms-dialog textarea {
-    flex: 1;
-    min-width: 0;
-    padding: 4px 6px;
-    font-size: 14px;
-    font-family: inherit;
-    border: solid 1px var(--h-line-strong);
-    border-radius: 3px;
-}
-.forms-dialog .form-editor-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-.forms-dialog .form-editor-row > label,
-.forms-dialog .form-item-link > label,
-.forms-dialog .form-item-embed > label {
-    width: 130px;
-    flex: none;
-    padding-top: 4px;
-    color: var(--h-text);
-}
-.forms-dialog .form-editor-label {
-    display: block;
-    margin: 4px 0;
-    color: var(--h-text);
-}
-.forms-dialog .form-editor-columns {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 10px;
-    font-size: 14px;
-}
-.forms-dialog .form-editor-columns th {
-    text-align: left;
-    font-weight: normal;
-    color: var(--h-muted);
-    padding: 2px 6px;
-}
-.forms-dialog .form-editor-columns td {
-    padding: 3px 6px;
-    border-top: solid 1px var(--h-line);
-}
-.forms-dialog .form-editor-columns td input:not([type='checkbox']) {
-    width: 100%;
-}
-.forms-dialog .form-editor-column.off {
-    color: var(--h-muted);
-}
-.forms-dialog .form-editor-type {
-    font-family: monospace;
-    font-size: 12px;
-    color: var(--h-muted);
-}
-.forms-dialog .form-editor-move span {
-    cursor: pointer;
-    padding: 0 3px;
-    color: var(--h-link);
-}
-.forms-dialog .form-editor-actions {
-    margin-top: 6px;
-}
-.forms-dialog .form-item {
-    padding: 10px 0;
-    border-bottom: solid 1px var(--h-line);
-}
-.forms-dialog .form-item.closed .form-item-title {
-    color: var(--h-muted);
-}
-.forms-dialog .form-item-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
-}
-.forms-dialog .form-item-title {
-    font-weight: bold;
-    color: var(--h-text);
-}
-.forms-dialog .form-item-state.open {
-    color: var(--h-success);
-}
-.forms-dialog .form-item-state.closed {
-    color: var(--h-danger);
-}
-.forms-dialog .form-item-count {
-    margin-left: auto;
-    color: var(--h-muted);
-}
-.forms-dialog .form-item-link,
-.forms-dialog .form-item-embed {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
-}
-.forms-dialog .form-item-link input,
-.forms-dialog .form-item-embed input {
-    font-family: monospace;
-}
-.forms-dialog .form-item-action {
-    cursor: pointer;
-    color: var(--h-link);
-    white-space: nowrap;
-    text-decoration: none;
-}
-.forms-dialog .form-item-actions {
-    margin-top: 4px;
-}
 /* AI rows and tables (#148) */
 .ai-dialog {
     color: var(--h-text-2);

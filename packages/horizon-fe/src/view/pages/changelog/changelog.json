@@ -96,11 +96,6 @@
     },
     {
         "date": "2026-11-25",
-        "number": 174,
-        "title": "Add shareable forms that add rows to a table"
-    },
-    {
-        "date": "2026-11-25",
         "number": 173,
         "title": "Webhooks on row changes: signed, retried, logged"
     },

@@ -69,7 +69,7 @@ export const MAX_WRITE_ROWS = 100;
 const EXAMPLE_ID = '5f38f1a22a3a9d1db22bae3d';
 const DEFAULT_DATE = '2024-01-15';
 // The API returns dates like this (web-file.manager format_date_field)
-const DEFAULT_DATE_OUT = '2024-01-15 12:00:00 AM';
+const DEFAULT_DATE_OUT = '2024-01-15T00:00:00.000Z';
 // A row id of a linked table, for responses when the sample row has none
 const EXAMPLE_LINK_ID = '5f38f1a22a3a9d1db22bae3e';
 

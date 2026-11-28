@@ -1,6 +1,6 @@
 # InvokeDB: handoff
 
-_Last updated 2026-11-28 (midday UTC)_
+_Last updated 2026-11-28 (afternoon UTC)_
 
 InvokeDB ("horizon") is an **agentic web database**, "the database for you and your AI agents":
 tables people edit like a spreadsheet and code and AI agents use through an API and an MCP
@@ -34,15 +34,31 @@ use it one day, great; a sale someday would be a bonus. What that means for the 
   claude.ai/ChatGPT connectors (#328), a demo video (#334). The "how it's built" page shipped
   (#341).
 - **agent-evals** (started 2026-11-28): a second portfolio piece in its own public repo,
-  `stevehetz/agent-evals` (`~/dev/agent-evals`), with its own board,
-  https://github.com/users/stevehetz/projects/2 (issues #1–#6 in order). A Next.js app for agent
-  evaluation, tracing, LLM-as-a-judge, time to signal and an observability dashboard, storing
-  its data in the owner's personal InvokeDB account (tables made through the MCP server; the API
-  key is in `~/dev/agent-evals/.env.local`, gitignored). It first measures **this repo's agent
-  pipeline** (workflow runs, the Claude result line in each log: cost, turns, duration; agent
-  PRs and their timelines). It needs no OAuth (#328): API keys cover it. Its work goes on its own
-  board; gaps it finds in InvokeDB become issues here. Not started yet: next is its #1 (the
-  table setup script). The repo has no LICENSE yet (all rights reserved by default).
+  `stevehetz/agent-evals` (`~/dev/agent-evals`; its `AGENTS.md` and `README.md` are the
+  details), with its own board, https://github.com/users/stevehetz/projects/2. A Next.js 16 app
+  for agent evaluation, tracing, LLM-as-a-judge, time to signal and an observability dashboard,
+  storing its data in the owner's personal InvokeDB account. **Live at
+  https://agent-evals-flax.vercel.app.** Its work goes on its own board; gaps it finds in
+  InvokeDB become issues here. No LICENSE yet (all rights reserved by default).
+  - **Done 2026-11-28:** #1 tables (`lib/schema.mjs`, `scripts/setup-tables.mjs` through the
+    MCP server), #2 the collector (`npm run collect`: every GitHub Actions job that ran Claude →
+    `runs` + `spans`; every agent PR → `work_items` with time-to-signal timestamps; 530 runs,
+    ~$486 so far), #3 the app (overview, runs, a run's trace as a waterfall; CI in its repo),
+    #11 **projects** (owner's decision: a project = a GitHub repo with Claude Code in Actions,
+    the project in the URL, `/p/<project>`; add one with `node scripts/projects.mjs add`;
+    InvokeDB is the only one so far, more to come).
+  - **Next on its board:** #4 time to signal per work item, #5 LLM judges, #6 the collector on
+    a schedule (until then the data only moves when someone runs `npm run collect` locally).
+  - **Vercel:** the owner's **personal Hobby account**, reached only with **Continue with
+    GitHub** (team slug `steve-cfd0`; project-pulse lives there too). Signing in by email, with
+    either Gmail, lands on a different account, **Dirty Devices LLC** (Pro: otam, otam-v2);
+    never connect GitHub to that one. `main` deploys to production, PRs get previews. The
+    project's env holds a **read-only** key (`agent-evals-vercel`); the read-write key stays in
+    `~/dev/agent-evals/.env.local` for the collector.
+  - **The owner's InvokeDB account is internal** (no counted caps): set 2026-11-28 by a direct
+    SQL update in production (`UPDATE account SET internal = true …`), because the admin area
+    refuses every action on the admin's own account (by design, #277).
+  - The owner said Claude may **merge its own agent-evals PRs** (not InvokeDB's).
 - **Billing stays built but off.** The LLC and the rest of `docs/GO_LIVE.md` wait **until
   someone actually asks to pay** (or a buyer, a partner or real users' important data shows up).
   A single-member LLC would be little upkeep (taxed on the owner's Schedule C, no K-1), so it can
@@ -55,16 +71,41 @@ use it one day, great; a sale someday would be a bonus. What that means for the 
   dashboard in InvokeDB (the board, Actions and Telegram already cover it); more link-column work
   (little value without lookups/rollups; the matching flow (#321) is confusing but stays as is).
 
-## Where things stand (2026-11-28, midday)
+## Where things stand (2026-11-28, afternoon)
 
 Everything below is merged and deployed unless it says otherwise. Details:
 `gh pr list --state merged`.
 
-- **Open at midday 2026-11-28** (all should auto-merge; check they did): **#347** (agent, #345:
-  the API keys section's readability), **#349** (#348: the Profile section's fields were empty),
-  **#351** (#350: Profile first in the Account nav and its default; `?upgrade=`/`?billing=` and
-  the quota email open Plan & usage). Nothing else queued for the agent.
-- **Shipped 2026-11-28:**
+- **Open now, needs the owner:**
+  - **#360** (agent, #333: the no-signup demo workspace, `POST /auth/demo`, "Try the demo"):
+    `review-ok` but `needs-owner` because it adds a migration
+    (`1796100000000-DemoAccount.ts`). **Its showcase includes a form, and #368 removes forms**:
+    whichever merges second must drop the form from the demo seed (and its smoke checks). Best:
+    merge #360 first, then let #368 (or a follow-up) take the form out.
+  - **#368** (agent, #358: remove shareable forms) was still in CI/review. After it deploys, the
+    owner drops `tracking:form` in production by hand (as with dashboards).
+- **Agent queue, in board order:** #359 (shorten Ask AI's intro text), #361 (grid density
+  setting, the owner's), #364 (readable dates in Ask AI previews/cleanup/link chips,
+  agent-found, waits for the owner's `agent` label), #366 (refuse renaming onto a taken name,
+  agent-found bug, queued). Then the owner's: #340, #328 (`you`), #334 (`you`).
+- **Shipped 2026-11-28 (afternoon):**
+  - **#365** (#356): **dates leave the backend as ISO 8601 UTC with milliseconds everywhere**
+    (`/api/v1`, MCP, webhooks, Ask AI); the grid formats them for display. Owner's decision: no
+    compatibility mode, there were no outside clients. (agent-evals still has a `parse_db_date`
+    for the old `YYYY-MM-DD hh:mm:SS A` format; it reads ISO too, so it's harmless, and its
+    "to the minute" notes in agent-evals' `AGENTS.md` are now out of date.)
+  - **#367** (#357): **folders** in the tables pane (make, rename, delete with their tables,
+    move tables in and out, "Move to folder…"); MCP `create_folder`, and `list_tables` shows
+    each table's folder.
+  - **#362** (#352): the Guide's Examples section removed, the repo's examples linked.
+  - **#363**: the blank editable row when a grid filter fails or matches nothing.
+  - **#354** (#353): **auto-merge retries** when `main` moved under it ("Base branch was
+    modified"), and a **sweep** on every push to `main` and every CI run on `main` re-runs
+    auto-merge for each open `review-ok` PR. (#347 had sat unmerged for that reason after a
+    docs push to `main` landed 3 seconds before its merge.)
+  - **#347** (#345), **#349** (#348), **#351** (#350): the Account page's API keys section,
+    Profile fields, Profile first.
+- **Shipped 2026-11-28 (morning):**
   - **#341** (#332): the public "How it's built" page with the agent pipeline.
   - **#346** (#342): the Account page in sections with a left nav (`?section=profile|usage|
 api-keys|security|history|data`). Each section's forms mount when it opens, so a form that
@@ -72,14 +113,14 @@ api-keys|security|history|data`). Each section's forms mount when it opens, so a
   - **#344** (#343): `ElInputNumber` and `ElCheckbox` registered in `main.js` (a key's own rate
     limit and Clean up's tick boxes rendered as nothing). An unregistered `<el-*>` renders
     silently as nothing; check `main.js` when using a new one.
-- **Board, in order (2026-11-28):** #345 (agent, in progress), #333 (no-signup showcase
-  workspace, decisions in the issue, ready for `agent` when the owner says), #340 (React
-  support-desk example at `examples.invokedb.com/react-demo`: static build + a small Node server
-  holding the key, receiving signed webhooks, streaming them by SSE; its PR must carry `hold`,
-  owner steps listed in the issue), #328 (MCP OAuth, `you`: decisions, best in a local session),
-  #334 (demo video, `you`, best after #328).
-- **The `agent-evals` API key was shown in a screenshot and pasted into a session** (2026-11-28):
-  suggest the owner rotate it once agent-evals works.
+- **The owner's later board items:** #340 (React support-desk example at
+  `examples.invokedb.com/react-demo`: static build + a small Node server holding the key,
+  receiving signed webhooks, streaming them by SSE; its PR must carry `hold`, owner steps listed
+  in the issue), #328 (MCP OAuth, `you`: decisions, best in a local session), #334 (demo video,
+  `you`, best after #328).
+- **Both agent-evals keys were exposed in a session** (2026-11-28): the read-write one in a
+  screenshot, the read-only Vercel one pasted into chat. Suggest the owner rotate both when
+  convenient (new key in `.env.local` and in Vercel's env vars, then redeploy).
 
 - **Shipped 2026-11-27** (agent PRs from issues the owner filed in a local session):
   - **#319** (#318): the admin accounts table's number headers line up with their cells.

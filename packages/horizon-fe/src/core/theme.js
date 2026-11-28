@@ -21,9 +21,8 @@ const media =
         : null;
 
 /**
- * `area`: 'app' uses the account's choice, 'site' the device's, and 'light' or 'dark' is fixed
- * (an embedded form).
- * @type {{ choice: ThemeChoice, area: 'app' | 'site' | 'light' | 'dark' }}
+ * `area`: 'app' uses the account's choice, 'site' the device's.
+ * @type {{ choice: ThemeChoice, area: 'app' | 'site' }}
  */
 const state = { choice: read_stored_choice(), area: 'site' };
 
@@ -60,10 +59,7 @@ export function resolve_theme(choice) {
 
 /** Sets <html>'s theme for the current area and choice. */
 function apply_theme() {
-    const theme =
-        state.area === 'light' || state.area === 'dark'
-            ? state.area
-            : resolve_theme(state.area === 'app' ? state.choice : 'system');
+    const theme = resolve_theme(state.area === 'app' ? state.choice : 'system');
     const html = document.documentElement;
     html.dataset.theme = theme;
     html.classList.toggle('dark', theme === 'dark');
@@ -76,7 +72,7 @@ if (media) {
 
 /**
  * The router calls this on every navigation.
- * @param {'app' | 'site' | 'light' | 'dark'} area
+ * @param {'app' | 'site'} area
  */
 export function set_theme_area(area) {
     state.area = area;

@@ -684,7 +684,7 @@ export interface ScanOptions {
 }
 
 /**
- * The checks in code, on rows in API form keyed by field (dates as the grid shows them), in the
+ * The checks in code, on rows in API form keyed by field (dates as the API answers them), in the
  * order their fixes build on each other: spaces, emails, phones, numbers, dates, capitals; then
  * exact duplicates (on `options.stored`, the rows as stored), unless `whole_rows` is false
  * (sees_whole_rows). Rows in `options.linked` are never offered for deletion.

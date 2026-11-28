@@ -1,7 +1,6 @@
 import { WebFileManager } from '../web-file/web-file.manager';
 import { validate_file_dir_name } from '../helpers/validators';
 import { parse_utc_date } from '../date';
-import { form_columns } from '../form/form';
 import {
     MAX_TEMPLATE_ROWS,
     TemplateColumn,
@@ -93,7 +92,16 @@ export interface AiColumn {
 
 /** The columns rows can be generated for: every live column but link columns (#147). */
 export function ai_columns(col_defs: any[]): AiColumn[] {
-    return form_columns(col_defs) as AiColumn[];
+    return (Array.isArray(col_defs) ? col_defs : [])
+        .filter(c => c && !c.deleted && typeof c.field === 'string' && c.field !== '')
+        .filter(c => c.col_type !== 'link')
+        .slice()
+        .sort((a, b) => (a.order ?? a.col_index ?? 0) - (b.order ?? b.col_index ?? 0))
+        .map(c => ({
+            field: c.field,
+            name: typeof c.headerName === 'string' ? c.headerName : '',
+            type: c.col_type === 'number' || c.col_type === 'date' ? c.col_type : 'string'
+        }));
 }
 
 const TYPE_TEXT: Record<TemplateColumnType, string> = {

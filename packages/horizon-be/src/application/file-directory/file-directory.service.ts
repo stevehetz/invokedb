@@ -16,7 +16,6 @@ import { plainToClass } from 'class-transformer';
 import { WebFilePrcNotifyService } from '../web-file/web-file-prc-notify.service';
 import { UrlImportManager } from '@app/core/url-import/url-import.manager';
 import { WebhookManager } from '@app/core/webhook/webhook.manager';
-import { FormManager } from '@app/core/form/form.manager';
 import { ViewManager } from '@app/core/view/view.manager';
 import { AiColumnManager } from '@app/core/ai-column/ai-column.manager';
 import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
@@ -30,6 +29,27 @@ import { AuditActor, table_change } from '@app/core/audit/audit';
 import _c from '@app/constants';
 import logger from '@app/logger';
 
+/**
+ * The items to delete for a batch (#357): the asked ones plus every live item inside an asked
+ * folder, at any depth, contents before their folder and each item once. `live` is the
+ * account's items that aren't deleted.
+ */
+export function with_folder_contents<T extends { id: number; parent_id?: number | null }>(
+    asked: T[],
+    live: T[]
+): T[] {
+    const out: T[] = [];
+    const seen = new Set<number>();
+    const visit = (item: T, depth: number) => {
+        if (seen.has(item.id) || depth > 50) return;
+        seen.add(item.id);
+        for (const child of live.filter(f => f.parent_id === item.id)) visit(child, depth + 1);
+        out.push(item);
+    };
+    for (const item of asked) visit(item, 0);
+    return out;
+}
+
 @Injectable()
 export class FileDirectoryService {
     constructor(
@@ -41,7 +61,6 @@ export class FileDirectoryService {
         private web_file_prc_notify_svc: WebFilePrcNotifyService,
         private url_import_manager: UrlImportManager,
         private webhook_manager: WebhookManager,
-        private form_manager: FormManager,
         private view_manager: ViewManager,
         private onboarding_manager: OnboardingManager,
         private audit_svc: AuditService,
@@ -237,11 +256,17 @@ export class FileDirectoryService {
             throw new HttpException('ids must be integers', HttpStatus.BAD_REQUEST);
         }
 
-        const file_directories = await this.file_directory_repository.findBy({ id: In(ids) });
-        if (file_directories.length !== new Set(ids).size) throw new NotFoundException();
-        if (file_directories.some(f => f.account_id !== account.id)) {
+        const asked = await this.file_directory_repository.findBy({ id: In(ids) });
+        if (asked.length !== new Set(ids).size) throw new NotFoundException();
+        if (asked.some(f => f.account_id !== account.id)) {
             throw new UnauthorizedException();
         }
+
+        // A folder goes with what's in it (#357): its live tables (and any folders inside it)
+        // are deleted first, each through the same path as a table deleted on its own
+        const file_directories = asked.some(f => f.type === 'dir')
+            ? with_folder_contents(asked, (await this.get_by_account_id(account.id)) || [])
+            : asked;
 
         for (const file_directory of file_directories) {
             this.web_file_prc_notify_svc.file_delete_request(
@@ -283,12 +308,6 @@ export class FileDirectoryService {
                     logger.error(
                         `Webhooks of file ${file_directory.id} not removed: ${ex.message}`
                     );
-                }
-                // Their links already stop working (the table is deleted); this drops them
-                try {
-                    await this.form_manager.remove_for_table(account.id, file_directory.id);
-                } catch (ex) {
-                    logger.error(`Forms of file ${file_directory.id} not removed: ${ex.message}`);
                 }
                 try {
                     await this.view_manager.remove_for_table(account.id, file_directory.id);

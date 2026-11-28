@@ -1,12 +1,12 @@
 <div class="audit-log">
     <p class="audit-log-intro">
         <template v-if="file"
-            >Changes to this table's rows and columns, from this app, the API
-            and forms, newest first.</template
+            >Changes to this table's rows and columns, from this app and the
+            API, newest first.</template
         >
         <template v-else
-            >Changes to your tables, columns, rows and API keys, from this app,
-            the API and forms, newest first.</template
+            >Changes to your tables, columns, rows and API keys, from this app
+            and the API, newest first.</template
         >
         <span v-if="keep_days">Kept for {{ keep_days }} days.</span>
     </p>
@@ -29,8 +29,7 @@
             </div>
             <div class="audit-log-meta">
                 <span class="audit-log-actor">
-                    <i :class="actor_icon(e)"></i> {{ e.actor && e.actor.label
-                    }}
+                    <i :class="actor_icon(e)"></i> {{ actor_label(e) }}
                 </span>
                 <span class="audit-log-time">{{ when(e.created_at) }}</span>
             </div>

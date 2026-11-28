@@ -10,7 +10,7 @@
 // Nothing is written until the user confirms; applying is an ordinary row update, made only
 // where a row still holds the values the preview showed, so Undo is the same edit backwards.
 import { HttpException } from '@nestjs/common';
-import { format_date, parse_utc_date } from '../date';
+import { iso_date_text } from '../date';
 import {
     MAX_FILTERS,
     MAX_VALUE_LENGTH,
@@ -35,8 +35,6 @@ const MAX_SEPARATOR_LENGTH = 20;
 const MAX_SPLIT_PART = 50;
 const MAX_DECIMALS = 10;
 const MAX_SUMMARY_LENGTH = 300;
-// The grid's date format (WebFileManager.format_date_field)
-const DATE_FORMAT = 'YYYY-MM-DD hh:mm:SS A';
 
 export const EDIT_OPS = [
     'set',
@@ -126,12 +124,12 @@ function show(value: unknown) {
     return String(text).slice(0, 50);
 }
 
-/** A date as the grid shows it, or null when it isn't one. */
+/**
+ * A date as the API answers it (ISO 8601 in UTC with milliseconds, as
+ * WebFileManager.format_date_field), or null when it isn't one.
+ */
 export function date_text(value: unknown): string | null {
-    if (value === null || value === undefined || value === '') return null;
-    const date = parse_utc_date(value);
-    if (isNaN(date.getTime())) return null;
-    return format_date(date, DATE_FORMAT, true);
+    return iso_date_text(value);
 }
 
 // --- The tool ---
@@ -555,7 +553,7 @@ function work_out(change: EditChange, row: EditRow): Result {
 export function same_value(type: QueryColumn['type'], a: unknown, b: unknown) {
     if (is_empty(a) || is_empty(b)) return is_empty(a) && is_empty(b);
     if (type === 'number') return Number(a) === Number(b);
-    // As the grid shows them, which is how the preview and the client hold them
+    // As the API answers them, which is how the preview and the client hold them
     if (type === 'date') {
         const x = date_text(a);
         return x !== null && x === date_text(b);

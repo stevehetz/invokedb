@@ -39,9 +39,6 @@ const HowItsBuilt = () => import('@/view/pages/how-its-built');
 // and links between the areas use the router like any other. Logging out is still a full page
 // load, on purpose (components/layout/layout.js).
 const Site = () => import(/* webpackChunkName: "site" */ '@/view/site.vue');
-// A shareable form's public page (#145), also shown in other sites' iframes. It's in neither
-// shell (no site nav, no app), so it carries its own scoped CSS.
-const FormPage = () => import('@/view/form-page');
 const App = () =>
     import(/* webpackChunkName: "signed-in" */ '@/components/app.vue');
 
@@ -95,7 +92,6 @@ const router = createRouter({
                 }
             ]
         },
-        { path: '/f/:id', name: 'form', component: FormPage },
         {
             path: '/',
             component: Site,
@@ -158,19 +154,9 @@ router.afterEach((to, from, failure) => {
         const html = document.documentElement.classList;
         html.toggle('app-area', in_app);
         html.toggle('site-area', !in_app);
-        set_theme_area(in_app ? 'app' : form_theme(to) || 'site');
+        set_theme_area(in_app ? 'app' : 'site');
     }
     if (in_app) toggle_page_overlay(to.path);
 });
-
-/**
- * A shareable form shown in another site's iframe keeps light unless the embedding page asks
- * for dark (#290); on its own, the form page follows the device like the rest of the site.
- * @returns {'light' | 'dark' | null}
- */
-function form_theme(to) {
-    if (to.name !== 'form' || !to.query.embed) return null;
-    return to.query.theme === 'dark' ? 'dark' : 'light';
-}
 
 export default router;

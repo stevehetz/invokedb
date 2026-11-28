@@ -2,8 +2,35 @@ import { tree_consts } from './h-tree-consts';
 import { store } from '@/store';
 import { ai_http } from '@/core/context/ai/ai-http';
 
+// Which folders are open, kept per browser (#357)
+const OPEN_FOLDERS_KEY = 'invokedb:open-folders';
+
+/** @returns {number[]} */
+export function load_open_folders() {
+    try {
+        const ids = JSON.parse(
+            window.localStorage.getItem(OPEN_FOLDERS_KEY) || '[]'
+        );
+        return Array.isArray(ids) ? ids.filter(Number.isInteger) : [];
+    } catch {
+        return [];
+    }
+}
+
+/** @param {number[]} ids */
+export function save_open_folders(ids) {
+    try {
+        window.localStorage.setItem(OPEN_FOLDERS_KEY, JSON.stringify(ids));
+    } catch {
+        // Private mode or storage full: folders just start closed next time
+    }
+}
+
 // The table/folder tree (an Element Plus el-tree; it was jqtree). Click "manages" (highlights)
 // an item for the delete/rename buttons; double-click "selects" it, which opens it in a tab.
+// Right-click opens a menu for the item (#357): new tables in a folder, open, rename, move to a
+// folder, delete. Folders are one level deep: new folders go at the top level, and a folder
+// can't be dropped into another.
 export default {
     name: 'HTree',
 
@@ -15,6 +42,7 @@ export default {
         'remove_tree_items',
         'edit_tree_items',
         'move_tree_item',
+        'move_to_folder',
         'open_schema'
     ],
 
@@ -29,8 +57,12 @@ export default {
             // Id of the item open in the active tab
             selected_id: null,
 
-            // Open folders, kept when the tree data is reloaded
-            expanded_keys: [],
+            // Open folders, kept when the tree data is reloaded and in localStorage
+            expanded_keys: load_open_folders(),
+
+            // The right-click menu: where, and for which item
+            /** @type {{ x: number, y: number, item: any } | null} */
+            context_menu: null,
 
             tree_props: { label: 'name', children: 'children' },
 
@@ -45,10 +77,14 @@ export default {
             this.account = account;
         });
         document.body.addEventListener('click', this.body_clicked);
+        document.addEventListener('keydown', this.key_pressed);
+        window.addEventListener('blur', this.close_context_menu);
     },
 
     beforeUnmount() {
         document.body.removeEventListener('click', this.body_clicked);
+        document.removeEventListener('keydown', this.key_pressed);
+        window.removeEventListener('blur', this.close_context_menu);
         if (this.account_subscription) this.account_subscription.unsubscribe();
     },
 
@@ -58,6 +94,16 @@ export default {
             if (!e.target.closest('.file-directory-menu')) {
                 this.$refs.menu.close('1');
             }
+            this.close_context_menu();
+        },
+
+        /** @param {KeyboardEvent} e */
+        key_pressed(e) {
+            if (e.key === 'Escape') this.close_context_menu();
+        },
+
+        close_context_menu() {
+            this.context_menu = null;
         },
         /*** End: Global events ***/
 
@@ -105,6 +151,7 @@ export default {
         node_expanded(data) {
             if (!this.expanded_keys.includes(data.id)) {
                 this.expanded_keys = [...this.expanded_keys, data.id];
+                save_open_folders(this.expanded_keys);
             }
         },
 
@@ -112,10 +159,50 @@ export default {
             this.expanded_keys = this.expanded_keys.filter(
                 id => id !== data.id
             );
+            save_open_folders(this.expanded_keys);
         },
 
-        // Items are listed by name, so only moves to another folder (or the top level) count
+        node_contextmenu(e, data) {
+            e.preventDefault();
+            this.managed = [data.id];
+            // Kept inside the window (the menu is about 260 x 240)
+            const x = Math.max(0, Math.min(e.clientX, window.innerWidth - 270));
+            const y = Math.max(
+                0,
+                Math.min(e.clientY, window.innerHeight - 250)
+            );
+            this.context_menu = { x, y, item: data };
+        },
+
+        context_action(action, type) {
+            const menu = this.context_menu;
+            this.context_menu = null;
+            if (!menu) return;
+            const item = menu.item;
+            if (action === 'add') {
+                this.$emit('add_tree_item', type, item.id);
+            } else if (action === 'open') {
+                this.node_dblclicked(item);
+            } else if (action === 'move') {
+                this.$emit('move_to_folder', item);
+            } else if (action === 'rename') {
+                this.$emit('edit_tree_items', [item]);
+            } else if (action === 'delete') {
+                this.$emit('remove_tree_items', [item.id]);
+            }
+        },
+
+        // Items are listed by name, so only moves to another folder (or the top level) count.
+        // Folders stay at the top level (one level of folders).
         allow_drop(dragging, drop, type) {
+            if (dragging.data.type === 'dir') {
+                // Only an older nested folder can move: out to the top level
+                return (
+                    type !== 'inner' &&
+                    !drop.data.parent_id &&
+                    !!dragging.data.parent_id
+                );
+            }
             if (type === 'inner') return drop.data.type === 'dir';
             return (
                 (dragging.data.parent_id || null) !==
@@ -151,7 +238,9 @@ export default {
 
         add_tree_item(item) {
             let parent_id = null;
-            if (this.managed.length > 0) {
+            // A folder goes at the top level; a table in the managed folder (or beside the
+            // managed table)
+            if (item !== 'dir' && this.managed.length > 0) {
                 const node = this.find_item(this.managed[0]);
                 if (node) {
                     if (node.type === 'dir') parent_id = node.id;

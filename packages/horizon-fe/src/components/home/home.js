@@ -5,6 +5,7 @@ import doc_container from '@/components/doc-container';
 import onboarding from '@/components/onboarding';
 import AiTableDialog from './ai-table-dialog';
 import SchemaDiagram from './schema-diagram';
+import MoveFolderDialog from './move-folder-dialog';
 import { store } from '@/store';
 import { bus } from '@/core/bus';
 import { error_manager as err_mgr } from '@/core/error/error-manager';
@@ -15,6 +16,31 @@ import { tree_consts } from '@/components/h-tree/h-tree-consts';
 import { toggle_page_overlay } from '@/components/_page/page-overlay';
 import { account_manager } from '@/core/context/account/account-manager';
 import { logger } from '@/core/logger/logger';
+
+// Names go into the confirm dialog's HTML
+function escape_html(text) {
+    return String(text).replace(
+        /[&<>"']/g,
+        c =>
+            ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[c]
+    );
+}
+
+// The tables inside a folder, at any depth
+function tables_in(folder) {
+    const out = [];
+    (folder.children || []).forEach(function visit(item) {
+        if (item.type === 'dir') (item.children || []).forEach(visit);
+        else out.push(item);
+    });
+    return out;
+}
 
 export default {
     name: 'Home',
@@ -187,20 +213,37 @@ export default {
             }
         },
 
+        // A folder goes with the tables in it (#357): the server deletes them through the same
+        // path as a table deleted on its own; the warning says how many go
         async remove_tree_items(tree_item_ids) {
-            const tree_item = this.tree_items.find(
-                t => t.id === tree_item_ids[0]
-            );
-            const name = tree_item.name;
+            const tree_item = this.file_tree_item_by_id(tree_item_ids[0]);
+            if (!tree_item) return;
+            const name = escape_html(tree_item.name);
+            const is_dir = tree_item.type === 'dir';
+            const contained = is_dir ? tables_in(tree_item) : [];
+            let message = `Are you sure you want to delete table <b>${name}</b>?`;
+            if (is_dir && contained.length === 0) {
+                message = `Delete the empty folder <b>${name}</b>?`;
+            } else if (is_dir) {
+                const n = contained.length;
+                message =
+                    `The folder <b>${name}</b> has ${n} ${
+                        n === 1 ? 'table' : 'tables'
+                    } in it. Deleting the folder deletes ${
+                        n === 1 ? 'that table' : `all ${n} tables`
+                    } too, with their rows, views and webhooks. ` +
+                    'Delete them?';
+            }
+            const closing = [...tree_item_ids, ...contained.map(t => t.id)];
             this.$bus.$emit('confirm-dialog:open', {
-                title: 'Delete Table',
-                message: `Are you sure you want to delete table <b>${name}</b>?`,
+                title: is_dir ? 'Delete Folder' : 'Delete Table',
+                message,
                 callback: async () => {
                     try {
                         await tree_manager.remove_items(tree_item_ids);
                         await account_manager.refresh_account_store();
                         this.$refs.h_tree.clear_managed_nodes();
-                        this.remove_tabs(tree_item_ids);
+                        this.remove_tabs(closing);
                         this.setup_tree();
                     } catch (ex) {
                         this.$bus.$emit('notify:error', {
@@ -226,7 +269,7 @@ export default {
         },
 
         async add_web_file(type, parent_id) {
-            const name = type === 'dir' ? 'directory' : 'table';
+            const name = type === 'dir' ? 'folder' : 'table';
             const title = 'Add ' + name;
             const placeholder =
                 name.substring(0, 1).toUpperCase() +
@@ -411,7 +454,7 @@ export default {
             // Just supporting 1 item for now:
             let item = items[0];
 
-            const name = item.type === 'dir' ? 'directory' : 'document';
+            const name = item.type === 'dir' ? 'folder' : 'table';
             const title = 'Rename ' + name;
             const placeholder =
                 name.substring(0, 1).toUpperCase() +
@@ -468,10 +511,41 @@ export default {
                 await tree_manager.update_item(moved_node);
                 await this.setup_tree();
             } catch (ex) {
+                // The tree already shows the drop: put it back as the server has it
+                this.setup_tree();
                 this.$bus.$emit('notify:error', {
                     e: ex || 'Item move error'
                 });
             }
+        },
+
+        // "Move to folder…" in a table's right-click menu (#357)
+        move_to_folder(item) {
+            const folders = this.tree_items
+                .filter(t => t.type === 'dir')
+                .map(t => ({ id: t.id, name: t.name }));
+            this.$bus.$emit('container-dialog:open', {
+                title: 'Move to folder',
+                props: {
+                    item,
+                    folders,
+                    on_move: async parent_id => {
+                        try {
+                            await tree_manager.update_item({
+                                ...item,
+                                parent_id
+                            });
+                            await this.setup_tree();
+                        } catch (ex) {
+                            this.$bus.$emit('notify:error', {
+                                e: ex || 'Item move error'
+                            });
+                            throw ex;
+                        }
+                    }
+                },
+                component: MoveFolderDialog
+            });
         },
 
         file_tree_item_by_id(id) {

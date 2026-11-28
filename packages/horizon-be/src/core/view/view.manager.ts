@@ -14,7 +14,7 @@ export interface View extends ViewSettings {
 }
 
 // The views of every account, in one collection of the tracking database (so a read-only link
-// can look one up by its id later, as forms do). Every read and write filters on account_id as
+// can look one up by its id later). Every read and write filters on account_id as
 // well as the id. The rows a view shows are read from the table's own collection.
 @Injectable()
 export class ViewManager {

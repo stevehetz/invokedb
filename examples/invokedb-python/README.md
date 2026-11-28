@@ -98,6 +98,11 @@ except InvokeDBError as e:
 must match, or any with `"match": "any"`. The types (`Query`, `QueryFilter`, `CountQuery`,
 `FindResult`, `QueryResult`) are `TypedDict`s, and the package ships `py.typed`.
 
+Date columns come back as ISO 8601 strings in UTC with milliseconds (`"2026-11-28T12:01:29.123Z"`;
+`datetime.fromisoformat` reads them on Python 3.11+, or replace the `Z` with `+00:00` first). Send
+a date as ISO 8601 (`"2026-11-28T12:01:29.123Z"`, or just `"2026-11-28"`); what you write is what
+you read back.
+
 Failed requests raise `InvokeDBError` with `status` (0 if the server couldn't be reached),
 `message` and the response `body`.
 

@@ -69,12 +69,6 @@ export class AllExceptionFilter implements ExceptionFilter {
         } else {
             json_response.message = message;
         }
-        // Per-field messages, such as a form submission's wrong answers (#145)
-        const errors = response && response.errors;
-        if (status === 400 && errors && typeof errors === 'object' && !Array.isArray(errors)) {
-            json_response.errors = errors;
-        }
-
         // A refusal at a plan's cap (#183): which limit, the cap and where to upgrade
         if (response && response.code === 'plan_limit') {
             json_response.code = 'plan_limit';

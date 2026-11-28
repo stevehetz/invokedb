@@ -24,7 +24,6 @@ import GridFilter from './grid-filter';
 import GridToast from './grid-toast';
 import ApiDialog from './api-dialog';
 import WebhooksDialog from './webhooks-dialog';
-import FormsDialog from './forms-dialog';
 import AuditLog from '../audit-log';
 import AskDialog from './ask-dialog';
 import { ai_http } from '@/core/context/ai/ai-http';
@@ -221,7 +220,7 @@ export default {
         // The top bar's buttons, in the order they fold into the More menu when the bar
         // doesn't fit (from the right); Views keeps its button and only drops its label
         toolbar_order() {
-            const order = ['ask', 'forms', 'webhooks', 'api', 'views_label'];
+            const order = ['ask', 'webhooks', 'api', 'views_label'];
             return this.ai_available ? order : order.slice(1);
         },
 
@@ -565,7 +564,7 @@ export default {
 
         get_default_col_def() {
             return {
-                editable: true,
+                editable: this.cell_editable,
                 sortable: true,
                 filter: true,
                 floatingFilter: true,
@@ -587,18 +586,36 @@ export default {
         async get_rows(params) {
             this.show_loading();
             const col_defs = this.col_defs();
-            let res = await mgr.get_rows(
-                this.file_directory_id,
-                params,
-                PAGE_SIZE,
-                col_defs
-            );
+            let res;
+            try {
+                res = await mgr.get_rows(
+                    this.file_directory_id,
+                    params,
+                    PAGE_SIZE,
+                    col_defs
+                );
+            } catch (ex) {
+                // Answer the page anyway (#355): unanswered, the infinite row model keeps its
+                // placeholder row on screen under "Loading..."
+                params.successCallback([], params.startRow);
+                this.hide_top_bar_msg();
+                this.toast.error(
+                    (ex && ex.message) || 'Could not load the rows'
+                );
+                return;
+            }
             this.add_link_labels(res);
             this.total_rows = res.count;
             let last_row = res.count <= params.endRow ? res.count : -1;
             params.successCallback(res.data, last_row);
             this.hide_top_bar_msg();
             this.toast.hide();
+        },
+
+        // A cell is edited only on a loaded row (#355): the infinite row model's placeholder
+        // rows, shown while a page loads, have no data and are never saved
+        cell_editable(params) {
+            return !!(params && params.data);
         },
         /*** End: Retrieve paged rows from server ***/
 
@@ -1136,7 +1153,7 @@ export default {
                     col_def.sortable = !lock;
                     col_def.filter = !lock;
                     // col_def.resizable = !lock;
-                    col_def.editable = !lock;
+                    col_def.editable = lock ? false : this.cell_editable;
                 }
 
                 return col_def;
@@ -1188,21 +1205,10 @@ export default {
             });
         },
 
-        forms_btn_clicked() {
-            this.$bus.$emit('container-dialog:open', {
-                title: `${table_display_name(this.file.name)}: forms`,
-                props: {
-                    file: this.file
-                },
-                component: FormsDialog
-            });
-        },
-
         // The top bar's More menu: room for table tools without widening the bar
         more_command(command) {
             if (command === 'api') this.api_btn_clicked();
             if (command === 'webhooks') this.webhooks_btn_clicked();
-            if (command === 'forms') this.forms_btn_clicked();
             if (command === 'ask') this.ask_btn_clicked();
             if (command === 'history') this.history_btn_clicked();
             if (command === 'ai_columns') this.ai_columns_btn_clicked();
@@ -1319,7 +1325,9 @@ export default {
                     AI_CELL_NOTES[state.s] || 'Not filled by the AI';
                 cell.title = 'Fill the column again from More → AI columns';
             } else {
-                cell.textContent = empty ? '' : String(value);
+                // As formatted (a date column's dates readably, #356)
+                const text = params.valueFormatted ?? value;
+                cell.textContent = empty ? '' : String(text);
             }
             return cell;
         },

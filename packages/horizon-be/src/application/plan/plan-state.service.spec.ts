@@ -128,7 +128,7 @@ describe('PlanStateService', () => {
     });
 
     it('sweeps every account', async () => {
-        const s = setup([account(), account({ id: 2, email: 'user2@example.com' })], ['forms']);
+        const s = setup([account(), account({ id: 2, email: 'user2@example.com' })], ['webhooks']);
         await s.service.sweep();
         expect(s.repo.rows.map(r => r.plan_state)).toEqual(['read_only', 'read_only']);
     });

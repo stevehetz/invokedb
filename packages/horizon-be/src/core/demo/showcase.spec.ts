@@ -107,7 +107,7 @@ describe('the demo showcase (#333)', () => {
         expect(events.some(e => (e.Date as string).startsWith(month))).toBe(true);
     });
 
-    it('has a view of each kind, a form, an AI column and edits on its own columns', () => {
+    it('has a view of each kind, an AI column and edits on its own columns', () => {
         expect(showcase.views.map(v => v.type).sort()).toEqual([
             'calendar',
             'chart',
@@ -127,9 +127,6 @@ describe('the demo showcase (#333)', () => {
             ];
             names.forEach(n => expect(columns_of(v.table)).toContain(n));
         });
-        showcase.form.fields.forEach(f =>
-            expect(columns_of(showcase.form.table)).toContain(f.column)
-        );
         const ai = showcase.ai_column;
         expect(columns_of(ai.table)).toContain(ai.column);
         ai.inputs.forEach(n => expect(columns_of(ai.table)).toContain(n));

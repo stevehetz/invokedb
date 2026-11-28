@@ -24,6 +24,7 @@ import { WebFileService } from '@app/application/web-file/web-file.service';
 interface Table {
     id: number;
     name: string;
+    parent_id?: number | null;
 }
 
 /** Why a tool refused, in words the agent can act on. */
@@ -141,6 +142,8 @@ export class McpService {
             }
             case 'create_table':
                 return await this.create_table(account, args);
+            case 'create_folder':
+                return await this.create_folder(account, args);
             case 'add_columns':
                 return await this.add_columns(account, args);
             default:
@@ -155,7 +158,7 @@ export class McpService {
         return all
             .filter(f => f.type === 'file')
             .filter(f => !scope || key_refusal(scope, f.id, false) !== 'table')
-            .map(f => ({ id: f.id, name: f.name }));
+            .map(f => ({ id: f.id, name: f.name, parent_id: f.parent_id ?? null }));
     }
 
     /**
@@ -204,12 +207,16 @@ export class McpService {
         const tables = await this.tables(account);
         const counts = await this.tracking_manager.table_row_counts(account);
         const names = new Map(tables.map(t => [t.id, t.name]));
+        // Each table's folder by name (#357), null at the top level
+        const all = (await this.file_dir_service.get_by_account_id(account.id)) || [];
+        const folders = new Map(all.filter(f => f.type === 'dir').map(f => [f.id, f.name]));
         const out = [];
         for (const t of tables) {
             const columns = await this.web_file_manager.get_columns(account.id, t.id);
             out.push({
                 id: t.id,
                 name: t.name,
+                folder: (t.parent_id && folders.get(t.parent_id)) || null,
                 rows: counts.find(c => c.file_id === t.id)?.rows ?? 0,
                 columns: describe_columns(columns, names).map(c => ({ name: c.name, type: c.type }))
             });
@@ -276,6 +283,32 @@ export class McpService {
             rows: 0,
             columns: columns.map(c => ({ name: c.name, type: c.type }))
         };
+    }
+
+    /**
+     * A new folder at the top level (#357), made like the app's (FileDirectoryService.create).
+     * Folders don't count against the table cap.
+     */
+    private async create_folder(account: Account, args: Record<string, any>) {
+        this.assert_schema_access(account);
+        await this.count_call(account);
+        await this.tracking_manager.check_not_read_only(account);
+        // create_table finds a folder by name, so a name any folder has is refused
+        const all = (await this.file_dir_service.get_by_account_id(account.id)) || [];
+        const wanted = String(args.name).trim().toLowerCase();
+        if (all.some(f => f.type === 'dir' && f.name.toLowerCase() === wanted)) {
+            throw new ToolRefusal(
+                `The folder name ${JSON.stringify(args.name)} is already in use; choose another name`
+            );
+        }
+        const no_file = true;
+        const folder = await this.file_dir_service.create(
+            account.id,
+            { name: args.name, parent_id: null, type: 'dir' },
+            no_file,
+            actor_of(account)
+        );
+        return { id: folder.id, name: folder.name };
     }
 
     /** New columns after a table's existing ones, through the same path as the app's. */

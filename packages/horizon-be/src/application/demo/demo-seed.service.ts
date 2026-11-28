@@ -3,7 +3,6 @@ import { Account } from '@app/core/account/account.entity';
 import { FileDirectoryService } from '../file-directory/file-directory.service';
 import { WebFileService } from '../web-file/web-file.service';
 import { ViewService } from '../view/view.service';
-import { FormService } from '../form/form.service';
 import { WebFileManager } from '@app/core/web-file/web-file.manager';
 import { MongoDbCollections } from '@app/core/mongodb/collections';
 import { AiColumnManager } from '@app/core/ai-column/ai-column.manager';
@@ -40,7 +39,7 @@ interface MadeTable {
  * Fills a new demo account with the showcase (#333, core/demo/showcase.ts) through the same
  * services the app uses, so it's made like anyone's tables: the table and row caps, link
  * checks and the audit log all apply. Then the AI column's cells get their hashes (filled, no AI
- * spent), the views and the form are saved, a few rows are edited for the history, and the
+ * spent), the views are saved, a few rows are edited for the history, and the
  * onboarding checklist is dismissed.
  */
 @Injectable()
@@ -49,7 +48,6 @@ export class DemoSeedService {
         private readonly file_directory_svc: FileDirectoryService,
         private readonly web_file_svc: WebFileService,
         private readonly view_svc: ViewService,
-        private readonly form_svc: FormService,
         private readonly web_file_manager: WebFileManager,
         private readonly _collections: MongoDbCollections,
         private readonly ai_columns: AiColumnManager,
@@ -69,16 +67,6 @@ export class DemoSeedService {
         for (const view of showcase.views) {
             await this.view_svc.create(account.id, view_body(view, made.get(view.table)));
         }
-        const form_table = made.get(showcase.form.table);
-        await this.form_svc.create(account.id, {
-            file_id: form_table.id,
-            title: showcase.form.title,
-            description: showcase.form.description,
-            fields: showcase.form.fields.map(f => ({
-                field: form_table.fields.get(f.column),
-                required: f.required === true
-            }))
-        });
         for (const edit of showcase.edits) {
             const t = made.get(edit.table);
             const row: Record<string, unknown> = { _id: t.row_ids[edit.row] };

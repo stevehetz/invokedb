@@ -24,7 +24,10 @@ export default {
             filter_types: {},
             selected_type: null,
             timeout: null,
-            loading: null
+            loading: null,
+            // The typed value can't be a filter for this column (filter_value)
+            invalid: false,
+            invalid_message: null
         };
     },
 
@@ -47,38 +50,55 @@ export default {
             this.loading = true;
             clearTimeout(this.timeout);
             this.timeout = setTimeout(() => {
-                this.input_value = this.format_value(event.target.value);
+                this.input_value = event.target.value;
                 this.update_filter();
                 this.loading = false;
             }, debounce_time);
         },
 
-        format_value(value) {
+        // The value to filter on, or null for none. A number column's value that isn't a
+        // number, or a date that doesn't parse, filters nothing and marks the input invalid
+        // (#355): the backend refuses them, which once left the grid's page unloaded.
+        filter_value(value) {
             if (typeof value === 'string') {
                 value = value.trim();
             }
-            if (value !== '' && value !== undefined && value !== null) {
-                if (this.col_type === 'date') {
-                    value = format_date(
-                        parse_utc_date(value),
-                        'YYYY-MM-DD hh:mm:ss A',
-                        true
-                    );
-                    if (value === 'Invalid date') {
-                        value = null;
-                    }
-                }
+            this.invalid = false;
+            if (value === '' || value === undefined || value === null) {
+                return null;
             }
-
+            if (this.col_type === 'number') {
+                const n = typeof value === 'number' ? value : Number(value);
+                if (!Number.isFinite(n)) {
+                    this.invalid = true;
+                    this.invalid_message =
+                        'Not a number: this filter is ignored';
+                    return null;
+                }
+                return n;
+            }
+            if (this.col_type === 'date') {
+                const date = format_date(
+                    parse_utc_date(value),
+                    'YYYY-MM-DD hh:mm:ss A',
+                    true
+                );
+                if (!date || date === 'Invalid date') {
+                    this.invalid = true;
+                    this.invalid_message = 'Not a date: this filter is ignored';
+                    return null;
+                }
+                // The input shows the date as it's matched
+                this.input_value = date;
+                return date;
+            }
             return value;
         },
 
         update_filter() {
-            let value = this.input_value;
             try {
-                if (value === '' || value === undefined || value === null) {
-                    value = this.input_value = null;
-                } else {
+                let value = this.filter_value(this.input_value);
+                if (value !== null) {
                     value = JSON.stringify({
                         col_type: col_meta(this.params.column.colDef).col_type,
                         filter_type: this.selected_type,
@@ -151,6 +171,7 @@ export default {
         onParentModelChanged(parentModel) {
             // Mid-typing, the input already shows what's coming
             if (this.loading) return;
+            this.invalid = false;
             if (!parentModel || !parentModel.filter) {
                 this.input_value = null;
                 return;

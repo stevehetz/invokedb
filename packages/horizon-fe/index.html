@@ -29,21 +29,16 @@
         <link rel="icon" href="/favicon.ico?q=2" />
         <script>
             // The theme before first paint (#290), as core/theme.js sets it: the app (/app)
-            // uses the account's choice kept in localStorage; the site and an embedded form
-            // (light unless ?theme=dark) don't.
+            // uses the account's choice kept in localStorage; the site follows the device.
             (function () {
                 var choice = 'system';
                 var path = location.pathname;
-                var query = new URLSearchParams(location.search);
                 try {
                     if (path === '/app' || path.indexOf('/app/') === 0) {
                         choice =
                             localStorage.getItem('invokedb:theme') || 'system';
                     }
                 } catch (e) {}
-                if (path.indexOf('/f/') === 0 && query.get('embed')) {
-                    choice = query.get('theme') === 'dark' ? 'dark' : 'light';
-                }
                 var dark =
                     choice === 'dark' ||
                     (choice !== 'light' &&

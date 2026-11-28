@@ -15,7 +15,6 @@ import logger from '@app/logger';
 import { JobManager } from '@app/core/job/job.manager';
 import { MongoDbCollections } from '@app/core/mongodb/collections';
 import { WebFileManager } from '@app/core/web-file/web-file.manager';
-import { FormManager } from '@app/core/form/form.manager';
 import { ViewManager } from '@app/core/view/view.manager';
 import { WebhookManager } from '@app/core/webhook/webhook.manager';
 import { AccountExportManager } from '@app/core/account-export/account-export.manager';
@@ -28,7 +27,6 @@ import {
     export_columns,
     export_file_name,
     export_view,
-    form_settings,
     is_active,
     is_downloadable,
     json_chunks,
@@ -58,7 +56,6 @@ export class AccountExportService {
         private job_manager: JobManager,
         private file_directory_svc: FileDirectoryService,
         private web_file_manager: WebFileManager,
-        private form_manager: FormManager,
         private view_manager: ViewManager,
         private webhook_manager: WebhookManager,
         private _collections: MongoDbCollections,
@@ -235,9 +232,6 @@ export class AccountExportService {
             total_rows += rows;
             written.push({ ...table, rows, columns: columns.length });
         }
-
-        const forms = await this.form_manager.list(account_id);
-        await zip.add('forms.json', pretty(forms.map(f => form_settings(f, table_names))));
 
         const views = [];
         for (const table of paths) {

@@ -15,7 +15,6 @@ import { OnboardingInterceptor } from './http/external/onboarding.interceptor';
 import { ApiKeyUsageGuard } from './http/external/api-key-usage.guard';
 import { UrlImportController } from './http/url-import/url-import.controller';
 import { WebhookController } from './http/webhook/webhook.controller';
-import { FormController, PublicFormController } from './http/form/form.controller';
 import { ApiKeyController } from './http/api-key/api-key.controller';
 import { ViewController } from './http/view/view.controller';
 import { AiController } from './http/ai/ai.controller';
@@ -50,8 +49,6 @@ import { WebsocketClient } from './ws/websocket-client';
         OnboardingController,
         UrlImportController,
         WebhookController,
-        FormController,
-        PublicFormController,
         ApiKeyController,
         ViewController,
         AiController,

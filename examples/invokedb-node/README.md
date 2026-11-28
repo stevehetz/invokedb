@@ -88,6 +88,11 @@ Filter operators: `$eq`, `$ctn` (contains, case-insensitive), `$gt`, `$gte`, `$l
 A plain value means `$eq`. Number and date columns take the range operators; set a column's
 type on the table's Edit Columns screen (or let `examples/setup.mjs` do it).
 
+Date columns come back as ISO 8601 strings in UTC with milliseconds
+(`'2026-11-28T12:01:29.123Z'`), so `new Date(row.joined)` reads them exactly. Send a date as
+ISO 8601 (`'2026-11-28T12:01:29.123Z'`, or just `'2026-11-28'`); what you write is what you read
+back.
+
 `query()` and `count({ filters })` take `{ column, op, value }` filters with the operators `eq`,
 `ne`, `gt`, `gte`, `lt`, `lte`, `in` (an array), `contains` (text, case-insensitive unless
 `case: 'sensitive'`) and `empty` (`true` or `false`); they all have to match, or any of them

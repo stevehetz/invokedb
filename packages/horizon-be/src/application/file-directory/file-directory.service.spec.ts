@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { FileDirectoryService } from './file-directory.service';
+import { FileDirectoryService, with_folder_contents } from './file-directory.service';
 
 // Stand-ins below; the real ones pull in TypeORM and ESM-only packages
 jest.mock('../account/account.service', () => ({}));
@@ -49,7 +49,6 @@ function setup(tables: number) {
         {} as any,
         {} as any,
         {} as any,
-        {} as any,
         onboarding_manager as any,
         audit_svc as any,
         {} as any
@@ -80,5 +79,31 @@ describe('FileDirectoryService.create and the table limit (#237)', () => {
         await svc.create(ACCT, { name: 'Last one', type: 'file' }, false);
         expect(tracking_manager.add_table).toHaveBeenCalledTimes(1);
         expect(saved).toHaveLength(MAX_TABLES);
+    });
+});
+
+describe('with_folder_contents: deleting a folder (#357)', () => {
+    const item = (id: number, parent_id: number | null, type = 'file') => ({ id, parent_id, type });
+    const live = [
+        item(1, null, 'dir'),
+        item(2, 1),
+        item(3, 1),
+        item(4, null),
+        item(5, 1, 'dir'),
+        item(6, 5)
+    ];
+    const ids = (items: { id: number }[]) => items.map(i => i.id);
+
+    it('takes what is in a folder, before the folder', () => {
+        expect(ids(with_folder_contents([live[0]], live))).toEqual([2, 3, 6, 5, 1]);
+    });
+
+    it('leaves a table or an empty folder alone', () => {
+        expect(ids(with_folder_contents([live[3]], live))).toEqual([4]);
+        expect(ids(with_folder_contents([item(9, null, 'dir')], live))).toEqual([9]);
+    });
+
+    it('lists each item once when a table and its folder are both asked for', () => {
+        expect(ids(with_folder_contents([live[1], live[0]], live))).toEqual([2, 3, 6, 5, 1]);
     });
 });

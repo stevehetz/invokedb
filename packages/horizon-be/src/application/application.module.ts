@@ -18,7 +18,6 @@ import { OnboardingService } from './onboarding/onboarding.service';
 import { UrlImportService } from './url-import/url-import.service';
 import { WebhookService } from './webhook/webhook.service';
 import { WebhookPrcService } from './webhook/webhook-prc.service';
-import { FormService } from './form/form.service';
 import { ApiKeyService } from './api-key/api-key.service';
 import { ViewService } from './view/view.service';
 import { AskService } from './ai/ask.service';
@@ -64,7 +63,6 @@ import { DemoSeedService } from './demo/demo-seed.service';
         UrlImportService,
         WebhookService,
         WebhookPrcService,
-        FormService,
         ApiKeyService,
         ViewService,
         AskService,
@@ -105,7 +103,6 @@ import { DemoSeedService } from './demo/demo-seed.service';
         OnboardingService,
         UrlImportService,
         WebhookService,
-        FormService,
         ApiKeyService,
         ViewService,
         AskService,

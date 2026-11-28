@@ -41,7 +41,7 @@ function setup(plan_id: PlanId = 'PRO') {
                 { field: 'b', headerName: 'joined' }
             ]
         })),
-        format_date_field: jest.fn(() => '2020-01-02 12:00:00 AM')
+        format_date_field: jest.fn(() => '2020-01-02T00:00:00.000Z')
     };
     const webhook_manager = {
         list: jest.fn(async acct => hooks.filter(h => h.account_id === acct)),
@@ -154,7 +154,7 @@ describe('WebhookService', () => {
         expect(payload).toMatchObject({
             event: 'row.created',
             table: { id: 11, name: 'people' },
-            rows: [{ _id: 'r1', name: 'alice', joined: '2020-01-02 12:00:00 AM' }]
+            rows: [{ _id: 'r1', name: 'alice', joined: '2020-01-02T00:00:00.000Z' }]
         });
         expect(payload.id).toBe(deliveries[0].id);
         expect(deliveries[0]).toMatchObject({ status: 'pending', attempts: 0, account_id: ACCT });

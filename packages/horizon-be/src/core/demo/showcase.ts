@@ -1,5 +1,5 @@
 // The showcase set of a demo account (#333): a small company's linked tables, its saved views
-// of every kind, a form, a filled AI column and a few edits for the history. Pure and
+// of every kind, a filled AI column and a few edits for the history. Pure and
 // deterministic (a seeded generator, dates relative to `now`), unit-tested in showcase.spec.ts;
 // DemoSeedService (application/demo) makes it in a new demo account. All of it is invented:
 // example.com emails and 555-01xx phone numbers.
@@ -39,13 +39,6 @@ export interface ShowcaseView {
     map?: { lat: string; lng: string; label: string };
 }
 
-export interface ShowcaseForm {
-    table: ShowcaseTableKey;
-    title: string;
-    description: string;
-    fields: { column: string; required?: boolean }[];
-}
-
 // An AI column whose values are already in the rows (so it shows without spending AI)
 export interface ShowcaseAiColumn {
     table: ShowcaseTableKey;
@@ -64,7 +57,6 @@ export interface ShowcaseEdit {
 export interface Showcase {
     tables: ShowcaseTable[];
     views: ShowcaseView[];
-    form: ShowcaseForm;
     ai_column: ShowcaseAiColumn;
     edits: ShowcaseEdit[];
 }
@@ -376,18 +368,6 @@ export function build_showcase(now: number): Showcase {
                 map: { lat: 'Latitude', lng: 'Longitude', label: 'Name' }
             }
         ],
-        form: {
-            table: 'customers',
-            title: 'Join our customer list',
-            description: 'Leave your details and we will be in touch.',
-            fields: [
-                { column: 'Name', required: true },
-                { column: 'Email', required: true },
-                { column: 'Phone' },
-                { column: 'City' },
-                { column: 'Notes' }
-            ]
-        },
         ai_column: {
             table: 'customers',
             column: 'Segment',

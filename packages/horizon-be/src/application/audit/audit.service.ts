@@ -34,7 +34,7 @@ export interface AuditChange {
 }
 
 // The audit log (#217): records who changed what (rows, columns, tables, API keys) from the app,
-// /api/v1 and forms, and lists it per table and per account. Recording never fails the request
+// /api/v1, and lists it per table and per account. Recording never fails the request
 // that made the change: an error is logged and the change stands.
 @Injectable()
 export class AuditService {
@@ -55,7 +55,7 @@ export class AuditService {
 
     /**
      * Records changes made by `account` (an /api/v1 caller's carries its key) to table `file_id`
-     * (null: account-wide). `actor` overrides who made them (a form). `table_name` saves a lookup.
+     * (null: account-wide). `actor` overrides who made them (an admin). `table_name` saves a lookup.
      */
     async record(
         account: any,
@@ -101,14 +101,11 @@ export class AuditService {
         file_id: number | string,
         action: 'row.created' | 'row.updated' | 'row.deleted',
         ids: unknown[],
-        columns: string[] = [],
-        actor?: AuditActor
+        columns: string[] = []
     ) {
         const list = (ids || []).filter(id => id !== null && id !== undefined).map(String);
         if (list.length === 0) return;
-        await this.record(account, file_id, [{ action, ...row_change(action, list, columns) }], {
-            actor
-        });
+        await this.record(account, file_id, [{ action, ...row_change(action, list, columns) }]);
     }
 
     async columns(account: any, file_id: number | string, changes: ColumnChange[]) {

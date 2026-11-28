@@ -138,10 +138,6 @@
                             tables link.
                         </li>
                         <li>
-                            A <b>form</b> on customers (the grid's Forms
-                            button): its public link adds a row.
-                        </li>
-                        <li>
                             An <b>AI column</b>: each customer's segment, read
                             from their notes, already filled.
                         </li>
@@ -203,10 +199,26 @@
                         </li>
                     </ul>
                     <p>
-                        Tables are listed on the left. Select some with their
-                        checkboxes to rename or delete them. A table's name is
-                        what the API calls it, so renaming a table changes the
-                        <code>table</code> your code sends.
+                        Tables are listed on the left. Click one, then the
+                        <i class="fa fa-edit"></i> or
+                        <i class="fa fa-trash"></i> button to rename or delete
+                        it, or right-click it for the same and more. A table's
+                        name is what the API calls it, so renaming a table
+                        changes the <code>table</code> your code sends.
+                    </p>
+                    <h2>Folders</h2>
+                    <p>
+                        Click <b>+</b> and choose <b>Folder</b> to make one. To
+                        make a table inside a folder, click the folder first and
+                        then <b>+</b>, or right-click the folder and choose
+                        <b>New table here</b>. Drag a table onto a folder to
+                        move it in, and drag it out to move it back to the top
+                        level; or right-click the table and choose
+                        <b>Move to folder…</b>. Folders are renamed and deleted
+                        like tables; deleting a folder deletes the tables in it
+                        too, after asking. The app remembers which folders you
+                        left open. Folders don't change what the API calls a
+                        table.
                     </p>
                     <h2>Editing</h2>
                     <p>
@@ -232,7 +244,11 @@
                         <li><b>True/false</b> (T/F): yes or no.</li>
                         <li>
                             <b>Date</b>: a date, written like
-                            <code>2026-01-15</code>.
+                            <code>2026-01-15</code> or
+                            <code>2026-01-15T12:01:29.123Z</code>. The grid
+                            shows it in UTC; the API, webhooks and exports give
+                            it as ISO 8601 in UTC with milliseconds, like
+                            <code>2026-01-15T12:01:29.123Z</code>.
                         </li>
                         <li>
                             <b>Link</b>: rows of another table. See
@@ -375,10 +391,6 @@
                             turns the link columns into text columns.
                         </li>
                     </ul>
-                    <p>
-                        Link columns are left out of
-                        <router-link to="/help/forms">forms</router-link>.
-                    </p>
                 </section>
 
                 <!-- The API -->
@@ -551,8 +563,8 @@
                     <ul>
                         <li>
                             <b>list_tables</b> and <b>describe_table</b>: the
-                            tables the key can use, their columns and row
-                            counts.
+                            tables the key can use, their folders, columns and
+                            row counts.
                         </li>
                         <li>
                             <b>query_rows</b> and <b>count_rows</b>: filters,
@@ -579,6 +591,12 @@
                             AI columns are set up in the app. Only with a
                             <b>Read and write</b> key for all tables, and within
                             your plan's table and column limits.
+                        </li>
+                        <li>
+                            <b>create_folder</b>: make a folder to put tables in
+                            (give its name as <code>folder</code> to
+                            <b>create_table</b>). Only with a
+                            <b>Read and write</b> key for all tables.
                         </li>
                     </ul>
                     <h2>Staying in charge</h2>
@@ -613,8 +631,8 @@
                         table, click <b>Webhooks</b>, give the URL to call and
                         pick the events: <code>row.created</code>,
                         <code>row.updated</code> and <code>row.deleted</code>.
-                        Changes made in the app, by the API and by forms are
-                        sent; CSV uploads and URL syncs aren't.
+                        Changes made in the app and by the API are sent; CSV
+                        uploads and URL syncs aren't.
                     </p>
                     <h2>What's sent</h2>
                     <p>A <code>POST</code> with a JSON body:</p>
@@ -665,55 +683,6 @@ function verify(secret, raw_body, header) {
                         The dialog shows each webhook's last 50 deliveries, kept
                         for 7 days. Webhooks can't call private or local
                         addresses, and redirects aren't followed.
-                    </p>
-                </section>
-
-                <!-- Forms -->
-                <section v-if="topic.id === 'forms'">
-                    <h1>Forms</h1>
-                    <p>
-                        A form is a public page that adds a row to a table each
-                        time someone fills it in, with no account needed. Open a
-                        table and click <b>Forms</b>.
-                    </p>
-                    <h2>Setting it up</h2>
-                    <ul>
-                        <li>
-                            A title, a description, and the columns to ask for,
-                            each with its own label, a line of help and whether
-                            it's required.
-                        </li>
-                        <li>
-                            The submit button's text, and a thank-you message or
-                            a URL to send people to afterwards.
-                        </li>
-                        <li>
-                            Open or closed: a closed form says so and takes no
-                            answers.
-                        </li>
-                    </ul>
-                    <p>
-                        Answers are checked against the column types (a number
-                        for a Number column, a date for a Date column). Link
-                        columns aren't asked for.
-                    </p>
-                    <h2>Sharing</h2>
-                    <p>
-                        Each form has a link (<code>/f/...</code>) to share, and
-                        code to embed it in your own site in an
-                        <code>iframe</code>. Deleting the form or its table
-                        turns the link off. The link follows the visitor's light
-                        or dark setting; the embedded form is light, or dark if
-                        you add <code>&amp;theme=dark</code> to the end of its
-                        <code>src</code>.
-                    </p>
-                    <h2>Spam</h2>
-                    <p>
-                        Forms have a hidden field that bots fill in and people
-                        don't, and limit how often one visitor, and everyone
-                        together, can submit. Submissions count against the
-                        table's row limit and trigger its
-                        <router-link to="/help/webhooks">webhooks</router-link>.
                     </p>
                 </section>
 
@@ -850,14 +819,14 @@ function verify(secret, raw_body, header) {
                         empty are left empty for free). It fills in the
                         background, and the grid shows the cells as they're
                         done. After that, when a row is added or the columns the
-                        AI column reads change (in the app, through the API or a
-                        form), that row's cell is filled again by itself;
-                        changes to other columns don't use anything. Changing
-                        the prompt or the columns it reads asks you to fill it
-                        again. If your AI rows run out, the column stops: the
-                        cells left show a note, and you can fill them once your
-                        allowance renews. <b>Stop using AI</b> keeps the column
-                        and its values as an ordinary column.
+                        AI column reads change (in the app or through the API),
+                        that row's cell is filled again by itself; changes to
+                        other columns don't use anything. Changing the prompt or
+                        the columns it reads asks you to fill it again. If your
+                        AI rows run out, the column stops: the cells left show a
+                        note, and you can fill them once your allowance renews.
+                        <b>Stop using AI</b> keeps the column and its values as
+                        an ordinary column.
                     </p>
                     <h2>Allowance</h2>
                     <p>
@@ -932,13 +901,12 @@ function verify(secret, raw_body, header) {
                         <b>Delete Account</b>, at the bottom of the Account
                         page's <b>Data</b> section, deletes the account and all
                         its data at once: every table with its rows and columns,
-                        your forms, views, webhooks, URL sources, API keys,
-                        history, AI usage and exports. You're signed out
-                        everywhere, and the email address can be used for a new
-                        account. It can't be undone, so use
-                        <b>Export Your Data</b> first if you want a copy. If
-                        you're on a paid plan, deleting the account cancels it
-                        first.
+                        your views, webhooks, URL sources, API keys, history, AI
+                        usage and exports. You're signed out everywhere, and the
+                        email address can be used for a new account. It can't be
+                        undone, so use <b>Export Your Data</b> first if you want
+                        a copy. If you're on a paid plan, deleting the account
+                        cancels it first.
                     </p>
                     <h2>Plans and billing</h2>
                     <p>
@@ -968,9 +936,7 @@ function verify(secret, raw_body, header) {
                         default, follows your device's setting and changes with
                         it. The choice is saved on your account, so it follows
                         you to other devices. These pages and the public site
-                        always follow your device's setting. A form embedded on
-                        another site stays light unless its link ends in
-                        <code>&amp;theme=dark</code>.
+                        always follow your device's setting.
                     </p>
                     <h2>When support changes your account</h2>
                     <p>
@@ -1004,7 +970,7 @@ function verify(secret, raw_body, header) {
                         storage they take, how many columns a table has, how
                         many API calls you can make a month and how fast, how
                         big a CSV upload can be, and how many URL imports,
-                        webhooks, forms and views you can have. See every plan's
+                        webhooks and views you can have. See every plan's
                         numbers on
                         <router-link to="/pricing">Pricing</router-link>, and
                         yours, with how much of each you use, under
@@ -1029,8 +995,8 @@ function verify(secret, raw_body, header) {
                         becomes <b>read-only</b>: you can still read your data,
                         export it and delete it, in the app and through the API,
                         but adding or changing anything (rows, columns, tables,
-                        uploads, URL syncs, form submissions, new webhooks,
-                        forms and views) is refused with a 403 whose body says
+                        uploads, URL syncs, new webhooks and views) is refused
+                        with a 403 whose body says
                         <code>"code": "plan_read_only"</code> and which limits
                         you're <code>over</code>. Nothing is deleted. As soon as
                         you've deleted down to the limits (or upgraded), you can

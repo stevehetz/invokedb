@@ -114,7 +114,8 @@ data.
   by itself once CI passes and the review labels it `review-ok`, unless it has the `hold` label
   or touches a held path (`deploy/`, `.github/`, migrations, `*.env.example`). Those get
   `needs-owner` and
-  wait for the user. Add `hold` only when a PR can't deploy safely without the user: it needs
+  wait for the user. A merge refused because `main` just moved is retried, and every push to
+  `main` and CI run on `main` tries again on each open `review-ok` PR (#353). Add `hold` only when a PR can't deploy safely without the user: it needs
   a `prod.env` change or a manual step on the server. Never for a change that's large,
   risky-looking or visual (those merge by themselves), or for a follow-up the author can't do
   (list it under "Follow-ups" and open an issue). GitHub's own auto-merge is also on (the

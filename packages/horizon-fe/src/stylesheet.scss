@@ -892,6 +892,9 @@ $nav_active_color: var(--h-chrome-text);
 .h-tree-menu-popper .el-menu .el-menu-item.divide-top {
     border-top: solid 1px var(--h-line);
 }
+.h-tree-menu-popper .el-menu .el-menu-item.divide-bottom {
+    border-bottom: solid 1px var(--h-line);
+}
 // The tree's right-click menu (#357), teleported to <body>
 .h-tree-context-menu {
     position: fixed;

@@ -5,11 +5,12 @@ frontend), the API (HTTP, websocket broker, uploads), the CSV processor in its o
 Postgres and Mongo. Only Caddy publishes ports. The images are built on the server from the
 committed `HEAD`, so the Mac needs no Docker. `deploy.sh` drives it all over SSH.
 
-| Host               | Serves                                 |
-| ------------------ | -------------------------------------- |
-| `invokedb.com`     | Public site at `/`, app at `/app`      |
-| `api.invokedb.com` | Backend routes and `/api/v1`           |
-| `ws.invokedb.com`  | Websocket broker (browser connections) |
+| Host                    | Serves                                                |
+| ----------------------- | ----------------------------------------------------- |
+| `invokedb.com`          | Public site at `/`, app at `/app`                     |
+| `api.invokedb.com`      | Backend routes and `/api/v1`                          |
+| `ws.invokedb.com`       | Websocket broker (browser connections)                |
+| `examples.invokedb.com` | Example apps: the React support desk at `/react-demo` |
 
 The backend gets its own hosts because its routes sit at the root, where they'd clash with the
 site's paths.
@@ -20,8 +21,8 @@ site's paths.
    raise `MONGO_CACHE_GB` and `PRC_CPUS`), your SSH key, backups on.
 2. **Cloud Firewall** on the droplet: inbound TCP 80 and 443 (and UDP 443 for HTTP/3) from
    anywhere, TCP 22 from your IP only.
-3. **Cloudflare DNS**, DNS-only (grey cloud): A records `@`, `www`, `api` and `ws` to the
-   droplet's IPv4. Caddy can't get certificates until these resolve.
+3. **Cloudflare DNS**, DNS-only (grey cloud): A records `@`, `www`, `api`, `ws` and
+   `examples` to the droplet's IPv4. Caddy can't get certificates until these resolve.
 4. `deploy/deploy.sh init-env`, then set `DEPLOY_HOST`, `DEPLOY_SSH_KEY` and `ACME_EMAIL` in
    `deploy/prod.env`, and `npm run secrets:push` so it's backed up with the other secrets.
 5. `deploy/deploy.sh bootstrap`: installs Docker, adds swap, turns off SSH passwords.
@@ -89,6 +90,36 @@ If the close step ever fails, delete the leftover `/32` SSH rule on the firewall
 - To get into a seeded account after `init-db`, request a password reset.
 - The SSH key (`~/.ssh/invokedb`) is synced to Dropbox by `npm run secrets:push`/`pull`, so any
   Mac with the secrets can deploy.
+
+## Example apps
+
+`examples.invokedb.com/react-demo` is the React support desk (`examples/react-demo`, #340): the
+`react-demo` service (`react-demo.Dockerfile`, built from `examples/`), a small Node server that
+serves the app's build, holds the demo account's API key (`REACT_DEMO_API_KEY`) and passes on
+only the calls the app makes, receives the account's webhooks at `/react-demo/webhook`
+(signature checked with `REACT_DEMO_WEBHOOK_SECRET`) and streams them to browsers. Caddy's
+`examples.{$SITE_DOMAIN}` site proxies `/react-demo*` to it. The demo's data lives in a
+dedicated InvokeDB account (internal, so it isn't capped) and is reset to the seed set every day
+at 04:00 UTC.
+
+Set up, once:
+
+1. Cloudflare: an `examples` A record (DNS-only) to the droplet.
+2. `deploy/deploy.sh install-ci ~/.ssh/invokedb-ci.pub`, so automatic deploys ship `examples/`
+   (the image is built from it; the old `ci-deploy.sh` doesn't ship it and the build fails).
+3. Sign up the demo account on invokedb.com (e.g. `support-demo@invokedb.com`), verify its email,
+   and make it internal in the admin area.
+4. `INVOKEDB_PASSWORD=... node examples/react-demo/setup.mjs --base https://api.invokedb.com
+--email <account>`: makes the tables, the key, the seed rows and the webhook, and prints
+   `REACT_DEMO_API_KEY` and `REACT_DEMO_WEBHOOK_SECRET`.
+5. `npm run secrets:pull`, add the two lines to `deploy/prod.env`, `npm run secrets:push`, then
+   `deploy/deploy.sh env` (or the next `up`) and restart the service:
+   `deploy/deploy.sh compose up -d react-demo`.
+
+Day to day: `deploy/deploy.sh logs react-demo`;
+`deploy/deploy.sh compose kill -s SIGUSR2 react-demo` resets the data now. Its `/react-demo/health`
+answers `{ ok, configured }`. Re-running `setup.mjs --replace` makes everything again with a new
+key and secret.
 
 ## Notes
 

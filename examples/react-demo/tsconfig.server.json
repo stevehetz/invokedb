@@ -1,0 +1,18 @@
+{
+  // Type-checks the server's plain JavaScript (it runs as is, with no build step)
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["server/**/*.mjs", "setup.mjs", "seed/*.mjs"],
+  // The tests use loose stand-ins for InvokeDB; running them is their check
+  "exclude": ["server/test"]
+}

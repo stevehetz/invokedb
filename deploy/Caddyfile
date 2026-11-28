@@ -24,6 +24,27 @@ www.{$SITE_DOMAIN} {
 	redir https://{$SITE_DOMAIN}{uri} permanent
 }
 
+# Example apps built on the API (#340). The React support desk is its own container (the
+# react-demo service), which serves its build, its API proxy, the webhook and the live feed.
+# Server-sent events (/react-demo/events) are flushed as they come (reverse_proxy does that for
+# text/event-stream). Caddy sets X-Forwarded-For to the client's address, which the server's
+# rate limits use.
+examples.{$SITE_DOMAIN} {
+	# Not the event stream: compressing it would hold events back until a buffer fills
+	@compress not path /react-demo/events
+	encode @compress zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	handle /react-demo* {
+		reverse_proxy react-demo:8080
+	}
+	handle {
+		redir * /react-demo/ temporary
+	}
+}
+
 # The backend's internal routes and /api/v1. They sit at the root, so they get their own host.
 {$API_DOMAIN} {
 	encode zstd gzip

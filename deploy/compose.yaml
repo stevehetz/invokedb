@@ -100,6 +100,28 @@ services:
     cpus: ${PRC_CPUS:-1}
     depends_on: [api]
 
+  # The React example (examples/react-demo, #340) at https://examples.<SITE_DOMAIN>/react-demo:
+  # its static build and a small Node server holding the demo account's API key, receiving the
+  # account's webhooks and resetting its data nightly. Without the key it still starts, and its
+  # API answers 503. `deploy.sh compose kill -s SIGUSR2 react-demo` resets the data now.
+  react-demo:
+    build:
+      context: ../examples
+      dockerfile: ../deploy/react-demo.Dockerfile
+    image: invokedb-react-demo
+    restart: unless-stopped
+    environment:
+      PORT: '8080'
+      BASE_PATH: /react-demo
+      TRUST_PROXY: '1'
+      INVOKEDB_BASE_URL: ${REACT_DEMO_INVOKEDB_URL:-http://api:8001/api/v1}
+      INVOKEDB_API_KEY: ${REACT_DEMO_API_KEY:-}
+      INVOKEDB_WEBHOOK_SECRET: ${REACT_DEMO_WEBHOOK_SECRET:-}
+      RESET_HOUR_UTC: ${REACT_DEMO_RESET_HOUR_UTC:-4}
+    mem_limit: 256m
+    depends_on: [api]
+    logging: *logging
+
   # One-off: `deploy.sh migrate`
   migrate:
     <<: *backend

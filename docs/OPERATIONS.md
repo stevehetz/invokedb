@@ -187,7 +187,7 @@ repo: it's public.
 ### Cloudflare DNS and the domain
 
 - **Does:** `invokedb.com` was bought on Cloudflare Registrar, so its DNS is there. A records
-  `@`, `www`, `api` and `ws` point at the droplet, **DNS-only** (grey cloud) so Caddy gets its
+  `@`, `www`, `api`, `ws` and `examples` (the example apps, #340) point at the droplet, **DNS-only** (grey cloud) so Caddy gets its
   Let's Encrypt certificates directly. It also holds the Mailgun records (above) and Email
   Routing's MX and SPF records on the root domain.
 - **Configured:** the Cloudflare dashboard. The hostnames are `SITE_DOMAIN`, `API_DOMAIN` and
@@ -461,3 +461,22 @@ by its own new version. Each file's top comment explains it; AGENTS.md "Hard rul
 - **Configured:** nothing. **Secrets:** none.
 - **Alerts:** none of its own: UptimeRobot, the E2E test and error tracking alert.
 - **Check:** the page shows every check as Operational; `curl https://api.invokedb.com/status`.
+
+### React example app (#340)
+
+- **Does:** `https://examples.invokedb.com/react-demo` is a support desk built with React on the
+  API (`examples/react-demo`), for the portfolio. The `react-demo` container serves its build,
+  passes on only the app's own API calls with the demo account's key (rate-limited per IP),
+  receives that account's webhooks at `/react-demo/webhook` and streams them to browsers as the
+  live activity feed, and resets the data to the seed set daily at 04:00 UTC.
+- **Configured:** `REACT_DEMO_API_KEY` and `REACT_DEMO_WEBHOOK_SECRET` in `prod.env`, printed by
+  `examples/react-demo/setup.mjs`; the data is in its own internal account (the script makes its
+  tables, key and webhook). Caddy's `examples.{$SITE_DOMAIN}` site.
+- **Secrets:** `REACT_DEMO_API_KEY` (read-write, the demo's three tables only) and
+  `REACT_DEMO_WEBHOOK_SECRET`. Neither reaches the browser.
+- **Alerts:** none of its own; deliveries it doesn't answer show as failed in the demo
+  account's webhook log.
+- **Check:** `curl https://examples.invokedb.com/react-demo/health` answers
+  `{"ok":true,"configured":true}`; editing a ticket in the InvokeDB grid shows in the page's
+  live feed. `deploy/deploy.sh logs react-demo` logs each reset.
+- **Details:** `deploy/README.md` "Example apps", `examples/react-demo/README.md`.

@@ -127,9 +127,9 @@ api-keys|security|history|data`). Each section's forms mount when it opens, so a
   receiving signed webhooks, streaming them by SSE; its PR must carry `hold`, owner steps listed
   in the issue), #328 (MCP OAuth, `you`: decisions, best in a local session), #334 (demo video,
   `you`, best after #328).
-- **Both agent-evals keys were exposed in a session** (2026-11-28): the read-write one in a
-  screenshot, the read-only Vercel one pasted into chat. Suggest the owner rotate both when
-  convenient (new key in `.env.local` and in Vercel's env vars, then redeploy).
+- **agent-evals keys:** the owner doesn't mind them being seen in chat (a portfolio piece);
+  don't suggest rotating them. agent-evals is cloned on the Mac mini too (2026-11-28), with its
+  `.env.local`.
 
 - **Shipped 2026-11-27** (agent PRs from issues the owner filed in a local session):
   - **#319** (#318): the admin accounts table's number headers line up with their cells.

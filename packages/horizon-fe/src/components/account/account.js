@@ -9,24 +9,25 @@ import DeleteAccountForm from './delete-account-form';
 import AuditLog from '../audit-log';
 import { store } from '@/store';
 
-/** The page's sections, in the nav's order; the first is the default (#342) */
+/** The page's sections, in the nav's order; the first is the default (#342, #350) */
 const SECTIONS = [
+    { id: 'profile', label: 'Profile', icon: 'fa-user' },
     { id: 'usage', label: 'Plan & usage', icon: 'fa-gauge' },
     { id: 'api-keys', label: 'API keys', icon: 'fa-key' },
-    { id: 'profile', label: 'Profile', icon: 'fa-user' },
     { id: 'security', label: 'Security', icon: 'fa-lock' },
     { id: 'history', label: 'History', icon: 'fa-clock-rotate-left' },
     { id: 'data', label: 'Data', icon: 'fa-database' }
 ];
 
 /**
- * The section `?section=` names; Plan & usage without one, for an unknown one, and while
- * `?upgrade=` or `?billing=` (the pricing page, Stripe's return) is handled there.
+ * The section `?section=` names; the first (Profile) without one or for an unknown one, and
+ * Plan & usage while `?upgrade=` or `?billing=` (the pricing page, Stripe's return) is handled
+ * there.
  * @param {Record<string, any>} query the route's query
  */
 function account_section(query) {
     const q = query || {};
-    if (q.upgrade || q.billing) return SECTIONS[0].id;
+    if (q.upgrade || q.billing) return 'usage';
     const id = String(q.section || '');
     return SECTIONS.some(s => s.id === id) ? id : SECTIONS[0].id;
 }

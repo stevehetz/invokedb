@@ -41,6 +41,8 @@ import { StatusService } from './status/status.service';
 import { BillingService } from './billing/billing.service';
 import { stripe_client_provider } from './billing/stripe-client';
 import { McpService } from './mcp/mcp.service';
+import { DemoService } from './demo/demo.service';
+import { DemoSeedService } from './demo/demo-seed.service';
 
 @Module({
     imports: [CoreModule, EmailModule],
@@ -83,7 +85,9 @@ import { McpService } from './mcp/mcp.service';
         StatusService,
         BillingService,
         stripe_client_provider,
-        McpService
+        McpService,
+        DemoSeedService,
+        DemoService
     ],
     exports: [
         AuthService,
@@ -117,7 +121,8 @@ import { McpService } from './mcp/mcp.service';
         ErrorTrackingService,
         StatusService,
         BillingService,
-        McpService
+        McpService,
+        DemoService
     ]
 })
 export class ApplicationModule {}

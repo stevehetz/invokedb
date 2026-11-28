@@ -7,10 +7,16 @@
  * @typedef {{ name: string, url: string, mode: string, key_column: string | null,
  *   schedule: string }} UrlImportForm
  */
+import DemoOff from '@/components/demo-off/index.vue';
+import { is_demo_account } from '@/core/demo';
+
 export default {
     name: 'UrlImportDialog',
+    components: { DemoOff },
     data: () => {
         return {
+            // The no-signup demo (#333) reaches no outside URL
+            demo: false,
             dialog_visible: false,
             /** @type {any} */
             source: null,
@@ -35,6 +41,7 @@ export default {
         },
         /** @returns {boolean} */
         can_confirm() {
+            if (this.demo) return false;
             if (!this.url.trim()) return false;
             if (this.is_new && !this.name.trim()) return false;
             if (this.mode === 'upsert' && !this.key_column.trim()) return false;
@@ -45,6 +52,7 @@ export default {
         /** @param {{ source?: any, callback: (form: UrlImportForm, sync_now: boolean) => void }} data */
         async open_dialog(data) {
             const source = data.source || null;
+            this.demo = is_demo_account();
             this.source = source;
             this.confirm_callback = data.callback;
             this.name = '';

@@ -7,7 +7,9 @@ import TwoFactorForm from './two-factor-form';
 import DataExportForm from './data-export-form';
 import DeleteAccountForm from './delete-account-form';
 import AuditLog from '../audit-log';
+import DemoOff from '../demo-off';
 import { store } from '@/store';
+import { is_demo_account } from '@/core/demo';
 
 /** The page's sections, in the nav's order; the first is the default (#342, #350) */
 const SECTIONS = [
@@ -43,7 +45,8 @@ export default {
         ChangePasswordForm,
         TwoFactorForm,
         DataExportForm,
-        DeleteAccountForm
+        DeleteAccountForm,
+        DemoOff
     },
 
     data: () => {
@@ -57,6 +60,11 @@ export default {
     computed: {
         section() {
             return account_section(this.$route.query);
+        },
+
+        // A no-signup demo account (#333)
+        demo() {
+            return is_demo_account(this.account);
         }
     },
 

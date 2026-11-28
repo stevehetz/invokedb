@@ -3,14 +3,15 @@ import { AuthGuard } from '@nestjs/passport';
 import { TwoFactorService } from '@app/application/two-factor/two-factor.service';
 import { RateLimitGuard } from '@app/web/http/_rate-limit/rate-limit';
 import { session_account_id } from '@app/web/http/_auth/request-account';
+import { NoDemoGuard } from '@app/web/http/_auth/demo.guard';
 
 const HOUR = 60 * 60 * 1000;
 
 // The signed-in account's two-factor sign-in (#214), from the Account page (session only: an API
 // key can't see or change it). Code attempts (enable, disable) are limited per account in
-// the service.
+// the service. Off in the demo (#333).
 @Controller('two-factor')
-@UseGuards(AuthGuard('bearer'))
+@UseGuards(AuthGuard('bearer'), NoDemoGuard)
 export class TwoFactorController {
     constructor(private readonly two_factor_service: TwoFactorService) {}
 

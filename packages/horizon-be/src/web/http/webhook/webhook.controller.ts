@@ -15,10 +15,11 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { WebhookService } from '@app/application/webhook/webhook.service';
 import { session_account_id } from '@app/web/http/_auth/request-account';
+import { NoDemoGuard } from '@app/web/http/_auth/demo.guard';
 
-// Webhooks on row changes (#140), for the signed-in app
+// Webhooks on row changes (#140), for the signed-in app; off in the demo (#333)
 @Controller('webhook')
-@UseGuards(AuthGuard('bearer'))
+@UseGuards(AuthGuard('bearer'), NoDemoGuard)
 export class WebhookController {
     constructor(private webhook_service: WebhookService) {}
 

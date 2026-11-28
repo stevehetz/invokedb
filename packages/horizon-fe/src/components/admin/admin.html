@@ -59,6 +59,15 @@
                             overview.plans.PRO }} · Internal {{
                             overview.plans.INTERNAL }}
                         </div>
+                        <!-- Not users, so not in any figure here (#333) -->
+                        <div
+                            class="admin-tile__note admin-demo-count"
+                            v-if="overview.demo_accounts"
+                        >
+                            Not counted: {{ count_label(overview.demo_accounts)
+                            }} live demo {{ overview.demo_accounts === 1 ?
+                            'account' : 'accounts' }}
+                        </div>
                     </div>
                     <div class="admin-tile">
                         <div class="admin-tile__label">Active</div>

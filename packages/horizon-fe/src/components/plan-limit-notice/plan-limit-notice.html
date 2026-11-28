@@ -1,15 +1,27 @@
 <div class="plan-limit-notice" v-if="notice" role="alert">
     <i class="fa fa-exclamation-circle"></i>
     <span class="plan-limit-notice__message">{{ notice.message }}</span>
-    <router-link
-        class="plan-limit-notice__usage"
-        to="/app/account?section=usage"
-        @click="hide"
-        >See your usage</router-link
+    <a
+        v-if="notice.demo"
+        href=""
+        class="plan-limit-notice__signup"
+        @click.prevent="sign_up"
+        >Sign up</a
     >
-    <router-link class="plan-limit-notice__plans" to="/pricing" @click="hide"
-        >Plans</router-link
-    >
+    <template v-else>
+        <router-link
+            class="plan-limit-notice__usage"
+            to="/app/account?section=usage"
+            @click="hide"
+            >See your usage</router-link
+        >
+        <router-link
+            class="plan-limit-notice__plans"
+            to="/pricing"
+            @click="hide"
+            >Plans</router-link
+        >
+    </template>
     <button class="plan-limit-notice__close" @click="hide" aria-label="Close">
         <i class="fa fa-times"></i>
     </button>

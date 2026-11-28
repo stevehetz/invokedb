@@ -14,6 +14,7 @@ import { AccountUpdateDto } from '@app/application/account/dto/account-update.dt
 import { AccountPassChangeDto } from '@app/application/account/dto/account-pass-change.dto';
 import { session_account_id } from '@app/web/http/_auth/request-account';
 import { THEMES, parse_theme } from '@app/core/theme/theme';
+import { NoDemoGuard } from '@app/web/http/_auth/demo.guard';
 
 // The routes keep `:account_id` in the path because the frontend sends it, but they only ever
 // act on the signed-in caller's own account; any other id is rejected.
@@ -57,7 +58,9 @@ export class AccountController {
         );
     }
 
+    // A demo account (#333) isn't deleted by its user: it goes by itself after 24 hours
     @Put('delete_account/:account_id')
+    @UseGuards(NoDemoGuard)
     async delete_account(@Param('account_id') account_id, @Request() req) {
         return await this.account_service.delete_account(own_account_id(req, account_id));
     }

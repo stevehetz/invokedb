@@ -163,6 +163,17 @@
         </a>
         <span v-if="resend.error" class="error">{{ resend.error }}</span>
     </div>
+    <div class="demo-banner" v-if="account && account.demo" role="status">
+        <i class="fa fa-flask"></i>
+        <span>
+            This is a demo: it's deleted in 24 hours ({{ demo_end }}). Sign up
+            to keep your own data.
+        </span>
+        <a href="" class="demo-banner-signup" @click.prevent="sign_up_from_demo"
+            >Sign up</a
+        >
+        <router-link to="/help/demo">What's in the demo</router-link>
+    </div>
     <div
         class="plan-state-banner"
         v-if="account && account.plan_state === 'read_only'"

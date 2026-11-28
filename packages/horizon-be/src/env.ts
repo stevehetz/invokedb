@@ -62,6 +62,9 @@ const env = {
     // caps, `{"demo7@invokedb.com": {"plan": "FREE", "caps": {"tables": 2}}}` (#183). Read by
     // core/plan/plans.ts. Never set it in production.
     HORIZON_TEST_PLANS: process.env.HORIZON_TEST_PLANS,
+    // The no-signup demo (#333): how many demo accounts may be live at once (default 50, in
+    // core/demo/demo.ts). Read by DemoService on each new demo; smoke-env.sh sets 4.
+    HORIZON_DEMO_MAX_LIVE: process.env.HORIZON_DEMO_MAX_LIVE,
     // Optional. The AI features (#149) are on when it and HORIZON_AI_MONTHLY_BUDGET_USD are set;
     // the key stays on the backend.
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,

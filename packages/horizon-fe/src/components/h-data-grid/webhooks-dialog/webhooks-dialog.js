@@ -6,6 +6,8 @@ import copy from 'copy-to-clipboard';
 import { bus } from '@/core/bus';
 import { webhook_http } from '@/core/context/webhook/webhook-http';
 import { table_display_name } from '../table-name';
+import DemoOff from '@/components/demo-off/index.vue';
+import { is_demo_account } from '@/core/demo';
 
 const EVENTS = ['row.created', 'row.updated', 'row.deleted'];
 
@@ -17,8 +19,12 @@ function message_of(ex, fallback) {
 export default defineComponent({
     props: ['props'],
 
+    components: { DemoOff },
+
     data() {
         return {
+            // Webhooks are off in the no-signup demo (#333)
+            demo: is_demo_account(),
             /** @type {any[]} */
             webhooks: [],
             events: EVENTS,
@@ -60,6 +66,7 @@ export default defineComponent({
         /** @returns {boolean} */
         can_add() {
             return (
+                !this.demo &&
                 !this.adding &&
                 this.new_url.trim() !== '' &&
                 this.new_events.length > 0

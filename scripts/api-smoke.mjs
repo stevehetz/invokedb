@@ -42,7 +42,10 @@
 // PUT /test-plan reads, exports and deletes, every write path refused with 403
 // `plan_read_only`, writable again once deleted down to the caps), checks that deleting an
 // account (its own or the admin's) deletes its data at once (#279: read from Mongo through the
-// backend's driver and HORIZON_ENV_FILE, and its email signs up again), then deletes the tables and the new account. Writes every response to out.json
+// backend's driver and HORIZON_ENV_FILE, and its email signs up again), checks the no-signup
+// demo (#333: the showcase's tables, views, AI column, links and history; API keys,
+// webhooks, URL imports, export, two-factor, billing and deletion refused with `demo_account`;
+// 3 per IP and smoke-env.sh's 4 live; not in the admin's figures), then deletes the tables and the new account. Writes every response to out.json
 // so two runs (e.g. before/after an upgrade) can be diffed. Best run against throwaway DBs
 // (HORIZON_ENV_FILE=<alt env> with different DB names) rather than your local data.
 import fs from 'node:fs';
@@ -58,8 +61,8 @@ const results = {};
 let failures = 0;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function call(name, method, path, { token, body, form, expectFail } = {}) {
-    const headers = {};
+async function call(name, method, path, { token, body, form, expectFail, headers: extra } = {}) {
+    const headers = { ...(extra || {}) };
     if (token) headers.Authorization = `Bearer ${token}`;
     let payload;
     if (form) payload = form;
@@ -7254,6 +7257,230 @@ await call('admin_deleted_session_ended', 'GET', '/file-directory', {
 });
 await call('admin_deleted_login', 'POST', '/auth/login', {
     body: { email: adm_email, password: signup_password },
+    expectFail: true
+});
+
+// The no-signup demo (#333): POST /auth/demo makes a throwaway account filled with the showcase
+// (linked tables, a view of each kind, a filled AI column, some history) and answers its
+// session. The features that reach outside or outlive it are refused (403 `demo_account`); 3 per
+// IP a day (429 `demo_limit`) and smoke-env.sh's HORIZON_DEMO_MAX_LIVE=4 live on the server
+// (503 `demo_busy`). The backend trusts one proxy, so X-Forwarded-For sets the caller's IP; a
+// random network per run keeps reruns on the same backend apart. Deleted through the admin.
+const demo_net = `10.${crypto.randomInt(1, 255)}.${crypto.randomInt(1, 255)}`;
+const demo_from = n => ({ 'X-Forwarded-For': `${demo_net}.${n}` });
+const demo_tokens = [];
+const demo_made = await call('demo_create', 'POST', '/auth/demo', { headers: demo_from(1) });
+const dtoken = demo_made?.token;
+if (dtoken) demo_tokens.push(dtoken);
+check(
+    'demo_create_answer',
+    typeof dtoken === 'string' &&
+        dtoken.startsWith('internal_') &&
+        Math.abs(new Date(demo_made.expires_at).getTime() - Date.now() - 24 * 3600 * 1000) <
+            10 * 60 * 1000,
+    demo_made
+);
+const demo_me = await call('demo_authorize', 'GET', `/auth/authorize?token=${dtoken}`);
+check(
+    'demo_authorize',
+    demo_me?.demo?.expires_at === demo_made?.expires_at &&
+        /^demo-[0-9a-f]{16}@demo\.invalid$/.test(demo_me?.email || '') &&
+        demo_me.email_verified === true &&
+        demo_me.plan?.name === 'Demo' &&
+        me?.demo === null,
+    demo_me
+);
+await call('demo_password_login', 'POST', '/auth/login', {
+    body: { email: demo_me?.email, password: 'password' },
+    expectFail: true
+});
+const demo_list = await call('demo_tables', 'GET', '/file-directory', { token: dtoken });
+const demo_table = name =>
+    (Array.isArray(demo_list) ? demo_list : []).find(d => d.type === 'file' && d.name === name);
+const [d_products, d_customers, d_orders, d_events] = [
+    'products',
+    'customers',
+    'orders',
+    'events'
+].map(n => demo_table(n)?.id);
+check(
+    'demo_showcase_tables',
+    [d_products, d_customers, d_orders, d_events].every(id => Number.isInteger(id)),
+    demo_list
+);
+const demo_usage = await call('demo_usage', 'GET', '/usage', { token: dtoken });
+check(
+    'demo_usage_rows',
+    demo_usage?.usage?.rows_per_account?.used === 420 &&
+        demo_usage.usage.tables?.used === 4 &&
+        demo_usage.usage.webhooks?.cap === 0 &&
+        demo_usage.plan?.name === 'Demo',
+    demo_usage
+);
+
+// Each view kind
+const demo_views = {};
+for (const [table, id] of [
+    ['orders', d_orders],
+    ['events', d_events],
+    ['customers', d_customers]
+]) {
+    const list = await call(`demo_views_${table}`, 'GET', `/view?table=${id}`, { token: dtoken });
+    (list?.views || []).forEach(v => (demo_views[v.type] = v));
+}
+check(
+    'demo_view_kinds',
+    ['grid', 'kanban', 'chart', 'calendar', 'map'].every(t => demo_views[t]),
+    demo_views
+);
+const demo_board = await call('demo_kanban', 'GET', `/view/${demo_views.kanban?.id}/kanban`, {
+    token: dtoken
+});
+check(
+    'demo_kanban_orders',
+    (demo_board?.groups || []).reduce((n, g) => n + g.count, 0) === 300 &&
+        (demo_board?.groups || []).length >= 4,
+    demo_board
+);
+const demo_chart = await call('demo_chart', 'GET', `/view/${demo_views.chart?.id}/chart`, {
+    token: dtoken
+});
+check(
+    'demo_chart_by_month',
+    (demo_chart?.points || []).length >= 5 &&
+        demo_chart.points.every(p => /^\d{4}-\d{2}$/.test(p.label) && p.value > 0),
+    demo_chart
+);
+const demo_cal = await call('demo_calendar', 'GET', `/view/${demo_views.calendar?.id}/calendar`, {
+    token: dtoken
+});
+check('demo_calendar_this_month', (demo_cal?.events || []).length > 0, demo_cal);
+const demo_map = await call('demo_map', 'GET', `/view/${demo_views.map?.id}/map`, {
+    token: dtoken
+});
+check(
+    'demo_map_points',
+    (demo_map?.points || []).length === 60 && demo_map.missing === 0,
+    demo_map?.missing
+);
+
+// The links, in the schema diagram too
+const demo_schema = await call('demo_schema', 'GET', '/file-directory/schema', { token: dtoken });
+check(
+    'demo_schema_links',
+    [d_customers, d_products].every(to =>
+        (demo_schema?.links || []).some(
+            l => l.from_table_id === d_orders && l.to_table_id === to && !l.suggested
+        )
+    ),
+    demo_schema?.links
+);
+
+// The AI column is filled already: nothing left to ask the model
+const demo_aic = await call('demo_ai_column', 'GET', `/ai-column?table=${d_customers}`, {
+    token: dtoken
+});
+const demo_aic_col = demo_aic?.columns?.[0];
+check(
+    'demo_ai_column_filled',
+    demo_aic_col?.auto === true && demo_aic_col.state === 'done' && demo_aic_col.computed === 60,
+    demo_aic
+);
+const demo_aic_est = await call(
+    'demo_ai_column_estimate',
+    'GET',
+    `/ai-column/${d_customers}/${demo_aic_col?.field}/estimate`,
+    { token: dtoken }
+);
+check(
+    'demo_ai_column_nothing_stale',
+    demo_aic_est?.rows === 0 && demo_aic_est.limit === 20,
+    demo_aic_est
+);
+
+// History, and no onboarding checklist
+const demo_audit = await call('demo_history', 'GET', `/audit?table=${d_orders}&limit=100`, {
+    token: dtoken
+});
+check(
+    'demo_history',
+    ['table.created', 'row.created', 'row.updated'].every(a =>
+        (demo_audit?.entries || []).some(e => e.action === a)
+    ),
+    demo_audit
+);
+const demo_ob = await call('demo_onboarding', 'GET', '/onboarding', { token: dtoken });
+check('demo_onboarding_hidden', demo_ob?.show === false, demo_ob);
+
+// Off in the demo, refused by the server
+const demo_refused = {
+    demo_no_api_key: ['POST', '/api-key', { name: 'x', access: 'read' }],
+    demo_no_webhook: ['POST', '/webhook', { file_id: d_orders, url: 'https://example.com/hook' }],
+    demo_no_url_import: ['POST', '/url-import', { url: 'https://example.com/data.csv' }],
+    demo_no_export: ['POST', '/account-export', {}],
+    demo_no_two_factor: ['POST', '/two-factor/setup', {}],
+    demo_no_checkout: ['POST', '/billing/checkout', { plan: 'STARTER', interval: 'month' }],
+    demo_no_delete: ['PUT', `/account/delete_account/${demo_me?.id}`, {}]
+};
+for (const [name, [method, path, body]] of Object.entries(demo_refused)) {
+    await call(name, method, path, { token: dtoken, body, expectFail: true });
+    check(
+        `${name}_403`,
+        results[name]?.status === 403 && results[name]?.data?.code === 'demo_account',
+        results[name]
+    );
+}
+await call('demo_api_keys_list', 'GET', '/api-key', { token: dtoken });
+
+// The limits: 3 per IP a day, then HORIZON_DEMO_MAX_LIVE (4) live
+for (const n of [2, 3]) {
+    const made = await call(`demo_create_${n}`, 'POST', '/auth/demo', { headers: demo_from(1) });
+    if (made?.token) demo_tokens.push(made.token);
+}
+await call('demo_create_ip_limit', 'POST', '/auth/demo', {
+    headers: demo_from(1),
+    expectFail: true
+});
+check(
+    'demo_ip_limit_429',
+    results.demo_create_ip_limit?.status === 429 &&
+        results.demo_create_ip_limit?.data?.code === 'demo_limit',
+    results.demo_create_ip_limit
+);
+const demo_other_ip = await call('demo_create_other_ip', 'POST', '/auth/demo', {
+    headers: demo_from(2)
+});
+if (demo_other_ip?.token) demo_tokens.push(demo_other_ip.token);
+await call('demo_create_busy', 'POST', '/auth/demo', { headers: demo_from(3), expectFail: true });
+check(
+    'demo_busy_503',
+    results.demo_create_busy?.status === 503 &&
+        results.demo_create_busy?.data?.code === 'demo_busy',
+    results.demo_create_busy
+);
+
+// Not users in the admin area: counted apart, not listed; deleted by the admin here
+const demo_overview = await call('demo_admin_overview', 'GET', '/admin/overview', {
+    token: tf_token
+});
+check('demo_admin_counted_apart', demo_overview?.demo_accounts >= 4, demo_overview?.demo_accounts);
+const demo_search = await call(
+    'demo_admin_search',
+    'GET',
+    `/admin/accounts?search=${encodeURIComponent('demo.invalid')}`,
+    { token: tf_token }
+);
+check('demo_admin_not_listed', demo_search?.total === 0, demo_search);
+for (const [i, t] of demo_tokens.entries()) {
+    const who = await call(`demo_${i}_who`, 'GET', `/auth/authorize?token=${t}`);
+    if (!who?.id) continue;
+    await call(`demo_${i}_admin_delete`, 'POST', `/admin/accounts/${who.id}/delete`, {
+        token: tf_token,
+        body: { confirm: who.email }
+    });
+}
+await call('demo_deleted_session_ended', 'GET', '/file-directory', {
+    token: dtoken,
     expectFail: true
 });
 

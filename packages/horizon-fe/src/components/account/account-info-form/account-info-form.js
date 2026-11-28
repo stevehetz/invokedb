@@ -9,8 +9,13 @@ export default {
     mixins: [form_mixin],
 
     watch: {
-        account: function (data) {
-            this.$_form_set(data);
+        // immediate: the Account page creates this form when its section opens (#342), usually
+        // after the account has loaded, so a plain watcher would never fill the fields
+        account: {
+            handler(data) {
+                if (data) this.$_form_set(data);
+            },
+            immediate: true
         }
     },
 

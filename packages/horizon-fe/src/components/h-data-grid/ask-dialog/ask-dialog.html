@@ -135,7 +135,7 @@
                             :key="i"
                         >
                             <td v-for="c in proposed.columns" :key="c.field">
-                                {{ cell_text(r[c.field]) }}
+                                {{ column_cell_text(r[c.field], c.type) }}
                             </td>
                         </tr>
                     </tbody>
@@ -185,11 +185,12 @@
                             <td v-for="c in edit.columns" :key="c.field">
                                 <template v-if="edit_changes(r, c.field)">
                                     <span class="ask-edit-before"
-                                        >{{ edit_cell(r.before[c.field])
+                                        >{{ edit_cell(r.before[c.field], c.type)
                                         }}</span
                                     ><span class="ask-edit-arrow">→</span
                                     ><span class="ask-edit-after"
-                                        >{{ edit_cell(r.after[c.field]) }}</span
+                                        >{{ edit_cell(r.after[c.field], c.type)
+                                        }}</span
                                     >
                                 </template>
                                 <span v-else class="ask-count">unchanged</span>

@@ -1,3 +1,5 @@
+import { grid_date_text } from '@/core/date';
+
 // Writing AI edits (#204) and cleanup fixes (#206) in requests the server takes: at most this
 // many rows or about this many bytes each, under the server's body limit
 const EDIT_BATCH_ROWS = 100;
@@ -42,4 +44,19 @@ export function cell_text(value) {
     if (value === null || value === undefined) return '';
     if (typeof value === 'object') return JSON.stringify(value);
     return String(value);
+}
+
+/**
+ * A cell of a column as the grid shows it: dates in the grid's format (#364; the server answers
+ * them as ISO 8601), anything else as cell_text. For display only: what's sent back stays as
+ * the server answered it.
+ * @param {unknown} value
+ * @param {string} [type] the column's type
+ */
+export function column_cell_text(value, type) {
+    if (type === 'date') {
+        const text = grid_date_text(value);
+        if (text !== null) return text;
+    }
+    return cell_text(value);
 }

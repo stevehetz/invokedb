@@ -5,7 +5,11 @@
 // for a cell in several ticked fixes the last one's value is written.
 import { defineComponent } from 'vue';
 import { ai_http } from '@/core/context/ai/ai-http';
-import { cell_text, edit_batches, rows_text } from '../ask-dialog/edit-batches';
+import {
+    column_cell_text,
+    edit_batches,
+    rows_text
+} from '../ask-dialog/edit-batches';
 
 /**
  * @typedef {{ _id: string, before: Record<string, any>,
@@ -130,12 +134,12 @@ export default defineComponent({
     },
 
     methods: {
-        cell_text,
+        column_cell_text,
         rows_text,
 
-        /** @param {any} value */
-        shown(value) {
-            const text = cell_text(value);
+        /** @param {any} value @param {string} [type] the column's type */
+        shown(value, type) {
+            const text = column_cell_text(value, type);
             return text === '' ? '(empty)' : text;
         },
 

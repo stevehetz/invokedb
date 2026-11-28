@@ -137,9 +137,9 @@ data.
 
 ## How work is tracked
 
-All work is tracked in **GitHub Issues** on `stevehetz/invokedb`, in priority order on the
-GitHub Project board **InvokeDB** (project 1, https://github.com/users/stevehetz/projects/1,
-e.g. `gh project item-list 1 --owner stevehetz`). There is no other task list;
+All work is tracked in **GitHub Issues** on `stevehetzl/invokedb`, in priority order on the
+GitHub Project board **InvokeDB** (project 1, https://github.com/users/stevehetzl/projects/1,
+e.g. `gh project item-list 1 --owner stevehetzl`). There is no other task list;
 `docs/HANDOFF.md` has project state and history, not tasks. `gh project` commands need the
 `project` token scope (`gh auth refresh -s project`, which the user runs).
 

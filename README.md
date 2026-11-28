@@ -104,7 +104,7 @@ root turns this on by setting `git config core.hooksPath .githooks`.
 
 ## Work tracking
 
-Work is tracked in GitHub Issues, ordered on the [InvokeDB project board](https://github.com/users/stevehetz/projects/1).
+Work is tracked in GitHub Issues, ordered on the [InvokeDB project board](https://github.com/users/stevehetzl/projects/1).
 Every change has an issue and goes through a pull request; safe pull requests merge (and
 deploy) by themselves. `AGENTS.md`, "How work is tracked", has the details.
 

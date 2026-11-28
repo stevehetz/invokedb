@@ -9,7 +9,7 @@ must know.
 Elsewhere:
 
 - `AGENTS.md`: rules, conventions, gotchas (read first). `README.md`: commands.
-- **The Project board "InvokeDB"** (https://github.com/users/stevehetz/projects/1): all work,
+- **The Project board "InvokeDB"** (https://github.com/users/stevehetzl/projects/1): all work,
   in priority order. "What's next" is the top `Todo` item (AGENTS.md, "How work is tracked").
 - `docs/OPERATIONS.md`: every outside service and GitHub workflow, its secrets by name, who it
   alerts, how to check it. `deploy/README.md`: the server and deploys.
@@ -33,8 +33,8 @@ use it one day, great; a sale someday would be a bonus. What that means for the 
   (#340), MCP OAuth for the claude.ai/ChatGPT connectors (#328), a demo video (#334). Shipped:
   the "how it's built" page (#341) and the no-signup demo workspace (#333, PR #360).
 - **agent-evals** (started 2026-11-28): a second portfolio piece in its own public repo,
-  `stevehetz/agent-evals` (`~/dev/agent-evals`; its `AGENTS.md` and `README.md` are the
-  details), with its own board, https://github.com/users/stevehetz/projects/2. A Next.js 16 app
+  `stevehetzl/agent-evals` (`~/dev/agent-evals`; its `AGENTS.md` and `README.md` are the
+  details), with its own board, https://github.com/users/stevehetzl/projects/2. A Next.js 16 app
   for agent evaluation, tracing, LLM-as-a-judge, time to signal and an observability dashboard,
   storing its data in the owner's personal InvokeDB account. **Live at
   https://agent-evals-flax.vercel.app.** Its work goes on its own board; gaps it finds in
@@ -357,6 +357,12 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
   and `agent-stuck` reach them as @mentions there.
 
 ## Things to know
+
+- **The owner's GitHub account is `stevehetzl`** (renamed from `stevehetz` on 2026-11-28).
+  GitHub redirects the old repo URLs until someone takes the old name; #381 moved the code
+  over, and the docs say `stevehetzl`. Workflows use `github.repository_owner`. Older issues,
+  PR bodies and the agent-evals `runs` rows still hold old URLs (they redirect). `gh auth
+status` may still label the login `stevehetz`; it's only the saved name.
 
 - **The repo is public.** History was scrubbed of secrets on 2026-11-14 and force-pushed; any
   older clone must be re-cloned. `~/dev/invokedb-pre-scrub-2026-11-14.bundle` holds secrets:

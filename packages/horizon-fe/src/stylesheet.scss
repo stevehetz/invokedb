@@ -3911,10 +3911,15 @@ $page_nav_active_color: var(--h-warning);
     font-size: 1.2rem;
 }
 
+// The Account page's forms: normal letter spacing everywhere (body text, tables, inputs, code),
+// only a slight one on headings (#345)
 .page-form {
     max-width: 800px;
     width: 100%;
-    letter-spacing: 0.1em;
+}
+.page-form h3,
+.page-form h4 {
+    letter-spacing: 0.02em;
 }
 .page-form .form-body .el-form-item__label {
     font-size: 1rem;
@@ -4424,6 +4429,44 @@ $page_nav_active_color: var(--h-warning);
 .account-page .api-key-form .form-body {
     padding: 0 1em;
 }
+// The heading row: the title, and "New key" on the right
+.account-page .api-key-form .api-key-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1em;
+}
+.account-page .api-key-form .api-key-heading .api-key-new-button {
+    flex-shrink: 0;
+}
+// Link buttons here are small links like the rest of the app's text links, not the grid's big
+// bold top-bar buttons
+.account-page .api-key-form .el-button.el-button.is-link {
+    height: auto;
+    padding: 0;
+    font-size: 13px;
+    font-weight: normal;
+}
+.account-page
+    .api-key-form
+    .el-button.el-button.is-link.el-button--primary:not([disabled]),
+.account-page
+    .api-key-form
+    .el-button.el-button.is-link.el-button--primary:not([disabled]):hover {
+    color: var(--h-link);
+}
+.account-page
+    .api-key-form
+    .el-button.el-button.is-link.el-button--danger:not([disabled]),
+.account-page
+    .api-key-form
+    .el-button.el-button.is-link.el-button--danger:not([disabled]):hover {
+    color: var(--h-danger);
+}
+.account-page .api-key-form .el-button.el-button.is-link:not([disabled]):hover {
+    text-decoration: underline;
+    opacity: 1;
+}
 // The Account page's sections line up: the older forms indent their rows by 1em
 // (.page-form .el-form-item); these newer ones indent the whole body by 1em instead, so a row
 // inside them adds nothing more
@@ -4445,9 +4488,31 @@ $page_nav_active_color: var(--h-warning);
     border-radius: 6px;
     background-color: var(--h-surface-2);
 }
-.account-page .api-key-form .api-key-agents h4 {
-    margin: 0 0 6px;
+.account-page .api-key-form .api-key-agents-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
     color: var(--h-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.account-page .api-key-form .api-key-agents-toggle i {
+    width: 1em;
+    font-size: 12px;
+    color: var(--h-muted);
+}
+.account-page .api-key-form .api-key-agents h4 {
+    margin: 0;
+    color: var(--h-text);
+}
+.account-page .api-key-form .api-key-agents-body {
+    margin-top: 8px;
 }
 .account-page .api-key-form .api-key-agents p {
     margin: 0 0 10px;
@@ -4461,7 +4526,11 @@ $page_nav_active_color: var(--h-warning);
     color: var(--h-muted);
 }
 .account-page .api-key-form .api-key-agents-url code {
+    min-width: 0;
     color: var(--h-text);
+    font-family: monospace;
+    white-space: nowrap;
+    overflow-x: auto;
 }
 .account-page .api-key-form .api-key-agents-snippet {
     position: relative;
@@ -4474,9 +4543,13 @@ $page_nav_active_color: var(--h-warning);
     border-radius: 5px;
     background-color: var(--h-code-bg);
     color: var(--h-code-text);
+    font-family: monospace;
     font-size: 13px;
-    white-space: pre-wrap;
-    word-break: break-all;
+    letter-spacing: normal;
+    // Lines break only where the snippet has them (between arguments), never inside the URL
+    // or the key; a long line scrolls sideways (#345)
+    white-space: pre;
+    overflow-x: auto;
 }
 .account-page .api-key-form .api-key-agents-copy {
     position: absolute;
@@ -4496,8 +4569,7 @@ $page_nav_active_color: var(--h-warning);
     margin-bottom: 20px;
     padding: 12px 15px;
     border: solid 1px var(--h-line);
-    border-radius: 5px;
-    max-width: 640px;
+    border-radius: 6px;
 }
 .account-page .api-key-form .api-key-created p {
     margin: 0 0 10px;
@@ -4539,17 +4611,147 @@ $page_nav_active_color: var(--h-warning);
 .account-page .api-key-form .api-key-status.error {
     color: var(--h-danger);
 }
+// The keys table (#345): compact, one line per key on a laptop; stacked per key on phones
 .account-page .api-key-form .api-key-list {
     border-collapse: collapse;
     width: 100%;
-    max-width: 900px;
+    font-size: 13px;
 }
-.account-page .api-key-form .api-key-list th,
-.account-page .api-key-form .api-key-list td {
+.account-page .api-key-form .api-key-list > thead > tr > th,
+.account-page .api-key-form .api-key-list > tbody > tr > td {
     text-align: left;
     padding: 6px 10px 6px 0;
     border-bottom: solid 1px var(--h-line);
     vertical-align: middle;
+    white-space: nowrap;
+}
+.account-page .api-key-form .api-key-list > thead > tr > th {
+    color: var(--h-muted);
+    font-weight: 600;
+}
+.account-page .api-key-form .api-key-list > tbody > tr > td.api-key-item-name {
+    max-width: 10em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 600;
+}
+.account-page
+    .api-key-form
+    .api-key-list
+    > tbody
+    > tr
+    > td.api-key-item-tables {
+    white-space: normal;
+}
+.account-page
+    .api-key-form
+    .api-key-list
+    > tbody
+    > tr.api-key-requests-row
+    > td {
+    white-space: normal;
+}
+.account-page .api-key-form .api-key-item-prefix code {
+    font-family: monospace;
+    color: var(--h-text);
+}
+.account-page .api-key-form .api-key-tag {
+    display: inline-block;
+    max-width: 12em;
+    margin: 1px 4px 1px 0;
+    padding: 1px 6px;
+    border: solid 1px var(--h-line);
+    border-radius: 3px;
+    background-color: var(--h-surface-2);
+    color: var(--h-text-2);
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+}
+.account-page .api-key-form .api-key-tag.write {
+    border-color: var(--h-warning);
+    background-color: var(--h-tint-warning);
+    color: var(--h-warning-text);
+}
+.account-page .api-key-form .api-key-list tr.revoked .api-key-tag {
+    color: var(--h-faint);
+    border-color: var(--h-line);
+    background-color: transparent;
+}
+@media (max-width: 700px) {
+    .account-page .api-key-form .api-key-list,
+    .account-page .api-key-form .api-key-list > tbody,
+    .account-page .api-key-form .api-key-list > tbody > tr,
+    .account-page .api-key-form .api-key-list > tbody > tr > td {
+        display: block;
+        width: 100%;
+    }
+    .account-page .api-key-form .api-key-list > thead {
+        display: none;
+    }
+    .account-page .api-key-form .api-key-list > tbody > tr.api-key-item {
+        padding: 8px 0;
+        border-bottom: solid 1px var(--h-line);
+    }
+    .account-page .api-key-form .api-key-list > tbody > tr > td {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 2px 0;
+        border-bottom: none;
+        white-space: normal;
+    }
+    .account-page
+        .api-key-form
+        .api-key-list
+        > tbody
+        > tr
+        > td[data-label]::before {
+        content: attr(data-label);
+        flex: 0 0 6.5em;
+        color: var(--h-muted);
+    }
+    .account-page
+        .api-key-form
+        .api-key-list
+        > tbody
+        > tr
+        > td.api-key-item-name {
+        display: block;
+        max-width: none;
+        white-space: nowrap;
+    }
+    .account-page
+        .api-key-form
+        .api-key-list
+        > tbody
+        > tr
+        > td.api-key-item-name::before {
+        display: inline-block;
+        width: 6.5em;
+        font-weight: normal;
+    }
+    .account-page
+        .api-key-form
+        .api-key-list
+        > tbody
+        > tr
+        > td.api-key-item-actions {
+        justify-content: flex-start;
+        gap: 12px;
+        padding-top: 4px;
+    }
+    .account-page .api-key-form .api-key-requests {
+        padding-left: 0;
+    }
+    .account-page .api-key-form .api-key-requests-list {
+        display: block;
+        overflow-x: auto;
+    }
 }
 .account-page .api-key-form .api-key-list tr.revoked td {
     color: var(--h-faint);
@@ -4567,7 +4769,7 @@ $page_nav_active_color: var(--h-warning);
 .account-page .api-key-form .api-key-limit-unit {
     color: var(--h-text-3);
 }
-.account-page .api-key-form .api-key-requests-toggle {
+.account-page .api-key-form .api-key-item-actions .api-key-requests-toggle {
     margin-right: 12px;
 }
 .account-page .api-key-form .api-key-requests {
@@ -4587,7 +4789,7 @@ $page_nav_active_color: var(--h-warning);
 .account-page .api-key-form .api-key-requests-list td {
     padding: 3px 10px 3px 0;
     border-bottom: solid 1px var(--h-line);
-    font-size: 0.9em;
+    font-size: 12px;
 }
 .account-page .api-key-form .api-key-requests-list .request-failed {
     color: var(--h-danger);

@@ -1,20 +1,14 @@
 <div class="page-form api-key-form">
-    <div class="form-heading">
-        <div class="flex-2-col">
-            <div class="left">
-                <h3>API Keys</h3>
-            </div>
-            <div class="right">
-                <el-button
-                    class="api-key-new-button"
-                    size="small"
-                    type="primary"
-                    :disabled="loading || at_max || show_new"
-                    @click="open_new"
-                    >New key</el-button
-                >
-            </div>
-        </div>
+    <div class="form-heading api-key-heading">
+        <h3>API Keys</h3>
+        <el-button
+            class="api-key-new-button"
+            size="small"
+            type="primary"
+            :disabled="loading || at_max || show_new"
+            @click="open_new"
+            >New key</el-button
+        >
     </div>
     <div class="form-body">
         <p class="api-key-intro">
@@ -47,49 +41,70 @@
                     <i class="fa fa-copy"></i>
                 </span>
             </div>
-            <el-button link type="primary" @click="created = null"
+            <el-button
+                class="api-key-saved"
+                size="small"
+                @click="created = null"
                 >I've saved it</el-button
             >
         </div>
 
         <!-- The MCP server (#305): how to connect an AI agent with a key -->
-        <div class="api-key-agents">
-            <h4>Use with AI agents</h4>
-            <p>
-                Connect Claude, Cursor or any MCP client to your tables with a
-                key. A read-only key can only read; a read and write key can
-                also add, change and delete rows, and every change shows in
-                History.
-            </p>
-            <div class="api-key-agents-url">
-                <span>Server URL</span>
-                <code>{{ mcp_url }}</code>
-            </div>
-            <el-radio-group
-                class="api-key-agents-setup"
-                v-model="agent_setup"
-                size="small"
+        <div class="api-key-agents" :class="{ open: agents_expanded }">
+            <button
+                type="button"
+                class="api-key-agents-toggle"
+                :aria-expanded="agents_expanded ? 'true' : 'false'"
+                aria-controls="api-key-agents-body"
+                @click="toggle_agents"
             >
-                <el-radio-button
-                    v-for="s in agent_setups"
-                    :key="s.value"
-                    :value="s.value"
-                    >{{ s.label }}</el-radio-button
-                >
-            </el-radio-group>
-            <div class="api-key-agents-snippet">
-                <pre>{{ agent_snippet }}</pre>
-                <el-button
-                    class="api-key-agents-copy"
+                <i
+                    class="fa"
+                    :class="agents_expanded ? 'fa-chevron-down' : 'fa-chevron-right'"
+                ></i>
+                <h4>Use with AI agents</h4>
+            </button>
+            <div
+                id="api-key-agents-body"
+                class="api-key-agents-body"
+                v-show="agents_expanded"
+            >
+                <p>
+                    Connect Claude, Cursor or any MCP client to your tables with
+                    a key. A read-only key can only read; a read and write key
+                    can also add, change and delete rows, and every change shows
+                    in History.
+                </p>
+                <div class="api-key-agents-url">
+                    <span>Server URL</span>
+                    <code>{{ mcp_url }}</code>
+                </div>
+                <el-radio-group
+                    class="api-key-agents-setup"
+                    v-model="agent_setup"
                     size="small"
-                    @click="copy_agent_snippet"
-                    >{{ agent_copied ? 'Copied' : 'Copy' }}</el-button
                 >
+                    <el-radio-button
+                        v-for="s in agent_setups"
+                        :key="s.value"
+                        :value="s.value"
+                        >{{ s.label }}</el-radio-button
+                    >
+                </el-radio-group>
+                <div class="api-key-agents-snippet">
+                    <pre>{{ agent_snippet }}</pre>
+                    <el-button
+                        class="api-key-agents-copy"
+                        size="small"
+                        @click="copy_agent_snippet"
+                        >{{ agent_copied ? 'Copied' : 'Copy' }}</el-button
+                    >
+                </div>
+                <p class="api-key-agents-note">
+                    {{ agent_note }}
+                    <router-link to="/help/agents">How it works</router-link>
+                </p>
             </div>
-            <p class="api-key-agents-note">
-                {{ agent_note }}
-                <router-link to="/help/agents">How it works</router-link>
-            </p>
         </div>
 
         <div class="api-key-new" v-if="show_new">
@@ -212,21 +227,48 @@
                         :class="{ revoked: !!k.revoked_datetime }"
                         :data-key-id="k.id"
                     >
-                        <td class="api-key-item-name">{{ k.name }}</td>
-                        <td>
+                        <td
+                            class="api-key-item-name"
+                            data-label="Name"
+                            :title="k.name"
+                        >
+                            {{ k.name }}
+                        </td>
+                        <td class="api-key-item-prefix" data-label="Key">
                             <code>{{ k.prefix }}…</code>
                         </td>
-                        <td>{{ access_label(k.access) }}</td>
-                        <td>{{ tables_label(k) }}</td>
-                        <td class="api-key-item-limit">{{ limit_label(k) }}</td>
-                        <td>
-                            {{ k.last_used_datetime ? time(k.last_used_datetime)
-                            : 'Never' }}
+                        <td class="api-key-item-access" data-label="Access">
+                            <span
+                                class="api-key-tag"
+                                :class="{ write: k.access === 'read_write' }"
+                                >{{ access_label(k.access) }}</span
+                            >
+                        </td>
+                        <td class="api-key-item-tables" data-label="Tables">
+                            <span
+                                v-for="(t, i) in table_tags(k)"
+                                :key="i"
+                                class="api-key-tag"
+                                :title="t"
+                                >{{ t }}</span
+                            >
+                        </td>
+                        <td class="api-key-item-limit" data-label="Limit">
+                            {{ limit_label(k) }}
+                        </td>
+                        <td
+                            class="api-key-item-used"
+                            data-label="Last used"
+                            :title="time(k.last_used_datetime)"
+                        >
+                            {{ k.last_used_datetime ?
+                            short_time(k.last_used_datetime) : 'Never' }}
                         </td>
                         <td class="api-key-item-actions">
                             <el-button
                                 class="api-key-requests-toggle"
                                 link
+                                size="small"
                                 type="primary"
                                 @click="toggle_requests(k)"
                                 >{{ open_requests === k.id ? 'Hide requests' :
@@ -241,6 +283,7 @@
                                 v-else
                                 class="api-key-revoke"
                                 link
+                                size="small"
                                 type="danger"
                                 @click="revoke(k)"
                                 >Revoke</el-button

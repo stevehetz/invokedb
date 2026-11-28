@@ -4,6 +4,7 @@
 // (no query string) and how it was caught are sent, at most MAX_REPORTS per page load and each
 // distinct error once.
 import { store } from '@/store';
+import { reloading_for_stale_chunk } from '@/core/stale-chunk';
 
 export const MAX_REPORTS = 10;
 
@@ -85,6 +86,8 @@ function send(body) {
  */
 export function report_error(kind, reason, info) {
     try {
+        // A stale chunk after a deploy, which the reload is fixing (#372)
+        if (reloading_for_stale_chunk()) return;
         const e = describe_error(reason);
         if (!e || ignored(e)) return;
         const key = report_key(e);

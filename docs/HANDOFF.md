@@ -1,10 +1,10 @@
 # InvokeDB: handoff
 
-_Last updated 2026-11-27 (midday UTC)_
+_Last updated 2026-11-28 (midday UTC)_
 
 InvokeDB ("horizon") is an **agentic web database**, "the database for you and your AI agents":
-tables people edit like a spreadsheet and code and AI agents use through an API (and soon an MCP
-server), live at `https://invokedb.com`. This file says where things stand and what a new session
+tables people edit like a spreadsheet and code and AI agents use through an API and an MCP
+server, live at `https://invokedb.com`. This file says where things stand and what a new session
 must know.
 Elsewhere:
 
@@ -29,9 +29,20 @@ Elsewhere:
 use it one day, great; a sale someday would be a bonus. What that means for the work:
 
 - Rank work by whether it makes the product complete, polished and easy to show. Portfolio
-  polish when the owner wants it: a short demo video (Claude using tables through the MCP
-  server), a "how it's built" page (including the agent pipeline), maybe a no-signup demo
-  workspace (not an issue yet).
+  pieces on the board (2026-11-28, in order): a no-signup demo workspace that showcases the
+  table features (#333), a deployed React example app with webhooks (#340), MCP OAuth for the
+  claude.ai/ChatGPT connectors (#328), a demo video (#334). The "how it's built" page shipped
+  (#341).
+- **agent-evals** (started 2026-11-28): a second portfolio piece in its own public repo,
+  `stevehetz/agent-evals` (`~/dev/agent-evals`), with its own board,
+  https://github.com/users/stevehetz/projects/2 (issues #1–#6 in order). A Next.js app for agent
+  evaluation, tracing, LLM-as-a-judge, time to signal and an observability dashboard, storing
+  its data in the owner's personal InvokeDB account (tables made through the MCP server; the API
+  key is in `~/dev/agent-evals/.env.local`, gitignored). It first measures **this repo's agent
+  pipeline** (workflow runs, the Claude result line in each log: cost, turns, duration; agent
+  PRs and their timelines). It needs no OAuth (#328): API keys cover it. Its work goes on its own
+  board; gaps it finds in InvokeDB become issues here. Not started yet: next is its #1 (the
+  table setup script). The repo has no LICENSE yet (all rights reserved by default).
 - **Billing stays built but off.** The LLC and the rest of `docs/GO_LIVE.md` wait **until
   someone actually asks to pay** (or a buyer, a partner or real users' important data shows up).
   A single-member LLC would be little upkeep (taxed on the owner's Schedule C, no K-1), so it can
@@ -44,10 +55,31 @@ use it one day, great; a sale someday would be a bonus. What that means for the 
   dashboard in InvokeDB (the board, Actions and Telegram already cover it); more link-column work
   (little value without lookups/rollups; the matching flow (#321) is confusing but stays as is).
 
-## Where things stand (2026-11-27, midday)
+## Where things stand (2026-11-28, midday)
 
 Everything below is merged and deployed unless it says otherwise. Details:
-`gh pr list --state merged`. No open PRs and nothing queued for the agent at midday 2026-11-27.
+`gh pr list --state merged`.
+
+- **Open at midday 2026-11-28** (all should auto-merge; check they did): **#347** (agent, #345:
+  the API keys section's readability), **#349** (#348: the Profile section's fields were empty),
+  **#351** (#350: Profile first in the Account nav and its default; `?upgrade=`/`?billing=` and
+  the quota email open Plan & usage). Nothing else queued for the agent.
+- **Shipped 2026-11-28:**
+  - **#341** (#332): the public "How it's built" page with the agent pipeline.
+  - **#346** (#342): the Account page in sections with a left nav (`?section=profile|usage|
+api-keys|security|history|data`). Each section's forms mount when it opens, so a form that
+    copies a prop into its fields needs an `immediate` watcher (#348).
+  - **#344** (#343): `ElInputNumber` and `ElCheckbox` registered in `main.js` (a key's own rate
+    limit and Clean up's tick boxes rendered as nothing). An unregistered `<el-*>` renders
+    silently as nothing; check `main.js` when using a new one.
+- **Board, in order (2026-11-28):** #345 (agent, in progress), #333 (no-signup showcase
+  workspace, decisions in the issue, ready for `agent` when the owner says), #340 (React
+  support-desk example at `examples.invokedb.com/react-demo`: static build + a small Node server
+  holding the key, receiving signed webhooks, streaming them by SSE; its PR must carry `hold`,
+  owner steps listed in the issue), #328 (MCP OAuth, `you`: decisions, best in a local session),
+  #334 (demo video, `you`, best after #328).
+- **The `agent-evals` API key was shown in a screenshot and pasted into a session** (2026-11-28):
+  suggest the owner rotate it once agent-evals works.
 
 - **Shipped 2026-11-27** (agent PRs from issues the owner filed in a local session):
   - **#319** (#318): the admin accounts table's number headers line up with their cells.
@@ -65,14 +97,6 @@ Everything below is merged and deployed unless it says otherwise. Details:
 - **The board's auto-add missed issues (#321, #322, #324, #340, #342, #345)** because its
   filter was GitHub's default `is:issue,pr is:open label:bug` (only bugs). Fixed 2026-11-28: the
   filter is now `is:issue is:open`. Still check a new issue landed (see the queue section below).
-- **2026-11-28:** #332 shipped (#341, the "How it's built" page). New: #342 (Account page split
-  into sections, agent working it), #343/#344 (`ElInputNumber` and `ElCheckbox` weren't
-  registered: the key's own rate limit and Clean up's tick boxes didn't render), #345 (API keys
-  section readability, after #342), #340 (React support-desk example at
-  `examples.invokedb.com/react-demo`, decisions in the issue), #333 rewritten with its decisions.
-- **agent-evals** (2026-11-28): a separate public repo, `stevehetz/agent-evals`, with its own
-  board (project 2): a Next.js app for agent evals and tracing on the owner's InvokeDB account,
-  first measuring this repo's agent pipeline. Gaps it finds in InvokeDB become issues here.
 
 - **Shipped 2026-11-26 (owner session):**
   - **Light and dark theme** (#290, reached `main` inside **#301**; #290 closed by hand). In light mode the app header
@@ -114,8 +138,8 @@ Everything below is merged and deployed unless it says otherwise. Details:
 - **Board after the 2026-11-27 cleanup:** #150 (workspaces) and #213 (staging) closed as not
   planned. New, in order: #328 MCP OAuth sign-in for claude.ai/ChatGPT connectors (`you`:
   decisions in the issue), #329 MCP table/column tools, #330 MCP view tools, #331 `/agents`
-  quickstart page (all three labelled `agent` 2026-11-27), #332 "How it's built" page, #333
-  no-signup demo workspace (`you`), #334 demo video (`you`, after #329/#331).
+  quickstart page (all three shipped by 2026-11-28), #332 "How it's built" page (shipped), #333
+  no-signup demo workspace, #334 demo video. The current order is in "Where things stand".
 - **Incident (2026-11-25), fixed:** a stale local `prod.env` was pushed to Dropbox and the
   server, which turned off Google/GitHub sign-in for a few minutes. Always `npm run
 secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env`.
@@ -196,7 +220,9 @@ secrets:pull` (and check `secrets:status`) before editing or deploying `prod.env
 - **Removing `agent-stuck` doesn't wake the queue** (that run is skipped): run
   `gh workflow run agent-queue.yml` after it.
 - **An issue that isn't on the board is never picked up** (#277 was missed by the board's
-  auto-add, whose filter only matched bugs until 2026-11-28). Check with the GraphQL items query, and add it with `addProjectV2ItemById` and
+  auto-add, whose filter only matched bugs until 2026-11-28). Check with the GraphQL items query
+  (the board has over 100 items: `items(first:100)` misses the newest, so use `items(last:20)` or
+  page), and add it with `addProjectV2ItemById` and
   `updateProjectV2ItemPosition` (top) and set Status to Todo.
 - **To hold an agent PR for the owner**, say so in the issue ("open the PR with the `hold`
   label"); the agent usually does, but check, and add `hold` if it didn't before CI and the

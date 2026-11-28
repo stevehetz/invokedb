@@ -634,7 +634,9 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   areas, in the entry chunk so it comes before the areas' CSS (a theme in a shared lazy chunk
   once loaded after the app's styles in production and overrode its nav). The app's colours are
   only `:root` variables, so `src/element-theme.scss` overrides just those on
-  `:root.app-area`. Don't import a theme anywhere else. The app's CSS restyles the inner
+  `:root.app-area`. Don't import a theme anywhere else. Components are registered one by one in
+  `main.js` (no full install): a new `<el-*>` tag that isn't registered there (or by a
+  registered parent) renders as nothing, silently (#343). The app's CSS restyles the inner
   elements Element UI used to have, so Element Plus's extra wrappers are flattened in
   `stylesheet.scss` (`.el-input__wrapper`, the `.el-dialog` padding). Horizontal `el-menu`s need
   `:ellipsis="false"` or they fold items into "…". Use `link` buttons, not `type="text"` (removed
@@ -649,6 +651,11 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   over `stylesheet.scss`, which styles the grid; there's no ag-grid CSS import.
   Its `.ag-header-viewport` is `overflow: visible` (for the header dropdown menus), so ag-grid
   can't scroll the header; `h-data-grid`'s `body_scrolled` moves it with the body instead.
+- The Account page (`components/account`, #342) shows one section at a time from
+  `?section=` (`profile`, the default, then `usage`, `api-keys`, `security`, `history`,
+  `data`; `?upgrade=`/`?billing=` open `usage`). A section's forms mount when it opens, after
+  the account has loaded, so a watcher that copies a prop into a form needs `immediate: true`
+  (#348). Link to a section by name, never rely on the default.
 - `this.$bus` / `@/core/bus` is a small emitter with the old `$on`/`$off`/`$emit` names. Remove
   your handler with `$off` in `beforeUnmount`. Prefer props, emits or the store for new code.
 - Help and changelog (#219): the site's `/help/:topic` (`view/pages/help`; topics in

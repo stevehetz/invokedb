@@ -189,7 +189,10 @@ export default defineComponent({
 
         go_to_account() {
             bus.$emit('container-dialog:close');
-            this.$router.push({ name: 'account' });
+            this.$router.push({
+                name: 'account',
+                query: { section: 'api-keys' }
+            });
         },
 
         go_to_doc_link(hash) {

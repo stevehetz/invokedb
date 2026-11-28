@@ -1,7 +1,7 @@
 import { http } from '@/core/http';
 
 // Data export of the account (#215): the backend's job processor writes a zip of every table
-// and the forms, views and webhooks settings; the link works for 24 hours, with this session.
+// and the views and webhooks settings; the link works for 24 hours, with this session.
 export const account_export_http = {
     /** `{ export }`: the newest export, or `{ export: null }` */
     async status() {

@@ -13,7 +13,6 @@ export const SHARED_TRACKING_COLLECTIONS = [
     'tracking:url_source',
     'tracking:webhook',
     'tracking:webhook_delivery',
-    'tracking:form',
     'tracking:view',
     'tracking:audit',
     'tracking:ai_usage',
@@ -41,7 +40,7 @@ export function is_account_collection(name: string, account_id: number) {
 
 // Deletes an account and all its data (#184): its Mongo database (the tables' rows and columns),
 // its collections and documents in the tracking database (onboarding, row counts, the API
-// quota, forms, views, webhooks and their deliveries, URL sources, the audit log, AI usage, key
+// quota, views, webhooks and their deliveries, URL sources, the audit log, AI usage, key
 // request logs, exports and their zips, AI column settings) and its Postgres rows, the account last. Each step can
 // run again, so a deletion that failed half-way is finished by the next try.
 @Injectable()

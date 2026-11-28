@@ -98,7 +98,7 @@ export class TrackingManager {
     now: () => number = () => Date.now();
 
     // Works out an account's plan state again from what it holds (#184). PlanStateService sets
-    // it; it lives there because it needs the counts of forms, views, webhooks and URL sources.
+    // it; it lives there because it needs the counts of views, webhooks and URL sources.
     private plan_state_refresher: ((account_id: number) => Promise<PlanStateCheck>) | null = null;
 
     set_plan_state_refresher(fn: ((account_id: number) => Promise<PlanStateCheck>) | null) {

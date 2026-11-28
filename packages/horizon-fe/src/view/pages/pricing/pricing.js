@@ -27,7 +27,7 @@ export default {
             features: [
                 'Tables you query through an API',
                 'CSV upload and import from a URL',
-                'Forms, views and webhooks',
+                'Views and webhooks',
                 'Two-factor sign-in',
                 'Export of all your data'
             ]

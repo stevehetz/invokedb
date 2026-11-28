@@ -24,7 +24,6 @@ import GridFilter from './grid-filter';
 import GridToast from './grid-toast';
 import ApiDialog from './api-dialog';
 import WebhooksDialog from './webhooks-dialog';
-import FormsDialog from './forms-dialog';
 import AuditLog from '../audit-log';
 import AskDialog from './ask-dialog';
 import { ai_http } from '@/core/context/ai/ai-http';
@@ -221,7 +220,7 @@ export default {
         // The top bar's buttons, in the order they fold into the More menu when the bar
         // doesn't fit (from the right); Views keeps its button and only drops its label
         toolbar_order() {
-            const order = ['ask', 'forms', 'webhooks', 'api', 'views_label'];
+            const order = ['ask', 'webhooks', 'api', 'views_label'];
             return this.ai_available ? order : order.slice(1);
         },
 
@@ -1206,21 +1205,10 @@ export default {
             });
         },
 
-        forms_btn_clicked() {
-            this.$bus.$emit('container-dialog:open', {
-                title: `${table_display_name(this.file.name)}: forms`,
-                props: {
-                    file: this.file
-                },
-                component: FormsDialog
-            });
-        },
-
         // The top bar's More menu: room for table tools without widening the bar
         more_command(command) {
             if (command === 'api') this.api_btn_clicked();
             if (command === 'webhooks') this.webhooks_btn_clicked();
-            if (command === 'forms') this.forms_btn_clicked();
             if (command === 'ask') this.ask_btn_clicked();
             if (command === 'history') this.history_btn_clicked();
             if (command === 'ai_columns') this.ai_columns_btn_clicked();

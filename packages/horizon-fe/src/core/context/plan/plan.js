@@ -27,7 +27,6 @@ export const USAGE_ROWS = [
     { key: 'api_calls_per_month', label: 'API calls this month' },
     { key: 'url_sources', label: 'Tables imported from a URL' },
     { key: 'webhooks', label: 'Webhooks' },
-    { key: 'forms', label: 'Forms' },
     { key: 'views_per_table', label: 'Views on the busiest table' }
 ];
 
@@ -95,7 +94,6 @@ export function pricing_rows(plans) {
             c => `${count_label(c.url_sources)}, syncs ${schedules(c)}`
         ),
         row('Webhooks', c => count_label(c.webhooks)),
-        row('Forms', c => count_label(c.forms)),
         row('Views per table', c => count_label(c.views_per_table)),
         row('History (audit log) kept', c => `${c.audit_keep_days} days`),
         row('Per-key rate limits and request logs', c =>

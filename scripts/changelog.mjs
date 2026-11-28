@@ -18,8 +18,9 @@ import { fileURLToPath } from 'node:url';
 
 const LABEL = 'enhancement';
 // PRs of features that were later removed, left off the changelog: #244 dashboards (removed in
-// #265, #264). Add a PR here when its feature is taken out.
-const SKIP = new Set([244]);
+// #265, #264) and #174 shareable forms (removed in #358). Add a PR here when its feature is
+// taken out.
+const SKIP = new Set([244, 174]);
 const LIMIT = '1000';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out_arg = process.argv.indexOf('--out');

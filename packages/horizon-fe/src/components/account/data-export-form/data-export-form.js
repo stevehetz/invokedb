@@ -1,4 +1,4 @@
-// Data export (#215): ask for a zip of every table (CSV and JSON) and the forms, views and
+// Data export (#215): ask for a zip of every table (CSV and JSON) and the views and
 // webhooks settings, wait while the server prepares it, then download it within 24 hours.
 import { defineComponent } from 'vue';
 import { bus } from '@/core/bus';

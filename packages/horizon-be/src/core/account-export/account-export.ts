@@ -1,5 +1,5 @@
 // Data export of a whole account (#215): the pure rules. The processor writes one zip with every
-// table as CSV and as JSON (columns with their types, then the rows), and the account's forms,
+// table as CSV and as JSON (columns with their types, then the rows), and the account's
 // views and webhooks as JSON, never their secrets (no webhook signing secret, no API key).
 import { randomUUID } from 'crypto';
 import { parse_utc_date } from '../date';
@@ -314,10 +314,6 @@ export function webhook_settings(hook: any, table_names: Map<number, string>) {
     };
 }
 
-export function form_settings(form: any, table_names: Map<number, string>) {
-    return { ...without_owner(form), table: table_names.get(form.file_id) ?? null };
-}
-
 export function view_settings(view: any, table_names: Map<number, string>) {
     return { ...without_owner(view), table: table_names.get(view.file_id) ?? null };
 }
@@ -340,7 +336,6 @@ export function manifest(
             json: `${t.path}.json`
         })),
         files: {
-            forms: 'forms.json',
             views: 'views.json',
             webhooks: 'webhooks.json'
         },

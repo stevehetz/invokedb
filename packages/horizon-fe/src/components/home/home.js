@@ -231,7 +231,7 @@ export default {
                         n === 1 ? 'table' : 'tables'
                     } in it. Deleting the folder deletes ${
                         n === 1 ? 'that table' : `all ${n} tables`
-                    } too, with their rows, forms, views and webhooks. ` +
+                    } too, with their rows, views and webhooks. ` +
                     'Delete them?';
             }
             const closing = [...tree_item_ids, ...contained.map(t => t.id)];

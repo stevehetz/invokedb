@@ -180,16 +180,6 @@
                             <span>Webhooks</span>
                         </el-button>
                     </div>
-                    <div class="forms-button" v-if="!tucked('forms')">
-                        <el-button
-                            link
-                            @click="forms_btn_clicked"
-                            :disabled="table_lock"
-                        >
-                            <i class="fa fa-list-alt"></i>
-                            <span>Forms</span>
-                        </el-button>
-                    </div>
                     <div
                         class="ask-data-button"
                         v-if="ai_available && !tucked('ask')"
@@ -232,14 +222,6 @@
                                         :disabled="table_lock"
                                     >
                                         <i class="fa fa-bolt"></i> Webhooks
-                                    </el-dropdown-item>
-                                    <el-dropdown-item
-                                        v-if="tucked('forms')"
-                                        command="forms"
-                                        class="more-forms"
-                                        :disabled="table_lock"
-                                    >
-                                        <i class="fa fa-list-alt"></i> Forms
                                     </el-dropdown-item>
                                     <el-dropdown-item
                                         v-if="ai_available && tucked('ask')"

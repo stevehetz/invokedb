@@ -39,7 +39,6 @@ export interface PlanCaps {
     // Which sync schedules a URL source may have
     url_sync_schedules: SyncScheduleName[];
     webhooks: number;
-    forms: number;
     views_per_table: number;
     // How long the audit log (#217) keeps entries
     audit_keep_days: number;
@@ -81,7 +80,6 @@ export const PLANS: Record<PlanId, Plan> = {
             url_sources: 1,
             url_sync_schedules: ['off', 'daily'],
             webhooks: 1,
-            forms: 1,
             views_per_table: 5,
             audit_keep_days: 7,
             key_limits_and_logs: false,
@@ -108,7 +106,6 @@ export const PLANS: Record<PlanId, Plan> = {
             url_sources: 5,
             url_sync_schedules: ['off', 'hourly', 'daily'],
             webhooks: 5,
-            forms: 10,
             views_per_table: 50,
             audit_keep_days: 30,
             key_limits_and_logs: true,
@@ -135,7 +132,6 @@ export const PLANS: Record<PlanId, Plan> = {
             url_sources: 25,
             url_sync_schedules: ['off', 'hourly', 'daily'],
             webhooks: 10,
-            forms: 50,
             views_per_table: 50,
             audit_keep_days: 90,
             key_limits_and_logs: true,
@@ -160,7 +156,6 @@ export const COUNTED_CAPS = [
     'api_calls_per_month',
     'url_sources',
     'webhooks',
-    'forms',
     'views_per_table'
 ] as const;
 export type CountedCap = (typeof COUNTED_CAPS)[number];
@@ -331,7 +326,6 @@ const CAP_LABELS: Record<string, (cap: any) => string> = {
     url_sync_schedules: (cap: string[]) =>
         `URL syncs ${cap.filter(s => s !== 'off').join(' or ')} only`,
     webhooks: n => `${fmt(n)} webhooks`,
-    forms: n => `${fmt(n)} forms`,
     views_per_table: n => `${fmt(n)} views per table`,
     key_limits_and_logs: () => `no per-key rate limits or request logs`
 };
@@ -376,7 +370,7 @@ export function plan_limit_error(
 }
 
 /**
- * Refuses one more of a counted thing (webhooks, forms, views, URL sources) when the account
+ * Refuses one more of a counted thing (webhooks, views, URL sources) when the account
  * already has `current` of them and its plan allows no more.
  */
 export function assert_room(account: PlanAccount, limit: CountedCap, current: number) {

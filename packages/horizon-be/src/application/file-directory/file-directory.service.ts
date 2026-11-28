@@ -16,7 +16,6 @@ import { plainToClass } from 'class-transformer';
 import { WebFilePrcNotifyService } from '../web-file/web-file-prc-notify.service';
 import { UrlImportManager } from '@app/core/url-import/url-import.manager';
 import { WebhookManager } from '@app/core/webhook/webhook.manager';
-import { FormManager } from '@app/core/form/form.manager';
 import { ViewManager } from '@app/core/view/view.manager';
 import { AiColumnManager } from '@app/core/ai-column/ai-column.manager';
 import { OnboardingManager } from '@app/core/onboarding/onboarding.manager';
@@ -62,7 +61,6 @@ export class FileDirectoryService {
         private web_file_prc_notify_svc: WebFilePrcNotifyService,
         private url_import_manager: UrlImportManager,
         private webhook_manager: WebhookManager,
-        private form_manager: FormManager,
         private view_manager: ViewManager,
         private onboarding_manager: OnboardingManager,
         private audit_svc: AuditService,
@@ -310,12 +308,6 @@ export class FileDirectoryService {
                     logger.error(
                         `Webhooks of file ${file_directory.id} not removed: ${ex.message}`
                     );
-                }
-                // Their links already stop working (the table is deleted); this drops them
-                try {
-                    await this.form_manager.remove_for_table(account.id, file_directory.id);
-                } catch (ex) {
-                    logger.error(`Forms of file ${file_directory.id} not removed: ${ex.message}`);
                 }
                 try {
                     await this.view_manager.remove_for_table(account.id, file_directory.id);

@@ -94,11 +94,6 @@ function setup() {
             find: () => ({ sort: () => ({ batchSize: () => rows_of(rows[id] || []) }) })
         }))
     };
-    const form_manager = {
-        list: jest.fn(async acct =>
-            acct === ACCT ? [{ id: 'f1', account_id: ACCT, file_id: 2, title: 'Join' }] : []
-        )
-    };
     const view_manager = {
         list: jest.fn(async (acct, file_id) =>
             acct === ACCT && file_id === 2
@@ -128,7 +123,6 @@ function setup() {
         job_manager as any,
         file_directory_svc as any,
         web_file_manager as any,
-        form_manager as any,
         view_manager as any,
         webhook_manager as any,
         collections as any,
@@ -196,7 +190,6 @@ describe('AccountExportService', () => {
         const totals = await service.write_entries(ACCT, out);
         const entries = out.entries;
         expect(Object.keys(entries).sort()).toEqual([
-            'forms.json',
             'manifest.json',
             'tables/HR/People.csv',
             'tables/HR/People.json',
@@ -219,9 +212,6 @@ describe('AccountExportService', () => {
         ]);
         expect(people.folders).toEqual(['HR']);
 
-        expect(JSON.parse(entries['forms.json'])).toEqual([
-            { id: 'f1', file_id: 2, title: 'Join', table: 'People' }
-        ]);
         expect(JSON.parse(entries['views.json'])[0]).toMatchObject({ id: 'v1', table: 'People' });
         expect(entries['webhooks.json']).not.toContain('topsecret');
         expect(JSON.parse(entries['webhooks.json'])[0]).toMatchObject({ id: 'w1', table: null });

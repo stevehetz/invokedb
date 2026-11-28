@@ -13,8 +13,7 @@ const input = (plan = account_plan({ subscription_id: null }, {})) => ({
     storage_bytes: 5000,
     api_calls: 77,
     url_sources: 1,
-    webhooks: 0,
-    forms: 1
+    webhooks: 0
 });
 
 describe.each(PLAN_IDS)('GET /usage on %s', plan_id => {
@@ -35,7 +34,6 @@ describe.each(PLAN_IDS)('GET /usage on %s', plan_id => {
             api_calls_per_month: { used: 77, cap: caps.api_calls_per_month },
             url_sources: { used: 1, cap: caps.url_sources },
             webhooks: { used: 0, cap: caps.webhooks },
-            forms: { used: 1, cap: caps.forms },
             views_per_table: { used: 2, cap: caps.views_per_table }
         });
         expect(u.tables).toHaveLength(2);

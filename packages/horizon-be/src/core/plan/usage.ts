@@ -19,7 +19,6 @@ export interface UsageInput {
     api_calls: number;
     url_sources: number;
     webhooks: number;
-    forms: number;
 }
 
 const max = (values: number[]) => values.reduce((m, v) => Math.max(m, v), 0);
@@ -47,7 +46,6 @@ export function build_usage(input: UsageInput) {
             api_calls_per_month: usage_item(input.api_calls, caps.api_calls_per_month),
             url_sources: usage_item(input.url_sources, caps.url_sources),
             webhooks: usage_item(input.webhooks, caps.webhooks),
-            forms: usage_item(input.forms, caps.forms),
             views_per_table: usage_item(max(tables.map(t => t.views)), caps.views_per_table)
         },
         tables: tables.map(t => ({

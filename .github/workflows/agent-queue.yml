@@ -1,19 +1,5 @@
-# The cloud agent's queue: starts implement.yml on the next issue, one at a time. The queue is
-# the open issues the owner opened and labelled `agent`, in board order when the PROJECTS_TOKEN
-# secret is set (a token that can read the owner's Project; without it, by issue number).
-#
-# It starts the next issue only when nothing is in flight: no implement run going, and no open
-# `agent-pr` PR that's still moving. Parked PRs (`needs-owner` or `hold`, which the owner merges
-# later) and stuck ones don't hold it (#156): an agent PR that's stuck (CI failed, or no activity
-# for 2 hours; review changes are revise.yml's job, which marks the PR agent-stuck itself when its
-# rounds run out) gets `agent-stuck` and one comment that mentions the owner, and the queue moves
-# on; its issue isn't started again while the PR is open. With two or more stuck agent PRs open it
-# holds again, since that usually means something systemic is failing every PR. Closing an agent PR without merging
-# also marks its issue `agent-stuck`, so the agent doesn't simply redo it.
-#
-# Runs when the owner labels an issue `agent`, when a person closes or labels an agent PR,
-# when automerge.yml or implement.yml start it (their actions fire no events), and every 30
-# minutes as a safety net.
+# A caller of stevehetzl/agent-pipeline's agent-queue.yml (#4 there); its behaviour is documented in that
+# file. InvokeDB's settings are the `with:` inputs below.
 name: Agent queue
 
 on:
@@ -23,153 +9,22 @@ on:
     types: [closed, labeled]
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/30 * * * *' # a safety net; the queue really moves on events
 
-permissions: {}
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  actions: write
 
 concurrency:
   group: agent-queue
   cancel-in-progress: false
 
 jobs:
-  next:
-    if: >-
-      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issues' && github.event.label.name == 'agent' &&
-       github.event.sender.login == github.repository_owner) ||
-      (github.event_name == 'pull_request' &&
-       contains(github.event.pull_request.labels.*.name, 'agent-pr'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
-      actions: write # start implement.yml
-    env:
-      GH_TOKEN: ${{ github.token }}
+  queue:
+    uses: stevehetzl/agent-pipeline/.github/workflows/agent-queue.yml@v1
+    with:
+      project_number: 1
+    secrets:
       PROJECTS_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
-      PROJECT_NUMBER: 1
-      OWNER: ${{ github.repository_owner }}
-      R: ${{ github.repository }}
-      EVENT: ${{ github.event_name }}
-      PR_ACTION: ${{ github.event.action }}
-      PR_MERGED: ${{ github.event.pull_request.merged }}
-      PR_BRANCH: ${{ github.event.pull_request.head.ref }}
-    steps:
-      - name: Start the next issue if nothing is in flight
-        run: |
-          set -euo pipefail
-          has() { jq -e --arg l "$2" '.labels | map(.name) | index($l)' <<<"$1" >/dev/null; }
-
-          # An agent PR closed without merging: the owner turned it down, so don't redo its
-          # issue. It's parked as agent-stuck until the owner removes the label (a retry).
-          if [ "$EVENT" = pull_request ] && [ "$PR_ACTION" = closed ] && [ "$PR_MERGED" != true ]; then
-            n=$(sed -n 's/^\([0-9][0-9]*\)-.*/\1/p' <<<"$PR_BRANCH")
-            if [ -n "$n" ]; then
-              gh issue edit "$n" -R "$R" --add-label agent-stuck
-              gh issue comment "$n" -R "$R" --body "The agent's PR for this issue was closed without merging, so the queue skips it now. Remove \`agent-stuck\` to have the agent try again."
-            fi
-          fi
-
-          # implement.yml starts this queue from its last step, so give a finishing run a
-          # moment before calling the queue busy
-          for i in $(seq 12); do
-            busy=$(gh run list -R "$R" -w implement.yml --json status \
-              --jq 'map(select(.status != "completed")) | length')
-            [ "$busy" -gt 0 ] || break
-            sleep 15
-          done
-          if [ "$busy" -gt 0 ]; then echo "An implement run is in flight"; exit 0; fi
-
-          # Open agent PRs that aren't parked or stuck hold the queue
-          blocking=$(gh pr list -R "$R" --label agent-pr --state open \
-            --json number,labels,headRefOid,updatedAt --jq '[.[] |
-              select(.labels | map(.name) | (index("needs-owner") or index("hold")) | not)]')
-          if [ "$(jq length <<<"$blocking")" -gt 0 ]; then
-            still=()
-            for i in $(seq 0 $(( $(jq length <<<"$blocking") - 1 ))); do
-              pr=$(jq ".[$i]" <<<"$blocking")
-              n=$(jq -r .number <<<"$pr")
-              has "$pr" agent-stuck && continue
-              reason=""
-              ci=$(gh run list -R "$R" -w CI --commit "$(jq -r .headRefOid <<<"$pr")" \
-                --json conclusion --jq '.[0].conclusion // ""')
-              if [ -z "$reason" ] && [ "$ci" = failure ]; then reason="CI failed on its latest commit"; fi
-              idle=$(( $(date +%s) - $(date -d "$(jq -r .updatedAt <<<"$pr")" +%s) ))
-              if [ -z "$reason" ] && [ "$idle" -gt 7200 ]; then reason="it has had no activity for 2 hours"; fi
-              if [ -n "$reason" ]; then
-                gh pr edit "$n" -R "$R" --add-label agent-stuck
-                gh pr comment "$n" -R "$R" --body "@$OWNER this agent PR is stuck: $reason. The queue has moved on to the next issue; fix and merge this PR, or close it, when you get to it."
-                continue
-              fi
-              still+=("#$n")
-            done
-            if [ "${#still[@]}" -gt 0 ]; then
-              echo "Waiting on agent PR(s): ${still[*]}"
-              exit 0
-            fi
-            # Move past one stuck PR, not a pile of them: two or more usually means something
-            # systemic (a red main, a broken smoke job), and every new PR would fail the same way
-            stuck=$(gh pr list -R "$R" --label agent-pr --label agent-stuck --state open \
-              --json number --jq 'map("#\(.number)") | join(" ")')
-            if [ "$(wc -w <<<"$stuck")" -ge 2 ]; then
-              echo "::warning::Holding: $stuck are agent-stuck; fix or close them and the queue resumes"
-              exit 0
-            fi
-          fi
-
-          # Candidates: open, labelled agent, not stuck or the owner's own task, and opened by the
-          # owner or by the Claude app: agent-found follow-ups (#69) and the issues repair.yml opens
-          # for a failed CI/CD/E2E run (#311). Either way the owner must have added the agent label
-          # (checked below), so the agent can't queue its own issues.
-          candidates=$(gh issue list -R "$R" --label agent --state open --limit 200 \
-            --json number,author,labels --jq '[.[] |
-              select(.author.login == env.OWNER or .author.login == "app/claude") |
-              select(.labels | map(.name) | (index("agent-stuck") or index("you")) | not) |
-              .number] | sort')
-          [ "$(jq length <<<"$candidates")" -gt 0 ] || { echo "The queue is empty"; exit 0; }
-
-          # Board order when a token can read the Project; otherwise issue number
-          order=$(jq -r '.[]' <<<"$candidates")
-          if [ -n "$PROJECTS_TOKEN" ]; then
-            # A direct query on the user's project: `gh project item-list --owner` failed with
-            # "unknown owner type" here, whatever the token (#154)
-            q='query($login:String!,$number:Int!,$endCursor:String){user(login:$login){projectV2(number:$number){
-              items(first:100,after:$endCursor){pageInfo{hasNextPage endCursor}
-              nodes{content{... on Issue{number}}}}}}}'
-            board=$(GH_TOKEN="$PROJECTS_TOKEN" gh api graphql --paginate -f query="$q" \
-              -f login="$OWNER" -F number="$PROJECT_NUMBER" \
-              --jq '.data.user.projectV2.items.nodes[].content.number // empty' 2>board.err) ||
-              { echo "::warning::Couldn't read the board ($(head -c 300 board.err)); using issue numbers"; board=''; }
-            [ -n "$board" ] && echo "Board order: $(head -20 <<<"$board" | tr '\n' ' ')"
-            if [ -n "$board" ]; then
-              order=$( (grep -Fxf <(jq -r '.[]' <<<"$candidates") <<<"$board" || true
-                        jq -r '.[]' <<<"$candidates" | grep -vFxf <(echo "$board") || true) )
-            fi
-          fi
-
-          # Skip issues that already have an open PR (a parked one, waiting for the owner)
-          branches=$(gh pr list -R "$R" --state open --limit 200 --json headRefName --jq '.[].headRefName')
-          for n in $order; do
-            if grep -q "^$n-" <<<"$branches"; then continue; fi
-            # Only if the owner added the label (anyone who can label could otherwise queue work)
-            by=$(gh api "repos/$R/issues/$n/events" --paginate \
-              --jq '.[] | select(.event == "labeled" and .label.name == "agent") | .actor.login' | tail -n 1)
-            if [ "$by" != "$OWNER" ]; then
-              # The workflows label agent-found bugs themselves (#196): accept that only for an issue
-              # the Claude app opened with agent-found + bug and no security label
-              meta=$(gh issue view "$n" -R "$R" --json author,labels \
-                --jq '"\(.author.login) ,\([.labels[].name] | join(",")),"')
-              if ! { [ "$by" = "github-actions[bot]" ] && [[ $meta == "app/claude "* ]] &&
-                     [[ $meta == *,agent-found,* ]] && [[ $meta == *,bug,* ]] &&
-                     [[ $meta != *,security,* ]]; }; then
-                echo "#$n: agent label not added by $OWNER, skipped"; continue
-              fi
-            fi
-            gh workflow run implement.yml -R "$R" --ref main -f issue="$n"
-            echo "Started implement.yml on #$n"
-            sleep 20 # so a queue run right after this one sees the implement run
-            exit 0
-          done
-          echo "Every queued issue already has an open PR"

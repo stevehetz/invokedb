@@ -1,22 +1,5 @@
-# Merges PRs by itself when it's safe, so nobody has to click merge. Runs after CI or Review
-# finishes, so whichever finishes last does the merge. Two kinds of PR qualify:
-#
-# 1. A PR into main from this repo (merging deploys, through cd.yml), when all of these hold:
-#    - CI passed on the PR's head commit
-#    - the Review workflow ran on that commit and labelled the PR review-ok
-#    - it has no `hold` label (the owner's opt-out)
-#    - it touches none of HELD_PATHS below; such a PR is labelled needs-owner and left alone
-# 2. repair.yml's fix PRs (claude/fix-*, opened by the Claude app) into a feature branch, when
-#    CI passed and the review labelled it review-ok. Its fix PRs into main follow rule 1.
-#
-# A merge made with the workflow token starts no workflows, so this starts CI on the branch it
-# merged into; on main, that CI run starts cd.yml when it passes (ci.yml, `deploy` job). It
-# also doesn't apply the PR's Closes/Fixes, so this closes the linked issues itself.
-#
-# A merge refused because main moved a moment before is retried (#353). And since nothing else
-# would wake a PR whose merge failed, every push to main and every CI run on main sweeps: it
-# starts this workflow again (workflow_dispatch, `branch`) for each open review-ok PR, whose
-# own checks above then decide.
+# A caller of stevehetzl/agent-pipeline's automerge.yml (#4 there); its behaviour is documented in that
+# file. InvokeDB's settings are the `with:` inputs below.
 name: Auto-merge
 
 on:
@@ -31,145 +14,24 @@ on:
         description: The PR's head branch to try merging
         required: true
 
-permissions: {}
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
 
 concurrency:
   group: automerge-${{ github.event.workflow_run.head_branch || inputs.branch || 'sweep' }}
   cancel-in-progress: false
 
 jobs:
-  sweep:
-    if: >-
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.name == 'CI' &&
-       github.event.workflow_run.head_branch == 'main')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      pull-requests: read
-      actions: write # start this workflow for each ready PR
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Try again on every open review-ok PR
-        run: |
-          set -euo pipefail
-          R="$GITHUB_REPOSITORY"
-          branches=$(gh pr list -R "$R" --state open --label review-ok --limit 50 \
-            --json headRefName,labels,isCrossRepository --jq '.[]
-              | select(.isCrossRepository | not)
-              | select(.labels | map(.name) | (index("hold") or index("needs-owner")) | not)
-              | .headRefName')
-          [ -n "$branches" ] || { echo "No ready PRs"; exit 0; }
-          for b in $branches; do
-            echo "Starting auto-merge for $b"
-            gh workflow run automerge.yml -R "$R" --ref main -f branch="$b"
-          done
-
   automerge:
-    if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.branch != '' && inputs.branch != 'main') ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_repository.full_name == github.repository &&
-       github.event.workflow_run.head_branch != 'main')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write # labels, and closing the issues a merged PR links
-      actions: write # start CI on the branch merged into
-    env:
-      GH_TOKEN: ${{ github.token }}
-      BRANCH: ${{ github.event.workflow_run.head_branch || inputs.branch }}
-      # Paths (prefixes, or globs for *) that a person must merge into main
-      HELD_PATHS: >-
-        deploy/
+    uses: stevehetzl/agent-pipeline/.github/workflows/automerge.yml@v1
+    with:
+      branch: ${{ inputs.branch }}
+      held_paths: |
         .github/
+        deploy/
         packages/horizon-be/src/database/migration/
         *.env.example
-    steps:
-      - name: Merge if every condition holds
-        run: |
-          set -euo pipefail
-          set -f # HELD_PATHS holds globs: match them, don't expand them
-          R="$GITHUB_REPOSITORY"
-          pr=$(gh pr list -R "$R" --head "$BRANCH" --state open \
-            --json number,baseRefName,headRefOid,author,labels,isDraft --jq '.[0] // empty')
-          [ -n "$pr" ] || { echo "No open PR for $BRANCH"; exit 0; }
-          number=$(jq -r .number <<<"$pr")
-          base=$(jq -r .baseRefName <<<"$pr")
-          sha=$(jq -r .headRefOid <<<"$pr")
-          author=$(jq -r .author.login <<<"$pr")
-          has_label() { jq -e --arg l "$1" '.labels | map(.name) | index($l)' <<<"$pr" >/dev/null; }
-          # An agent PR merged or parked frees the cloud agent's queue (our actions fire no events)
-          next_in_queue() {
-            if has_label agent-pr; then gh workflow run agent-queue.yml -R "$R" --ref main; fi
-          }
-
-          if [ "$(jq -r .isDraft <<<"$pr")" = true ]; then echo "PR #$number is a draft"; exit 0; fi
-          if [ "$base" != main ] && { [[ "$BRANCH" != claude/fix-* ]] || [ "$author" != app/claude ]; }; then
-            echo "PR #$number targets $base and isn't a repair fix PR: left for a person"; exit 0
-          fi
-          if has_label hold; then echo "PR #$number is on hold"; exit 0; fi
-          if ! has_label review-ok; then echo "PR #$number has no review-ok label (yet)"; exit 0; fi
-
-          # The review clears its label when it starts, so a successful Review run on this
-          # commit plus the label means the verdict is for this commit
-          ok_runs() {
-            gh run list -R "$R" -w "$1" --commit "$sha" \
-              --json conclusion --jq 'map(select(.conclusion == "success")) | length'
-          }
-          if [ "$(ok_runs CI)" -eq 0 ]; then echo "CI hasn't passed on $sha (yet)"; exit 0; fi
-          if [ "$base" = main ] && [ "$(ok_runs Review)" -eq 0 ]; then
-            echo "No finished review of $sha (yet)"; exit 0
-          fi
-
-          if [ "$base" = main ]; then
-            held=$(gh api --paginate "repos/$R/pulls/$number/files" --jq '.[].filename' |
-              while read -r f; do
-                for p in $HELD_PATHS; do
-                  case "$f" in ("$p"*|$p) echo "$f"; break ;; esac
-                done
-              done)
-            if [ -n "$held" ]; then
-              echo "PR #$number touches paths a person must merge:"; echo "$held"
-              gh pr edit "$number" -R "$R" --add-label needs-owner
-              next_in_queue
-              exit 0
-            fi
-          fi
-
-          # Main moving under the merge (another PR, a docs push) refuses it for a moment (#353)
-          for attempt in 1 2 3 4; do
-            if out=$(gh pr merge "$number" -R "$R" --merge --match-head-commit "$sha" 2>&1); then
-              echo "$out"; break
-            fi
-            echo "$out" >&2
-            case "$out" in
-              *"Base branch was modified"* | *"not mergeable"*)
-                [ "$attempt" -lt 4 ] || { echo "Gave up after $attempt tries" >&2; exit 1; }
-                sleep $((attempt * 10)) ;;
-              *) exit 1 ;;
-            esac
-          done
-          # The repo deletes merged branches itself (delete_branch_on_merge)
-          echo "Merged PR #$number into $base"
-          # A merge with the workflow token doesn't apply the PR's Closes/Fixes, so close its
-          # issues here, before the queue looks for the next one (#67). Only main closes issues.
-          if [ "$base" = main ]; then
-            issues=$(gh pr view "$number" -R "$R" --json closingIssuesReferences |
-              jq -r --arg p "https://github.com/$R/issues/" \
-                '.closingIssuesReferences[] | select(.url | startswith($p)) | .number' ||
-              echo "Couldn't read the issues PR #$number closes" >&2)
-            for n in $issues; do
-              if [ "$(gh issue view "$n" -R "$R" --json state --jq .state)" = OPEN ]; then
-                gh issue close "$n" -R "$R" --reason completed --comment "Closed by #$number." ||
-                  echo "Couldn't close #$n" >&2
-              fi
-            done
-          fi
-          gh workflow run ci.yml -R "$R" --ref "$base"
-          if [ "$base" = main ]; then next_in_queue; fi
+      ci_workflow_file: ci.yml

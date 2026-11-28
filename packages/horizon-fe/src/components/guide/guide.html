@@ -4,7 +4,6 @@
             <a href="#overview">Overview</a>
             <a href="#data-table">Data Table UI</a>
             <a href="#integrate">App Integration</a>
-            <a href="#examples">Examples</a>
             <a href="#support">Support</a>
         </div>
         <div class="guide-body">
@@ -398,22 +397,23 @@
                         </p>
 
                         <p>
-                            The api_key will be used as a query parameter in the
-                            API URL endpoints. For documentation on how to use
-                            the api, visit the
+                            Send the api_key in the Authorization header of
+                            every API request, as
+                            <code>Authorization: Bearer &lt;api_key&gt;</code>.
+                            For documentation on how to use the api, visit the
                             <routerLink to="/app/api">api</routerLink> docs.
                         </p>
-                    </div>
 
-                    <h2 id="examples" class="guide-section-title">Examples</h2>
-
-                    <div class="guide-block">
                         <p>
+                            For example apps and clients (Angular, Node and
+                            Python), see the
                             <a
-                                href="https://github.com/stevehetz/invokedb-examples-angular"
+                                href="https://github.com/stevehetz/invokedb/tree/main/examples"
                                 target="_blank"
-                                >InvokeDB Angular Examples</a
+                                rel="noopener"
+                                >examples</a
                             >
+                            in the InvokeDB repository.
                         </p>
                     </div>
 

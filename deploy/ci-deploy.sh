@@ -48,9 +48,11 @@ echo "Deploying $sha"
 top="${REPO#*/}-$sha"
 rm -rf "$APP.new"
 mkdir -p "$APP.new"
+# examples/: the React example's image is built from it (#340). The whole folder, not just
+# react-demo, so this script (installed by hand) also deploys commits from before it.
 curl -fsSL "https://codeload.github.com/$REPO/tar.gz/$sha" \
   | tar -xz -C "$APP.new" --strip-components=1 \
-    "$top/deploy" "$top/packages/horizon-be" "$top/packages/horizon-fe"
+    "$top/deploy" "$top/packages/horizon-be" "$top/packages/horizon-fe" "$top/examples"
 echo "$sha" > "$APP.new/REVISION"
 rm -rf "$APP.old"
 mv "$APP" "$APP.old"

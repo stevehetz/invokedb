@@ -33,6 +33,12 @@ for ex in invokedb-node angular; do
   NG_CLI_ANALYTICS=false npm --prefix "examples/$ex" run build
 done
 
+step 'examples/react-demo: lint, server tests, build'
+[ -d examples/react-demo/node_modules ] || npm --prefix examples/react-demo ci --no-audit --no-fund
+npm --prefix examples/react-demo run lint
+npm --prefix examples/react-demo test
+npm --prefix examples/react-demo run build
+
 step 'shellcheck deploy/*.sh scripts/*.sh'
 if command -v shellcheck >/dev/null; then
   shellcheck deploy/*.sh scripts/*.sh

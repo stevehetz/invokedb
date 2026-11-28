@@ -51,11 +51,12 @@ SSH=(ssh "${SSH_OPTS[@]}" "root@$DEPLOY_HOST")
 compose="cd $REMOTE/deploy && docker compose --env-file $REMOTE_ENV"
 
 ship() {
-  if [ -n "$(git -C "$ROOT" status --porcelain -- deploy packages)" ]; then
+  if [ -n "$(git -C "$ROOT" status --porcelain -- deploy packages examples)" ]; then
     echo "Note: uncommitted changes are NOT deployed (this ships HEAD $(git -C "$ROOT" rev-parse --short HEAD))"
   fi
   echo "Shipping $(git -C "$ROOT" rev-parse --short HEAD) to $DEPLOY_HOST"
-  git -C "$ROOT" archive --format=tar HEAD deploy packages/horizon-be packages/horizon-fe \
+  # The React example's image (#340) is built from examples/ (it imports the client's source)
+  git -C "$ROOT" archive --format=tar HEAD deploy packages/horizon-be packages/horizon-fe examples \
     | "${SSH[@]}" "rm -rf $REMOTE.new && mkdir -p $REMOTE.new && tar -x -C $REMOTE.new \
         && rm -rf $REMOTE.old && { [ ! -d $REMOTE ] || mv $REMOTE $REMOTE.old; } \
         && mv $REMOTE.new $REMOTE && rm -rf $REMOTE.old \

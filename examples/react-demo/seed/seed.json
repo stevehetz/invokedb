@@ -1,0 +1,1458 @@
+{
+  "customers": [
+    {
+      "name": "Ellis Kettering",
+      "email": "ellis.kettering@example.com",
+      "phone": "(271) 555-0180",
+      "city": "Boise",
+      "state": "ID"
+    },
+    {
+      "name": "Jordan Merriweather",
+      "email": "jordan.merriweather@example.com",
+      "phone": "(957) 555-0132",
+      "city": "Duluth",
+      "state": "MN"
+    },
+    {
+      "name": "Tatum Fairbanks",
+      "email": "tatum.fairbanks@example.com",
+      "phone": "(802) 555-0146",
+      "city": "Omaha",
+      "state": "NE"
+    },
+    {
+      "name": "Blair Coldwell",
+      "email": "blair.coldwell@example.com",
+      "phone": "(978) 555-0126",
+      "city": "Tucson",
+      "state": "AZ"
+    },
+    {
+      "name": "Kai Garrity",
+      "email": "kai.garrity@example.com",
+      "phone": "(322) 555-0114",
+      "city": "Savannah",
+      "state": "GA"
+    },
+    {
+      "name": "Marlowe Lockridge",
+      "email": "marlowe.lockridge@example.com",
+      "phone": "(532) 555-0102",
+      "city": "Burlington",
+      "state": "VT"
+    },
+    {
+      "name": "Reese Yardley",
+      "email": "reese.yardley@example.com",
+      "phone": "(532) 555-0122",
+      "city": "Omaha",
+      "state": "NE"
+    },
+    {
+      "name": "Kai Abernathy",
+      "email": "kai.abernathy@example.com",
+      "phone": "(775) 555-0120",
+      "city": "Madison",
+      "state": "WI"
+    },
+    {
+      "name": "Reese Quimby",
+      "email": "reese.quimby@example.com",
+      "phone": "(343) 555-0178",
+      "city": "Providence",
+      "state": "RI"
+    },
+    {
+      "name": "Quinn Coldwell",
+      "email": "quinn.coldwell@example.com",
+      "phone": "(442) 555-0127",
+      "city": "Raleigh",
+      "state": "NC"
+    },
+    {
+      "name": "Tatum Garrity",
+      "email": "tatum.garrity@example.com",
+      "phone": "(302) 555-0179",
+      "city": "Austin",
+      "state": "TX"
+    },
+    {
+      "name": "Devon Hollister",
+      "email": "devon.hollister@example.com",
+      "phone": "(462) 555-0102",
+      "city": "Raleigh",
+      "state": "NC"
+    },
+    {
+      "name": "Reese Vandermeer",
+      "email": "reese.vandermeer@example.com",
+      "phone": "(418) 555-0120",
+      "city": "Spokane",
+      "state": "WA"
+    },
+    {
+      "name": "Nico Vandermeer",
+      "email": "nico.vandermeer@example.com",
+      "phone": "(538) 555-0100",
+      "city": "Ann Arbor",
+      "state": "MI"
+    },
+    {
+      "name": "Wren Northcott",
+      "email": "wren.northcott@example.com",
+      "phone": "(351) 555-0116",
+      "city": "Raleigh",
+      "state": "NC"
+    },
+    {
+      "name": "Indie Fairbanks",
+      "email": "indie.fairbanks@example.com",
+      "phone": "(696) 555-0111",
+      "city": "Duluth",
+      "state": "MN"
+    },
+    {
+      "name": "Gray Calloway",
+      "email": "gray.calloway@example.com",
+      "phone": "(629) 555-0178",
+      "city": "Raleigh",
+      "state": "NC"
+    },
+    {
+      "name": "Sage Lockridge",
+      "email": "sage.lockridge@example.com",
+      "phone": "(265) 555-0162",
+      "city": "Savannah",
+      "state": "GA"
+    },
+    {
+      "name": "Casey Pemberton",
+      "email": "casey.pemberton@example.com",
+      "phone": "(661) 555-0156",
+      "city": "Asheville",
+      "state": "NC"
+    },
+    {
+      "name": "Jules Thornbury",
+      "email": "jules.thornbury@example.com",
+      "phone": "(247) 555-0102",
+      "city": "Duluth",
+      "state": "MN"
+    },
+    {
+      "name": "Peyton Hollister",
+      "email": "peyton.hollister@example.com",
+      "phone": "(940) 555-0190",
+      "city": "Madison",
+      "state": "WI"
+    },
+    {
+      "name": "Lane Northcott",
+      "email": "lane.northcott@example.com",
+      "phone": "(365) 555-0100",
+      "city": "Omaha",
+      "state": "NE"
+    },
+    {
+      "name": "Reese Ingram",
+      "email": "reese.ingram@example.com",
+      "phone": "(569) 555-0150",
+      "city": "Ann Arbor",
+      "state": "MI"
+    },
+    {
+      "name": "Emerson Kettering",
+      "email": "emerson.kettering@example.com",
+      "phone": "(738) 555-0164",
+      "city": "Madison",
+      "state": "WI"
+    },
+    {
+      "name": "Peyton Thornbury",
+      "email": "peyton.thornbury@example.com",
+      "phone": "(416) 555-0150",
+      "city": "Providence",
+      "state": "RI"
+    },
+    {
+      "name": "Rowan Lockridge",
+      "email": "rowan.lockridge@example.com",
+      "phone": "(498) 555-0120",
+      "city": "Savannah",
+      "state": "GA"
+    },
+    {
+      "name": "Indie Hollister",
+      "email": "indie.hollister@example.com",
+      "phone": "(870) 555-0133",
+      "city": "Boise",
+      "state": "ID"
+    },
+    {
+      "name": "Riley Pemberton",
+      "email": "riley.pemberton@example.com",
+      "phone": "(639) 555-0133",
+      "city": "Santa Fe",
+      "state": "NM"
+    },
+    {
+      "name": "Oakley Thornbury",
+      "email": "oakley.thornbury@example.com",
+      "phone": "(898) 555-0184",
+      "city": "Providence",
+      "state": "RI"
+    },
+    {
+      "name": "Corey Stanhope",
+      "email": "corey.stanhope@example.com",
+      "phone": "(618) 555-0107",
+      "city": "Raleigh",
+      "state": "NC"
+    },
+    {
+      "name": "Wren Whitlock",
+      "email": "wren.whitlock@example.com",
+      "phone": "(594) 555-0186",
+      "city": "Denver",
+      "state": "CO"
+    },
+    {
+      "name": "Logan Brightwater",
+      "email": "logan.brightwater@example.com",
+      "phone": "(596) 555-0190",
+      "city": "Fresno",
+      "state": "CA"
+    },
+    {
+      "name": "Blair Hollister",
+      "email": "blair.hollister@example.com",
+      "phone": "(354) 555-0163",
+      "city": "Burlington",
+      "state": "VT"
+    },
+    {
+      "name": "Rowan Ravensworth",
+      "email": "rowan.ravensworth@example.com",
+      "phone": "(569) 555-0139",
+      "city": "Duluth",
+      "state": "MN"
+    },
+    {
+      "name": "Arden Vandermeer",
+      "email": "arden.vandermeer@example.com",
+      "phone": "(603) 555-0103",
+      "city": "Asheville",
+      "state": "NC"
+    },
+    {
+      "name": "Reese Ravensworth",
+      "email": "reese.ravensworth@example.com",
+      "phone": "(295) 555-0148",
+      "city": "Boise",
+      "state": "ID"
+    },
+    {
+      "name": "Harper Fairbanks",
+      "email": "harper.fairbanks@example.com",
+      "phone": "(537) 555-0149",
+      "city": "Fresno",
+      "state": "CA"
+    },
+    {
+      "name": "Devon Dunmore",
+      "email": "devon.dunmore@example.com",
+      "phone": "(563) 555-0126",
+      "city": "Burlington",
+      "state": "VT"
+    },
+    {
+      "name": "Parker Vandermeer",
+      "email": "parker.vandermeer@example.com",
+      "phone": "(893) 555-0176",
+      "city": "Tucson",
+      "state": "AZ"
+    },
+    {
+      "name": "Peyton Quimby",
+      "email": "peyton.quimby@example.com",
+      "phone": "(853) 555-0144",
+      "city": "Burlington",
+      "state": "VT"
+    }
+  ],
+  "tickets": [
+    {
+      "number": 1001,
+      "title": "Need a copy of last year’s invoices",
+      "description": "Our accountant asked for every invoice from last year.",
+      "status": "open",
+      "priority": "urgent",
+      "created_minutes_ago": 10617,
+      "customer_email": "kai.abernathy@example.com"
+    },
+    {
+      "number": 1002,
+      "title": "Charged twice this month",
+      "description": "My card statement shows two charges for the same subscription period.",
+      "status": "open",
+      "priority": "high",
+      "created_minutes_ago": 2345,
+      "customer_email": "marlowe.lockridge@example.com"
+    },
+    {
+      "number": 1003,
+      "title": "API returns 429 during nightly sync",
+      "description": "Our sync job hits rate limits around 2 a.m. every night.",
+      "status": "closed",
+      "priority": "normal",
+      "created_minutes_ago": 28656,
+      "customer_email": "devon.dunmore@example.com"
+    },
+    {
+      "number": 1004,
+      "title": "Feature request: recurring tasks",
+      "description": "It would help to repeat a task every week automatically.",
+      "status": "closed",
+      "priority": "urgent",
+      "created_minutes_ago": 15933,
+      "customer_email": "rowan.lockridge@example.com"
+    },
+    {
+      "number": 1005,
+      "title": "Invoice shows the wrong billing address",
+      "description": "The last invoice still has our old office address on it.",
+      "status": "closed",
+      "priority": "low",
+      "created_minutes_ago": 16848,
+      "customer_email": "wren.northcott@example.com"
+    },
+    {
+      "number": 1006,
+      "title": "Dashboard numbers don’t match the table",
+      "description": "The total on the dashboard is lower than the sum of the rows.",
+      "status": "closed",
+      "priority": "high",
+      "created_minutes_ago": 26225,
+      "customer_email": "corey.stanhope@example.com"
+    },
+    {
+      "number": 1007,
+      "title": "Two-factor codes not accepted",
+      "description": "The six-digit codes from my authenticator app are rejected.",
+      "status": "open",
+      "priority": "normal",
+      "created_minutes_ago": 4250,
+      "customer_email": "ellis.kettering@example.com"
+    },
+    {
+      "number": 1008,
+      "title": "Search doesn’t find accented names",
+      "description": "Searching for \"Jose\" does not find \"José\" in the customers table.",
+      "status": "closed",
+      "priority": "high",
+      "created_minutes_ago": 13907,
+      "customer_email": "devon.dunmore@example.com"
+    },
+    {
+      "number": 1009,
+      "title": "How do I add a team member?",
+      "description": "I would like a colleague to see our tables. Where is that setting?",
+      "status": "closed",
+      "priority": "normal",
+      "created_minutes_ago": 11014,
+      "customer_email": "sage.lockridge@example.com"
+    },
+    {
+      "number": 1010,
+      "title": "Can’t sign in after password reset",
+      "description": "I reset my password this morning but the new one is refused on the sign-in page.",
+      "status": "closed",
+      "priority": "normal",
+      "created_minutes_ago": 20774,
+      "customer_email": "jordan.merriweather@example.com"
+    },
+    {
+      "number": 1011,
+      "title": "Invoice shows the wrong billing address",
+      "description": "The last invoice still has our old office address on it.",
+      "status": "closed",
+      "priority": "urgent",
+      "created_minutes_ago": 28725,
+      "customer_email": "reese.quimby@example.com"
+    },
+    {
+      "number": 1012,
+      "title": "Can’t sign in after password reset",
+      "description": "I reset my password this morning but the new one is refused on the sign-in page.",
+      "status": "closed",
+      "priority": "urgent",
+      "created_minutes_ago": 22630,
+      "customer_email": "riley.pemberton@example.com"
+    },
+    {
+      "number": 1013,
+      "title": "Charged twice this month",
+      "description": "My card statement shows two charges for the same subscription period.",
+      "status": "open",
+      "priority": "normal",
+      "created_minutes_ago": 13458,
+      "customer_email": "jules.thornbury@example.com"
+    },
+    {
+      "number": 1014,
+      "title": "Change the account owner",
+      "description": "Our previous admin left; please move ownership to me.",
+      "status": "open",
+      "priority": "high",
+      "created_minutes_ago": 12712,
+      "customer_email": "sage.lockridge@example.com"
+    },
+    {
+      "number": 1015,
+      "title": "Mobile app crashes on startup",
+      "description": "Since the latest update the app closes right after the splash screen.",
+      "status": "closed",
+      "priority": "urgent",
+      "created_minutes_ago": 21060,
+      "customer_email": "reese.quimby@example.com"
+    },
+    {
+      "number": 1016,
+      "title": "Search doesn’t find accented names",
+      "description": "Searching for \"Jose\" does not find \"José\" in the customers table.",
+      "status": "closed",
+      "priority": "urgent",
+      "created_minutes_ago": 22193,
+      "customer_email": "indie.hollister@example.com"
+    },
+    {
+      "number": 1017,
+      "title": "Invoice shows the wrong billing address",
+      "description": "The last invoice still has our old office address on it.",
+      "status": "closed",
+      "priority": "urgent",
+      "created_minutes_ago": 28569,
+      "customer_email": "devon.hollister@example.com"
+    },
+    {
+      "number": 1018,
+      "title": "Need a copy of last year’s invoices",
+      "description": "Our accountant asked for every invoice from last year.",
+      "status": "closed",
+      "priority": "urgent",
+      "created_minutes_ago": 22696,
+      "customer_email": "wren.northcott@example.com"
+    },
+    {
+      "number": 1019,
+      "title": "Import fails on a large spreadsheet",
+      "description": "Uploading a 40 MB spreadsheet stops at 80% with an error.",
+      "status": "closed",
+      "priority": "normal",
+      "created_minutes_ago": 30131,
+      "customer_email": "wren.whitlock@example.com"
+    },
+    {
+      "number": 1020,
+      "title": "Search doesn’t find accented names",
+      "description": "Searching for \"Jose\" does not find \"José\" in the customers table.",
+      "status": "closed",
+      "priority": "urgent",
+      "created_minutes_ago": 28388,
+      "customer_email": "tatum.fairbanks@example.com"
+    },
+    {
+      "number": 1021,
+      "title": "Charged twice this month",
+      "description": "My card statement shows two charges for the same subscription period.",
+      "status": "closed",
+      "priority": "high",
+      "created_minutes_ago": 17378,
+      "customer_email": "tatum.garrity@example.com"
+    },
+    {
+      "number": 1022,
+      "title": "Export to CSV is missing columns",
+      "description": "When I export the orders table, the notes column is not in the file.",
+      "status": "closed",
+      "priority": "low",
+      "created_minutes_ago": 28854,
+      "customer_email": "sage.lockridge@example.com"
+    },
+    {
+      "number": 1023,
+      "title": "Order confirmation email never arrived",
+      "description": "A customer placed an order yesterday and got no confirmation.",
+      "status": "waiting",
+      "priority": "low",
+      "created_minutes_ago": 16360,
+      "customer_email": "kai.abernathy@example.com"
+    },
+    {
+      "number": 1024,
+      "title": "Shipping label prints blank",
+      "description": "The label PDF opens but the page is empty.",
+      "status": "closed",
+      "priority": "low",
+      "created_minutes_ago": 26762,
+      "customer_email": "devon.dunmore@example.com"
+    },
+    {
+      "number": 1025,
+      "title": "Change the account owner",
+      "description": "Our previous admin left; please move ownership to me.",
+      "status": "open",
+      "priority": "urgent",
+      "created_minutes_ago": 7170,
+      "customer_email": "sage.lockridge@example.com"
+    },
+    {
+      "number": 1026,
+      "title": "How do I add a team member?",
+      "description": "I would like a colleague to see our tables. Where is that setting?",
+      "status": "in_progress",
+      "priority": "low",
+      "created_minutes_ago": 1595,
+      "customer_email": "indie.fairbanks@example.com"
+    },
+    {
+      "number": 1027,
+      "title": "Search doesn’t find accented names",
+      "description": "Searching for \"Jose\" does not find \"José\" in the customers table.",
+      "status": "open",
+      "priority": "low",
+      "created_minutes_ago": 21225,
+      "customer_email": "kai.abernathy@example.com"
+    },
+    {
+      "number": 1028,
+      "title": "Cancel my subscription",
+      "description": "We are closing the shop at the end of the month.",
+      "status": "closed",
+      "priority": "low",
+      "created_minutes_ago": 25817,
+      "customer_email": "devon.hollister@example.com"
+    },
+    {
+      "number": 1029,
+      "title": "Invoice shows the wrong billing address",
+      "description": "The last invoice still has our old office address on it.",
+      "status": "closed",
+      "priority": "high",
+      "created_minutes_ago": 16434,
+      "customer_email": "peyton.thornbury@example.com"
+    },
+    {
+      "number": 1030,
+      "title": "Mobile app crashes on startup",
+      "description": "Since the latest update the app closes right after the splash screen.",
+      "status": "in_progress",
+      "priority": "low",
+      "created_minutes_ago": 12532,
+      "customer_email": "reese.yardley@example.com"
+    },
+    {
+      "number": 1031,
+      "title": "Invoice shows the wrong billing address",
+      "description": "The last invoice still has our old office address on it.",
+      "status": "closed",
+      "priority": "normal",
+      "created_minutes_ago": 5983,
+      "customer_email": "reese.quimby@example.com"
+    },
+    {
+      "number": 1032,
+      "title": "Cancel my subscription",
+      "description": "We are closing the shop at the end of the month.",
+      "status": "waiting",
+      "priority": "urgent",
+      "created_minutes_ago": 20502,
+      "customer_email": "blair.hollister@example.com"
+    },
+    {
+      "number": 1033,
+      "title": "Time zone is wrong on timestamps",
+      "description": "Created times show up four hours ahead of our local time.",
+      "status": "closed",
+      "priority": "normal",
+      "created_minutes_ago": 28419,
+      "customer_email": "kai.garrity@example.com"
+    },
+    {
+      "number": 1034,
+      "title": "Charged twice this month",
+      "description": "My card statement shows two charges for the same subscription period.",
+      "status": "in_progress",
+      "priority": "low",
+      "created_minutes_ago": 11305,
+      "customer_email": "wren.whitlock@example.com"
+    },
+    {
+      "number": 1035,
+      "title": "Shipping label prints blank",
+      "description": "The label PDF opens but the page is empty.",
+      "status": "closed",
+      "priority": "low",
+      "created_minutes_ago": 15854,
+      "customer_email": "reese.quimby@example.com"
+    },
+    {
+      "number": 1036,
+      "title": "Webhook deliveries are delayed",
+      "description": "Our endpoint gets events several minutes after the change.",
+      "status": "in_progress",
+      "priority": "low",
+      "created_minutes_ago": 11521,
+      "customer_email": "peyton.hollister@example.com"
+    },
+    {
+      "number": 1037,
+      "title": "Shipping label prints blank",
+      "description": "The label PDF opens but the page is empty.",
+      "status": "waiting",
+      "priority": "normal",
+      "created_minutes_ago": 20476,
+      "customer_email": "emerson.kettering@example.com"
+    },
+    {
+      "number": 1038,
+      "title": "Can’t sign in after password reset",
+      "description": "I reset my password this morning but the new one is refused on the sign-in page.",
+      "status": "waiting",
+      "priority": "high",
+      "created_minutes_ago": 20263,
+      "customer_email": "reese.quimby@example.com"
+    },
+    {
+      "number": 1039,
+      "title": "How do I add a team member?",
+      "description": "I would like a colleague to see our tables. Where is that setting?",
+      "status": "closed",
+      "priority": "low",
+      "created_minutes_ago": 15434,
+      "customer_email": "jordan.merriweather@example.com"
+    },
+    {
+      "number": 1040,
+      "title": "Time zone is wrong on timestamps",
+      "description": "Created times show up four hours ahead of our local time.",
+      "status": "waiting",
+      "priority": "high",
+      "created_minutes_ago": 19102,
+      "customer_email": "rowan.lockridge@example.com"
+    },
+    {
+      "number": 1041,
+      "title": "Request: dark mode for reports",
+      "description": "Our team works late and would love a dark theme on the reports page.",
+      "status": "closed",
+      "priority": "normal",
+      "created_minutes_ago": 3848,
+      "customer_email": "wren.northcott@example.com"
+    },
+    {
+      "number": 1042,
+      "title": "Shipping label prints blank",
+      "description": "The label PDF opens but the page is empty.",
+      "status": "in_progress",
+      "priority": "low",
+      "created_minutes_ago": 7267,
+      "customer_email": "casey.pemberton@example.com"
+    },
+    {
+      "number": 1043,
+      "title": "Dashboard numbers don’t match the table",
+      "description": "The total on the dashboard is lower than the sum of the rows.",
+      "status": "closed",
+      "priority": "low",
+      "created_minutes_ago": 28655,
+      "customer_email": "reese.ravensworth@example.com"
+    },
+    {
+      "number": 1044,
+      "title": "How do I add a team member?",
+      "description": "I would like a colleague to see our tables. Where is that setting?",
+      "status": "closed",
+      "priority": "low",
+      "created_minutes_ago": 27985,
+      "customer_email": "lane.northcott@example.com"
+    },
+    {
+      "number": 1045,
+      "title": "Need a copy of last year’s invoices",
+      "description": "Our accountant asked for every invoice from last year.",
+      "status": "closed",
+      "priority": "high",
+      "created_minutes_ago": 13088,
+      "customer_email": "tatum.garrity@example.com"
+    },
+    {
+      "number": 1046,
+      "title": "Order confirmation email never arrived",
+      "description": "A customer placed an order yesterday and got no confirmation.",
+      "status": "open",
+      "priority": "low",
+      "created_minutes_ago": 7253,
+      "customer_email": "devon.hollister@example.com"
+    },
+    {
+      "number": 1047,
+      "title": "Shipping label prints blank",
+      "description": "The label PDF opens but the page is empty.",
+      "status": "open",
+      "priority": "urgent",
+      "created_minutes_ago": 11120,
+      "customer_email": "wren.northcott@example.com"
+    },
+    {
+      "number": 1048,
+      "title": "API returns 429 during nightly sync",
+      "description": "Our sync job hits rate limits around 2 a.m. every night.",
+      "status": "open",
+      "priority": "high",
+      "created_minutes_ago": 18791,
+      "customer_email": "tatum.garrity@example.com"
+    },
+    {
+      "number": 1049,
+      "title": "Dashboard numbers don’t match the table",
+      "description": "The total on the dashboard is lower than the sum of the rows.",
+      "status": "waiting",
+      "priority": "normal",
+      "created_minutes_ago": 14083,
+      "customer_email": "tatum.fairbanks@example.com"
+    },
+    {
+      "number": 1050,
+      "title": "Export to CSV is missing columns",
+      "description": "When I export the orders table, the notes column is not in the file.",
+      "status": "closed",
+      "priority": "high",
+      "created_minutes_ago": 18312,
+      "customer_email": "indie.fairbanks@example.com"
+    },
+    {
+      "number": 1051,
+      "title": "Two-factor codes not accepted",
+      "description": "The six-digit codes from my authenticator app are rejected.",
+      "status": "in_progress",
+      "priority": "low",
+      "created_minutes_ago": 11940,
+      "customer_email": "harper.fairbanks@example.com"
+    },
+    {
+      "number": 1052,
+      "title": "Can’t sign in after password reset",
+      "description": "I reset my password this morning but the new one is refused on the sign-in page.",
+      "status": "waiting",
+      "priority": "urgent",
+      "created_minutes_ago": 9507,
+      "customer_email": "marlowe.lockridge@example.com"
+    },
+    {
+      "number": 1053,
+      "title": "Two-factor codes not accepted",
+      "description": "The six-digit codes from my authenticator app are rejected.",
+      "status": "closed",
+      "priority": "urgent",
+      "created_minutes_ago": 25140,
+      "customer_email": "wren.northcott@example.com"
+    },
+    {
+      "number": 1054,
+      "title": "Mobile app crashes on startup",
+      "description": "Since the latest update the app closes right after the splash screen.",
+      "status": "open",
+      "priority": "normal",
+      "created_minutes_ago": 27876,
+      "customer_email": "tatum.fairbanks@example.com"
+    },
+    {
+      "number": 1055,
+      "title": "Dashboard numbers don’t match the table",
+      "description": "The total on the dashboard is lower than the sum of the rows.",
+      "status": "in_progress",
+      "priority": "urgent",
+      "created_minutes_ago": 10106,
+      "customer_email": "indie.fairbanks@example.com"
+    },
+    {
+      "number": 1056,
+      "title": "Two-factor codes not accepted",
+      "description": "The six-digit codes from my authenticator app are rejected.",
+      "status": "open",
+      "priority": "normal",
+      "created_minutes_ago": 4966,
+      "customer_email": "riley.pemberton@example.com"
+    },
+    {
+      "number": 1057,
+      "title": "How do I add a team member?",
+      "description": "I would like a colleague to see our tables. Where is that setting?",
+      "status": "in_progress",
+      "priority": "high",
+      "created_minutes_ago": 1432,
+      "customer_email": "jordan.merriweather@example.com"
+    },
+    {
+      "number": 1058,
+      "title": "Two-factor codes not accepted",
+      "description": "The six-digit codes from my authenticator app are rejected.",
+      "status": "closed",
+      "priority": "high",
+      "created_minutes_ago": 16106,
+      "customer_email": "casey.pemberton@example.com"
+    },
+    {
+      "number": 1059,
+      "title": "API returns 429 during nightly sync",
+      "description": "Our sync job hits rate limits around 2 a.m. every night.",
+      "status": "waiting",
+      "priority": "urgent",
+      "created_minutes_ago": 26940,
+      "customer_email": "oakley.thornbury@example.com"
+    },
+    {
+      "number": 1060,
+      "title": "Can’t sign in after password reset",
+      "description": "I reset my password this morning but the new one is refused on the sign-in page.",
+      "status": "closed",
+      "priority": "normal",
+      "created_minutes_ago": 27059,
+      "customer_email": "reese.ingram@example.com"
+    }
+  ],
+  "comments": [
+    {
+      "ticket_number": 1001,
+      "body": "That setting is under Account → Team. I’ve linked the help article.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 8174
+    },
+    {
+      "ticket_number": 1001,
+      "body": "Any update on this?",
+      "author": "Kai Abernathy",
+      "created_minutes_ago": 7174
+    },
+    {
+      "ticket_number": 1002,
+      "body": "I’ve updated your account. Let me know if anything still looks off.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 1980
+    },
+    {
+      "ticket_number": 1003,
+      "body": "That setting is under Account → Team. I’ve linked the help article.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 28487
+    },
+    {
+      "ticket_number": 1004,
+      "body": "Could you send a screenshot of what you see?",
+      "author": "Casey (support)",
+      "created_minutes_ago": 9331
+    },
+    {
+      "ticket_number": 1004,
+      "body": "Still seeing the same problem, unfortunately.",
+      "author": "Rowan Lockridge",
+      "created_minutes_ago": 7553
+    },
+    {
+      "ticket_number": 1005,
+      "body": "I’ve updated your account. Let me know if anything still looks off.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 16234
+    },
+    {
+      "ticket_number": 1005,
+      "body": "Chrome, latest version, on a Mac.",
+      "author": "Wren Northcott",
+      "created_minutes_ago": 8572
+    },
+    {
+      "ticket_number": 1005,
+      "body": "I was able to reproduce this on our side and passed it to the team.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 5277
+    },
+    {
+      "ticket_number": 1007,
+      "body": "Which browser and version are you using?",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 2344
+    },
+    {
+      "ticket_number": 1010,
+      "body": "A fix is rolling out today; please try again in an hour.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 18122
+    },
+    {
+      "ticket_number": 1010,
+      "body": "Chrome, latest version, on a Mac.",
+      "author": "Jordan Merriweather",
+      "created_minutes_ago": 10758
+    },
+    {
+      "ticket_number": 1010,
+      "body": "That setting is under Account → Team. I’ve linked the help article.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 6652
+    },
+    {
+      "ticket_number": 1011,
+      "body": "A fix is rolling out today; please try again in an hour.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 20298
+    },
+    {
+      "ticket_number": 1011,
+      "body": "Any update on this?",
+      "author": "Reese Quimby",
+      "created_minutes_ago": 19430
+    },
+    {
+      "ticket_number": 1011,
+      "body": "I’ve refunded the duplicate charge; it should appear in 3–5 days.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 13660
+    },
+    {
+      "ticket_number": 1014,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 11492
+    },
+    {
+      "ticket_number": 1015,
+      "body": "A fix is rolling out today; please try again in an hour.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 15043
+    },
+    {
+      "ticket_number": 1015,
+      "body": "It happens every time I try.",
+      "author": "Reese Quimby",
+      "created_minutes_ago": 8606
+    },
+    {
+      "ticket_number": 1015,
+      "body": "Could you send a screenshot of what you see?",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 6019
+    },
+    {
+      "ticket_number": 1015,
+      "body": "Chrome, latest version, on a Mac.",
+      "author": "Reese Quimby",
+      "created_minutes_ago": 5013
+    },
+    {
+      "ticket_number": 1017,
+      "body": "I’ve refunded the duplicate charge; it should appear in 3–5 days.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 24423
+    },
+    {
+      "ticket_number": 1017,
+      "body": "Still seeing the same problem, unfortunately.",
+      "author": "Devon Hollister",
+      "created_minutes_ago": 17980
+    },
+    {
+      "ticket_number": 1017,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 11092
+    },
+    {
+      "ticket_number": 1017,
+      "body": "Great, appreciate the quick help.",
+      "author": "Devon Hollister",
+      "created_minutes_ago": 10390
+    },
+    {
+      "ticket_number": 1019,
+      "body": "I’ve updated your account. Let me know if anything still looks off.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 23077
+    },
+    {
+      "ticket_number": 1019,
+      "body": "Chrome, latest version, on a Mac.",
+      "author": "Wren Whitlock",
+      "created_minutes_ago": 13927
+    },
+    {
+      "ticket_number": 1019,
+      "body": "I was able to reproduce this on our side and passed it to the team.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 11287
+    },
+    {
+      "ticket_number": 1020,
+      "body": "A fix is rolling out today; please try again in an hour.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 24930
+    },
+    {
+      "ticket_number": 1020,
+      "body": "It happens every time I try.",
+      "author": "Tatum Fairbanks",
+      "created_minutes_ago": 12548
+    },
+    {
+      "ticket_number": 1020,
+      "body": "Which browser and version are you using?",
+      "author": "Robin (support)",
+      "created_minutes_ago": 11263
+    },
+    {
+      "ticket_number": 1020,
+      "body": "Thanks, that worked!",
+      "author": "Tatum Fairbanks",
+      "created_minutes_ago": 9769
+    },
+    {
+      "ticket_number": 1022,
+      "body": "I’ve updated your account. Let me know if anything still looks off.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 23538
+    },
+    {
+      "ticket_number": 1022,
+      "body": "Still seeing the same problem, unfortunately.",
+      "author": "Sage Lockridge",
+      "created_minutes_ago": 12347
+    },
+    {
+      "ticket_number": 1023,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 10024
+    },
+    {
+      "ticket_number": 1023,
+      "body": "Here’s the screenshot you asked for.",
+      "author": "Kai Abernathy",
+      "created_minutes_ago": 5284
+    },
+    {
+      "ticket_number": 1024,
+      "body": "I was able to reproduce this on our side and passed it to the team.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 26671
+    },
+    {
+      "ticket_number": 1024,
+      "body": "Chrome, latest version, on a Mac.",
+      "author": "Devon Dunmore",
+      "created_minutes_ago": 19446
+    },
+    {
+      "ticket_number": 1024,
+      "body": "I was able to reproduce this on our side and passed it to the team.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 16592
+    },
+    {
+      "ticket_number": 1024,
+      "body": "Here’s the screenshot you asked for.",
+      "author": "Devon Dunmore",
+      "created_minutes_ago": 16079
+    },
+    {
+      "ticket_number": 1025,
+      "body": "I’ve updated your account. Let me know if anything still looks off.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 5568
+    },
+    {
+      "ticket_number": 1025,
+      "body": "Here’s the screenshot you asked for.",
+      "author": "Sage Lockridge",
+      "created_minutes_ago": 4865
+    },
+    {
+      "ticket_number": 1025,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 4376
+    },
+    {
+      "ticket_number": 1025,
+      "body": "It happens every time I try.",
+      "author": "Sage Lockridge",
+      "created_minutes_ago": 3628
+    },
+    {
+      "ticket_number": 1026,
+      "body": "I’ve updated your account. Let me know if anything still looks off.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 1040
+    },
+    {
+      "ticket_number": 1028,
+      "body": "I’ve updated your account. Let me know if anything still looks off.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 19901
+    },
+    {
+      "ticket_number": 1028,
+      "body": "Chrome, latest version, on a Mac.",
+      "author": "Devon Hollister",
+      "created_minutes_ago": 18866
+    },
+    {
+      "ticket_number": 1028,
+      "body": "Could you send a screenshot of what you see?",
+      "author": "Casey (support)",
+      "created_minutes_ago": 9942
+    },
+    {
+      "ticket_number": 1028,
+      "body": "Here’s the screenshot you asked for.",
+      "author": "Devon Hollister",
+      "created_minutes_ago": 5116
+    },
+    {
+      "ticket_number": 1029,
+      "body": "Which browser and version are you using?",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 15851
+    },
+    {
+      "ticket_number": 1029,
+      "body": "Chrome, latest version, on a Mac.",
+      "author": "Peyton Thornbury",
+      "created_minutes_ago": 11926
+    },
+    {
+      "ticket_number": 1030,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 10021
+    },
+    {
+      "ticket_number": 1030,
+      "body": "Here’s the screenshot you asked for.",
+      "author": "Reese Yardley",
+      "created_minutes_ago": 6989
+    },
+    {
+      "ticket_number": 1030,
+      "body": "Which browser and version are you using?",
+      "author": "Casey (support)",
+      "created_minutes_ago": 5364
+    },
+    {
+      "ticket_number": 1030,
+      "body": "Any update on this?",
+      "author": "Reese Yardley",
+      "created_minutes_ago": 4220
+    },
+    {
+      "ticket_number": 1031,
+      "body": "Which browser and version are you using?",
+      "author": "Casey (support)",
+      "created_minutes_ago": 5158
+    },
+    {
+      "ticket_number": 1031,
+      "body": "Chrome, latest version, on a Mac.",
+      "author": "Reese Quimby",
+      "created_minutes_ago": 4299
+    },
+    {
+      "ticket_number": 1031,
+      "body": "I was able to reproduce this on our side and passed it to the team.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 3319
+    },
+    {
+      "ticket_number": 1032,
+      "body": "I’ve updated your account. Let me know if anything still looks off.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 12273
+    },
+    {
+      "ticket_number": 1034,
+      "body": "A fix is rolling out today; please try again in an hour.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 8470
+    },
+    {
+      "ticket_number": 1035,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 11802
+    },
+    {
+      "ticket_number": 1036,
+      "body": "Which browser and version are you using?",
+      "author": "Robin (support)",
+      "created_minutes_ago": 9819
+    },
+    {
+      "ticket_number": 1037,
+      "body": "Could you send a screenshot of what you see?",
+      "author": "Robin (support)",
+      "created_minutes_ago": 11197
+    },
+    {
+      "ticket_number": 1037,
+      "body": "Great, appreciate the quick help.",
+      "author": "Emerson Kettering",
+      "created_minutes_ago": 9895
+    },
+    {
+      "ticket_number": 1037,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 6228
+    },
+    {
+      "ticket_number": 1037,
+      "body": "Still seeing the same problem, unfortunately.",
+      "author": "Emerson Kettering",
+      "created_minutes_ago": 3691
+    },
+    {
+      "ticket_number": 1039,
+      "body": "I’ve refunded the duplicate charge; it should appear in 3–5 days.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 10248
+    },
+    {
+      "ticket_number": 1039,
+      "body": "Great, appreciate the quick help.",
+      "author": "Jordan Merriweather",
+      "created_minutes_ago": 7601
+    },
+    {
+      "ticket_number": 1039,
+      "body": "Could you send a screenshot of what you see?",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 4053
+    },
+    {
+      "ticket_number": 1039,
+      "body": "Any update on this?",
+      "author": "Jordan Merriweather",
+      "created_minutes_ago": 3922
+    },
+    {
+      "ticket_number": 1040,
+      "body": "A fix is rolling out today; please try again in an hour.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 11009
+    },
+    {
+      "ticket_number": 1041,
+      "body": "I’ve updated your account. Let me know if anything still looks off.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 3397
+    },
+    {
+      "ticket_number": 1041,
+      "body": "Thanks, that worked!",
+      "author": "Wren Northcott",
+      "created_minutes_ago": 3339
+    },
+    {
+      "ticket_number": 1041,
+      "body": "A fix is rolling out today; please try again in an hour.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 1763
+    },
+    {
+      "ticket_number": 1041,
+      "body": "Thanks, that worked!",
+      "author": "Wren Northcott",
+      "created_minutes_ago": 1482
+    },
+    {
+      "ticket_number": 1044,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 25739
+    },
+    {
+      "ticket_number": 1044,
+      "body": "It happens every time I try.",
+      "author": "Lane Northcott",
+      "created_minutes_ago": 20794
+    },
+    {
+      "ticket_number": 1044,
+      "body": "I’ve refunded the duplicate charge; it should appear in 3–5 days.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 19047
+    },
+    {
+      "ticket_number": 1047,
+      "body": "I was able to reproduce this on our side and passed it to the team.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 10082
+    },
+    {
+      "ticket_number": 1047,
+      "body": "Great, appreciate the quick help.",
+      "author": "Wren Northcott",
+      "created_minutes_ago": 6068
+    },
+    {
+      "ticket_number": 1047,
+      "body": "Which browser and version are you using?",
+      "author": "Casey (support)",
+      "created_minutes_ago": 3985
+    },
+    {
+      "ticket_number": 1048,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 13133
+    },
+    {
+      "ticket_number": 1048,
+      "body": "Still seeing the same problem, unfortunately.",
+      "author": "Tatum Garrity",
+      "created_minutes_ago": 12423
+    },
+    {
+      "ticket_number": 1048,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 9398
+    },
+    {
+      "ticket_number": 1048,
+      "body": "Thanks, that worked!",
+      "author": "Tatum Garrity",
+      "created_minutes_ago": 8739
+    },
+    {
+      "ticket_number": 1049,
+      "body": "I’ve updated your account. Let me know if anything still looks off.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 8114
+    },
+    {
+      "ticket_number": 1049,
+      "body": "Thanks, that worked!",
+      "author": "Tatum Fairbanks",
+      "created_minutes_ago": 7170
+    },
+    {
+      "ticket_number": 1051,
+      "body": "Could you send a screenshot of what you see?",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 7100
+    },
+    {
+      "ticket_number": 1051,
+      "body": "Any update on this?",
+      "author": "Harper Fairbanks",
+      "created_minutes_ago": 6243
+    },
+    {
+      "ticket_number": 1051,
+      "body": "A fix is rolling out today; please try again in an hour.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 4883
+    },
+    {
+      "ticket_number": 1052,
+      "body": "That setting is under Account → Team. I’ve linked the help article.",
+      "author": "Robin (support)",
+      "created_minutes_ago": 7427
+    },
+    {
+      "ticket_number": 1052,
+      "body": "It happens every time I try.",
+      "author": "Marlowe Lockridge",
+      "created_minutes_ago": 6674
+    },
+    {
+      "ticket_number": 1052,
+      "body": "Could you send a screenshot of what you see?",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 4575
+    },
+    {
+      "ticket_number": 1052,
+      "body": "It happens every time I try.",
+      "author": "Marlowe Lockridge",
+      "created_minutes_ago": 2316
+    },
+    {
+      "ticket_number": 1053,
+      "body": "Could you send a screenshot of what you see?",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 21410
+    },
+    {
+      "ticket_number": 1055,
+      "body": "That setting is under Account → Team. I’ve linked the help article.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 9796
+    },
+    {
+      "ticket_number": 1055,
+      "body": "It happens every time I try.",
+      "author": "Indie Fairbanks",
+      "created_minutes_ago": 6566
+    },
+    {
+      "ticket_number": 1055,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Casey (support)",
+      "created_minutes_ago": 6339
+    },
+    {
+      "ticket_number": 1056,
+      "body": "Which browser and version are you using?",
+      "author": "Robin (support)",
+      "created_minutes_ago": 4714
+    },
+    {
+      "ticket_number": 1056,
+      "body": "Still seeing the same problem, unfortunately.",
+      "author": "Riley Pemberton",
+      "created_minutes_ago": 2988
+    },
+    {
+      "ticket_number": 1056,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 1502
+    },
+    {
+      "ticket_number": 1059,
+      "body": "Thanks for reaching out! I’m looking into this now.",
+      "author": "Morgan (support)",
+      "created_minutes_ago": 13535
+    },
+    {
+      "ticket_number": 1059,
+      "body": "Great, appreciate the quick help.",
+      "author": "Oakley Thornbury",
+      "created_minutes_ago": 10130
+    },
+    {
+      "ticket_number": 1059,
+      "body": "Could you send a screenshot of what you see?",
+      "author": "Casey (support)",
+      "created_minutes_ago": 7855
+    },
+    {
+      "ticket_number": 1059,
+      "body": "Any update on this?",
+      "author": "Oakley Thornbury",
+      "created_minutes_ago": 5060
+    }
+  ]
+}

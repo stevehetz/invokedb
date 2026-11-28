@@ -5,6 +5,10 @@
   PyPI), with `example.py` and tests (`python3 -m unittest discover -s tests`, offline; set
   `INVOKEDB_TEST_BASE` to also run them against a backend).
 - `angular/`: an Angular app (to-do list, contacts, wine reviews) built on the client.
+- `react-demo/`: a support desk in React (tickets, a kanban, linked customers and comments, and
+  a live activity feed driven by webhooks), with a small Node server that holds the API key.
+  Deployed at <https://examples.invokedb.com/react-demo>; its README says how to run it and how
+  it's set up (`react-demo/setup.mjs`).
 - `data/`: made-up example data. `node examples/data/generate.mjs` regenerates the CSVs (the
   output is the same on every run). All names, addresses and wineries are invented, phone
   numbers use the fictional 555-01xx range and emails use example.com.
@@ -22,5 +26,5 @@ node examples/setup.mjs
 cd examples/angular && npm install && npm start
 ```
 
-Each example has its own `node_modules`, and both keep their own prettier style, so they're
-listed in the root `.prettierignore`.
+Each example has its own `node_modules`, and the JavaScript ones keep their own prettier style,
+so they're listed in the root `.prettierignore`.

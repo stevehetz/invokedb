@@ -14,6 +14,7 @@ packages/*/public
 # Client code moved in from its own repos; keeps its own (2-space) prettier style
 examples/invokedb-node
 examples/angular
+examples/react-demo
 
 # Email templates: whitespace is part of the rendered output
 packages/horizon-be/src/email/**/*.html

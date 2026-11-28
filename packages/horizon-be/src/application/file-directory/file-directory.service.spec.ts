@@ -107,3 +107,79 @@ describe('with_folder_contents: deleting a folder (#357)', () => {
         expect(ids(with_folder_contents([live[1], live[0]], live))).toEqual([2, 3, 6, 5, 1]);
     });
 });
+
+describe('FileDirectoryService.update_owned and names in use (#366)', () => {
+    /** Two tables at the top level, a folder holding a table named "orders", and a folder. */
+    function with_items() {
+        const items: any[] = [
+            { id: 1, account_id: ACCT, name: 'Customers', type: 'file', parent_id: null },
+            { id: 2, account_id: ACCT, name: 'Orders', type: 'file', parent_id: null },
+            { id: 3, account_id: ACCT, name: 'Archive', type: 'dir', parent_id: null },
+            { id: 4, account_id: ACCT, name: 'orders', type: 'file', parent_id: 3 },
+            { id: 5, account_id: ACCT, name: 'Old', type: 'file', parent_id: 3, deleted: true }
+        ].map(f => ({ deleted: false, ...f }));
+        const repo = {
+            find: jest.fn(async ({ where }) =>
+                items.filter(f => f.account_id === where.account_id && !f.deleted)
+            ),
+            findOneBy: jest.fn(async ({ id }) => items.find(f => f.id === id) || null),
+            update: jest.fn(async (id, changes) => {
+                Object.assign(
+                    items.find(f => f.id === id),
+                    changes
+                );
+            })
+        };
+        const audit_svc = { record: jest.fn(async () => undefined) };
+        const account_service = { get: jest.fn(async id => ({ id })) };
+        const svc = new FileDirectoryService(
+            repo as any,
+            account_service as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            {} as any,
+            audit_svc as any,
+            {} as any
+        );
+        return { svc, repo, items };
+    }
+
+    const refused = async (p: Promise<any>) => {
+        const err = await p.catch(e => e);
+        expect(err).toBeInstanceOf(HttpException);
+        expect(err.message).toBe('Name in use');
+    };
+
+    it('refuses renaming onto a name taken in the same folder, in any case', async () => {
+        const { svc, repo } = with_items();
+        await refused(svc.update_owned(ACCT, 1, { name: 'orders' }));
+        expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses moving into a folder holding the same name', async () => {
+        const { svc, repo } = with_items();
+        await refused(svc.update_owned(ACCT, 2, { parent_id: 3 }));
+        await refused(svc.update_owned(ACCT, 4, { parent_id: null }));
+        expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it('lets an item keep its own name, or change its case', async () => {
+        const { svc, items } = with_items();
+        await svc.update_owned(ACCT, 2, { name: 'Orders' });
+        await svc.update_owned(ACCT, 2, { name: 'ORDERS' });
+        expect(items[1].name).toBe('ORDERS');
+    });
+
+    it('allows a name used by another type or a deleted item, or in another folder', async () => {
+        const { svc, items } = with_items();
+        await svc.update_owned(ACCT, 1, { name: 'Archive' });
+        await svc.update_owned(ACCT, 4, { name: 'Old' });
+        await svc.update_owned(ACCT, 1, { name: 'Customers', parent_id: 3 });
+        expect(items[0]).toMatchObject({ name: 'Customers', parent_id: 3 });
+        expect(items[3].name).toBe('Old');
+    });
+});

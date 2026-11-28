@@ -44,6 +44,7 @@ import router from '@/router';
 import { iframe_manager } from '@/components/_iframe/iframe-manager';
 import { bus } from '@/core/bus';
 import { install_error_reporting } from '@/core/error-report';
+import { install_stale_chunk_reload } from '@/core/stale-chunk';
 
 iframe_manager.init();
 
@@ -71,5 +72,7 @@ app.config.globalProperties.$bus = bus;
     ElTree,
     ElUpload
 ].forEach(plugin => app.use(plugin));
+// Before the router's first navigation: a page chunk gone after a deploy reloads once (#372)
+install_stale_chunk_reload(router);
 app.use(router);
 app.mount('#root');

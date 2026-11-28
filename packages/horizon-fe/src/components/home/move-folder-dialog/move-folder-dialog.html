@@ -1,0 +1,29 @@
+<div class="move-folder-dialog">
+    <p v-if="folders.length === 0">
+        There are no folders yet. Click <i class="fa fa-plus"></i> and choose
+        <b>Folder</b> to make one.
+    </p>
+    <template v-else>
+        <p>Move <b>{{ props.item.name }}</b> to:</p>
+        <el-select v-model="target" class="move-folder-select">
+            <el-option :value="top_level" label="No folder (top level)" />
+            <el-option
+                v-for="folder in folders"
+                :key="folder.id"
+                :value="folder.id"
+                :label="folder.name"
+            />
+        </el-select>
+    </template>
+    <div class="dialog-footer move-folder-footer">
+        <el-button @click="cancel">Cancel</el-button>
+        <el-button
+            v-if="folders.length > 0"
+            type="primary"
+            :disabled="unchanged"
+            :loading="moving"
+            @click="move"
+            >Move</el-button
+        >
+    </div>
+</div>

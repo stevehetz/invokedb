@@ -59,6 +59,7 @@ describe('mcp: tools', () => {
             'update_rows',
             'delete_rows',
             'create_table',
+            'create_folder',
             'add_columns'
         ]);
     });
@@ -132,6 +133,18 @@ describe('mcp: check_arguments', () => {
         );
         expect(check_arguments(create, { name: 'p', columns: cols, table: 't' })).toMatch(
             /unknown argument: table/
+        );
+    });
+
+    it("checks create_folder's name (#357)", () => {
+        const create = tool('create_folder');
+        expect(create.write).toBe(true);
+        expect(check_arguments(create, { name: 'agent-evals' })).toBeNull();
+        expect(check_arguments(create, {})).toBe('name is required');
+        expect(check_arguments(create, { name: 'my evals' })).toMatch(/name/);
+        expect(check_arguments(create, { name: 'x'.repeat(151) })).toMatch(/at most 150/);
+        expect(check_arguments(create, { name: 'a', folder: 'b' })).toMatch(
+            /unknown argument: folder/
         );
     });
 
@@ -412,6 +425,7 @@ describe('mcp: protocol', () => {
         const cols = [{ name: 'A', type: 'string' }];
         for (const msg of [
             call('create_table', { name: 'p', columns: cols }),
+            call('create_folder', { name: 'f' }),
             call('add_columns', { table: 'p', columns: cols })
         ]) {
             const res: any = await handle_message(msg, c);
@@ -429,6 +443,11 @@ describe('mcp: protocol', () => {
             ctx('read').c
         );
         expect(read.result.content[0].text).toBe('This API key is read-only');
+        const read_folder: any = await handle_message(
+            call('create_folder', { name: 'f' }),
+            ctx('read').c
+        );
+        expect(read_folder.result.content[0].text).toBe('This API key is read-only');
     });
 
     it('an unknown tool is a JSON-RPC error', async () => {

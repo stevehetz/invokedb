@@ -23,7 +23,6 @@
                         ><i class="fa fa-th-list"></i> Table from
                         Template</el-menu-item
                     >
-                    <!--<el-menu-item index="dir"><i class="fa fa-folder"></i> Directory</el-menu-item>-->
                     <el-menu-item index="upload"
                         ><i class="fa fa-upload"></i> Table from
                         CSV</el-menu-item
@@ -35,6 +34,9 @@
                     <el-menu-item index="ai" v-if="ai_enabled"
                         ><i class="fa fa-wand-magic-sparkles"></i> Table from a
                         Description (AI)</el-menu-item
+                    >
+                    <el-menu-item index="dir" class="divide-top"
+                        ><i class="fa fa-folder"></i> Folder</el-menu-item
                     >
                 </el-sub-menu>
             </el-menu>
@@ -91,6 +93,7 @@
                 @node-drop="node_dropped"
                 @node-expand="node_expanded"
                 @node-collapse="node_collapsed"
+                @node-contextmenu="node_contextmenu"
             >
                 <template #default="{ node, data }">
                     <span
@@ -114,4 +117,83 @@
         </div>
     </div>
     <div class="tree-background"></div>
+    <teleport to="body">
+        <div
+            v-if="context_menu"
+            class="h-tree-context-menu"
+            :style="{ left: context_menu.x + 'px', top: context_menu.y + 'px' }"
+            role="menu"
+            @contextmenu.prevent
+        >
+            <template v-if="context_menu.item.type === 'dir'">
+                <div
+                    class="context-item"
+                    role="menuitem"
+                    @click="context_action('add', 'data-grid')"
+                >
+                    <i class="fa fa-table"></i> New table here
+                </div>
+                <div
+                    class="context-item"
+                    role="menuitem"
+                    @click="context_action('add', 'template')"
+                >
+                    <i class="fa fa-th-list"></i> New table from template here
+                </div>
+                <div
+                    class="context-item"
+                    role="menuitem"
+                    @click="context_action('add', 'upload')"
+                >
+                    <i class="fa fa-upload"></i> New table from CSV here
+                </div>
+                <div
+                    class="context-item"
+                    role="menuitem"
+                    @click="context_action('add', 'url')"
+                >
+                    <i class="fa fa-link"></i> New table from URL here
+                </div>
+                <div
+                    v-if="ai_enabled"
+                    class="context-item"
+                    role="menuitem"
+                    @click="context_action('add', 'ai')"
+                >
+                    <i class="fa fa-wand-magic-sparkles"></i> New table from a
+                    description here
+                </div>
+            </template>
+            <template v-else>
+                <div
+                    class="context-item"
+                    role="menuitem"
+                    @click="context_action('open')"
+                >
+                    <i class="fa fa-table"></i> Open
+                </div>
+                <div
+                    class="context-item"
+                    role="menuitem"
+                    @click="context_action('move')"
+                >
+                    <i class="fa fa-folder"></i> Move to folder…
+                </div>
+            </template>
+            <div
+                class="context-item divide-top"
+                role="menuitem"
+                @click="context_action('rename')"
+            >
+                <i class="fa fa-edit"></i> Rename
+            </div>
+            <div
+                class="context-item danger"
+                role="menuitem"
+                @click="context_action('delete')"
+            >
+                <i class="fa fa-trash"></i> Delete
+            </div>
+        </div>
+    </teleport>
 </div>

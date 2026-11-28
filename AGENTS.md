@@ -429,7 +429,7 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   rows through `grid_view_query` in `core/view/view.ts` and `WebFileService.external_view_rows`,
   the other types through `ViewService`'s own readers, columns named by `agent_view_answer`;
   a view of a table the key can't use reads as missing), and for `read_write` keys `create_rows`, `update_rows`,
-  `delete_rows`, plus `create_table` and `add_columns` for keys of all tables, #329: string,
+  `delete_rows`, plus `create_table`, `create_folder` (#357, top level) and `add_columns` for keys of all tables, #329: string,
   number and date columns through `FileDirectoryService.create` and `batch_create_internal`)
   with their argument checks. `application/mcp/mcp.service.ts` runs them: rows
   through `WebFileService`'s `external_*` paths (quota, locks, read-only state, caps, webhooks,

@@ -16,6 +16,9 @@
                     <template #title>
                         <i class="title-icon fa fa-plus"></i>
                     </template>
+                    <el-menu-item index="dir" class="divide-bottom"
+                        ><i class="fa fa-folder"></i> Folder</el-menu-item
+                    >
                     <el-menu-item index="data-grid"
                         ><i class="fa fa-table"></i> Empty Table</el-menu-item
                     >
@@ -34,9 +37,6 @@
                     <el-menu-item index="ai" v-if="ai_enabled"
                         ><i class="fa fa-wand-magic-sparkles"></i> Table from a
                         Description (AI)</el-menu-item
-                    >
-                    <el-menu-item index="dir" class="divide-top"
-                        ><i class="fa fa-folder"></i> Folder</el-menu-item
                     >
                 </el-sub-menu>
             </el-menu>

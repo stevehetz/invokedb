@@ -10,7 +10,12 @@ import { bus } from '@/core/bus';
 import { ai_http } from '@/core/context/ai/ai-http';
 import { table_display_name } from '../table-name';
 import CleanupPanel from '../cleanup-panel/index.vue';
-import { cell_text, edit_batches, rows_text } from './edit-batches';
+import {
+    cell_text,
+    column_cell_text,
+    edit_batches,
+    rows_text
+} from './edit-batches';
 
 export const MAX_QUESTION_LENGTH = 500;
 // Pasted text (#207); the server's limits from /ai/status replace these
@@ -183,10 +188,11 @@ export default defineComponent({
 
     methods: {
         cell_text,
+        column_cell_text,
 
-        /** @param {any} value */
-        edit_cell(value) {
-            const text = cell_text(value);
+        /** @param {any} value @param {string} [type] the column's type */
+        edit_cell(value, type) {
+            const text = column_cell_text(value, type);
             return text === '' ? '(empty)' : text;
         },
 

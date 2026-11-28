@@ -69,6 +69,21 @@ export function iso_date_text(value: unknown): string | null {
 
 const pad = (n: number, length = 2) => String(n).padStart(length, '0');
 
+// How the grid shows a date (in UTC, like its date filters): `2020-01-02 03:04:05 PM`
+export const GRID_DATE_FORMAT = 'YYYY-MM-DD hh:mm:ss A';
+
+/**
+ * A date as the grid shows it (the frontend's grid_date_text), for labels the server builds
+ * for the grid such as link chips (#364); a value that isn't a date is shown as it is, and an
+ * empty one as null.
+ */
+export function grid_date_text(value: unknown): string | null {
+    if (value === null || value === undefined || value === '') return null;
+    const date = parse_utc_date(value);
+    if (isNaN(date.getTime())) return String(value);
+    return format_date(date, GRID_DATE_FORMAT, true);
+}
+
 /**
  * Formats a date with moment-style tokens: YYYY MM DD HH hh mm ss SS (hundredths of a second)
  * and A (AM/PM). Uses UTC when `utc` is set, local time otherwise. Gives 'Invalid date' (as

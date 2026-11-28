@@ -1,4 +1,4 @@
-import { parse_utc_date, format_date, iso_date_text } from './date';
+import { parse_utc_date, format_date, iso_date_text, grid_date_text } from './date';
 
 const iso = (value: unknown) => {
     const date = parse_utc_date(value);
@@ -82,5 +82,17 @@ describe('iso_date_text', () => {
         [null, undefined, '', 'soon', new Date(NaN), {}].forEach(v =>
             expect(iso_date_text(v)).toBeNull()
         );
+    });
+});
+
+describe('grid_date_text', () => {
+    it('shows a date as the grid does, in UTC', () => {
+        expect(grid_date_text(new Date('2026-11-28T12:01:29.123Z'))).toBe('2026-11-28 12:01:29 PM');
+        expect(grid_date_text('2024-01-15T00:00:00.000Z')).toBe('2024-01-15 12:00:00 AM');
+    });
+
+    it('leaves what is not a date as it is, and empty as null', () => {
+        expect(grid_date_text('soon')).toBe('soon');
+        [null, undefined, ''].forEach(v => expect(grid_date_text(v)).toBeNull());
     });
 });

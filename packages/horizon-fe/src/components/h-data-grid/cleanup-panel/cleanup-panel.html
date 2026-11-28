@@ -76,10 +76,12 @@
                             <td v-for="c in p.edit.columns" :key="c.field">
                                 <template v-if="changes(r, c.field)">
                                     <span class="ask-edit-before"
-                                        >{{ shown(r.before[c.field]) }}</span
+                                        >{{ shown(r.before[c.field], c.type)
+                                        }}</span
                                     ><span class="ask-edit-arrow">→</span
                                     ><span class="ask-edit-after"
-                                        >{{ shown(r.after[c.field]) }}</span
+                                        >{{ shown(r.after[c.field], c.type)
+                                        }}</span
                                     >
                                 </template>
                             </td>
@@ -113,7 +115,8 @@
                                 ></el-checkbox>
                             </td>
                             <td v-for="c in p.delete.columns" :key="c.field">
-                                {{ cell_text(r.before[c.field]) }}
+                                {{ column_cell_text(r.before[c.field], c.type)
+                                }}
                             </td>
                             <td v-if="p.source === 'ai'">{{ r.reason }}</td>
                         </tr>

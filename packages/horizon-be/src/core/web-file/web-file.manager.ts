@@ -7,7 +7,7 @@ import { TrackingManager } from '../tracking/tracking.manager';
 import { Account } from '../account/account.entity';
 import _c from '@app/constants';
 import logger from '@app/logger';
-import { parse_utc_date, iso_date_text } from '../date';
+import { parse_utc_date, iso_date_text, grid_date_text } from '../date';
 import { assert_array_body } from '../helpers/array-body';
 import { assert_column_update } from '../helpers/column-update';
 import { RowCountQuery, RowQuery, mongo_sort } from './row-query';
@@ -960,10 +960,11 @@ export class WebFileManager {
         return labels;
     }
 
-    // A row with its display column's date formatted as the API shows dates
+    // A row with its display column's date formatted as the grid shows dates (#364): these
+    // labels are only for the grid's link chips and picker
     private display_row(row, display) {
         if (display && display.col_type === 'date' && row && row[display.field]) {
-            return { ...row, [display.field]: this.format_date_field(row[display.field]) };
+            return { ...row, [display.field]: grid_date_text(row[display.field]) };
         }
         return row;
     }

@@ -57,6 +57,16 @@ export function parse_utc_date(value: unknown): Date {
     return isNaN(as_utc.getTime()) ? new Date(str) : as_utc;
 }
 
+/**
+ * A date as the API answers it: ISO 8601 in UTC with milliseconds (`2026-11-28T12:01:29.000Z`),
+ * or null when the value isn't a date.
+ */
+export function iso_date_text(value: unknown): string | null {
+    if (value === null || value === undefined || value === '') return null;
+    const date = parse_utc_date(value);
+    return isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 const pad = (n: number, length = 2) => String(n).padStart(length, '0');
 
 /**

@@ -1,4 +1,4 @@
-import { parse_utc_date, format_date } from './date';
+import { parse_utc_date, format_date, iso_date_text } from './date';
 
 const iso = (value: unknown) => {
     const date = parse_utc_date(value);
@@ -65,5 +65,22 @@ describe('format_date', () => {
 
     it("gives 'Invalid date' for an invalid date", () => {
         expect(format_date(new Date(NaN), 'YYYY')).toBe('Invalid date');
+    });
+});
+
+describe('iso_date_text', () => {
+    it('gives ISO 8601 in UTC with milliseconds, keeping the seconds', () => {
+        expect(iso_date_text(new Date('2026-11-28T12:01:29Z'))).toBe('2026-11-28T12:01:29.000Z');
+        expect(iso_date_text('2026-11-28T12:01:29.123Z')).toBe('2026-11-28T12:01:29.123Z');
+        expect(iso_date_text('2026-11-28T13:01:29.123+01:00')).toBe('2026-11-28T12:01:29.123Z');
+        expect(iso_date_text('2024-01-15')).toBe('2024-01-15T00:00:00.000Z');
+        // The old grid format is still read
+        expect(iso_date_text('2020-01-02 03:04:05 PM')).toBe('2020-01-02T15:04:05.000Z');
+    });
+
+    it('gives null for what is not a date', () => {
+        [null, undefined, '', 'soon', new Date(NaN), {}].forEach(v =>
+            expect(iso_date_text(v)).toBeNull()
+        );
     });
 });

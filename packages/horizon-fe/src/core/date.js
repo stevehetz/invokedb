@@ -92,6 +92,41 @@ export function parse_utc_date(value) {
 
 const pad = (n, length = 2) => String(n).padStart(length, '0');
 
+// How the grid shows a date (in UTC, like its date filters): `2020-01-02 03:04:05 PM`
+export const GRID_DATE_FORMAT = 'YYYY-MM-DD hh:mm:ss A';
+
+/**
+ * A date cell as the grid shows it. The API answers dates as ISO 8601 (#356); a value that
+ * isn't a date is shown as it is, and an empty one as null.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+export function grid_date_text(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const date = parse_utc_date(value);
+    if (isNaN(date.getTime())) return String(value);
+    return format_date(date, GRID_DATE_FORMAT, true);
+}
+
+/**
+ * A date typed into the grid, as it's saved: ISO 8601, or the old value when the text is the
+ * same date as shown (so opening and closing the editor keeps the milliseconds). Empty is
+ * null, and text that isn't a date is kept as typed.
+ * @param {unknown} new_value
+ * @param {unknown} old_value
+ * @returns {unknown}
+ */
+export function parse_grid_date(new_value, old_value) {
+    if (new_value === null || new_value === undefined) return null;
+    const text = String(new_value).trim();
+    if (text === '') return null;
+    if (old_value != null && grid_date_text(old_value) === text) {
+        return old_value;
+    }
+    const date = parse_utc_date(text);
+    return isNaN(date.getTime()) ? new_value : date.toISOString();
+}
+
 /**
  * Formats a date with moment-style tokens: YYYY MM DD HH hh mm ss SS
  * (hundredths of a second) and A (AM/PM). Uses UTC when `utc` is set, local

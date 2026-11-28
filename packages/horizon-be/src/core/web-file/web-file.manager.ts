@@ -7,7 +7,7 @@ import { TrackingManager } from '../tracking/tracking.manager';
 import { Account } from '../account/account.entity';
 import _c from '@app/constants';
 import logger from '@app/logger';
-import { parse_utc_date, format_date } from '../date';
+import { parse_utc_date, iso_date_text } from '../date';
 import { assert_array_body } from '../helpers/array-body';
 import { assert_column_update } from '../helpers/column-update';
 import { RowCountQuery, RowQuery, mongo_sort } from './row-query';
@@ -134,12 +134,10 @@ export class WebFileManager {
         return row;
     }
 
+    // A date as the API answers it: ISO 8601 in UTC with milliseconds (#356); a value that
+    // isn't a date is left as it is
     format_date_field(value) {
-        try {
-            // `SS` is hundredths of a second, as it was with moment (see the PR for #14)
-            value = format_date(parse_utc_date(value), 'YYYY-MM-DD hh:mm:SS A', true);
-        } catch (ex) {}
-        return value;
+        return iso_date_text(value) ?? value;
     }
 
     add_row_numbers(params, count, docs) {

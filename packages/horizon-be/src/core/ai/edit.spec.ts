@@ -223,16 +223,22 @@ describe('edit_row', () => {
         expect(edit([{ column: 'Price', op: 'add', value: 1 }], { b: null })).toBeNull();
     });
 
-    it('sets dates in the grid format and compares them as dates', () => {
+    it('sets dates as ISO 8601 and compares them as dates', () => {
         const res = edit([{ column: 'Added', op: 'set', value: '2024-01-15' }], {
-            c: '2020-01-02 12:00:00 AM'
+            c: '2020-01-02T00:00:00.000Z'
         });
-        expect(res.after).toEqual({ c: '2024-01-15 12:00:00 AM' });
+        expect(res.after).toEqual({ c: '2024-01-15T00:00:00.000Z' });
         expect(
             edit([{ column: 'Added', op: 'set', value: '2024-01-15' }], {
-                c: '2024-01-15 12:00:00 AM'
+                c: '2024-01-15T00:00:00.000Z'
             })
         ).toBeNull();
+        // Seconds and milliseconds are kept
+        expect(
+            edit([{ column: 'Added', op: 'set', value: '2026-11-28T12:01:29.123Z' }], {
+                c: '2026-11-28T12:01:29.000Z'
+            }).after
+        ).toEqual({ c: '2026-11-28T12:01:29.123Z' });
     });
 });
 
@@ -285,7 +291,7 @@ describe('parse_apply_body', () => {
 
 describe('row_unchanged_since', () => {
     it('compares the cells the edit changes', () => {
-        const row = { a: 'pen', b: 2, c: '2024-01-15 12:00:00 AM', d: 'Rome' };
+        const row = { a: 'pen', b: 2, c: '2024-01-15T00:00:00.000Z', d: 'Rome' };
         expect(row_unchanged_since(row, { a: 'pen', b: 2 }, COLUMNS)).toBe(true);
         expect(row_unchanged_since(row, { c: '2024-01-15' }, COLUMNS)).toBe(true);
         expect(row_unchanged_since(row, { a: 'Pen' }, COLUMNS)).toBe(false);

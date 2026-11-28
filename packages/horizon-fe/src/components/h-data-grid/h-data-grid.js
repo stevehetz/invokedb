@@ -1337,7 +1337,9 @@ export default {
                     AI_CELL_NOTES[state.s] || 'Not filled by the AI';
                 cell.title = 'Fill the column again from More → AI columns';
             } else {
-                cell.textContent = empty ? '' : String(value);
+                // As formatted (a date column's dates readably, #356)
+                const text = params.valueFormatted ?? value;
+                cell.textContent = empty ? '' : String(text);
             }
             return cell;
         },

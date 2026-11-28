@@ -25,80 +25,67 @@ export default {
     mounted() {
         this.exposeComponentMethods();
     },
+    beforeUnmount() {
+        // The app shell unmounts when the user goes to the public site and
+        // mounts again on the way back, so take this visit's handlers off
+        (this.bus_handlers || []).forEach(([event, handler]) =>
+            bus.$off(event, handler)
+        );
+        this.bus_handlers = [];
+    },
     methods: {
         exposeComponentMethods() {
-            // AlertDialog
-            bus.$on('alert-dialog:open', this.$refs.alert_dialog.open_dialog);
-            bus.$on('alert-dialog:close', this.$refs.alert_dialog.close_dialog);
+            const refs = this.$refs;
+            const handlers = [
+                // AlertDialog
+                ['alert-dialog:open', refs.alert_dialog.open_dialog],
+                ['alert-dialog:close', refs.alert_dialog.close_dialog],
 
-            // ConfirmDialog
-            bus.$on(
-                'confirm-dialog:open',
-                this.$refs.confirm_dialog.open_dialog
-            );
-            bus.$on(
-                'confirm-dialog:close',
-                this.$refs.confirm_dialog.close_dialog
-            );
+                // ConfirmDialog
+                ['confirm-dialog:open', refs.confirm_dialog.open_dialog],
+                ['confirm-dialog:close', refs.confirm_dialog.close_dialog],
 
-            // InputDialog
-            bus.$on('input-dialog:open', this.$refs.input_dialog.open_dialog);
-            bus.$on('input-dialog:close', this.$refs.input_dialog.close_dialog);
-            bus.$on(
-                'input-dialog:processing',
-                this.$refs.input_dialog.set_processing
-            );
+                // InputDialog
+                ['input-dialog:open', refs.input_dialog.open_dialog],
+                ['input-dialog:close', refs.input_dialog.close_dialog],
+                ['input-dialog:processing', refs.input_dialog.set_processing],
 
-            // UploadDialog
-            bus.$on('upload-dialog:open', this.$refs.upload_dialog.open_dialog);
-            bus.$on(
-                'upload-dialog:close',
-                this.$refs.upload_dialog.close_dialog
-            );
+                // UploadDialog
+                ['upload-dialog:open', refs.upload_dialog.open_dialog],
+                ['upload-dialog:close', refs.upload_dialog.close_dialog],
 
-            // TemplateDialog
-            bus.$on(
-                'template-dialog:open',
-                this.$refs.template_dialog.open_dialog
-            );
-            bus.$on(
-                'template-dialog:close',
-                this.$refs.template_dialog.close_dialog
-            );
-            bus.$on(
-                'template-dialog:processing',
-                this.$refs.template_dialog.set_processing
-            );
+                // TemplateDialog
+                ['template-dialog:open', refs.template_dialog.open_dialog],
+                ['template-dialog:close', refs.template_dialog.close_dialog],
+                [
+                    'template-dialog:processing',
+                    refs.template_dialog.set_processing
+                ],
 
-            // UrlImportDialog
-            bus.$on(
-                'url-import-dialog:open',
-                this.$refs.url_import_dialog.open_dialog
-            );
-            bus.$on(
-                'url-import-dialog:close',
-                this.$refs.url_import_dialog.close_dialog
-            );
-            bus.$on(
-                'url-import-dialog:processing',
-                this.$refs.url_import_dialog.set_processing
-            );
+                // UrlImportDialog
+                ['url-import-dialog:open', refs.url_import_dialog.open_dialog],
+                [
+                    'url-import-dialog:close',
+                    refs.url_import_dialog.close_dialog
+                ],
+                [
+                    'url-import-dialog:processing',
+                    refs.url_import_dialog.set_processing
+                ],
 
-            // ContainerDialog
-            bus.$on(
-                'container-dialog:open',
-                this.$refs.container_dialog.open_dialog
-            );
-            bus.$on(
-                'container-dialog:close',
-                this.$refs.container_dialog.close_dialog
-            );
+                // ContainerDialog
+                ['container-dialog:open', refs.container_dialog.open_dialog],
+                ['container-dialog:close', refs.container_dialog.close_dialog],
 
-            // Notify
-            bus.$on('notify:info', notify.info);
-            bus.$on('notify:warn', notify.warn);
-            bus.$on('notify:success', notify.success);
-            bus.$on('notify:error', notify.error);
+                // Notify
+                ['notify:info', notify.info],
+                ['notify:warn', notify.warn],
+                ['notify:success', notify.success],
+                ['notify:error', notify.error]
+            ];
+            handlers.forEach(([event, handler]) => bus.$on(event, handler));
+            // Not in data(): only beforeUnmount reads it
+            this.bus_handlers = handlers;
         }
     }
 };

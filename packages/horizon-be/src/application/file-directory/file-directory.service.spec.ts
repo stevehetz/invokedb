@@ -49,7 +49,6 @@ function setup(tables: number) {
         {} as any,
         {} as any,
         {} as any,
-        {} as any,
         onboarding_manager as any,
         audit_svc as any,
         {} as any

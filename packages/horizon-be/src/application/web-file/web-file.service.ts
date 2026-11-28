@@ -30,7 +30,6 @@ import {
 import { WebhookService } from '../webhook/webhook.service';
 import { AuditService } from '../audit/audit.service';
 import {
-    AuditActor,
     ColumnChange,
     column_changes,
     column_created,
@@ -950,18 +949,17 @@ export class WebFileService {
         }
     }
 
-    /** `actor`: who the audit log (#217) says added the rows, when not `account` (a form). */
-    async batch_create_internal(account, file_id, web_file_type, data, actor?: AuditActor) {
+    async batch_create_internal(account, file_id, web_file_type, data) {
         await this.tracking_manager.check_account_lock(account);
         await this.tracking_manager.check_table_lock(file_id);
-        await this.batch_create(account, file_id, web_file_type, data, actor);
+        await this.batch_create(account, file_id, web_file_type, data);
     }
 
-    private async batch_create(account, file_id, web_file_type, data, actor?: AuditActor) {
+    private async batch_create(account, file_id, web_file_type, data) {
         data = assert_array_body(data);
         // Nothing to add (e.g. Save with no new rows): no limits, webhooks or audit entries
         if (data.length === 0) return 0;
-        // Rows and columns alike, forms and the API included (#184)
+        // Rows and columns alike, the API included (#184)
         await this.tracking_manager.check_not_read_only(account);
         if (web_file_type === 'data_grid_column') {
             await this.assert_link_columns(account.id, data);
@@ -997,7 +995,7 @@ export class WebFileService {
         if (web_file_type === 'data_grid_row') {
             await this.webhook_svc.emit(account.id, file_id, 'row.created', inserted);
             const ids = inserted.map(r => r._id);
-            await this.audit_svc.rows(account, file_id, 'row.created', ids, [], actor);
+            await this.audit_svc.rows(account, file_id, 'row.created', ids);
             await this.ai_columns_changed(account.id, file_id, ids);
         } else if (web_file_type === 'data_grid_column') {
             const named = data.filter(c => c && typeof c.headerName === 'string' && c.headerName);

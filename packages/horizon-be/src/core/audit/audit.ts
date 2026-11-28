@@ -36,10 +36,11 @@ export const AUDIT_ACTIONS = [
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
+// 'form' is only in entries made before shareable forms were removed (#358); none are made now
 export type AuditSource = 'app' | 'api' | 'form' | 'admin';
 
 // Who made a change: the signed-in user (by email), an API key (by name and prefix, never the
-// key), a visitor through one of the account's forms, or an admin (#277, by email)
+// key) or an admin (#277, by email). Older entries may name a form (#358), with its label.
 export interface AuditActor {
     type: 'user' | 'api_key' | 'form' | 'admin';
     label: string;
@@ -101,10 +102,6 @@ export function actor_of(account: any): AuditActor {
     return { type: 'user', label: email || 'You' };
 }
 
-export function form_actor(form_id: string, form_name?: string): AuditActor {
-    return { type: 'form', label: form_name ? `Form "${form_name}"` : 'A form', form_id };
-}
-
 /** An admin acting on someone's account (#277): shown in that account's history. */
 export function admin_actor(admin_email: string): AuditActor {
     return { type: 'admin', label: `InvokeDB admin (${admin_email})` };
@@ -112,7 +109,6 @@ export function admin_actor(admin_email: string): AuditActor {
 
 export function source_of(actor: AuditActor): AuditSource {
     if (actor.type === 'api_key') return 'api';
-    if (actor.type === 'form') return 'form';
     if (actor.type === 'admin') return 'admin';
     return 'app';
 }

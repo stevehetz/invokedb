@@ -43,7 +43,6 @@ const DECIDED: Record<PlanId, PlanCaps & { price: number | null }> = {
         url_sources: 1,
         url_sync_schedules: ['off', 'daily'],
         webhooks: 1,
-        forms: 1,
         views_per_table: 5,
         audit_keep_days: 7,
         key_limits_and_logs: false,
@@ -65,7 +64,6 @@ const DECIDED: Record<PlanId, PlanCaps & { price: number | null }> = {
         url_sources: 5,
         url_sync_schedules: ['off', 'hourly', 'daily'],
         webhooks: 5,
-        forms: 10,
         views_per_table: 50,
         audit_keep_days: 30,
         key_limits_and_logs: true,
@@ -87,7 +85,6 @@ const DECIDED: Record<PlanId, PlanCaps & { price: number | null }> = {
         url_sources: 25,
         url_sync_schedules: ['off', 'hourly', 'daily'],
         webhooks: 10,
-        forms: 50,
         views_per_table: 50,
         audit_keep_days: 90,
         key_limits_and_logs: true,
@@ -133,7 +130,7 @@ describe.each(PLAN_IDS)('plan %s', plan_id => {
         });
     });
 
-    it.each(['webhooks', 'forms', 'url_sources', 'views_per_table'] as const)(
+    it.each(['webhooks', 'url_sources', 'views_per_table'] as const)(
         'allows %s up to the cap and refuses one more with plan_limit',
         limit => {
             const cap = plan.caps[limit];
@@ -263,7 +260,7 @@ describe('refusals', () => {
     });
 
     it('are 403 unless told otherwise', () => {
-        expect(plan_limit_error('forms', 1, PLANS.FREE).getStatus()).toBe(403);
+        expect(plan_limit_error('webhooks', 1, PLANS.FREE).getStatus()).toBe(403);
         expect(plan_limit_error('api_calls_per_month', 1, PLANS.FREE, 429).getStatus()).toBe(429);
     });
 });

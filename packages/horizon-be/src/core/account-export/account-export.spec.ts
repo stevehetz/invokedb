@@ -8,7 +8,6 @@ import {
     export_row,
     export_value,
     export_view,
-    form_settings,
     is_downloadable,
     is_export_id,
     json_chunks,
@@ -211,9 +210,7 @@ describe('settings', () => {
         expect(webhook_settings({ ...hook, file_id: null }, NAMES).table).toBeNull();
     });
 
-    it('names the table of forms and views', () => {
-        const form = form_settings({ id: 'f', account_id: 3, file_id: 5, title: 'T' }, NAMES);
-        expect(form).toEqual({ id: 'f', file_id: 5, title: 'T', table: 'teams' });
+    it('names the table of views', () => {
         const view = view_settings({ _id: 'x', id: 'v', account_id: 3, file_id: 9 }, NAMES);
         expect(view).toEqual({ id: 'v', file_id: 9, table: null });
     });
@@ -235,7 +232,6 @@ describe('settings', () => {
             }
         ]);
         expect(m.files).toEqual({
-            forms: 'forms.json',
             views: 'views.json',
             webhooks: 'webhooks.json'
         });

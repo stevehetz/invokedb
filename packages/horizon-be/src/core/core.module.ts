@@ -26,7 +26,6 @@ import { UrlImportManager } from './url-import/url-import.manager';
 import { UrlSyncProcessor } from './web-file/url-sync-processor';
 import { WebhookManager } from './webhook/webhook.manager';
 import { KeyRequestLogManager } from './api-key/key-request-log.manager';
-import { FormManager } from './form/form.manager';
 import { ViewManager } from './view/view.manager';
 import { AiClient } from './ai/ai-client';
 import { AiUsageManager } from './ai/ai-usage.manager';
@@ -68,7 +67,6 @@ import { StatusManager } from './status/status.manager';
         UrlSyncProcessor,
         WebhookManager,
         KeyRequestLogManager,
-        FormManager,
         ViewManager,
         AiClient,
         AiUsageManager,
@@ -93,7 +91,6 @@ import { StatusManager } from './status/status.manager';
         UrlSyncProcessor,
         WebhookManager,
         KeyRequestLogManager,
-        FormManager,
         ViewManager,
         AiClient,
         AiUsageManager,

@@ -5,8 +5,7 @@
 // render the public site's pages, log in, check the onboarding checklist, upload a CSV, sort / filter / edit cells in the grid, add and remove
 // columns, change a column type (a background job whose progress arrives over the websocket),
 // open the table's API docs and "Try it" on Get, add / test / disable / delete a webhook, ask the
-// table a question (#149, against a stub of the Anthropic API on the smoke stack), make a read-only table-scoped API key on the account page, call /api/v1 with it and revoke it (#138), start (and cancel) the two-factor setup (#214), make a form and submit it
-// through its public link, then close and delete it, make (and delete) a table
+// table a question (#149, against a stub of the Anthropic API on the smoke stack), make a read-only table-scoped API key on the account page, call /api/v1 with it and revoke it (#138), start (and cancel) the two-factor setup (#214), make (and delete) a table
 // from a template (saving a grid view of it, a kanban view where a card is dragged and a
 // chart view, #146, and a calendar view, #211) and one from a URL (a CSV on GitHub, so it needs internet), add a link column
 // to a tasks table, fill a cell from its picker and open the linked table (#147), check the
@@ -301,7 +300,7 @@ async function step(name, fn) {
 
 const grid = () => page.locator('.el-tab-pane:visible .h-data-grid');
 
-// A button of the grid's top bar (api, webhooks, forms, ask): on the bar, or under the More (…)
+// A button of the grid's top bar (api, webhooks, ask): on the bar, or under the More (…)
 // menu when the bar is too narrow for it (#297), as in this window with the tables pane open
 async function click_top_bar(name) {
     const on_bar = grid().locator(`.${name === 'ask' ? 'ask-data' : name}-button button`);
@@ -1170,93 +1169,6 @@ try {
             `back from Security went to ${page.url()}`
         );
         await page.locator('.layout .nav .el-menu-item', { hasText: 'Tables' }).click();
-    });
-
-    // Shareable forms (#145): make a form from two of the table's columns (one required), open
-    // its public link in a new tab, see the required check, submit it and find the row in the
-    // backend; then close the form (its link answers "closed") and delete it (the link is gone).
-    // After the API key step, which counts the table's rows.
-    await step('table_forms', async () => {
-        await page.locator('.el-tabs__item', { hasText: TABLE }).click();
-        await click_top_bar('forms');
-        const dialog = page.locator('.container-dialog .forms-dialog');
-        await dialog.locator('.forms-new-button').waitFor();
-        check((await dialog.locator('.form-item').count()) === 0, 'the table already has forms');
-        await dialog.getByRole('button', { name: 'New form' }).click();
-        const editor = dialog.locator('.form-editor');
-        await editor.waitFor();
-        await editor.locator('.form-editor-title').fill('UI smoke form');
-        const column_row = name => editor.locator('.form-editor-column', { hasText: name });
-        await column_row('name').locator('.form-editor-required').check();
-        await column_row('city').locator('.form-editor-ask').uncheck();
-        await editor.locator('.form-editor-thank-you').fill('Thanks from the UI smoke test');
-        await editor.getByRole('button', { name: 'Create form' }).click();
-        const item = dialog.locator('.form-item');
-        await item.waitFor();
-        await editor.waitFor({ state: 'detached' });
-        const link = await item.locator('.form-item-link input').inputValue();
-        check(
-            /\/f\/form_[0-9a-f]{24}$/.test(link) && link.startsWith(FE_URL),
-            `the form's link is "${link}"`
-        );
-        check(
-            (await item.locator('.form-item-embed input').inputValue()).includes(`${link}?embed=1`),
-            "the embed code doesn't point at the form"
-        );
-        const form_id = link.split('/f/')[1];
-        const listed = await be('GET', `/form?table=${file_id}`, { token: be_s.token });
-        const saved = (listed.forms || []).find(f => f.id === form_id);
-        results.observed.form_fields = saved && saved.fields.map(f => [f.required]);
-        check(
-            saved && saved.open && saved.fields.length === 2 && saved.fields[0].required,
-            `the backend has ${JSON.stringify(saved)}`
-        );
-
-        const visitor = await context.newPage();
-        try {
-            await visitor.goto(link);
-            await visitor.locator('.form-page .form-title', { hasText: 'UI smoke form' }).waitFor();
-            const labels = await visitor.locator('.form-field label').allInnerTexts();
-            results.observed.form_labels = labels.map(l => l.replace(/\s+/g, ' ').trim());
-            check(
-                results.observed.form_labels.join(',') === 'name *,age',
-                `the public form asks ${results.observed.form_labels}`
-            );
-            check(
-                (await visitor.locator('.form-field input').nth(1).getAttribute('type')) ===
-                    'number',
-                'the number column is not a number input'
-            );
-            await visitor.getByRole('button', { name: 'Submit' }).click();
-            await visitor.locator('.form-error', { hasText: 'required' }).waitFor();
-            await visitor.locator('.form-field input').nth(0).fill('ui-smoke-form');
-            await visitor.locator('.form-field input').nth(1).fill('7');
-            await visitor.getByRole('button', { name: 'Submit' }).click();
-            await visitor
-                .locator('.form-done', { hasText: 'Thanks from the UI smoke test' })
-                .waitFor();
-        } finally {
-            await visitor.close();
-        }
-        const after = await be_table(be_s, file_id);
-        const row = after.rows.find(r => r.name === 'ui-smoke-form');
-        check(row && row.age === 7, `the submitted row is ${JSON.stringify(row)}`);
-
-        await item.getByRole('button', { name: 'Close form' }).click();
-        await item.getByRole('button', { name: 'Reopen form' }).waitFor();
-        const closed = await fetch(`${BE_URL}/public/form/${form_id}`);
-        check(closed.status === 410, `a closed form's link answers ${closed.status}`);
-
-        await item.getByRole('button', { name: 'Delete', exact: true }).click();
-        await page
-            .locator('.confirm-dialog .el-dialog')
-            .getByRole('button', { name: 'Confirm' })
-            .click();
-        await item.waitFor({ state: 'detached' });
-        const gone = await fetch(`${BE_URL}/public/form/${form_id}`);
-        check(gone.status === 404, `a deleted form's link answers ${gone.status}`);
-        await page.locator('.container-dialog .el-dialog__headerbtn').click();
-        await dialog.waitFor({ state: 'detached' });
     });
 
     await step('table_from_template', async () => {

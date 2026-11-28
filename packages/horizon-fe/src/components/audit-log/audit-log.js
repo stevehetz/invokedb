@@ -11,6 +11,7 @@ const PAGE_SIZE = 50;
 const ACTOR_ICONS = {
     user: 'fa fa-user',
     api_key: 'fa fa-key',
+    // A submission through a shareable form: entries made before forms were removed (#358)
     form: 'fa fa-list-alt',
     // InvokeDB support acting on the account (#277)
     admin: 'fa fa-user-shield'
@@ -79,6 +80,13 @@ export default defineComponent({
         /** @param {any} entry */
         actor_icon(entry) {
             return ACTOR_ICONS[entry.actor && entry.actor.type] || 'fa fa-user';
+        },
+
+        /** @param {any} entry */
+        actor_label(entry) {
+            const actor = entry.actor || {};
+            if (actor.label) return actor.label;
+            return actor.type === 'form' ? 'A form' : '';
         },
 
         /** @param {any} entry */

@@ -5,8 +5,8 @@
 // - 'grace': a payment failed (Stripe, #129): full access and a banner until `grace_ends_at`
 //   (14 days), then the account is on Free, and read-only if it's over Free's caps.
 // - 'read_only': over the current plan's caps (after a downgrade or a lapse): reads, exports and
-//   deletes work; creates, updates, column changes, uploads, URL syncs, form submissions and new
-//   webhooks, forms and views are refused with 403 `plan_read_only`. It clears by itself once
+//   deletes work; creates, updates, column changes, uploads, URL syncs and new webhooks and
+//   views are refused with 403 `plan_read_only`. It clears by itself once
 //   the account is under the caps.
 //
 // The state is its own column, apart from the `locked` flag: neither ever sets or lifts the
@@ -30,7 +30,6 @@ export const STOCK_CAPS = [
     'columns_per_table',
     'url_sources',
     'webhooks',
-    'forms',
     'views_per_table'
 ] as const;
 export type StockCap = (typeof STOCK_CAPS)[number];
@@ -94,7 +93,6 @@ const OVER_LABELS: Record<StockCap, string> = {
     columns_per_table: 'columns in a table',
     url_sources: 'tables imported from a URL',
     webhooks: 'webhooks',
-    forms: 'forms',
     views_per_table: 'views of a table'
 };
 

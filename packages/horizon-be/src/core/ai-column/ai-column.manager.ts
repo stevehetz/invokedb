@@ -211,7 +211,7 @@ export class AiColumnManager {
     }
 
     /**
-     * Rows of a table changed (made or updated in the app, the API, a form or an AI edit):
+     * Rows of a table changed (made or updated in the app, the API or an AI edit):
      * its filling AI columns look at them. Past max_dirty_ids the whole table is looked at.
      */
     async rows_changed(account_id: number, file_id: number, ids: string[]) {

@@ -9,7 +9,6 @@ import {
     audit_prune_steps,
     column_changes,
     encode_audit_cursor,
-    form_actor,
     new_audit_id,
     parse_audit_page,
     row_change,
@@ -44,12 +43,6 @@ describe('audit actor', () => {
             key_prefix: 'abc123'
         });
         expect(source_of(actor)).toBe('api');
-    });
-
-    it('is the form for a public submission', () => {
-        const actor = form_actor('f1', 'Signup');
-        expect(actor.label).toBe('Form "Signup"');
-        expect(source_of(actor)).toBe('form');
     });
 });
 

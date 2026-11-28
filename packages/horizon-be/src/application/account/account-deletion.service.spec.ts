@@ -11,7 +11,7 @@ describe('AccountDeletionService', () => {
         expect(is_account_collection('tracking:row_count:acct_1', 1)).toBe(true);
         expect(is_account_collection('tracking:row_count:acct_12', 1)).toBe(false);
         expect(is_account_collection('tracking:row_count:acct_1', 12)).toBe(false);
-        expect(is_account_collection('tracking:form', 1)).toBe(false);
+        expect(is_account_collection('tracking:view', 1)).toBe(false);
     });
 
     it("deletes the account's database, its tracking data and its Postgres rows, the account last", async () => {
@@ -26,7 +26,7 @@ describe('AccountDeletionService', () => {
                         'tracking:onboarding:acct_5',
                         'tracking:api_month:acct_5',
                         'tracking:api_month:acct_51',
-                        'tracking:form'
+                        'tracking:view'
                     ].map(name => ({ name }))
             }),
             collection: (name: string) => ({ drop: async () => dropped.push(name) })
@@ -57,7 +57,6 @@ describe('AccountDeletionService', () => {
             'tracking:url_source',
             'tracking:webhook',
             'tracking:webhook_delivery',
-            'tracking:form',
             'tracking:view',
             'tracking:audit',
             'tracking:ai_usage',

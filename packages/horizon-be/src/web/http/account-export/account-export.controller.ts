@@ -13,8 +13,8 @@ import { createReadStream } from 'fs';
 import { AccountExportService } from '@app/application/account-export/account-export.service';
 import { session_account_id } from '@app/web/http/_auth/request-account';
 
-// Data export of the signed-in account (#215): ask for a zip of every table and the forms, views
-// and webhooks settings, see how it's going, and download it. Session only: an API key can't.
+// Data export of the signed-in account (#215): ask for a zip of every table and the views and
+// webhooks settings, see how it's going, and download it. Session only: an API key can't.
 @Controller('account-export')
 @UseGuards(AuthGuard('bearer'))
 export class AccountExportController {

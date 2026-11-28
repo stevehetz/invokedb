@@ -294,7 +294,7 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
 - Plans (#183, `docs/PRICING.md` 3.2): `src/core/plan/plans.ts` is the one constant with every
   cap of Free, Starter and Pro (tables, rows per account and per table, storage, columns, API
   calls a month and per second, query page, CSV size, URL sources and schedules, webhooks,
-  forms, views, audit days, per-key limits, AI allowances); **nothing else hard-codes a plan
+  views, audit days, per-key limits, AI allowances); **nothing else hard-codes a plan
   limit**. Subscription ids map as FREE → Free, BASIC → Starter, PLUS/PREMIUM → Pro (Stripe sets
   `PLAN_SUBSCRIPTIONS`, below). `INTERNAL_EMAILS` (demo*, e2e, verified) and accounts an admin made internal
   (`account.internal`, #277) have no counted caps. `TrackingManager.plan()`
@@ -303,7 +303,7 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   atomic `$inc` per UTC month in `tracking:api_month`, the rate limit an in-memory token bucket;
   the 80% and 100% quota emails, #274, are claimed once per month by an `alerts` array on that
   document, `core/plan/quota-alert.ts`, and sent off the call's path);
-  `assert_room` covers webhooks, forms, views and URL sources. A refusal is 403 (413 for an
+  `assert_room` covers webhooks, views and URL sources. A refusal is 403 (413 for an
   upload, 429 for the quota/rate) with `code: 'plan_limit'`, `limit`, `cap`, `upgrade_url`
   (`AllExceptionFilter` passes them on); the frontend's `request.js` emits `plan_limit` on the
   bus and `components/plan-limit-notice` links to the usage. `GET /plans` is public (the pricing
@@ -319,7 +319,7 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   `HORIZON_TEST_PLANS` ones) and is TrackingManager's refresher. Every write path calls
   `TrackingManager.check_not_read_only` (403 `plan_read_only` with `over`): it's in `add_table`,
   `add_rows`, `add_columns`, `create_columns`, `validate_row_count`, `WebFileService`'s
-  create/update paths and uploads, view/form/webhook/URL-import creation and AI column settings
+  create/update paths and uploads, view/webhook/URL-import creation and AI column settings
   and fills (the AI column processor waits while an account is read-only). A new write path
   must call it too. A read-only account's state is worked out again on each refused write and
   after deletes, so deleting down to the caps lifts it at once. Idle free accounts:
@@ -377,15 +377,6 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   (not CSV uploads or URL syncs); `WebhookPrcService` sends them in the processor role. Routes
   are `/webhook` (session only). `HORIZON_WEBHOOK_TEST_HOSTS` (set only by `smoke-env.sh`) lets
   `api-smoke.mjs`'s receiver on `127.0.0.1:8199` through; never set it in production.
-- Shareable forms (#145): `src/core/form/` has the pure rules (`form.ts`: settings, the public
-  view, submissions checked against the column types, the `website` honeypot) and the store
-  (`form.manager.ts`, `tracking:form` in the shared tracking DB; filter on `account_id`, except
-  the public lookup by id). Owner routes are `/form` (session only); the public link is
-  `/public/form/:id` (GET; `POST .../submit`, rate-limited per IP and per form by
-  `web/http/form/form-rate-limit.ts`, in memory). A submission is a row made through
-  `WebFileService.batch_create_internal` (row limit, locks, webhooks). 404 for a deleted form or
-  table, 410 for a closed one. The frontend's public page is `/f/:id` (`view/form-page`, outside
-  both shells, scoped CSS; `?embed=1` for iframes); the owner's dialog is the grid's Forms button.
 - Link columns (#147): `col_type: 'link'` with `link_table_id` (a table of the same account,
   checked by `WebFileService` when the column is saved) and `link_display_field`; a cell is an
   array of row ids or null. `src/core/web-file/link.ts` has the pure rules (values, `expand`);
@@ -395,7 +386,7 @@ limit, cursor, explain }`; `src/core/web-file/row-query.ts` checks the body agai
   returns ids, or rows with `expand=<column>[,<column>]`. Deleting rows clears them from every
   link to them (owner's decision); so does a replace URL re-sync (every row of the table). Deleting
   the linked table empties those cells and turns the link columns into string columns (#175,
-  `FileDirectoryService.clear_links_to_table`). Link columns are left out of forms. Fill by
+  `FileDirectoryService.clear_links_to_table`). Fill by
   matching (#321): `POST /web-file/:id/link-match` (pure rules in `link-match.ts`) streams both
   tables, fills only empty cells through `batch_update_internal`, and counts only without
   `apply: true`; the settings dialog offers it once the column is saved as a link.
@@ -539,11 +530,12 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   `GET /auth/verify-email?token=`, `POST /auth/resend-verification` (session). The site's page is
   `/verify-email`; the app's banner is in `components/layout`.
 - Audit log (#217): `src/core/audit/` has the pure rules (`audit.ts`: the actor, the user's
-  email or an API key's name and prefix from `key_scope`, or a form; entry summaries; which column
+  email or an API key's name and prefix from `key_scope`; older entries may name a form, removed
+  in #358, and still show; entry summaries; which column
   changes count (name, type, index, link, delete, not widths or order); paging; kept the plan's
   `audit_keep_days`, 7 / 30 / 90, #183) and the store (`audit.manager.ts`, `tracking:audit` in the shared tracking DB; filter on
   `account_id`, except the prune). `AuditService` records row creates/updates/deletes and column
-  changes (from `WebFileService`, so the app, `/api/v1`, forms and AI edits), table
+  changes (from `WebFileService`, so the app, `/api/v1` and AI edits), table
   create/rename/delete (`FileDirectoryService`) and API key create/revoke; recording never fails
   the request. Not reads, CSV uploads or URL syncs. The processor role prunes old entries
   hourly. Route `GET /audit?table=&limit=&cursor=` (session only). The frontend's
@@ -627,10 +619,9 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   on a coloured badge, code blocks). `core/theme.js` sets `<html data-theme="light|dark">` and
   Element Plus's `dark` class (its `dark/css-vars.css`, loaded in `main.js`): the app from the
   account's choice (account menu → Theme; `account.theme`, `PUT /account/theme`, and
-  `localStorage` `invokedb:theme`), the site and the form page from the device, an embedded form
-  light unless `?theme=dark`. `index.html`'s inline script does the same before first paint;
-  keep the two in step. The grid's params (`grid-theme.js`) and the form page's own `--f-*`
-  variables follow the same switch.
+  `localStorage` `invokedb:theme`), the site from the device. `index.html`'s inline script does the
+  same before first paint; keep the two in step. The grid's params (`grid-theme.js`) follow the
+  same switch.
 - **Element Plus.** `main.js` loads the default theme (`element-plus/dist/index.css`) for both
   areas, in the entry chunk so it comes before the areas' CSS (a theme in a shared lazy chunk
   once loaded after the app's styles in production and overrode its nav). The app's colours are

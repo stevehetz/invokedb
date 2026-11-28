@@ -194,3 +194,34 @@ test('serves the app, its assets and app routes, and nothing outside the build',
   const bare = await fetch(base, { redirect: 'manual' });
   assert.equal(bare.status, 301);
 });
+
+test('limits open feeds and feed connects per address', async t => {
+  const { base, app } = await start(t, {
+    maxStreamsPerIp: 2,
+    eventsLimit: { perSecond: 0.001, burst: 4 }
+  });
+  const open = [];
+  for (let i = 0; i < 2; i++) {
+    const res = await fetch(`${base}/events`);
+    assert.equal(res.status, 200);
+    open.push(res);
+  }
+  // A third stream from the same address is refused; the others stay open
+  const third = await fetch(`${base}/events`);
+  assert.equal(third.status, 429);
+  await third.body?.cancel();
+  assert.equal(app.hub.size(), 2);
+  // Closing one frees its slot
+  await open.pop().body.cancel();
+  for (let i = 0; i < 50 && app.hub.size() > 1; i++) await new Promise(r => setTimeout(r, 10));
+  assert.equal(app.hub.size(), 1);
+  const again = await fetch(`${base}/events`);
+  assert.equal(again.status, 200);
+  open.push(again);
+  // The connect bucket (4) is used up now: refused before the hub, with Retry-After
+  const looped = await fetch(`${base}/events`);
+  assert.equal(looped.status, 429);
+  assert.ok(Number(looped.headers.get('retry-after')) >= 1);
+  await looped.body?.cancel();
+  for (const res of open) await res.body.cancel();
+});

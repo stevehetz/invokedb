@@ -80,6 +80,8 @@ function readBody(req, limit) {
  *   trustProxy?: boolean,
  *   readLimit?: { perSecond: number, burst: number },
  *   writeLimit?: { perSecond: number, burst: number },
+ *   eventsLimit?: { perSecond: number, burst: number },
+ *   maxStreamsPerIp?: number,
  *   now?: () => number,
  *   log?: (msg: string) => void
  * }} config
@@ -100,14 +102,21 @@ export function createApp(config) {
     now
   });
   const webhooks = createRateLimiter({ perSecond: 50, burst: 200, now });
+  // Opening the feed (each connect replays the history): a browser reconnects every few
+  // seconds at most, so this only stops loops
+  const connects = createRateLimiter({
+    ...(config.eventsLimit || { perSecond: 0.2, burst: 10 }),
+    now
+  });
   const sweep = setInterval(() => {
     reads.prune();
     writes.prune();
     webhooks.prune();
+    connects.prune();
   }, 60_000);
   sweep.unref();
 
-  const hub = createHub();
+  const hub = createHub({ maxPerKey: config.maxStreamsPerIp ?? 5 });
   // Delivery ids already handled: InvokeDB retries a delivery that wasn't answered in time
   const seen = new Set();
   // While the data is reset (and a little after, as its deliveries trickle in) the feed shows
@@ -244,7 +253,17 @@ export function createApp(config) {
     if (rest === '/webhook') return webhook(req, res);
     if (rest === '/events') {
       if (req.method !== 'GET') return json(res, 405, { message: 'Use GET' });
-      return hub.add(req, res);
+      const ip = clientIp(req);
+      const limit = connects.take(ip);
+      if (!limit.ok) {
+        return json(
+          res,
+          429,
+          { message: 'Too many requests, slow down a little' },
+          { 'Retry-After': String(limit.retryAfterSec) }
+        );
+      }
+      return hub.add(req, res, ip);
     }
     if (rest === '/health') return json(res, 200, { ok: true, configured: !!db });
     return serveStatic(req, res, rest);

@@ -37,9 +37,15 @@ function connect() {
     notify();
   };
   source.onerror = () => {
-    // EventSource reconnects by itself (the server asks for 3 s)
+    // EventSource reconnects by itself (the server asks for 3 s), except after a refusal
+    // (429 too many feeds from this address, 503 full): then it's closed for good, so try
+    // again later
     connected = false;
     notify();
+    if (source && source.readyState === EventSource.CLOSED) {
+      source = null;
+      setTimeout(connect, 30_000);
+    }
   };
   source.addEventListener('change', e => {
     const item = { ...JSON.parse((e as MessageEvent).data), receivedAt: Date.now() } as FeedItem;

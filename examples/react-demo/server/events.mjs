@@ -69,10 +69,19 @@ export function feedItems(payload) {
 /**
  * The browsers listening on /events. Each gets the last `historySize` items when it connects,
  * then every new one; a comment line every `heartbeatMs` keeps proxies from closing the stream.
+ * One key (the client's IP) may hold at most `maxPerKey` of the `maxClients` streams, so one
+ * client can't take every slot.
  */
-export function createHub({ maxClients = 500, historySize = 30, heartbeatMs = 25_000 } = {}) {
+export function createHub({
+  maxClients = 500,
+  maxPerKey = 5,
+  historySize = 30,
+  heartbeatMs = 25_000
+} = {}) {
   /** @type {Set<import('node:http').ServerResponse>} */
   const clients = new Set();
+  /** @type {Map<string, number>} open streams per key */
+  const perKey = new Map();
   /** @type {Array<{ type: string, data: unknown }>} */
   const history = [];
   let seq = 0;
@@ -85,8 +94,18 @@ export function createHub({ maxClients = 500, historySize = 30, heartbeatMs = 25
   timer.unref();
 
   return {
-    /** @param {import('node:http').IncomingMessage} req @param {import('node:http').ServerResponse} res */
-    add(req, res) {
+    /**
+     * @param {import('node:http').IncomingMessage} req
+     * @param {import('node:http').ServerResponse} res
+     * @param {string} [key] who is connecting (the client's IP)
+     */
+    add(req, res, key = 'unknown') {
+      const open = perKey.get(key) || 0;
+      if (open >= maxPerKey) {
+        res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': '30' });
+        res.end(JSON.stringify({ message: 'Too many open feeds from this address' }));
+        return;
+      }
       if (clients.size >= maxClients) {
         res.writeHead(503, { 'Content-Type': 'application/json', 'Retry-After': '30' });
         res.end(JSON.stringify({ message: 'Too many listeners, try again soon' }));
@@ -101,7 +120,18 @@ export function createHub({ maxClients = 500, historySize = 30, heartbeatMs = 25
       res.write('retry: 3000\n\n');
       for (const h of history) res.write(frame(h.type, h.data));
       clients.add(res);
-      req.on('close', () => clients.delete(res));
+      perKey.set(key, open + 1);
+      let closed = false;
+      const done = () => {
+        if (closed) return;
+        closed = true;
+        clients.delete(res);
+        const n = (perKey.get(key) || 1) - 1;
+        if (n > 0) perKey.set(key, n);
+        else perKey.delete(key);
+      };
+      req.on('close', done);
+      res.on('close', done);
     },
     /** Sends an event (`change` for feed items, `reset` around a data reset) to everyone. */
     publish(type, data) {
@@ -120,6 +150,7 @@ export function createHub({ maxClients = 500, historySize = 30, heartbeatMs = 25
       clearInterval(timer);
       for (const res of clients) res.end();
       clients.clear();
+      perKey.clear();
     }
   };
 }

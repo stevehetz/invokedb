@@ -60,7 +60,10 @@ export class InvokeDB {
   }
 }
 
-/** The API returns dates as "YYYY-MM-DD hh:mm:ss AM"; forms and display want "YYYY-MM-DD". */
+/**
+ * The API returns dates as ISO 8601 in UTC ("2024-01-15T00:00:00.000Z"); forms and display
+ * want "YYYY-MM-DD".
+ */
 export function dateOnly(value: string | null | undefined): string {
   return value ? value.slice(0, 10) : '';
 }

@@ -31,7 +31,7 @@ const input = () => ({
         _id: 'abc123',
         'Full Name': 'Alice',
         age: 30,
-        joined: '2020-01-02 12:00:00 AM'
+        joined: '2020-01-02T00:00:00.000Z'
     }
 });
 
@@ -93,7 +93,7 @@ describe('build_table_docs', () => {
                     _id: 'abc123',
                     'Full Name': 'Alice',
                     age: 30,
-                    joined: '2020-01-02 12:00:00 AM'
+                    joined: '2020-01-02T00:00:00.000Z'
                 }
             ]
         });
@@ -117,7 +117,7 @@ describe('build_table_docs', () => {
         );
         expect(endpoint(docs, 'query').response.body).toEqual({
             data: [
-                { _id: 'abc123', 'Full Name': 'Alice', age: 30, joined: '2020-01-02 12:00:00 AM' }
+                { _id: 'abc123', 'Full Name': 'Alice', age: 30, joined: '2020-01-02T00:00:00.000Z' }
             ],
             next_cursor: null
         });

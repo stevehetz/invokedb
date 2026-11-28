@@ -3448,9 +3448,49 @@ check(
     mcp_new_found?.data?.length === 1 &&
         mcp_new_found.data[0].Name === 'Ada' &&
         mcp_new_found.data[0].Age === 36 &&
-        String(mcp_new_found.data[0].Joined).startsWith('2026-01-02'),
+        mcp_new_found.data[0].Joined === '2026-01-02T00:00:00.000Z',
     mcp_new_found
 );
+// Dates read back as ISO 8601 in UTC with milliseconds, as written (#356): /get, /query and
+// MCP. The row is deleted again, so the views below see only Ada.
+const iso_joined = '2026-11-28T12:01:29.123Z';
+await call('ext_date_create', 'POST', '/api/v1/create?table=smoke_mcp_table', {
+    token: key,
+    body: [{ Name: 'Iso', Age: 1, Joined: iso_joined }]
+});
+const iso_query = await call('ext_date_query', 'POST', '/api/v1/query?table=smoke_mcp_table', {
+    token: key,
+    body: { filters: [{ column: 'Name', op: 'eq', value: 'Iso' }] }
+});
+const iso_row = iso_query?.data?.[0];
+check(
+    'ext_date_query_iso_round_trip',
+    iso_query?.data?.length === 1 && iso_row?.Joined === iso_joined,
+    iso_query
+);
+const iso_get = await call(
+    'ext_date_get',
+    'GET',
+    '/api/v1/get?table=smoke_mcp_table&skip=0&limit=10',
+    { token: key }
+);
+const iso_got = (Array.isArray(iso_get) ? iso_get : iso_get?.data || []).find(
+    r => r.Name === 'Iso'
+);
+check('ext_date_get_iso_round_trip', iso_got?.Joined === iso_joined, iso_get);
+const iso_mcp = mcp_value(
+    await mcp_tool('mcp_date_query', key, 'query_rows', {
+        table: 'smoke_mcp_table',
+        filters: [{ column: 'Name', op: 'eq', value: 'Iso' }]
+    })
+);
+check('mcp_date_iso_round_trip', iso_mcp?.data?.[0]?.Joined === iso_joined, iso_mcp);
+if (iso_row?._id) {
+    await call('ext_date_delete', 'POST', '/api/v1/delete?table=smoke_mcp_table', {
+        token: key,
+        body: [iso_row._id]
+    });
+}
 const mcp_other_tables = mcp_value(
     await mcp_tool('mcp_other_list_tables', other_me.api_key, 'list_tables', {})
 );

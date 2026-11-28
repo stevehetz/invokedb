@@ -369,8 +369,8 @@ describe('cleanup: deleting and restoring rows', () => {
             { _id: id(), a: 'Ada', c: new Date('2026-02-03T10:20:30.457Z') },
             { _id: id(), a: 'Bob', c: null }
         ];
-        // As the grid shows them (to the hundredth of a second): rows 1 and 2 look the same
-        const shown = stored.map(r => ({ ...r, c: r.c ? '2026-02-03 10:20:30:45 AM' : null }));
+        // As the API answers them: rows 1 and 2 are the same
+        const shown = stored.map(r => ({ ...r, c: r.c ? r.c.toISOString() : null }));
         const p = find(scan_rules(shown, date_cols, true, { stored }).problems, 'duplicate');
         expect(p.delete.rows).toEqual([
             { _id: stored[1]._id, before: { a: 'Ada', c: joined }, duplicate_of: stored[0]._id }

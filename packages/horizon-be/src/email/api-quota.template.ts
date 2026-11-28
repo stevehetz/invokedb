@@ -36,7 +36,7 @@ height: 100%;">
   <div style="width: 100%; max-width: 500px;margin: 20px 5px;padding: 10px;">
       <h2 style="border-bottom: solid 2px #484ec0; padding-bottom: 10px; font-weight:normal;">InvokeDB</h2>
       <p>${lead}</p>
-      <p>See your <a href="${base}/app/account" style="color: #3696ea;">usage</a>, or compare the <a href="${base}/pricing" style="color: #3696ea;">plans</a> for more calls.</p>
+      <p>See your <a href="${base}/app/account?section=usage" style="color: #3696ea;">usage</a>, or compare the <a href="${base}/pricing" style="color: #3696ea;">plans</a> for more calls.</p>
       <div style="margin-top: 20px;">
           <p>If you have any questions, feel free to <a href="${base}/contact" style="color: #3696ea;">submit a request</a> to our support team and we'll respond as soon as possible.</p>
       </div>

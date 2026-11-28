@@ -2205,6 +2205,11 @@ $nav_active_color: var(--h-chrome-text);
 .ask-dialog .ask-intro {
     margin: 0 0 8px;
 }
+.ask-dialog .ask-help {
+    margin-left: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+}
 .ask-dialog .ask-row {
     display: flex;
     gap: 8px;

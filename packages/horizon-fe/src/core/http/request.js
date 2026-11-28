@@ -1,7 +1,21 @@
-// JSON requests with a bearer token. Replaces the old `$.ajax` calls and keeps their contract:
-// resolves with the parsed body (JSON when the response says so, else text), and rejects with
-// the parsed JSON error body (`{ status, message, rules? }` from the backend) or undefined.
+// JSON requests with a bearer token. Replaces the old `$.ajax` calls: resolves with the parsed
+// body (JSON when the response says so, else text), and rejects with the parsed JSON error body
+// (`{ status, message, rules? }` from the backend). A failure with no such body (the network is
+// down, a non-JSON error page) rejects with `{ status, message }` too, never with undefined
+// (#378): a `catch` that read `ex.status` threw on undefined before it could clear its busy
+// state, which left dialogs, the grid's overlay and forms stuck.
 import { bus } from '@/core/bus';
+
+export const NETWORK_ERROR_MESSAGE =
+    'Could not reach InvokeDB. Check your connection and try again.';
+
+/**
+ * @param {number} status
+ * @param {string} message
+ */
+function failure(status, message) {
+    return { status, message };
+}
 
 /** @returns {Promise<any>} */
 export async function request(method, url, token, data) {
@@ -19,9 +33,13 @@ export async function request(method, url, token, data) {
     try {
         res = await fetch(url, options);
     } catch (ex) {
-        // Network error (server down, CORS): jQuery rejected with no response body
-        throw undefined;
+        // Network error (server down, offline, CORS)
+        throw failure(0, NETWORK_ERROR_MESSAGE);
     }
+
+    // A refused login token (#378): the app's shell checks whether the session has ended
+    // (a 401 also answers another account's table, so this alone doesn't sign anyone out)
+    if (res.status === 401 && token) bus.$emit('session:unauthorized');
 
     const text = await res.text();
     const is_json = (res.headers.get('content-type') || '').includes('json');
@@ -31,7 +49,12 @@ export async function request(method, url, token, data) {
         try {
             body = JSON.parse(text);
         } catch (ex) {
-            if (res.ok) throw undefined; // jQuery treated a bad JSON body as a failure
+            // A bad JSON body is a failure, as it was with jQuery
+            if (res.ok)
+                throw failure(
+                    res.status,
+                    "The server's answer couldn't be read"
+                );
             body = undefined;
         }
     }
@@ -46,7 +69,13 @@ export async function request(method, url, token, data) {
             body.code === 'demo_account')
     )
         bus.$emit('plan_limit', body);
-    if (!res.ok) throw is_json ? body : undefined;
+    if (!res.ok) {
+        if (is_json && body && typeof body === 'object') throw body;
+        throw failure(
+            res.status,
+            `The server answered with an error (${res.status})`
+        );
+    }
     // Some endpoints answer 200 with an error object
     if (body && body.status >= 400) throw body;
     return body;

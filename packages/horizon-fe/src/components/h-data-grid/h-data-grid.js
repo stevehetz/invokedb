@@ -511,7 +511,9 @@ export default {
                 this.hide_top_bar_msg();
                 this.toast.hide();
                 this.table_lock = true;
-                if (ex.status === 403) {
+                // A column save waiting on this reload mustn't keep its overlay over the grid
+                this.saving_columns = false;
+                if (ex && ex.status === 403) {
                     this.toast.error(ex.message);
                 } else {
                     this.toast.error('Error loading table data');
@@ -699,7 +701,7 @@ export default {
                 }
                 this.show_top_bar_success('Saved', 1000);
             } catch (ex) {
-                if (ex.status === 403) {
+                if (ex && ex.status === 403) {
                     this.toast.error(ex.message, 3000);
                 } else {
                     this.toast.error('Error saving rows', 2000);
@@ -987,14 +989,16 @@ export default {
 
                     await this.save_columns_from_edit_map(edit_map);
                 } catch (ex) {
-                    if (ex.name === 'Validation' || ex.status === 403) {
+                    // The overlays come off first, whatever the error (#378): left on,
+                    // they cover the grid and it ignores every click
+                    this.saving_columns = false;
+                    this.processing = false;
+                    this.table_lock = false;
+                    if (ex && (ex.name === 'Validation' || ex.status === 403)) {
                         this.toast.error(ex.message, 3000);
                     } else {
                         this.toast.error('Error saving columns', 2000);
                     }
-                    this.saving_columns = false;
-                    this.processing = false;
-                    this.table_lock = false;
                 }
             } else if (this.add_row_mode) {
                 this.show_top_bar_info('Saving...');
@@ -1006,7 +1010,7 @@ export default {
                     this.show_top_bar_success('Saved', 1500);
                 } catch (ex) {
                     this.hide_top_bar_msg();
-                    if (ex.status === 403) {
+                    if (ex && ex.status === 403) {
                         this.toast.error(ex.message, 3000);
                     } else {
                         this.toast.error('Error saving rows', 2000);
@@ -1084,11 +1088,12 @@ export default {
                 this.delete_columns
             );
 
-            // if res !== 'done' then batch job has been queued
-            if (res === 'done') {
-                this.load_table();
-            } else if (res === 'queued') {
+            // 'queued': the change runs as a job, and the grid waits for it
+            if (res === 'queued') {
                 this.set_table_load_pending();
+            } else {
+                // 'done', or an answer it doesn't know: reload, which takes the overlays off
+                this.load_table();
             }
         },
 

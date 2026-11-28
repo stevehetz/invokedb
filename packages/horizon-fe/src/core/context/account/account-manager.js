@@ -48,6 +48,24 @@ export const account_manager = {
         return await http.put(url);
     },
 
+    // True when the server says the session is over (expired, signed out elsewhere, account
+    // deleted): /auth/authorize answers null for it. Throws when the server can't be reached,
+    // so a network blip never signs anyone out (#378).
+    /** @returns {Promise<boolean>} */
+    async session_ended() {
+        const token = this.get_token();
+        if (!token) return true;
+        const url = http.get_url(`/auth/authorize?token=${token}`);
+        const account = await http.get(url);
+        return !account;
+    },
+
+    // Forgets a session the server has already ended (no logout call to make)
+    end_local_session() {
+        store.set('account', null);
+        cookies.remove('token');
+    },
+
     async logout() {
         const account = store.get('account');
         const token = account.token;

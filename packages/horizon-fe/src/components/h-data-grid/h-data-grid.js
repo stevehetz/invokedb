@@ -15,7 +15,8 @@ import {
 } from 'ag-grid-community';
 import { AgGridVue } from 'ag-grid-vue3';
 import { data_grid_manager as mgr } from './data-grid-manager';
-import { grid_theme } from './grid-theme';
+import { GRID_SIZES, grid_theme_for } from './grid-theme';
+import { get_density, on_density_change } from '@/core/density';
 import { to_grid, from_grid, col_meta } from './col-def';
 import { bus } from '@/core/bus';
 import { web_file_http } from '@/core/context/web-file/web-file-http';
@@ -163,14 +164,14 @@ export default {
         this.pending_timer = null;
         this.pending_delay = 0;
         this.pending_token = 0;
+        // Removes the density listener (set in mounted)
+        this.stop_density = null;
         this.grid_options = markRaw({
-            theme: grid_theme,
+            // The theme and sizes follow the account menu's density (#361); stylesheet.scss
+            // draws the same sizes (grid-theme.js's GRID_SIZES)
+            ...this.density_options(get_density()),
             rowData: null,
             columnDefs: null,
-            rowHeight: 30,
-            // stylesheet.scss draws the header row at 35px and the filter row at 30px
-            headerHeight: 35,
-            floatingFiltersHeight: 30,
             // ag-grid 36 adds a clear (×) button to its text inputs; the Row column's
             // built-in floating filter would show it as a second box once it has a value
             suppressInputClearButton: true,
@@ -204,6 +205,7 @@ export default {
         this.toast = this.$refs.grid_toast;
         this.setup_websocket_handler();
         this.watch_toolbar();
+        this.stop_density = on_density_change(this.density_changed);
     },
 
     beforeUnmount() {
@@ -213,6 +215,7 @@ export default {
         this.cancel_loading();
         bus.$off('websocket:message', this.websocket_message);
         this.stop_pending_check();
+        if (this.stop_density) this.stop_density();
     },
     /*** End: Mounted ***/
 
@@ -264,6 +267,25 @@ export default {
     },
 
     methods: {
+        /** The grid options a density (#361) sets. */
+        density_options(density) {
+            const sizes = GRID_SIZES[density];
+            return {
+                theme: grid_theme_for(density),
+                rowHeight: sizes.row,
+                headerHeight: sizes.header,
+                floatingFiltersHeight: sizes.filter
+            };
+        },
+
+        /** The account menu's density changed (#361): resize the open grid at once. */
+        density_changed(density) {
+            const api = this.grid_api;
+            if (!api || api.isDestroyed()) return;
+            api.updateGridOptions(this.density_options(density));
+            api.resetRowHeights();
+        },
+
         grid_ready(params) {
             this.grid_api = markRaw(params.api);
             this.load_url_source();

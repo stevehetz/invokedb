@@ -2,6 +2,7 @@ import { store } from '@/store';
 import { account_manager } from '@/core/context/account/account-manager';
 import { auth_http } from '@/core/context/account/auth-http';
 import { choose_theme, get_theme_choice } from '@/core/theme';
+import { get_density, set_density as save_density } from '@/core/density';
 
 export default {
     name: 'Layout',
@@ -35,6 +36,22 @@ export default {
                     label: 'Dark',
                     icon: 'fa fa-moon',
                     title: 'Dark'
+                }
+            ],
+            // The account menu's grid density, per device (#361)
+            density: get_density(),
+            densities: [
+                {
+                    value: 'comfortable',
+                    label: 'Comfortable',
+                    icon: 'fa fa-grip-lines',
+                    title: 'Taller rows in tables'
+                },
+                {
+                    value: 'compact',
+                    label: 'Compact',
+                    icon: 'fa fa-bars',
+                    title: 'Smaller rows in tables, so more fit on screen'
                 }
             ]
         };
@@ -136,6 +153,12 @@ export default {
                 // Applied and kept in this browser; the account gets it next time
                 console.log(ex);
             }
+        },
+
+        /** The account menu's density buttons (#361). @param {'comfortable'|'compact'} choice */
+        set_density(choice) {
+            save_density(choice);
+            this.density = get_density();
         },
 
         async resend_verification() {

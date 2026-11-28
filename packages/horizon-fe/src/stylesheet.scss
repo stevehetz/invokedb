@@ -322,6 +322,12 @@ p {
     padding: 8px 16px 6px;
     border-top: solid 1px var(--el-border-color-lighter);
 }
+// Density (#361) sits right under Theme, drawn the same way
+.account-menu-popper .account-menu-theme.account-menu-density {
+    margin-top: 0;
+    padding-top: 2px;
+    border-top: none;
+}
 .account-menu-popper .account-menu-theme-label {
     display: block;
     margin-bottom: 6px;
@@ -2011,6 +2017,52 @@ $nav_active_color: var(--h-chrome-text);
     background-color: var(--h-grid-index);
     color: var(--h-grid-index-text);
     border-right: solid 1px var(--h-grid-header-line);
+}
+// Compact density (#361): core/density.js sets data-density on <html>. The header row is 28px,
+// the filter row and rows 24px, matching grid-theme.js's GRID_SIZES.compact. `:where()` keeps
+// each rule's specificity the same as the Comfortable rule above it, so it wins by coming later.
+$compact-grid: ".h-data-grid:where([data-density='compact'] *)";
+#{$compact-grid} .ag-header {
+    font-size: 15px;
+}
+#{$compact-grid} .ag-header-row:last-child {
+    height: 24px !important;
+    top: 28px !important;
+}
+#{$compact-grid} .grid-header.edit .grid-header-type__menu {
+    top: 24px;
+}
+#{$compact-grid} .ag-floating-filter-body .grid-filter-type__menu {
+    top: 24px;
+}
+#{$compact-grid} .ag-floating-filter-input .ag-input-field-input,
+#{$compact-grid} .ag-floating-filter-body .custom-filter-text {
+    padding: 1px 5px;
+    font-size: 1rem;
+}
+#{$compact-grid} .ag-floating-filter-body .filter-spinner,
+#{$compact-grid} .ag-floating-filter-body .filter-spinner svg {
+    width: 20px;
+    height: 20px;
+}
+#{$compact-grid} .ag-floating-filter-body .filter-spinner .el-loading-spinner {
+    margin-top: -10px;
+}
+#{$compact-grid} .ag-row {
+    font-size: 15px;
+}
+#{$compact-grid} .ag-cell {
+    padding: 1px 2px;
+}
+#{$compact-grid} .ag-cell-focus {
+    padding: 0 1px;
+}
+#{$compact-grid} .ag-cell-edit-input {
+    font-size: 15px;
+    padding: 1px 2px;
+}
+#{$compact-grid} .link-chip {
+    line-height: 18px;
 }
 .h-data-grid .ag-header-container .header-cover {
     z-index: 300;

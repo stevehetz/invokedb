@@ -2136,6 +2136,13 @@ $compact-grid: ".h-data-grid:where([data-density='compact'] *)";
     top: 65px;
     width: 100%;
 }
+// Compact header height (28px + 24px) for the overlays above that use 65px.
+#{$compact-grid} .bottom .column-overlay {
+    height: 52px;
+}
+#{$compact-grid} .grid-toast {
+    top: 52px;
+}
 .h-data-grid .grid-toast.backdrop {
     height: 100%;
 }

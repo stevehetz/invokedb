@@ -13,18 +13,33 @@
             </router-link>
         </nav>
         <div :class="['account-section', 'account-section-' + section]">
+            <!-- The no-signup demo (#333): what's off says so instead -->
             <template v-if="section === 'usage'">
+                <demo-off
+                    v-if="demo"
+                    text="Plans and billing are off in the demo, which has its own small limits."
+                ></demo-off>
                 <subscription-form :account="account"></subscription-form>
             </template>
             <template v-else-if="section === 'api-keys'">
-                <api-key-form></api-key-form>
+                <demo-off
+                    v-if="demo"
+                    text="API keys and the MCP server are off in the demo."
+                ></demo-off>
+                <api-key-form v-else></api-key-form>
             </template>
             <template v-else-if="section === 'profile'">
                 <account-info-form :account="account"></account-info-form>
             </template>
             <template v-else-if="section === 'security'">
-                <change-password-form></change-password-form>
-                <two-factor-form></two-factor-form>
+                <demo-off
+                    v-if="demo"
+                    text="A demo has no password, and two-factor sign-in is off in it."
+                ></demo-off>
+                <template v-else>
+                    <change-password-form></change-password-form>
+                    <two-factor-form></two-factor-form>
+                </template>
             </template>
             <template v-else-if="section === 'history'">
                 <div class="page-form audit-log-form">
@@ -37,8 +52,16 @@
                 </div>
             </template>
             <template v-else-if="section === 'data'">
-                <data-export-form></data-export-form>
-                <delete-account-form :account="account"></delete-account-form>
+                <demo-off
+                    v-if="demo"
+                    text="Data export is off in the demo, and it deletes itself 24 hours after it's made."
+                ></demo-off>
+                <template v-else>
+                    <data-export-form></data-export-form>
+                    <delete-account-form
+                        :account="account"
+                    ></delete-account-form>
+                </template>
             </template>
         </div>
     </div>

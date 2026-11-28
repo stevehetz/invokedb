@@ -4,7 +4,8 @@
 // tokens each call used, and the whole server has a monthly budget on top
 // (HORIZON_AI_MONTHLY_BUDGET_USD). Money is kept in micro-dollars (integers) so sums don't drift.
 // The allowances themselves are in the plan constant (core/plan/plans.ts).
-import { AiCaps, PLANS, PlanId, plan_id_of } from '../plan/plans';
+import { AiCaps, DEMO_CAPS, PLANS, PlanId, plan_id_of } from '../plan/plans';
+import { is_demo_account } from '../demo/demo';
 
 // What the AI routes answer when AI is off (503), paused for the month (503), or the
 // account's email isn't verified (403)
@@ -68,13 +69,18 @@ export function ai_tier(subscription_id: string | null | undefined): AiTier {
     return plan_id_of(subscription_id);
 }
 
-/** What an account may use this month. An unverified account gets nothing. */
+/**
+ * What an account may use this month. An unverified account gets nothing; a demo account
+ * (#333) gets its own small allowance (DEMO_CAPS).
+ */
 export function ai_allowance(account: {
     subscription_id?: string | null;
     email_verified?: boolean;
+    email?: string | null;
+    demo_expires_at?: Date | string | null;
 }): AiAllowance {
     const tier = ai_tier(account.subscription_id);
-    const a = AI_ALLOWANCES[tier];
+    const a = is_demo_account(account) ? DEMO_CAPS.ai : AI_ALLOWANCES[tier];
     const verified = account.email_verified !== false;
     return {
         tier,

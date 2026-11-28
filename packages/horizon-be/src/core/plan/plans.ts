@@ -3,6 +3,7 @@
 // page and `GET /usage` shows an account's use against them. Pure rules only (no I/O), unit-tested
 // in plans.spec.ts. Nothing else may hard-code a plan's limit.
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { is_demo_account } from '../demo/demo';
 
 export type PlanId = 'FREE' | 'STARTER' | 'PRO';
 export const PLAN_IDS: PlanId[] = ['FREE', 'STARTER', 'PRO'];
@@ -144,6 +145,41 @@ export const PLANS: Record<PlanId, Plan> = {
     }
 };
 
+// A no-signup demo account's caps (#333): room for the showcase tables (a few hundred rows) and
+// some trying out, and nothing that reaches outside (no API calls, URL sources or webhooks; the
+// routes refuse those with 403 `demo_account` too). Its AI is a taste: 3 questions and 20 rows.
+export const DEMO_CAPS: PlanCaps = {
+    tables: 10,
+    rows_per_account: 2000,
+    rows_per_table: 1000,
+    storage_bytes: 10 * MB,
+    columns_per_table: 20,
+    api_calls_per_month: 0,
+    api_rate_per_second: 0,
+    api_rate_burst: 0,
+    rows_per_write: 100,
+    query_page: 100,
+    csv_upload_bytes: 1 * MB,
+    url_sources: 0,
+    url_sync_schedules: ['off'],
+    webhooks: 0,
+    forms: 3,
+    views_per_table: 10,
+    audit_keep_days: 1,
+    key_limits_and_logs: false,
+    ai: { questions: 3, rows: 20, budget_usd: 0.02 }
+};
+
+// The plan a demo account is on: Free's id (it pays nothing and has no subscription), with its
+// own name and caps
+export const DEMO_PLAN: Plan = {
+    id: 'FREE',
+    name: 'Demo',
+    price_month_usd: null,
+    price_year_usd: null,
+    caps: DEMO_CAPS
+};
+
 // Whatever the plan, an upload larger than this is cut off at the HTTP layer (multer), so a
 // request can't fill the disk before the plan is checked
 export const SERVER_MAX_UPLOAD_BYTES = 100 * MB;
@@ -210,6 +246,8 @@ export interface PlanAccount {
     subscription_id?: string | null;
     // Put on no counted caps by an admin (#277)
     internal?: boolean | null;
+    // A no-signup demo account (#333): on DEMO_PLAN, whatever else it says
+    demo_expires_at?: Date | string | null;
 }
 
 export interface TestPlan {
@@ -297,6 +335,7 @@ export function account_plan(
     account: PlanAccount | null | undefined,
     overrides: Record<string, TestPlan> = test_plans()
 ): AccountPlan {
+    if (is_demo_account(account)) return { plan: DEMO_PLAN, internal: false, caps: DEMO_CAPS };
     const email = String(account?.email || '').toLowerCase();
     const test = email ? overrides[email] : undefined;
     if (test) {

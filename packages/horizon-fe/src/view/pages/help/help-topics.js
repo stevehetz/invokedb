@@ -6,6 +6,7 @@
 /** @type {HelpTopic[]} */
 export const HELP_TOPICS = [
     { id: 'getting-started', title: 'Getting started', icon: 'fa fa-flag' },
+    { id: 'demo', title: 'Try the demo', icon: 'fa fa-play' },
     { id: 'tables', title: 'Tables and columns', icon: 'fa fa-table' },
     { id: 'import', title: 'Importing data', icon: 'fa fa-upload' },
     { id: 'links', title: 'Link columns', icon: 'fa fa-link' },

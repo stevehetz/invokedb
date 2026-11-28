@@ -594,6 +594,22 @@ after }] }` (at most `EDIT_MAX_ROWS`, 500; nothing written, one question).
   read `/admin/errors` and set the incident note (`/admin/status/incident`). The site's page is
   `view/pages/status`. The frontend build writes hidden source maps
   (`core/context/admin/source-map.js` reads them for frontend stacks).
+- No-signup demo (#333): `POST /auth/demo` (the home page's "Try the demo") makes a fresh
+  account with `account.demo_expires_at` (24 hours on), a `demo-<hex>@demo.invalid` email (no
+  mailbox; `EmailManager` drops anything sent there) and no password, fills it with the
+  showcase (`core/demo/showcase.ts`, pure; `application/demo/demo-seed.service.ts` makes it
+  through the usual services: linked tables, a view of each kind, a form, an AI column whose
+  cells get their hashes so no AI is spent, a few edits for the history) and answers its
+  session. `core/demo/demo.ts` has the rules: 3 per IP a day (in memory, only accounts made
+  count), `HORIZON_DEMO_MAX_LIVE` (50) live, 429 `demo_limit` / 503 `demo_busy`. Demo accounts
+  are on `DEMO_PLAN` (`plans.ts`, AI 3 questions and 20 rows); `NoDemoGuard`
+  (`web/http/_auth/demo.guard.ts`) refuses their writes to API keys, MCP, webhooks, URL
+  imports, export, two-factor, billing and account deletion with 403 `demo_account`, and API
+  keys of a demo never authenticate. A new feature that reaches outside or outlives the demo
+  needs the guard too. Their sessions end at expiry; `DemoService.sweep` (processor, hourly)
+  deletes them through `AccountDeletionService`. The admin area leaves them out of every
+  figure and list and counts them apart (`demo_accounts`). Frontend: `core/demo.js`,
+  `components/demo-off`, the layout's banner, help topic `demo`.
 - Express 5 with `query parser: extended`, so query strings like `sort[a]=desc` parse.
 
 ## Frontend conventions (`horizon-fe`)

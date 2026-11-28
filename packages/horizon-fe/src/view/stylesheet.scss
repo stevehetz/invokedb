@@ -573,6 +573,32 @@ $HOME_PAGE_MAX_WIDTH: 900px;
 .home-page .banner-button.primary:hover {
     background-color: #ececfb;
 }
+/* "Try the demo" (#333): a button styled like the links beside it, on the banner's colour */
+.home-page button.banner-button {
+    background-color: transparent;
+    font: inherit;
+    font-weight: bold;
+    cursor: pointer;
+}
+.home-page button.banner-button:disabled {
+    cursor: progress;
+    opacity: 0.8;
+}
+.home-page .banner-demo-note,
+.home-page .banner-demo-error {
+    max-width: 640px;
+    font-size: 15px;
+    opacity: 0.9;
+}
+.home-page .banner-demo-note a,
+.home-page .banner-demo-error a {
+    color: #ffffff;
+    text-decoration: underline;
+}
+.home-page .banner-demo-error {
+    font-weight: bold;
+    opacity: 1;
+}
 @media only screen and (max-width: 800px) {
     .home-page .banner-text {
         font-size: 34px;

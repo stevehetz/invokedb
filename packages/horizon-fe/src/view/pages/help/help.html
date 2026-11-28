@@ -111,6 +111,68 @@
                     </p>
                 </section>
 
+                <!-- The no-signup demo (#333) -->
+                <section v-if="topic.id === 'demo'">
+                    <h1>Try the demo</h1>
+                    <p>
+                        <b>Try the demo</b> on the
+                        <router-link to="/">home page</router-link> opens the
+                        app in a throwaway account of your own, with no email or
+                        password. It's already filled with a small company's
+                        tables, made up for the demo: <b>customers</b>,
+                        <b>products</b>, <b>orders</b> (linked to a customer and
+                        a product) and <b>events</b>.
+                    </p>
+                    <h2>What to look at</h2>
+                    <ul>
+                        <li>
+                            <b>Views</b> on the grid's top bar: orders on a
+                            <b>kanban</b> board by status, revenue by month on a
+                            <b>chart</b>, big orders in a filtered and sorted
+                            grid, events on a <b>calendar</b> and customers on a
+                            <b>map</b>.
+                        </li>
+                        <li>
+                            <b>Link columns</b>: an order's customer and
+                            product. The tree's diagram button draws how the
+                            tables link.
+                        </li>
+                        <li>
+                            A <b>form</b> on customers (the grid's Forms
+                            button): its public link adds a row.
+                        </li>
+                        <li>
+                            An <b>AI column</b>: each customer's segment, read
+                            from their notes, already filled.
+                        </li>
+                        <li>
+                            <b>History</b> (More → History) with the edits made
+                            when the demo was set up.
+                        </li>
+                        <li>
+                            <b>Ask AI</b>, with a small allowance: 3 questions
+                            and 20 rows.
+                        </li>
+                    </ul>
+                    <h2>What's off in the demo</h2>
+                    <p>
+                        API keys and the MCP server, webhooks, imports from a
+                        URL, data export, two-factor sign-in, plans and billing,
+                        and email. The demo has room for 10 tables and 2,000
+                        rows.
+                    </p>
+                    <h2>When it ends</h2>
+                    <p>
+                        A demo is deleted 24 hours after it's made, with
+                        everything in it. To keep your own data,
+                        <router-link to="/create-account">sign up</router-link>:
+                        that starts a new, empty account (the demo's tables
+                        aren't carried over). You can make up to 3 demos a day;
+                        when many people are trying it at once, the demo may be
+                        busy for a while.
+                    </p>
+                </section>
+
                 <!-- Tables and columns -->
                 <section v-if="topic.id === 'tables'">
                     <h1>Tables and columns</h1>

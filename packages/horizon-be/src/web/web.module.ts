@@ -27,6 +27,7 @@ import { PlanController, TestPlanController, UsageController } from './http/plan
 import { BillingController, StripeWebhookController } from './http/billing/billing.controller';
 import { AdminController } from './http/admin/admin.controller';
 import { AdminGuard } from './http/admin/admin.guard';
+import { NoDemoGuard } from './http/_auth/demo.guard';
 import { ErrorReportController } from './http/error-report/error-report.controller';
 import { StatusController } from './http/status/status.controller';
 import { McpController } from './http/mcp/mcp.controller';
@@ -73,7 +74,8 @@ import { WebsocketClient } from './ws/websocket-client';
         WebsocketClient,
         OnboardingInterceptor,
         ApiKeyUsageGuard,
-        AdminGuard
+        AdminGuard,
+        NoDemoGuard
     ]
 })
 export class WebModule {}

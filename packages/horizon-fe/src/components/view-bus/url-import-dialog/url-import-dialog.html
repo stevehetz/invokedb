@@ -1,6 +1,10 @@
 <div class="dialog url-import-dialog">
     <el-dialog :title="title" v-model="dialog_visible" width="600px">
         <div class="url-import-form">
+            <demo-off
+                v-if="demo"
+                text="Importing from a URL is off in the demo."
+            ></demo-off>
             <div class="form-row" v-if="is_new">
                 <label>Name:</label>
                 <el-input

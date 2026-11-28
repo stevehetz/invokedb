@@ -46,6 +46,15 @@
                         >{{ account ? 'Open your database' : 'Start free'
                         }}</router-link
                     >
+                    <button
+                        v-if="!account"
+                        type="button"
+                        class="banner-button try-demo"
+                        :disabled="demo.starting"
+                        @click="try_demo"
+                    >
+                        {{ demo_label }}
+                    </button>
                     <router-link to="/agents" class="banner-button"
                         >Connect an agent</router-link
                     >
@@ -53,6 +62,19 @@
                         >See pricing</router-link
                     >
                 </div>
+                <span class="banner-demo-note" v-if="!account && !demo.error"
+                    >The demo needs no signup: a workspace of sample tables,
+                    views and a form, yours for 24 hours.
+                    <router-link to="/help/demo"
+                        >What's in it</router-link
+                    ></span
+                >
+                <span class="banner-demo-error" v-if="demo.error" role="alert"
+                    >{{ demo.error }}
+                    <router-link to="/create-account"
+                        >Sign up instead</router-link
+                    ></span
+                >
             </div>
         </div>
         <div class="info content-block">

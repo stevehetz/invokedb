@@ -32,6 +32,7 @@ import { TwoFactorService } from '../two-factor/two-factor.service';
 import { parse_plan_state } from '@app/core/plan/plan-state';
 import { AdminAccessService } from '../admin/admin-access.service';
 import { account_theme } from '@app/core/theme/theme';
+import { demo_info } from '@app/core/demo/demo';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -134,7 +135,10 @@ export class AuthService {
                 // The account menu's plan, from the plan constant (#275)
                 plan: authorize_plan(account),
                 // The app's light/dark choice (#290)
-                theme: account_theme(account.theme)
+                theme: account_theme(account.theme),
+                // A no-signup demo account (#333): `{ expires_at }`, for the app's banner and
+                // the features it hides; null for any other account
+                demo: demo_info(account)
             };
 
             return res;

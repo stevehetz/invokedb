@@ -7,7 +7,7 @@ import {
     NotFoundException
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { Account } from '@app/core/account/account.entity';
 import { Session } from '@app/core/session/session.entity';
 import { ApiKey } from '@app/core/api-key/api-key.entity';
@@ -123,12 +123,18 @@ export class AdminService {
         const now = this.now();
         const month = usage_month(now);
         const since = new Date(now - SIGNUP_DAYS * 24 * 60 * 60 * 1000);
-        // Deleted accounts signed up too
+        // Deleted accounts signed up too; demo accounts (#333) didn't
         const created = await this.account_repository
             .createQueryBuilder('a')
             .select('a.created_datetime', 'at')
             .where('a.created_datetime >= :since', { since })
+            .andWhere('a.demo_expires_at IS NULL')
             .getRawMany();
+        // Demo accounts aren't users: they're only counted here, apart (#333)
+        const demo_accounts = await this.account_repository.countBy({
+            deleted: false,
+            demo_expires_at: Not(IsNull())
+        });
         const budget = server_budget_micros(env.HORIZON_AI_MONTHLY_BUDGET_USD);
         const spent = await this.ai_usage_manager.server_cost(month);
         const sum = (f: (r: AccountRow) => number) => snap.rows.reduce((s, r) => s + f(r), 0);
@@ -140,6 +146,7 @@ export class AdminService {
                 now
             ),
             accounts: snap.rows.length,
+            demo_accounts,
             active: active_counts(
                 snap.rows.map(r => r.last_active_at),
                 now
@@ -512,7 +519,11 @@ export class AdminService {
     private async build_snapshot(): Promise<Snapshot> {
         const at = this.now();
         const month = usage_month(at);
-        const accounts = await this.account_repository.findBy({ deleted: false });
+        // Demo accounts (#333) aren't in the figures or the list: overview() counts them apart
+        const accounts = await this.account_repository.findBy({
+            deleted: false,
+            demo_expires_at: IsNull()
+        });
         const two_factor = new Set(
             (
                 await this.two_factor_repository.find({

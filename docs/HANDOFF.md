@@ -60,6 +60,12 @@ use it one day, great; a sale someday would be a bonus. What that means for the 
     SQL update in production (`UPDATE account SET internal = true …`), because the admin area
     refuses every action on the admin's own account (by design, #277).
   - The owner said Claude may **merge its own agent-evals PRs** (not InvokeDB's).
+- **agent-pipeline** (started 2026-11-28): `stevehetzl/agent-pipeline` (`~/dev/agent-pipeline`),
+  board https://github.com/users/stevehetzl/projects/3. InvokeDB's generic agent workflows are
+  to become reusable workflows there, plus a bootstrap script to stand up new repos;
+  agent-evals adopts them first, InvokeDB last. **Everything harness-agnostic** (owner's call):
+  a plain script plus an `AGENTS.md`-listed playbook, not a Claude Code skill; the agent
+  action an input. Not an MCP server for now.
 - **Billing stays built but off.** The LLC and the rest of `docs/GO_LIVE.md` wait **until
   someone actually asks to pay** (or a buyer, a partner or real users' important data shows up).
   A single-member LLC would be little upkeep (taxed on the owner's Schedule C, no K-1), so it can

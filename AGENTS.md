@@ -117,7 +117,11 @@ data.
   wait for the user. Add `hold` only when a PR can't deploy safely without the user: it needs
   a `prod.env` change or a manual step on the server. Never for a change that's large,
   risky-looking or visual (those merge by themselves), or for a follow-up the author can't do
-  (list it under "Follow-ups" and open an issue).
+  (list it under "Follow-ups" and open an issue). GitHub's own auto-merge is also on (the
+  repo's "Allow auto-merge"): when the user OKs a `needs-owner` PR before its checks finish,
+  `gh pr merge <n> --merge --auto` merges it once the required checks pass. It doesn't wait
+  for `review-ok`, so only on the user's say-so. A PR that changes `review.yml` gets no Claude
+  review: `claude-code-action` refuses to run when the workflow differs from `main`'s.
 - `.github/workflows/repair.yml` fixes failed CI or CD, or opens an issue. On an open agent PR's
   branch it pushes the fix straight onto that branch and comments on the PR (#135: a fix PR
   merged into the branch with the workflow token started no CI); anywhere else it opens a fix PR

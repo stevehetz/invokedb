@@ -338,6 +338,40 @@ await call('other_delete_own_dir', 'POST', '/file-directory/batch_delete', {
     body: { ids: [other_dir] }
 });
 
+// Renaming or moving onto a name already in the folder is refused (#366)
+const name_dir_a = await call('name_dir_a', 'POST', '/file-directory', {
+    token,
+    body: { account_id: me.id, name: 'smoke_name_a', type: 'dir' }
+});
+const name_dir_b = await call('name_dir_b', 'POST', '/file-directory', {
+    token,
+    body: { account_id: me.id, name: 'smoke_name_b', type: 'dir' }
+});
+const name_dir_inner = await call('name_dir_inner', 'POST', '/file-directory', {
+    token,
+    body: { account_id: me.id, name: 'smoke_name_b', type: 'dir', parent_id: name_dir_a }
+});
+// The update DTO needs id, account_id and name, as the frontend sends them
+await call('rename_onto_taken_name', 'PUT', `/file-directory/${name_dir_b}`, {
+    token,
+    body: { id: name_dir_b, account_id: me.id, name: 'SMOKE_NAME_A' },
+    expectFail: true
+});
+await call('move_onto_taken_name', 'PUT', `/file-directory/${name_dir_inner}`, {
+    token,
+    body: { id: name_dir_inner, account_id: me.id, name: 'smoke_name_b', parent_id: null },
+    expectFail: true
+});
+const name_case = await call('rename_own_name_case', 'PUT', `/file-directory/${name_dir_b}`, {
+    token,
+    body: { id: name_dir_b, account_id: me.id, name: 'SMOKE_NAME_B' }
+});
+check('rename_own_name_case_saved', name_case && name_case.name === 'SMOKE_NAME_B', name_case);
+await call('name_dirs_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [name_dir_a, name_dir_b] }
+});
+
 // Table templates (#142): demo makes a table from one; demo2 can't see or use it
 const templates = await call('template_list', 'GET', '/table-template', { token });
 check(

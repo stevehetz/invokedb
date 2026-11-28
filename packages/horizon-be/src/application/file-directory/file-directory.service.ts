@@ -142,13 +142,15 @@ export class FileDirectoryService {
             throw new HttpException('Name in use', HttpStatus.NOT_FOUND);
     }
 
-    async same_name_type_and_folder_level(data) {
+    /** `except_id`: an item not to count, the one being renamed or moved (#366). */
+    async same_name_type_and_folder_level(data, except_id?: number) {
         const file_directories = await this.get_all(data.account_id);
         let same = false;
         data.parent_id = data.parent_id || null;
         file_directories.some(file_dir => {
             if (
-                data.parent_id === file_dir.parent_id &&
+                file_dir.id !== except_id &&
+                data.parent_id === (file_dir.parent_id ?? null) &&
                 data.type === file_dir.type &&
                 data.name.toLowerCase() === file_dir.name.toLowerCase()
             ) {
@@ -230,6 +232,23 @@ export class FileDirectoryService {
             }
         }
         if (Object.keys(changes).length === 0) return file_directory;
+        // Two items of one type can't share a name in a folder (#366), as in `validate`
+        const target = {
+            account_id,
+            type: file_directory.type,
+            name: changes.name !== undefined ? String(changes.name) : file_directory.name,
+            parent_id:
+                changes.parent_id !== undefined ? changes.parent_id : file_directory.parent_id
+        };
+        const moved_or_renamed =
+            target.name !== file_directory.name ||
+            (target.parent_id ?? null) !== (file_directory.parent_id ?? null);
+        if (
+            moved_or_renamed &&
+            (await this.same_name_type_and_folder_level(target, file_directory.id))
+        ) {
+            throw new HttpException('Name in use', HttpStatus.NOT_FOUND);
+        }
         const updated = await this.update(file_directory.id, changes);
         if (
             file_directory.type === 'file' &&

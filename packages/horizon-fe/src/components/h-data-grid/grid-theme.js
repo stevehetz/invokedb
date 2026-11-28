@@ -5,10 +5,25 @@ import { createTheme } from 'ag-grid-community';
 // (`.h-data-grid .ag-*`) still draws the grid. These params only turn off what the core CSS
 // would draw on top of it (hover and selection overlays, borders, focus rings) and set the
 // sizes the grid measures with.
-export const grid_theme = createTheme().withParams({
+//
+// Density (#361, core/density.js): grid_theme is Comfortable, grid_theme_compact is Compact. Their
+// sizes are GRID_SIZES, which the grid options use too (rowHeight, headerHeight,
+// floatingFiltersHeight) and which must match stylesheet.scss.
+
+/** @typedef {import('@/core/density').DensityChoice} DensityChoice */
+
+/**
+ * The sizes the grid measures with, per density.
+ * @type {Record<DensityChoice, { row: number, header: number, filter: number }>}
+ */
+export const GRID_SIZES = {
     // stylesheet.scss draws the header row at 35px, the filter row and rows at 30px
-    rowHeight: 30,
-    headerHeight: 35,
+    comfortable: { row: 30, header: 35, filter: 30 },
+    // and under [data-density='compact'] the header row at 28px, the filter row and rows at 24px
+    compact: { row: 24, header: 28, filter: 24 }
+};
+
+const base_theme = createTheme().withParams({
     listItemHeight: 24,
 
     fontFamily: 'inherit',
@@ -41,3 +56,20 @@ export const grid_theme = createTheme().withParams({
     focusShadow: false
     // No inputFocusShadow: it belongs to the input-style part, which this theme doesn't include
 });
+
+/** @param {DensityChoice} density */
+function sized_theme(density) {
+    const sizes = GRID_SIZES[density];
+    return base_theme.withParams({
+        rowHeight: sizes.row,
+        headerHeight: sizes.header
+    });
+}
+
+export const grid_theme = sized_theme('comfortable');
+export const grid_theme_compact = sized_theme('compact');
+
+/** @param {DensityChoice} density */
+export function grid_theme_for(density) {
+    return density === 'compact' ? grid_theme_compact : grid_theme;
+}

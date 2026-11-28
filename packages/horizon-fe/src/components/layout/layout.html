@@ -98,6 +98,32 @@
                                 </button>
                             </span>
                         </li>
+                        <!-- Grid density, kept on this device (#361) -->
+                        <li
+                            class="account-menu-theme account-menu-density"
+                            role="group"
+                        >
+                            <span class="account-menu-theme-label"
+                                >Density</span
+                            >
+                            <span class="account-menu-theme-choices">
+                                <button
+                                    v-for="d in densities"
+                                    :key="d.value"
+                                    type="button"
+                                    :class="[
+                                        'account-menu-theme-choice',
+                                        'density-' + d.value,
+                                        { active: density === d.value }
+                                    ]"
+                                    :aria-pressed="density === d.value"
+                                    :title="d.title"
+                                    @click.stop="set_density(d.value)"
+                                >
+                                    <i :class="d.icon"></i> {{ d.label }}
+                                </button>
+                            </span>
+                        </li>
                         <el-dropdown-item
                             class="account-menu-help"
                             command="help"

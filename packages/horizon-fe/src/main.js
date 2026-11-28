@@ -21,10 +21,12 @@ import 'element-plus/theme-chalk/dark/css-vars.css';
 // registers its children too. ElLoading is the `v-loading` directive.
 import ElButton from 'element-plus/es/components/button/index.mjs';
 import ElCarousel from 'element-plus/es/components/carousel/index.mjs';
+import ElCheckbox from 'element-plus/es/components/checkbox/index.mjs';
 import ElDialog from 'element-plus/es/components/dialog/index.mjs';
 import ElDropdown from 'element-plus/es/components/dropdown/index.mjs';
 import ElForm from 'element-plus/es/components/form/index.mjs';
 import ElInput from 'element-plus/es/components/input/index.mjs';
+import ElInputNumber from 'element-plus/es/components/input-number/index.mjs';
 import ElLink from 'element-plus/es/components/link/index.mjs';
 import ElLoading from 'element-plus/es/components/loading/index.mjs';
 import ElMenu from 'element-plus/es/components/menu/index.mjs';
@@ -52,10 +54,12 @@ app.config.globalProperties.$bus = bus;
 [
     ElButton,
     ElCarousel,
+    ElCheckbox,
     ElDialog,
     ElDropdown,
     ElForm,
     ElInput,
+    ElInputNumber,
     ElLink,
     ElLoading,
     ElMenu,

@@ -565,7 +565,7 @@ export default {
 
         get_default_col_def() {
             return {
-                editable: true,
+                editable: this.cell_editable,
                 sortable: true,
                 filter: true,
                 floatingFilter: true,
@@ -587,18 +587,36 @@ export default {
         async get_rows(params) {
             this.show_loading();
             const col_defs = this.col_defs();
-            let res = await mgr.get_rows(
-                this.file_directory_id,
-                params,
-                PAGE_SIZE,
-                col_defs
-            );
+            let res;
+            try {
+                res = await mgr.get_rows(
+                    this.file_directory_id,
+                    params,
+                    PAGE_SIZE,
+                    col_defs
+                );
+            } catch (ex) {
+                // Answer the page anyway (#355): unanswered, the infinite row model keeps its
+                // placeholder row on screen under "Loading..."
+                params.successCallback([], params.startRow);
+                this.hide_top_bar_msg();
+                this.toast.error(
+                    (ex && ex.message) || 'Could not load the rows'
+                );
+                return;
+            }
             this.add_link_labels(res);
             this.total_rows = res.count;
             let last_row = res.count <= params.endRow ? res.count : -1;
             params.successCallback(res.data, last_row);
             this.hide_top_bar_msg();
             this.toast.hide();
+        },
+
+        // A cell is edited only on a loaded row (#355): the infinite row model's placeholder
+        // rows, shown while a page loads, have no data and are never saved
+        cell_editable(params) {
+            return !!(params && params.data);
         },
         /*** End: Retrieve paged rows from server ***/
 
@@ -1136,7 +1154,7 @@ export default {
                     col_def.sortable = !lock;
                     col_def.filter = !lock;
                     // col_def.resizable = !lock;
-                    col_def.editable = !lock;
+                    col_def.editable = lock ? false : this.cell_editable;
                 }
 
                 return col_def;

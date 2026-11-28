@@ -1,4 +1,4 @@
-<div class="custom-filter" :class="{loading: loading}">
+<div class="custom-filter" :class="{loading: loading, invalid: invalid}">
     <div ref="menu_toggle" class="custom-filter-type">
         <span
             class="active-filter-type"
@@ -21,6 +21,7 @@
         type="text"
         class="custom-filter-text"
         :value="input_value"
+        :title="invalid ? invalid_message : null"
         @keyup="valueChanged($event)"
     />
     <span v-loading="true" v-if="loading" class="filter-spinner"></span>

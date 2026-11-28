@@ -1911,6 +1911,12 @@ $nav_active_color: var(--h-chrome-text);
     color: var(--h-text);
     font-size: 1.2rem;
 }
+.h-data-grid
+    .ag-floating-filter-body
+    .custom-filter.invalid
+    .custom-filter-text {
+    box-shadow: inset 0 -2px 0 var(--h-danger);
+}
 .h-data-grid .ag-row {
     font-size: 18px;
 }

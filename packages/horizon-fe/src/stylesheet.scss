@@ -3638,6 +3638,52 @@ $compact-grid: ".h-data-grid:where([data-density='compact'] *)";
 .schema-diagram .schema-column.link .schema-column-type {
     fill: #257de0;
 }
+// Folders (#376): the picker and checkbox, and the dimmed cards of tables in other folders
+.schema-diagram .schema-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 10px;
+    color: var(--h-text);
+}
+.schema-diagram .schema-folder-select {
+    width: 240px;
+}
+.schema-folder-option {
+    white-space: pre;
+}
+.schema-folder-option .fa {
+    color: var(--h-muted);
+    margin-right: 4px;
+}
+.schema-diagram .schema-key.outside {
+    height: 10px;
+    border: 1px dashed var(--h-line-strong);
+    border-radius: 2px;
+    opacity: 0.6;
+}
+.schema-diagram .schema-table.outside {
+    opacity: 0.55;
+}
+.schema-diagram .schema-table.outside:hover {
+    opacity: 0.85;
+}
+.schema-diagram .schema-table.outside .schema-card {
+    stroke-dasharray: 5 3;
+    stroke-width: 1.5;
+}
+.schema-diagram .schema-table-name.outside-name {
+    font-size: 13px;
+}
+// On the header, which is dark in both themes
+.schema-diagram .schema-folder-icon {
+    fill: #c8c8c8;
+}
+.schema-diagram .schema-folder-name {
+    fill: #c8c8c8;
+    font-size: 11px;
+}
 .schema-diagram .schema-suggestions h4 {
     margin: 14px 0 4px;
     color: var(--h-text);

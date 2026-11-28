@@ -45,9 +45,21 @@ export const tree_manager = {
         );
     },
 
-    /** Every table with its columns and the links between them, laid out (#208). */
-    async get_schema() {
-        return await http.get(http.get_url(`/file-directory/schema`));
+    /**
+     * Every table with its columns and the links between them, laid out (#208); `folder` (an
+     * id or 'unfiled') and `linked_only` narrow it (#376).
+     * @param {{ folder?: number | 'unfiled' | null, linked_only?: boolean }} [opts]
+     */
+    async get_schema(opts = {}) {
+        const params = new URLSearchParams();
+        if (opts.folder !== undefined && opts.folder !== null) {
+            params.set('folder', String(opts.folder));
+        }
+        if (opts.linked_only) params.set('linked_only', 'true');
+        const query = params.toString();
+        return await http.get(
+            http.get_url(`/file-directory/schema${query ? '?' + query : ''}`)
+        );
     },
 
     async get_templates() {

@@ -1,11 +1,39 @@
 <div class="schema-diagram">
+    <div class="schema-filters" v-if="diagram">
+        <el-select
+            v-if="folders.length > 0"
+            class="schema-folder-select"
+            v-model="folder"
+            size="small"
+            aria-label="Folder"
+            @change="choice_changed"
+        >
+            <el-option label="All tables" value="all"></el-option>
+            <el-option label="Unfiled" value="unfiled"></el-option>
+            <el-option
+                v-for="f in folder_list"
+                :key="f.id"
+                :label="f.name"
+                :value="f.id"
+            >
+                <span class="schema-folder-option"
+                    >{{ indent(f.depth) }}<i class="fa fa-folder"></i> {{ f.name
+                    }}</span
+                >
+            </el-option>
+        </el-select>
+        <el-checkbox v-model="linked_only" @change="choice_changed"
+            >Only linked tables</el-checkbox
+        >
+    </div>
+
     <div class="schema-status" v-if="loading">Loading the diagram...</div>
     <div class="schema-status error" v-if="error">{{ error }}</div>
     <div
         class="schema-status"
         v-if="!loading && !error && diagram && diagram.tables.length === 0"
     >
-        No tables yet.
+        {{ empty_text }}
     </div>
 
     <template v-if="!loading && diagram && diagram.tables.length > 0">
@@ -13,6 +41,9 @@
             <span class="schema-legend">
                 <span class="schema-key link"></span> link column
                 <span class="schema-key suggested"></span> suggested link
+                <template v-if="diagram.tables.some(t => t.outside)">
+                    <span class="schema-key outside"></span> in another folder
+                </template>
                 <span class="schema-hint">Click a table to open it.</span>
             </span>
             <span class="schema-zoom">
@@ -70,7 +101,7 @@
                 <g
                     v-for="t in diagram.tables"
                     :key="t.id"
-                    :class="['schema-table', { active: hover === t.id }]"
+                    :class="['schema-table', { active: hover === t.id, outside: t.outside }]"
                     :transform="'translate(' + t.x + ',' + t.y + ')'"
                     :data-table-id="t.id"
                     @click="open_table(t.id)"
@@ -89,12 +120,31 @@
                         :d="'M 0 6 A 6 6 0 0 1 6 0 H ' + (t.width - 6) + ' A 6 6 0 0 1 ' + t.width + ' 6 V ' + header_height + ' H 0 Z'"
                     ></path>
                     <text
+                        v-if="!t.outside"
                         class="schema-table-name"
                         x="10"
                         :y="header_height / 2 + 5"
                     >
                         {{ clip(t.name, 26) }}
                     </text>
+                    <!-- A table from another folder: its name, then a folder icon and the folder -->
+                    <template v-else>
+                        <text
+                            class="schema-table-name outside-name"
+                            x="10"
+                            y="14"
+                        >
+                            {{ clip(t.name, 28) }}
+                        </text>
+                        <path
+                            class="schema-folder-icon"
+                            transform="translate(10,19)"
+                            d="M 0 1 Q 0 0 1 0 H 4 L 5.5 1.5 H 10 Q 11 1.5 11 2.5 V 8 Q 11 9 10 9 H 1 Q 0 9 0 8 Z"
+                        ></path>
+                        <text class="schema-folder-name" x="25" y="27">
+                            {{ clip(t.folder_name || 'Unfiled', 26) }}
+                        </text>
+                    </template>
                     <g
                         v-for="(c, i) in t.columns"
                         :key="c.field"

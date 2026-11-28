@@ -2297,6 +2297,90 @@ check(
     schema
 );
 
+// By folder (#376): the tasks table in a folder draws with the contacts table it links to,
+// from outside the folder; Unfiled draws contacts with tasks outside
+const schema_dir = await call('schema_folder_create', 'POST', '/file-directory', {
+    token,
+    body: { account_id: me.id, name: 'smoke_schema_dir', type: 'dir' }
+});
+await call('schema_folder_move_in', 'PUT', `/file-directory/${link_tasks}`, {
+    token,
+    body: { id: link_tasks, account_id: me.id, name: 'smoke_link_tasks', parent_id: schema_dir }
+});
+const schema_in_dir = await call(
+    'schema_diagram_folder',
+    'GET',
+    `/file-directory/schema?folder=${schema_dir}`,
+    { token }
+);
+const in_dir_tasks = schema_in_dir?.tables?.find(t => t.id === link_tasks);
+const in_dir_contacts = schema_in_dir?.tables?.find(t => t.id === link_contacts);
+check(
+    'schema_diagram_folder_one_hop',
+    !!in_dir_tasks &&
+        !in_dir_tasks.outside &&
+        in_dir_tasks.folder_name === 'smoke_schema_dir' &&
+        !!in_dir_contacts &&
+        in_dir_contacts.outside === true &&
+        in_dir_contacts.folder_name === null &&
+        schema_in_dir.tables[0].id === link_tasks &&
+        schema_in_dir.links.some(
+            l => l.from_table_id === link_tasks && l.to_table_id === link_contacts
+        ) &&
+        schema_in_dir.folders.some(f => f.id === schema_dir && f.name === 'smoke_schema_dir'),
+    schema_in_dir
+);
+const schema_unfiled = await call(
+    'schema_diagram_unfiled_linked_only',
+    'GET',
+    '/file-directory/schema?folder=unfiled&linked_only=true',
+    { token }
+);
+const arrow_ends = new Set(
+    [...(schema_unfiled?.links || []), ...(schema_unfiled?.suggestions || [])].flatMap(l => [
+        l.from_table_id,
+        l.to_table_id
+    ])
+);
+check(
+    'schema_diagram_unfiled_linked_only_cards',
+    Array.isArray(schema_unfiled?.tables) &&
+        schema_unfiled.tables.some(t => t.id === link_contacts && !t.outside) &&
+        schema_unfiled.tables.some(t => t.id === link_tasks && t.outside) &&
+        schema_unfiled.tables.every(t => arrow_ends.has(t.id)),
+    schema_unfiled
+);
+const schema_all_linked = await call(
+    'schema_diagram_linked_only',
+    'GET',
+    '/file-directory/schema?linked_only=true',
+    { token }
+);
+check(
+    'schema_diagram_linked_only_hides_lone_tables',
+    Array.isArray(schema_all_linked?.tables) &&
+        schema_all_linked.tables.some(t => t.id === link_tasks) &&
+        schema_all_linked.tables.every(t =>
+            [...schema_all_linked.links, ...schema_all_linked.suggestions].some(
+                l => l.from_table_id === t.id || l.to_table_id === t.id
+            )
+        ),
+    schema_all_linked
+);
+// A missing folder and a bad value are refused (another account's folder: below)
+await call('schema_diagram_missing_folder', 'GET', '/file-directory/schema?folder=999999999', {
+    token,
+    expectFail: true
+});
+await call('schema_diagram_bad_folder', 'GET', '/file-directory/schema?folder=nope', {
+    token,
+    expectFail: true
+});
+await call('schema_folder_move_out', 'PUT', `/file-directory/${link_tasks}`, {
+    token,
+    body: { id: link_tasks, account_id: me.id, name: 'smoke_link_tasks', parent_id: null }
+});
+
 // The picker: rows of the contacts table matching the text, labelled by the Name column
 const link_options = await call(
     'link_options',
@@ -2556,6 +2640,15 @@ await call('schema_diagram_api_key', 'GET', '/file-directory/schema', {
     expectFail: true
 });
 await call('schema_diagram_no_token', 'GET', '/file-directory/schema', { expectFail: true });
+// demo2 can't draw demo's folder (#376)
+await call('schema_diagram_other_folder', 'GET', `/file-directory/schema?folder=${schema_dir}`, {
+    token: ltoken2,
+    expectFail: true
+});
+await call('schema_folder_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [schema_dir] }
+});
 
 // Fill a link column by matching (#321): two CRM tables share their Email column. In the
 // signups table, Ada's email is in capitals with spaces (still matches), Bram's is empty (no

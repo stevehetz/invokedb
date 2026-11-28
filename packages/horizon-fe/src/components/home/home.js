@@ -393,11 +393,18 @@ export default {
 
         // The schema diagram (#208): every table and the links between them; clicking a
         // table opens it (through `table:open`)
+        // It opens on the open table's folder, or Unfiled for a top-level table (#376)
         open_schema() {
+            const tab = this.tabs.find(t => t.name === this.active_tab_name);
+            const table = tab ? this.file_tree_item_by_id(tab.id) : null;
+            let open_folder = null;
+            if (table && table.type !== 'dir') {
+                open_folder = table.parent_id ? table.parent_id : 'unfiled';
+            }
             this.$bus.$emit('container-dialog:open', {
                 title: 'Schema diagram',
                 dialog_class: 'wide',
-                props: {},
+                props: { open_folder },
                 component: SchemaDiagram
             });
         },

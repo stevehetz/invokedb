@@ -836,6 +836,51 @@ $nav_active_color: var(--h-chrome-text);
     margin-right: 5px;
     margin-bottom: 3px;
 }
+.h-tree-menu-popper .el-menu .el-menu-item.divide-top {
+    border-top: solid 1px var(--h-line);
+}
+// The tree's right-click menu (#357), teleported to <body>
+.h-tree-context-menu {
+    position: fixed;
+    z-index: 3000;
+    min-width: 200px;
+    padding: 4px 0;
+    background-color: var(--h-popper);
+    color: var(--h-popper-text);
+    border-radius: 4px;
+    box-shadow: 0 4px 14px var(--h-shadow);
+    font-size: 14px;
+    user-select: none;
+}
+.h-tree-context-menu .context-item {
+    padding: 7px 16px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.h-tree-context-menu .context-item:hover {
+    background-color: var(--h-popper-hover);
+}
+.h-tree-context-menu .context-item i {
+    width: 18px;
+    margin-right: 6px;
+    text-align: center;
+}
+.h-tree-context-menu .context-item.divide-top {
+    border-top: solid 1px var(--h-line);
+    margin-top: 4px;
+    padding-top: 9px;
+}
+.h-tree-context-menu .context-item.danger i {
+    color: var(--h-danger);
+}
+.move-folder-dialog .move-folder-select {
+    width: 100%;
+}
+.move-folder-dialog .move-folder-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
 .h-tree .empty-db-message {
     margin-top: 60px;
     text-align: center;

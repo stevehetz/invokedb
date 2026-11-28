@@ -3277,7 +3277,7 @@ const mcp_dirs0 = await call('mcp_table_leftovers', 'GET', '/file-directory', { 
 const mcp_leftover = (Array.isArray(mcp_dirs0) ? mcp_dirs0 : []).filter(
     d =>
         (d.type === 'file' && d.name === 'smoke_mcp_table') ||
-        (d.type === 'dir' && d.name === 'smoke_mcp_dir')
+        (d.type === 'dir' && ['smoke_mcp_dir', 'smoke_mcp_folder'].includes(d.name))
 );
 if (mcp_leftover.length) {
     await call('mcp_table_leftovers_delete', 'POST', '/file-directory/batch_delete', {
@@ -3398,6 +3398,63 @@ for (const d of mcp_twins.sort((a, b) => mcp_rank(a) - mcp_rank(b))) {
         body: { ids: [d.id] }
     });
 }
+// Folders (#357): create_folder for the read-write key for all tables only; a table made in the
+// folder shows it in list_tables; deleting the folder in the app deletes its table too
+for (const [label, k] of [
+    ['ro', ro?.secret],
+    ['scoped', scoped?.secret]
+]) {
+    const refused = await mcp_tool(`mcp_${label}_create_folder`, k, 'create_folder', {
+        name: 'smoke_mcp_folder'
+    });
+    check(`mcp_${label}_create_folder_refused`, refused?.isError === true, refused);
+}
+const mcp_folder_made = await mcp_tool('mcp_create_folder', key, 'create_folder', {
+    name: 'smoke_mcp_folder'
+});
+const mcp_folder = mcp_value(mcp_folder_made);
+check(
+    'mcp_create_folder_ok',
+    mcp_folder_made?.isError === false &&
+        Number.isInteger(mcp_folder?.id) &&
+        mcp_folder?.name === 'smoke_mcp_folder',
+    mcp_folder_made
+);
+const mcp_folder_again = await mcp_tool('mcp_create_folder_taken', key, 'create_folder', {
+    name: 'smoke_mcp_folder'
+});
+check(
+    'mcp_create_folder_taken_refused',
+    mcp_folder_again?.isError === true && /in use/i.test(mcp_text(mcp_folder_again)),
+    mcp_folder_again
+);
+const mcp_foldered = mcp_value(
+    await mcp_tool('mcp_create_table_in_folder', key, 'create_table', {
+        name: 'smoke_mcp_foldered',
+        folder: 'smoke_mcp_folder',
+        columns: mcp_cols
+    })
+);
+const mcp_listed = mcp_value(await mcp_tool('mcp_list_tables_folders', key, 'list_tables', {}));
+const mcp_listed_tables = mcp_listed?.tables || [];
+check(
+    'mcp_list_tables_folder',
+    mcp_listed_tables.some(
+        t => t.name === 'smoke_mcp_foldered' && t.folder === 'smoke_mcp_folder'
+    ) && mcp_listed_tables.some(t => t.name === 'smoke_mcp_table' && t.folder === null),
+    mcp_listed
+);
+await call('mcp_folder_delete', 'POST', '/file-directory/batch_delete', {
+    token,
+    body: { ids: [mcp_folder?.id] }
+});
+const mcp_dirs2 = await call('mcp_folder_deleted_list', 'GET', '/file-directory', { token });
+check(
+    'mcp_folder_delete_takes_its_tables',
+    Array.isArray(mcp_dirs2) &&
+        !mcp_dirs2.some(d => d.id === mcp_folder?.id || d.id === mcp_foldered?.id),
+    mcp_dirs2
+);
 const mcp_added = await mcp_tool('mcp_add_columns', key, 'add_columns', {
     table: 'smoke_mcp_table',
     columns: [{ name: 'Joined', type: 'date' }]

@@ -141,10 +141,26 @@
                         </li>
                     </ul>
                     <p>
-                        Tables are listed on the left. Select some with their
-                        checkboxes to rename or delete them. A table's name is
-                        what the API calls it, so renaming a table changes the
-                        <code>table</code> your code sends.
+                        Tables are listed on the left. Click one, then the
+                        <i class="fa fa-edit"></i> or
+                        <i class="fa fa-trash"></i> button to rename or delete
+                        it, or right-click it for the same and more. A table's
+                        name is what the API calls it, so renaming a table
+                        changes the <code>table</code> your code sends.
+                    </p>
+                    <h2>Folders</h2>
+                    <p>
+                        Click <b>+</b> and choose <b>Folder</b> to make one. To
+                        make a table inside a folder, click the folder first and
+                        then <b>+</b>, or right-click the folder and choose
+                        <b>New table here</b>. Drag a table onto a folder to
+                        move it in, and drag it out to move it back to the top
+                        level; or right-click the table and choose
+                        <b>Move to folder…</b>. Folders are renamed and deleted
+                        like tables; deleting a folder deletes the tables in it
+                        too, after asking. The app remembers which folders you
+                        left open. Folders don't change what the API calls a
+                        table.
                     </p>
                     <h2>Editing</h2>
                     <p>
@@ -493,8 +509,8 @@
                     <ul>
                         <li>
                             <b>list_tables</b> and <b>describe_table</b>: the
-                            tables the key can use, their columns and row
-                            counts.
+                            tables the key can use, their folders, columns and
+                            row counts.
                         </li>
                         <li>
                             <b>query_rows</b> and <b>count_rows</b>: filters,
@@ -521,6 +537,12 @@
                             AI columns are set up in the app. Only with a
                             <b>Read and write</b> key for all tables, and within
                             your plan's table and column limits.
+                        </li>
+                        <li>
+                            <b>create_folder</b>: make a folder to put tables in
+                            (give its name as <code>folder</code> to
+                            <b>create_table</b>). Only with a
+                            <b>Read and write</b> key for all tables.
                         </li>
                     </ul>
                     <h2>Staying in charge</h2>

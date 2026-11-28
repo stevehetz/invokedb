@@ -54,6 +54,9 @@ class SocketManager {
             );
         this.endpoint = endpoint;
         this.clear_reconnect();
+        // Never two connections at once (#378): a socket still open or connecting is
+        // closed, and its events are already ignored once it's no longer `this.socket`
+        this.close_socket();
 
         const socket = new WebSocket(endpoint);
         this.socket = socket;
@@ -63,6 +66,23 @@ class SocketManager {
         socket.onclose = () => this.onclose(socket);
         socket.onmessage = message => this.messageMgr(socket, message);
         this.emit('connect');
+    }
+
+    close_socket() {
+        const old = this.socket;
+        this.socket = undefined;
+        if (!old) return;
+        old.onopen = old.onerror = old.onclose = old.onmessage = null;
+        if (
+            old.readyState === WebSocket.OPEN ||
+            old.readyState === WebSocket.CONNECTING
+        ) {
+            try {
+                old.close();
+            } catch (ex) {
+                // Already closing: nothing to do
+            }
+        }
     }
 
     clear_reconnect() {

@@ -177,6 +177,15 @@ other.
 
 ### The cloud agent
 
+**Where the workflows live** (since 2026-11-28): `agent-queue`, `implement`, `review`,
+`automerge`, `revise`, `repair`, `resolve`, `security-fix` and `deps-update` in
+`.github/workflows/` are thin callers of the reusable workflows in
+[stevehetzl/agent-pipeline](https://github.com/stevehetzl/agent-pipeline) (`~/dev/agent-pipeline`),
+pinned to `@v1`; agent-evals runs the same ones. A change to how they work is made there (and
+tried in a repo before `v1` moves); InvokeDB's settings (check commands, held paths, the review's
+focus, repair's notes on E2E and CD) are the callers' `with:` inputs. `ci.yml`, `cd.yml` and
+`e2e.yml` stay here. The descriptions below still hold.
+
 An issue can be handed to a cloud agent instead of a local session: the user labels it
 `agent`. `.github/workflows/agent-queue.yml` starts `implement.yml` on one issue at a time
 (board order if the `PROJECTS_TOKEN` secret is set, otherwise issue number). Claude then works

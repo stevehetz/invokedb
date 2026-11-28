@@ -38,7 +38,13 @@ export async function request(method, url, token, data) {
 
     // A refusal at the plan's cap (#183): the app shows a notice that links to the usage
     // A write by a read-only account (#184, `plan_read_only`) shows the same notice
-    if (body && (body.code === 'plan_limit' || body.code === 'plan_read_only'))
+    // A feature that's off in the no-signup demo (#333, `demo_account`) too, with a signup link
+    if (
+        body &&
+        (body.code === 'plan_limit' ||
+            body.code === 'plan_read_only' ||
+            body.code === 'demo_account')
+    )
         bus.$emit('plan_limit', body);
     if (!res.ok) throw is_json ? body : undefined;
     // Some endpoints answer 200 with an error object

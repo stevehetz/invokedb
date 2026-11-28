@@ -15,6 +15,7 @@ import {
     TOO_MANY_REQUESTS_MESSAGE
 } from '@app/web/http/_rate-limit/rate-limit';
 import { session_account_id } from '@app/web/http/_auth/request-account';
+import { DemoService } from '@app/application/demo/demo.service';
 
 const HOUR = 60 * 60 * 1000;
 
@@ -23,7 +24,19 @@ export class AuthController {
     // Resending sends an email, so it's limited per account as well as per IP (#132, #133)
     private readonly resend_per_account = new RateLimiter(3, HOUR);
 
-    constructor(private readonly auth_service: AuthService) {}
+    constructor(
+        private readonly auth_service: AuthService,
+        private readonly demo_service: DemoService
+    ) {}
+
+    // The home page's "Try the demo" (#333): a fresh demo account, filled, and its session.
+    // DemoService counts the accounts made per IP (3 a day) and live (50); the guard only keeps
+    // a script from hammering the route.
+    @Post('demo')
+    @UseGuards(new RateLimitGuard({ name: 'demo', per_ip: 20, per_email: 0, window_ms: HOUR }))
+    async demo(@Request() req) {
+        return await this.demo_service.create(req.ip);
+    }
 
     @Post('login')
     async login(@Request() req) {

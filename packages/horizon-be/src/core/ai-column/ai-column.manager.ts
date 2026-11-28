@@ -211,6 +211,37 @@ export class AiColumnManager {
     }
 
     /**
+     * A column whose cells were written with their hashes already (the demo's showcase, #333):
+     * filled, nothing waiting. Later row changes are computed as after any fill.
+     */
+    async mark_filled(
+        account_id: number,
+        file_id: number,
+        field: string,
+        hash: string,
+        computed: number,
+        now: number
+    ) {
+        const cols = await this.collection();
+        await cols.updateOne(
+            { account_id, file_id, field },
+            {
+                $set: {
+                    auto: true,
+                    filled_hash: hash,
+                    state: 'done',
+                    stopped_reason: null,
+                    filled_at: now,
+                    computed,
+                    pending: false,
+                    full: false,
+                    dirty_ids: []
+                }
+            }
+        );
+    }
+
+    /**
      * Rows of a table changed (made or updated in the app, the API or an AI edit):
      * its filling AI columns look at them. Past max_dirty_ids the whole table is looked at.
      */

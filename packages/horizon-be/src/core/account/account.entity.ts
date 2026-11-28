@@ -88,4 +88,9 @@ export class Account {
     // The app's colour theme (#290): 'system', 'light' or 'dark' (core/theme/theme.ts)
     @Column({ type: 'varchar', length: 10, default: 'system' })
     theme: string;
+
+    // A no-signup demo account (#333, core/demo/demo.ts): when it's deleted. Null for every
+    // other account.
+    @Column({ type: 'timestamptz', nullable: true })
+    demo_expires_at: Date | null;
 }

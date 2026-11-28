@@ -84,6 +84,15 @@ export class AllExceptionFilter implements ExceptionFilter {
             json_response.plan = response.plan;
             json_response.upgrade_url = response.upgrade_url;
         }
+        // The no-signup demo (#333): a feature that's off in it, or no demo to be had now
+        if (response && response.code === 'demo_account') {
+            json_response.code = 'demo_account';
+            json_response.signup_url = response.signup_url;
+        }
+        if (response && (response.code === 'demo_limit' || response.code === 'demo_busy')) {
+            json_response.code = response.code;
+            json_response.limit = response.limit;
+        }
 
         // How long to wait, for a rate limit that knows (the /api/v1 request limit, #182)
         const res = ctx.getResponse<Response>();

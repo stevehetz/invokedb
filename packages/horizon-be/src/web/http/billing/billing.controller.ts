@@ -4,11 +4,13 @@ import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { BillingService } from '@app/application/billing/billing.service';
 import { session_account_id } from '@app/web/http/_auth/request-account';
+import { NoDemoGuard } from '@app/web/http/_auth/demo.guard';
 
 // The signed-in account's subscription, and the Stripe Checkout and Customer Portal links
-// (#129). Session only: an API key can't buy or change a plan.
+// (#129). Session only: an API key can't buy or change a plan. A demo account (#333) can't
+// either: it's deleted in a day.
 @Controller('billing')
-@UseGuards(AuthGuard('bearer'))
+@UseGuards(AuthGuard('bearer'), NoDemoGuard)
 export class BillingController {
     constructor(private readonly billing_service: BillingService) {}
 

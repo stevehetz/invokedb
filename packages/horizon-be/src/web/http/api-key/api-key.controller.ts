@@ -2,10 +2,12 @@ import { Controller, Get, Post, Delete, Param, Body, Request, UseGuards } from '
 import { AuthGuard } from '@nestjs/passport';
 import { ApiKeyService } from '@app/application/api-key/api-key.service';
 import { session_account_id } from '@app/web/http/_auth/request-account';
+import { NoDemoGuard } from '@app/web/http/_auth/demo.guard';
 
 // The account's API keys (#138), for the signed-in app only: a key can't make or see keys.
+// A demo account (#333) can't make any.
 @Controller('api-key')
-@UseGuards(AuthGuard('bearer'))
+@UseGuards(AuthGuard('bearer'), NoDemoGuard)
 export class ApiKeyController {
     constructor(private readonly api_key_service: ApiKeyService) {}
 

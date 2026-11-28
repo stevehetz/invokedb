@@ -2,10 +2,12 @@ import { Controller, Get, Post, Put, Param, Body, Request, UseGuards } from '@ne
 import { AuthGuard } from '@nestjs/passport';
 import { UrlImportService } from '@app/application/url-import/url-import.service';
 import { session_account_id } from '@app/web/http/_auth/request-account';
+import { NoDemoGuard } from '@app/web/http/_auth/demo.guard';
 
-// Tables imported from a Google Sheet or a CSV / JSON URL (#144), for the signed-in app
+// Tables imported from a Google Sheet or a CSV / JSON URL (#144), for the signed-in app; off
+// in the demo (#333), which reaches no outside URL
 @Controller('url-import')
-@UseGuards(AuthGuard('bearer'))
+@UseGuards(AuthGuard('bearer'), NoDemoGuard)
 export class UrlImportController {
     constructor(private url_import_service: UrlImportService) {}
 

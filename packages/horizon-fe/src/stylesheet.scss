@@ -383,6 +383,53 @@ p {
 .layout > .verify-email-banner .error {
     color: var(--h-danger);
 }
+// The no-signup demo's banner (#333)
+.layout > .demo-banner {
+    display: flex;
+    flex-shrink: 0;
+    flex-grow: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75em;
+    padding: 8px 14px;
+    background-color: var(--h-tint-info);
+    border-bottom: solid 1px var(--h-line);
+    color: var(--h-text);
+    font-size: 13px;
+}
+.layout > .demo-banner i {
+    color: var(--h-info);
+}
+.layout > .demo-banner a {
+    color: var(--h-link);
+    text-decoration: underline;
+    cursor: pointer;
+}
+.layout > .demo-banner .demo-banner-signup {
+    font-weight: bold;
+}
+// A feature that's off in the demo (#333): components/demo-off
+.demo-off {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border: solid 1px var(--h-line);
+    border-radius: 6px;
+    background-color: var(--h-tint-info);
+    color: var(--h-text);
+    font-size: 13px;
+}
+.demo-off i {
+    color: var(--h-info);
+}
+.demo-off a {
+    color: var(--h-link);
+    font-weight: bold;
+    text-decoration: underline;
+    cursor: pointer;
+}
 // The plan state's banner (#184): read-only over the caps, or a payment's grace period
 .layout > .plan-state-banner {
     display: flex;
@@ -4236,7 +4283,8 @@ $page_nav_active_color: var(--h-warning);
     color: var(--h-danger);
 }
 .plan-limit-notice__usage,
-.plan-limit-notice__plans {
+.plan-limit-notice__plans,
+.plan-limit-notice__signup {
     color: var(--h-success);
     white-space: nowrap;
 }

@@ -16,6 +16,7 @@ import { handle_body } from '@app/core/mcp/mcp';
 import { api_key_account } from '@app/web/http/_auth/request-account';
 import { ApiKeyUsageGuard } from '@app/web/http/external/api-key-usage.guard';
 import { OnboardingInterceptor } from '@app/web/http/external/onboarding.interceptor';
+import { NoDemoGuard } from '@app/web/http/_auth/demo.guard';
 
 const NO_STREAM = 'This MCP server answers each POST with JSON; it has no event stream or sessions';
 
@@ -23,7 +24,7 @@ const NO_STREAM = 'This MCP server answers each POST with JSON; it has no event 
 // (the same bearer check, per-key rate limit and request log, onboarding tick). Streamable HTTP,
 // stateless: every request is a POST of JSON-RPC answered with JSON (core/mcp/mcp.ts).
 @Controller('mcp')
-@UseGuards(AuthGuard('bearer'), ApiKeyUsageGuard)
+@UseGuards(AuthGuard('bearer'), NoDemoGuard, ApiKeyUsageGuard)
 @UseInterceptors(OnboardingInterceptor)
 export class McpController {
     constructor(private readonly mcp_service: McpService) {}

@@ -12,6 +12,7 @@
     <div class="webhooks-status" v-if="loading">Loading webhooks...</div>
     <div class="webhooks-status error" v-if="error">{{ error }}</div>
 
+    <demo-off v-if="demo" text="Webhooks are off in the demo."></demo-off>
     <div class="webhooks-add">
         <h4>Add a webhook</h4>
         <div class="webhooks-row">

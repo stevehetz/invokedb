@@ -8,6 +8,7 @@ import { ApiKeyService } from '../api-key/api-key.service';
 import { Account } from '@app/core/account/account.entity';
 import { session_usable } from '@app/core/session/session-rules';
 import { is_verified } from '@app/core/email-verification/email-verification';
+import { is_demo_account } from '@app/core/demo/demo';
 
 @Injectable()
 export class HttpStrategy extends PassportStrategy(Strategy) {
@@ -27,11 +28,11 @@ export class HttpStrategy extends PassportStrategy(Strategy) {
         if (key_or_token) {
             if (key_or_token.indexOf('internal_') > -1) {
                 const session = await this.session_repository.findOneBy({ token: key_or_token });
-                // A deleted account's sessions are refused (#282)
+                // A deleted account's sessions are refused (#282), and an expired demo's (#333)
                 const account =
                     session &&
                     (await this.account_repository.findOne({
-                        select: { id: true, deleted: true },
+                        select: { id: true, deleted: true, demo_expires_at: true },
                         where: { id: session.account_id }
                     }));
                 if (session_usable(session, account)) {
@@ -39,8 +40,9 @@ export class HttpStrategy extends PassportStrategy(Strategy) {
                 }
             } else {
                 const account = await this.api_key_service.account_from_key(key_or_token);
-                // An API key works once the account's email is verified (#132)
-                if (account && is_verified(account)) {
+                // An API key works once the account's email is verified (#132), and never for
+                // a demo account (#333; it can't make one either)
+                if (account && is_verified(account) && !is_demo_account(account)) {
                     return account;
                 }
             }

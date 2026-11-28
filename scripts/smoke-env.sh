@@ -42,6 +42,8 @@ STRIPE_WEBHOOK_SECRET=whsec_smoke_secret
 STRIPE_API_BASE=http://127.0.0.1:8196
 # The admin area (#277): api-smoke.mjs turns demo6's two-factor on and uses it as the admin
 HORIZON_ADMIN_EMAILS=demo6@invokedb.com
+# The no-signup demo (#333): api-smoke.mjs makes 4 demo accounts and then sees the 5th refused
+HORIZON_DEMO_MAX_LIVE=4
 # Plans (#183): the demo accounts are internal (no caps), except these, which api-smoke.mjs uses
 # to reach each cap: demo5 on Free (the API rate limit; then moved between plans by the test-only
 # PUT /test-plan for the read-only state, #184), demo6 on Starter with a 1-byte storage cap, demo7

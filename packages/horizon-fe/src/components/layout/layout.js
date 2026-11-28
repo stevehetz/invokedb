@@ -2,6 +2,7 @@ import { store } from '@/store';
 import { account_manager } from '@/core/context/account/account-manager';
 import { auth_http } from '@/core/context/account/auth-http';
 import { choose_theme, get_theme_choice } from '@/core/theme';
+import { sign_up_from_demo } from '@/core/demo';
 
 export default {
     name: 'Layout',
@@ -72,6 +73,23 @@ export default {
             const plan = this.account && this.account.plan;
             if (!plan || !plan.name) return '';
             return `${plan.name} plan`;
+        },
+
+        /** When the demo account is deleted (#333), for its banner. @returns {string} */
+        demo_end() {
+            const at =
+                this.account &&
+                this.account.demo &&
+                this.account.demo.expires_at;
+            const d = at ? new Date(at) : null;
+            if (!d || isNaN(d.getTime())) return 'a day after it was made';
+            return `${d.toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric'
+            })}, ${d.toLocaleTimeString(undefined, {
+                hour: 'numeric',
+                minute: '2-digit'
+            })}`;
         },
 
         /** When a payment's grace period ends (#184), for its banner. @returns {string} */
@@ -171,6 +189,12 @@ export default {
             else if (command === 'help') this.$router.push('/help');
             else if (command === 'contact') this.contact();
             else if (command === 'logout') this.logout();
+        },
+
+        // Signing up starts a fresh account (#333): the demo is signed out first (a full page
+        // load, like logout) and its tables aren't carried over
+        sign_up_from_demo() {
+            return sign_up_from_demo();
         },
 
         async logout() {

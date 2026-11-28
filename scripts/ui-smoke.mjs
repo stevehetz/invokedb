@@ -1034,13 +1034,14 @@ try {
                 (await page.locator('.layout .account-menu-button.active').count()) === 1,
             `after the docs' account link the nav highlights ${JSON.stringify(results.observed.nav_active_after_docs_link)}`
         );
-        // Data export (#215) is offered on the same page. Only looked at: an export counts
-        // against the account's few a day, and this test also runs against production.
-        const export_button = page.locator('.data-export-form .data-export-request');
-        await export_button.waitFor();
+        // The page shows one section at a time (#342): the docs' link opens API keys
+        const account_nav = page.locator('.account-page .account-nav');
         check(
-            /^(Export my data|Export again)$/.test((await export_button.innerText()).trim()),
-            `the export button says ${await export_button.innerText()}`
+            new URL(page.url()).searchParams.get('section') === 'api-keys' &&
+                (await account_nav.locator('.account-nav-item.active').innerText()).trim() ===
+                    'API keys' &&
+                (await page.locator('.account-page .subscription-form').count()) === 0,
+            `the docs' account link opened ${page.url()}, not only the API keys section`
         );
         await form.locator('.api-key-new-button').click();
         await form.locator('.api-key-name input').fill('ui-smoke');
@@ -1127,9 +1128,24 @@ try {
                 await be('DELETE', `/api-key/${k.id}`, { token: be_s.token });
             }
         }
-        // Two-factor sign-in (#214), on the same page: the card loads, and "Turn on" shows a QR
-        // code drawn by the backend (a data URI) and the key; cancelled, so login is unchanged.
-        // Skipped where the server has no HORIZON_TOTP_KEY (the card then says so).
+        // Data export (#215), in the Data section. Only looked at: an export counts against the
+        // account's few a day, and this test also runs against production.
+        await account_nav.locator('.account-nav-data').click();
+        const export_button = page.locator('.data-export-form .data-export-request');
+        await export_button.waitFor();
+        check(
+            new URL(page.url()).searchParams.get('section') === 'data' &&
+                (await page.locator('.account-page .api-key-form').count()) === 0,
+            `the Data section is at ${page.url()} or shows the API keys too`
+        );
+        check(
+            /^(Export my data|Export again)$/.test((await export_button.innerText()).trim()),
+            `the export button says ${await export_button.innerText()}`
+        );
+        // Two-factor sign-in (#214), in the Security section: the card loads, and "Turn on" shows
+        // a QR code drawn by the backend (a data URI) and the key; cancelled, so login is
+        // unchanged. Skipped where the server has no HORIZON_TOTP_KEY (the card then says so).
+        await account_nav.locator('.account-nav-security').click();
         const tf = page.locator('.two-factor-form');
         await tf.locator('.two-factor-intro').first().waitFor();
         if (await tf.locator('.two-factor-setup-button').count()) {
@@ -1146,6 +1162,13 @@ try {
             await tf.locator('.two-factor-setup').getByRole('button', { name: 'Cancel' }).click();
             await qr.waitFor({ state: 'detached' });
         }
+        // The section is in the URL, so the browser's back button returns to Data
+        await page.goBack();
+        await export_button.waitFor();
+        check(
+            new URL(page.url()).searchParams.get('section') === 'data',
+            `back from Security went to ${page.url()}`
+        );
         await page.locator('.layout .nav .el-menu-item', { hasText: 'Tables' }).click();
     });
 

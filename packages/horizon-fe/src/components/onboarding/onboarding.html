@@ -69,7 +69,8 @@
                         <p>
                             A read-only key for your tables. Copy it now: it's
                             only shown this once. Manage your keys on the
-                            <router-link :to="{ name: 'account' }"
+                            <router-link
+                                :to="{ name: 'account', query: { section: 'api-keys' } }"
                                 >Account page</router-link
                             >.
                         </p>
@@ -82,7 +83,8 @@
                             A key opens your tables through the API: keep it
                             secret. It's only shown when it's made; make more,
                             or revoke them, on the
-                            <router-link :to="{ name: 'account' }"
+                            <router-link
+                                :to="{ name: 'account', query: { section: 'api-keys' } }"
                                 >Account page</router-link
                             >.
                         </p>

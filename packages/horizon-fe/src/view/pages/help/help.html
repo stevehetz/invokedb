@@ -84,7 +84,7 @@
                     </p>
                     <h2>3. Make an API key</h2>
                     <p>
-                        On the <b>Account</b> page, under <b>API Keys</b>, click
+                        On the <b>Account</b> page, in <b>API keys</b>, click
                         <b>New key</b>. Copy it: it's shown only once. See
                         <router-link to="/help/api-keys">API keys</router-link>.
                     </p>
@@ -422,9 +422,9 @@
                     <h1>API keys</h1>
                     <p>
                         A key lets code use your tables through the API. Make
-                        them on the <b>Account</b> page under <b>API Keys</b>.
-                        You can have up to 20 live keys, for example one per app
-                        or integration.
+                        them on the <b>Account</b> page in <b>API keys</b>. You
+                        can have up to 20 live keys, for example one per app or
+                        integration.
                     </p>
                     <h2>Making a key</h2>
                     <ul>
@@ -472,7 +472,7 @@
                     </p>
                     <h2>Connecting an agent</h2>
                     <p>
-                        On the <b>Account</b> page, under <b>API Keys</b>, the
+                        On the <b>Account</b> page, in <b>API keys</b>, the
                         <b>Use with AI agents</b> box has the server's address
                         and the setup to paste. For Claude Code:
                     </p>
@@ -830,29 +830,55 @@ function verify(secret, raw_body, header) {
                         In the app, the account menu at the top right (your
                         initial and email) has <b>Account settings</b>,
                         <b>Contact support</b> and <b>Sign out</b>. Account
-                        settings shows your plan and how much of each of its
-                        <router-link to="/help/limits">limits</router-link> you
-                        use, your
-                        <router-link to="/help/api-keys">API keys</router-link>
-                        and your details, and lets you change your password,
-                        turn on two-factor sign-in, export your data or delete
-                        the account.
+                        settings opens the Account page, with its sections in a
+                        list on the left (a row of tabs at the top on a phone):
+                    </p>
+                    <ul>
+                        <li>
+                            <b>Plan &amp; usage</b>: your plan, how much of each
+                            of its
+                            <router-link to="/help/limits">limits</router-link>
+                            you use, upgrading and billing.
+                        </li>
+                        <li>
+                            <b>API keys</b>: your
+                            <router-link to="/help/api-keys"
+                                >API keys</router-link
+                            >, their last requests and the setup for AI agents.
+                        </li>
+                        <li><b>Profile</b>: your name and email.</li>
+                        <li>
+                            <b>Security</b>: change your password and turn on
+                            two-factor sign-in.
+                        </li>
+                        <li>
+                            <b>History</b>: every change to your tables, columns
+                            and keys.
+                        </li>
+                        <li>
+                            <b>Data</b>: export your data or delete the account.
+                        </li>
+                    </ul>
+                    <p>
+                        Each section has its own address, so you can bookmark
+                        one or go back to the one before.
                     </p>
                     <h2>Deleting your account</h2>
                     <p>
                         <b>Delete Account</b>, at the bottom of the Account
-                        page, deletes the account and all its data at once:
-                        every table with its rows and columns, your forms,
-                        views, webhooks, URL sources, API keys, history, AI
-                        usage and exports. You're signed out everywhere, and the
-                        email address can be used for a new account. It can't be
-                        undone, so use <b>Export Your Data</b> first if you want
-                        a copy. If you're on a paid plan, deleting the account
-                        cancels it first.
+                        page's <b>Data</b> section, deletes the account and all
+                        its data at once: every table with its rows and columns,
+                        your forms, views, webhooks, URL sources, API keys,
+                        history, AI usage and exports. You're signed out
+                        everywhere, and the email address can be used for a new
+                        account. It can't be undone, so use
+                        <b>Export Your Data</b> first if you want a copy. If
+                        you're on a paid plan, deleting the account cancels it
+                        first.
                     </p>
                     <h2>Plans and billing</h2>
                     <p>
-                        Under <b>Plan and Usage</b> on the Account page, pick
+                        Under <b>Plan &amp; usage</b> on the Account page, pick
                         <b>Monthly</b> or <b>Yearly</b> and click
                         <b>Get Starter</b> or <b>Get Pro</b> (or
                         <b>Choose</b> on the
@@ -893,7 +919,7 @@ function verify(secret, raw_body, header) {
                         first characters, never your rows or the keys
                         themselves. A locked account can still sign in and read
                         its data, but can't change it; the reason is shown under
-                        <b>Plan and Usage</b>.
+                        <b>Plan &amp; usage</b>.
                     </p>
                     <h2>Getting help</h2>
                     <p>
@@ -918,7 +944,7 @@ function verify(secret, raw_body, header) {
                         numbers on
                         <router-link to="/pricing">Pricing</router-link>, and
                         yours, with how much of each you use, under
-                        <b>Plan and Usage</b> on the Account page.
+                        <b>Plan &amp; usage</b> on the Account page.
                     </p>
                     <p>
                         Something that would go over a limit is refused with a

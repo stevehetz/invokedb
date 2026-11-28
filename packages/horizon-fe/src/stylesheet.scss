@@ -4136,6 +4136,91 @@ $page_nav_active_color: var(--h-warning);
     align-items: flex-start;
 }
 
+// The Account page's sections (#342): a nav on the left, one section at a time; at phone width
+// the nav is a row of tabs above it that scrolls sideways by itself
+.account-page .page-body {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2em;
+}
+.account-page .account-nav {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 180px;
+    padding-top: 0.5em;
+}
+.account-page .account-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    padding: 0.55em 0.8em;
+    border-left: 2px solid transparent;
+    border-radius: 0 4px 4px 0;
+    color: var(--h-muted);
+    font-size: 0.95rem;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.account-page .account-nav-item i {
+    width: 1.1em;
+    text-align: center;
+}
+.account-page .account-nav-item:hover {
+    color: var(--h-text);
+    background-color: var(--h-surface-2);
+}
+.account-page .account-nav-item.active {
+    color: var(--h-text);
+    border-left-color: var(--h-accent);
+    background-color: var(--h-tint-accent);
+}
+.account-page .account-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 800px;
+}
+.account-page .account-section .page-form {
+    margin-bottom: 20px;
+}
+.account-page .account-section-history .audit-log-form {
+    flex-grow: 1;
+}
+@media (max-width: 700px) {
+    .account-page .page-body {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1em;
+    }
+    .account-page .account-nav {
+        position: static;
+        flex-direction: row;
+        width: auto;
+        max-width: 100%;
+        padding: 0;
+        overflow-x: auto;
+        border-bottom: 1px solid var(--h-line);
+    }
+    .account-page .account-nav-item {
+        flex-shrink: 0;
+        border-left: none;
+        border-bottom: 2px solid transparent;
+        border-radius: 4px 4px 0 0;
+    }
+    .account-page .account-nav-item.active {
+        border-bottom-color: var(--h-accent);
+    }
+    .account-page .account-section {
+        max-width: none;
+        width: 100%;
+    }
+}
+
 .account-page .subscription-form {
     margin-bottom: 10px;
 }

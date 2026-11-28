@@ -1,6 +1,6 @@
 # InvokeDB: handoff
 
-_Last updated 2026-11-28 (afternoon UTC)_
+_Last updated 2026-11-28 (14:30 UTC)_
 
 InvokeDB ("horizon") is an **agentic web database**, "the database for you and your AI agents":
 tables people edit like a spreadsheet and code and AI agents use through an API and an MCP
@@ -29,10 +29,9 @@ Elsewhere:
 use it one day, great; a sale someday would be a bonus. What that means for the work:
 
 - Rank work by whether it makes the product complete, polished and easy to show. Portfolio
-  pieces on the board (2026-11-28, in order): a no-signup demo workspace that showcases the
-  table features (#333), a deployed React example app with webhooks (#340), MCP OAuth for the
-  claude.ai/ChatGPT connectors (#328), a demo video (#334). The "how it's built" page shipped
-  (#341).
+  pieces left on the board (2026-11-28, in order): a deployed React example app with webhooks
+  (#340), MCP OAuth for the claude.ai/ChatGPT connectors (#328), a demo video (#334). Shipped:
+  the "how it's built" page (#341) and the no-signup demo workspace (#333, PR #360).
 - **agent-evals** (started 2026-11-28): a second portfolio piece in its own public repo,
   `stevehetz/agent-evals` (`~/dev/agent-evals`; its `AGENTS.md` and `README.md` are the
   details), with its own board, https://github.com/users/stevehetz/projects/2. A Next.js 16 app
@@ -46,7 +45,9 @@ use it one day, great; a sale someday would be a bonus. What that means for the 
     ~$486 so far), #3 the app (overview, runs, a run's trace as a waterfall; CI in its repo),
     #11 **projects** (owner's decision: a project = a GitHub repo with Claude Code in Actions,
     the project in the URL, `/p/<project>`; add one with `node scripts/projects.mjs add`;
-    InvokeDB is the only one so far, more to come).
+    InvokeDB is the only one so far, more to come). Then, from the owner's look at the live
+    site: each project page has a header (Projects / name, repo) with **Overview | Runs** tabs
+    (the top nav is only Projects), and the selects draw their own spaced caret.
   - **Next on its board:** #4 time to signal per work item, #5 LLM judges, #6 the collector on
     a schedule (until then the data only moves when someone runs `npm run collect` locally).
   - **Vercel:** the owner's **personal Hobby account**, reached only with **Continue with
@@ -71,29 +72,37 @@ use it one day, great; a sale someday would be a bonus. What that means for the 
   dashboard in InvokeDB (the board, Actions and Telegram already cover it); more link-column work
   (little value without lookups/rollups; the matching flow (#321) is confusing but stays as is).
 
-## Where things stand (2026-11-28, afternoon)
+## Where things stand (2026-11-28, 14:30 UTC)
 
 Everything below is merged and deployed unless it says otherwise. Details:
-`gh pr list --state merged`.
+`gh pr list --state merged`. **No open PRs; the agent queue is empty** (every `agent` issue is
+done).
 
-- **Open now, needs the owner:**
-  - **#360** (agent, #333: the no-signup demo workspace, `POST /auth/demo`, "Try the demo"):
-    `review-ok` but `needs-owner` because it adds a migration
-    (`1796100000000-DemoAccount.ts`). **Its showcase includes a form, and #368 removes forms**:
-    whichever merges second must drop the form from the demo seed (and its smoke checks). Best:
-    merge #360 first, then let #368 (or a follow-up) take the form out.
-  - **#368** (agent, #358: remove shareable forms) was still in CI/review. After it deploys, the
-    owner drops `tracking:form` in production by hand (as with dashboards).
-- **Agent queue, in board order:** #359 (shorten Ask AI's intro text), #361 (grid density
-  setting, the owner's), #364 (readable dates in Ask AI previews/cleanup/link chips,
-  agent-found, waits for the owner's `agent` label), #366 (refuse renaming onto a taken name,
-  agent-found bug, queued). Then the owner's: #340, #328 (`you`), #334 (`you`).
-- **Shipped 2026-11-28 (afternoon):**
+- **Waiting on the owner:**
+  - **Drop the saved forms in production** (`tracking:form` in the tracking DB) now that #368
+    removed forms, as was done for dashboards. Not done yet.
+  - **#364** (readable dates in Ask AI previews, cleanup fixes and link chips; agent-found after
+    #365 made dates ISO): add `agent` to queue it, or close it.
+  - Then the owner's board items: **#340**, **#328** (`you`), **#334** (`you`), below.
+- **Shipped 2026-11-28 (14:00–14:30 UTC):**
+  - **#360** (#333): the **no-signup demo workspace**: "Try the demo" on the home page,
+    `POST /auth/demo` makes a short-lived demo account with the showcase tables and views
+    (migration `1796100000000-DemoAccount.ts`; `NoDemoGuard` keeps demo accounts off API keys,
+    MCP, webhooks, URL import, export, 2FA, billing and account deletion; expired demos are
+    swept). It conflicted with #368 (its showcase had a form); `resolve.yml` merged `main` in
+    and took the form out of the seed, then the owner OK'd the merge.
+  - **#368** (#358): **shareable forms removed** everywhere (routes, `/f/:id`, plan caps, help,
+    smoke tests).
+  - **#369** (#359): Ask AI's intro is one short line with a help link; Clean up and Paste text
+    have tooltips.
+  - **#370** (#361): a grid density setting, Comfortable and Compact.
+  - **#371** (#366): renaming or moving a table or folder onto a name already in its folder is
+    refused.
+- **Shipped 2026-11-28 (afternoon, earlier):**
   - **#365** (#356): **dates leave the backend as ISO 8601 UTC with milliseconds everywhere**
     (`/api/v1`, MCP, webhooks, Ask AI); the grid formats them for display. Owner's decision: no
-    compatibility mode, there were no outside clients. (agent-evals still has a `parse_db_date`
-    for the old `YYYY-MM-DD hh:mm:SS A` format; it reads ISO too, so it's harmless, and its
-    "to the minute" notes in agent-evals' `AGENTS.md` are now out of date.)
+    compatibility mode, there were no outside clients. (agent-evals' `parse_db_date` reads both
+    the old `YYYY-MM-DD hh:mm:SS A` format and ISO; its `AGENTS.md` says so.)
   - **#367** (#357): **folders** in the tables pane (make, rename, delete with their tables,
     move tables in and out, "Move to folder…"); MCP `create_folder`, and `list_tables` shows
     each table's folder.
